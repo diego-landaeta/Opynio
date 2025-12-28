@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(nul)",
+      "Bash(exit 0)",
+      "Bash(timeout /t 2 /nobreak)",
+      "Bash(curl:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run build:*)",
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Sistema completo de gestión de sedes para empresas\n\nImplementa un sistema robusto para gestionar múltiples ubicaciones de\nempresas con datos completos e independientes por cada sede.\n\nCambios principales:\n- Expande interfaz Sede con campos completos (dirección, contacto, horarios)\n- Nuevo componente SedeEditor expandible con UI intuitiva\n- Cada sede puede tener: teléfono, email, website, horarios, redes sociales\n- Editor visual con expansión/colapso para mejor UX\n- Sistema de horarios independiente por sede\n- Traducciones completas en español\n\nArchivos modificados:\n- types.ts: Interfaz Sede expandida con 15+ campos\n- EditBusinessPage.tsx: Componente SedeEditor completo\n- locales/es.ts: Nuevas traducciones para el editor\n\nBuild exitoso sin errores en 18.58s\n\n🤖 Generated with Claude Code (https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(where:*)",
+      "Bash(npx localtunnel --port 3000)",
+      "Bash(npx --yes cloudflared tunnel:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(taskkill:*)",
+      "Bash(npx vite:*)",
+      "Bash(cat:*)",
+      "Bash(git commit:*)",
+      "Bash(grep:*)",
+      "Bash(netstat:*)",
+      "Bash(timeout /t:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ping:*)",
+      "Bash(powershell -Command:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opynio: Reseñas Auténticas de Empresas</title>
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- SEO Meta Tags - Defaults (will be updated by React for specific pages) -->
+    <meta name="description" content="Opynio: Tu plataforma para encontrar y compartir reseñas auténticas de empresas. Lee opiniones reales de otros usuarios en texto y audio y toma decisiones informadas.">
+    <meta name="keywords" content="reseñas, opiniones, empresas, reviews, valoraciones, comentarios, experiencias">
+
+    <!-- SEO: Robots -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+    <!-- Google Search Console Verification -->
+    <meta name="google-site-verification" content="JmfzqeQpGNZbeKrDE1Aw4rFj27uKKyUwC5PdxnZwWxo" />
+
+    <!-- Open Graph defaults for social sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Opynio" />
+    <meta property="og:title" content="Opynio: Reseñas Auténticas de Empresas" />
+    <meta property="og:description" content="Tu plataforma para encontrar y compartir reseñas auténticas de empresas." />
+    <meta property="og:image" content="https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png" />
+    <meta property="og:url" content="https://web.opynio.com/" />
+
+    <!-- Twitter Card defaults -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Opynio: Reseñas Auténticas de Empresas" />
+    <meta name="twitter:description" content="Tu plataforma para encontrar y compartir reseñas auténticas de empresas." />
+    <meta name="twitter:image" content="https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png" />
+
+    <!-- Canonical URL - Se establece dinámicamente por React/Meta.tsx -->
+    <!-- NO hardcodear canonical aquí - causa conflictos con páginas específicas -->
+
+    <!-- Preconnect to critical origins for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://hvtrrepgnsrixnqgds.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://hvtrrepgnsrixnqgds.supabase.co">
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+
+    <!-- Preload critical fonts to prevent FOUT/CLS -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2" as="font" type="font/woff2" crossorigin>
+
+    <!-- Fonts with display=swap for better performance -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons - Deferred to reduce render blocking -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer"></noscript>
+
+    <!-- Leaflet Map Library - Lazy loaded -->
+    <link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" as="style" onload="this.onload=null;this.rel='stylesheet'" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""></noscript>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Opynio",
+  "url": "https://web.opynio.com/",
+  "logo": "https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png",
+  "description": "Encuentra y comparte reseñas auténticas de empresas. Opynio te ayuda a tomar decisiones informadas con opiniones reales de otros usuarios en texto y audio.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://web.opynio.com/buscar?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+</head>
+<body>
+    <!-- SEO: Contenido visible para crawlers mientras JavaScript carga -->
+    <link rel="stylesheet" href="/initial-loader.css">
+    <noscript>
+        <link rel="stylesheet" href="/noscript.css">
+    </noscript>
+    <div id="root">
+        <header style="padding:16px;background:#fff;border-bottom:1px solid #e5e7eb;">
+            <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+                <img src="/images/Logo-opynio.png" alt="Opynio" width="40" height="40">
+                <span style="font-size:24px;font-weight:700;color:#1a1a1a;">Opynio</span>
+            </a>
+        </header>
+        <!-- Loader visible mientras React carga -->
+        <div id="initial-loader">
+            <div class="spinner"></div>
+            <p>Cargando...</p>
+        </div>
+        <!-- Contenido SEO oculto para usuarios con JS, visible para crawlers/noscript -->
+        <main class="seo-content" style="max-width:1200px;margin:0 auto;padding:40px 16px;">
+            <h1 style="font-size:32px;font-weight:800;color:#1a1a1a;margin-bottom:16px;">
+                Encuentra y comparte reseñas auténticas de empresas
+            </h1>
+            <p style="font-size:18px;color:#4b5563;margin-bottom:24px;">
+                Opynio es la plataforma donde puedes leer opiniones reales de otros usuarios y compartir tus experiencias con empresas de todo el mundo. Toma decisiones informadas con reseñas en texto y audio.
+            </p>
+            <nav style="margin-top:32px;">
+                <h2 style="font-size:20px;font-weight:600;margin-bottom:16px;">Explora por país:</h2>
+                <ul style="display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;">
+                    <li><a href="/es" style="color:#16a34a;">España</a></li>
+                    <li><a href="/mx" style="color:#16a34a;">México</a></li>
+                    <li><a href="/ar" style="color:#16a34a;">Argentina</a></li>
+                    <li><a href="/co" style="color:#16a34a;">Colombia</a></li>
+                    <li><a href="/cl" style="color:#16a34a;">Chile</a></li>
+                    <li><a href="/pe" style="color:#16a34a;">Perú</a></li>
+                    <li><a href="/br" style="color:#16a34a;">Brasil</a></li>
+                    <li><a href="/us" style="color:#16a34a;">Estados Unidos</a></li>
+                    <li><a href="/pt" style="color:#16a34a;">Portugal</a></li>
+                    <li><a href="/fr" style="color:#16a34a;">Francia</a></li>
+                    <li><a href="/de" style="color:#16a34a;">Alemania</a></li>
+                    <li><a href="/it" style="color:#16a34a;">Italia</a></li>
+                </ul>
+            </nav>
+            <section style="margin-top:40px;">
+                <h2 style="font-size:20px;font-weight:600;margin-bottom:16px;">Categorías populares:</h2>
+                <ul style="display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;">
+                    <li><a href="/es/explorar" style="color:#16a34a;">Tecnología</a></li>
+                    <li><a href="/es/explorar" style="color:#16a34a;">Gastronomía</a></li>
+                    <li><a href="/es/explorar" style="color:#16a34a;">Salud</a></li>
+                    <li><a href="/es/explorar" style="color:#16a34a;">Servicios</a></li>
+                    <li><a href="/es/explorar" style="color:#16a34a;">Educación</a></li>
+                    <li><a href="/es/explorar" style="color:#16a34a;">Comercio</a></li>
+                </ul>
+            </section>
+        </main>
+        <footer class="seo-content" style="padding:24px;background:#f9fafb;text-align:center;color:#6b7280;">
+            <p>&copy; 2025 Opynio. Reseñas auténticas de confianza.</p>
+        </footer>
+    </div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

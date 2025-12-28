@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: rgb(248, 250, 252); /* slate-50 */
+  color: rgb(31, 41, 55); /* gray-800 */
+  font-family: 'Inter', sans-serif;
+  transition-property: background-color, color;
+  transition-duration: 300ms;
+}
+
+.dark body {
+  background-color: rgb(24, 24, 27); /* zinc-900 */
+  color: rgb(228, 228, 231); /* zinc-200 */
+}
+
+/* Custom CSS Variables */
+:root {
+  --brand-green: #10b981;
+  --brand-dark: #1f2937;
+}
+
+/* Dark mode theme transition */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
+}
+
+::view-transition-old(root) {
+  clip-path: circle(0% at var(--x, 50%) var(--y, 50%));
+}
+
+::view-transition-new(root) {
+  clip-path: circle(150% at var(--x, 50%) var(--y, 50%));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-zinc-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-zinc-600 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-zinc-500;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Ken Burns effect for featured business slider */
+@keyframes ken-burns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.1) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1.15) translate(-2%, 0);
+  }
+}
+
+.animate-ken-burns {
+  animation: ken-burns 8s ease-in-out infinite alternate;
+}

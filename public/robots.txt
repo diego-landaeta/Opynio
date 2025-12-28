@@ -1,0 +1,90 @@
+# robots.txt para Opynio - https://web.opynio.com
+# Optimizado para mejor indexación en Google y otros motores
+
+# Reglas generales para todos los crawlers
+User-agent: *
+Allow: /
+
+# Páginas públicas importantes - prioridad alta
+Allow: /es/
+Allow: /mx/
+Allow: /ar/
+Allow: /co/
+Allow: /cl/
+Allow: /pe/
+Allow: /br/
+Allow: /pt/
+Allow: /us/
+Allow: /fr/
+Allow: /de/
+Allow: /it/
+
+# Páginas de empresas - muy importantes para SEO
+Allow: /*/empresa/
+Allow: /*/business/
+Allow: /*/empresas
+Allow: /*/explorar
+
+# Disallow - páginas privadas y de administración
+Disallow: /admin/
+Disallow: /*/admin/
+Disallow: /perfil/
+Disallow: /*/perfil/
+Disallow: /profile/
+Disallow: /*/profile/
+Disallow: /post-acceso
+Disallow: /*/post-acceso
+Disallow: /post-login
+Disallow: /*/post-login
+Disallow: /empresa/panel/
+Disallow: /*/empresa/panel/
+Disallow: /business/panel/
+Disallow: /*/business/panel/
+Disallow: /escribir-resena
+Disallow: /*/escribir-resena
+Disallow: /write-review
+Disallow: /*/write-review
+Disallow: /asignar-empresa
+Disallow: /*/asignar-empresa
+Disallow: /assign-business
+Disallow: /*/assign-business
+Disallow: /mis-negocios
+Disallow: /*/mis-negocios
+Disallow: /my-businesses
+Disallow: /*/my-businesses
+Disallow: /editar-perfil
+Disallow: /*/editar-perfil
+Disallow: /edit-profile
+Disallow: /*/edit-profile
+Disallow: /completar-registro
+Disallow: /*/completar-registro
+Disallow: /complete-registration
+Disallow: /*/complete-registration
+Disallow: /pago-exitoso
+Disallow: /*/pago-exitoso
+Disallow: /pago-cancelado
+Disallow: /*/pago-cancelado
+Disallow: /payment-success
+Disallow: /*/payment-success
+Disallow: /payment-cancel
+Disallow: /*/payment-cancel
+Disallow: /migrar-google-reviews
+Disallow: /*/migrar-google-reviews
+
+# Evitar indexación de parámetros de búsqueda duplicados
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /*?*page=
+
+# Reglas específicas para Googlebot
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+# Reglas para Bingbot
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+# Sitemap dinámico (generado desde Supabase con todas las empresas)
+Sitemap: https://web.opynio.com/sitemap.xml

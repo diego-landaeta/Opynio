@@ -1,0 +1,18 @@
+{
+  "name": "prerender-simple",
+  "version": "1.0.0",
+  "description": "Servidor de pre-rendering para SEO usando Puppeteer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer-core": "^21.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Opynio",
+  "license": "MIT"
+}

@@ -1,0 +1,37 @@
+# Opynio - Apache Configuration
+
+# Enable rewrite engine for SPA
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# Correct MIME types for JavaScript
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/javascript .js
+</IfModule>
+
+# Headers for JavaScript files
+<IfModule mod_headers.c>
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript"
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+
+    # Specific for widget.js
+    <Files "widget.js">
+        Header set Content-Type "application/javascript"
+        Header set Access-Control-Allow-Origin "*"
+        Header set Cache-Control "public, max-age=31536000"
+    </Files>
+</IfModule>
+
+# Compress text files
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
+</IfModule>

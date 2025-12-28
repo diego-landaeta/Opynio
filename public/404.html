@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Pagina no encontrada | Opynio</title>
+
+    <!-- SEO: No indexar paginas 404 -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/images/Logo-opynio.png">
+
+    <!-- Styles -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header img { width: 40px; height: 40px; }
+        .header span { font-size: 24px; font-weight: 700; color: #1a1a1a; }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .error-code {
+            font-size: clamp(80px, 20vw, 150px);
+            font-weight: 800;
+            color: #16a34a;
+            line-height: 1;
+        }
+        .error-title {
+            font-size: clamp(24px, 5vw, 36px);
+            font-weight: 700;
+            color: #1f2937;
+            margin-top: 16px;
+        }
+        .error-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-top: 8px;
+            max-width: 400px;
+        }
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+            justify-content: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #16a34a;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #15803d; }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .btn-secondary:hover { background: #e5e7eb; }
+
+        /* Dark mode */
+        @media (prefers-color-scheme: dark) {
+            body { background: #18181b; }
+            .header { background: #27272a; border-color: #3f3f46; }
+            .header span { color: #fafafa; }
+            .error-title { color: #fafafa; }
+            .error-subtitle { color: #a1a1aa; }
+            .btn-secondary { background: #3f3f46; color: #fafafa; }
+            .btn-secondary:hover { background: #52525b; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
+            <img src="/images/Logo-opynio.png" alt="Opynio">
+            <span>Opynio</span>
+        </a>
+    </header>
+
+    <main class="container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">Pagina no encontrada</h1>
+        <p class="error-subtitle">
+            Lo sentimos, la pagina que buscas no existe o ha sido movida.
+        </p>
+        <div class="buttons">
+            <a href="/" class="btn btn-primary">Volver al inicio</a>
+            <a href="/empresas" class="btn btn-secondary">Explorar empresas</a>
+        </div>
+    </main>
+</body>
+</html>

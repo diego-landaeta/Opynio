@@ -1,0 +1,15 @@
+[Unit]
+Description=Prerender Service for SEO
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/prerender-simple
+ExecStart=/usr/bin/node /opt/prerender-simple/server.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
