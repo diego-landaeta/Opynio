@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 // FIX: Changed react-router-dom namespace import to named imports to resolve module resolution issues.
-import { Link, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import NotFoundPage from './NotFoundPage';
 import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../types';
 import { getBusinessInsights } from '../../services/geminiService';
 import { getBusinessById, getBusinessByName, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile } from '../../services/supabaseService';
@@ -568,12 +569,10 @@ const BusinessPage: React.FC = () => {
         return <div className="flex justify-center items-center h-96"><Spinner /></div>;
     }
 
-    if (error) {
-        return <Navigate to="/404" replace />;
-    }
-
-    if (!business) {
-        return <Navigate to="/404" replace />;
+    // SEO: Renderizar NotFoundPage directamente en vez de Navigate
+    // Esto asegura que el meta noindex se aplique correctamente para Google
+    if (error || !business) {
+        return <NotFoundPage />;
     }
 
     return (

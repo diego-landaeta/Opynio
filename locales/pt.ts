@@ -501,6 +501,7 @@ export default {
     reviews: "análises",
     review: "análise",
     of: "de",
+    in: "em",
     areYouSureDelete: "Tem a certeza que quer eliminar este item?",
     couldNotDeleteItem: "Não foi possível eliminar o item.",
     comingSoon: "Em breve",

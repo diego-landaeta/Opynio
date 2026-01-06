@@ -506,6 +506,7 @@ export default {
     reviews: "reviews",
     review: "review",
     of: "of",
+    in: "in",
     areYouSureDelete: "Are you sure you want to delete this item?",
     couldNotDeleteItem: "Could not delete item.",
     comingSoon: "Coming Soon",

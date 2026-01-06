@@ -5,6 +5,8 @@ import { useNotification } from '../../contexts/NotificationContext';
 import * as ReactRouterDOM from 'react-router-dom';
 import { getBusinessByName, createClaim, createBugReport, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser } from '../../services/supabaseService';
 import { useTranslation } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 type ActiveTab = 'faq' | 'bug' | 'claim' | 'claim_review';
 
@@ -35,7 +37,12 @@ const SupportPage: React.FC = () => {
     const location = ReactRouterDOM.useLocation();
     const { showNotification } = useNotification();
     const t = useTranslation();
-    
+    const { country } = useCountry();
+
+    // SEO: Obtener nombre del país para títulos únicos
+    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
     const [activeTab, setActiveTab] = useState<ActiveTab>('faq');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -314,10 +321,10 @@ const SupportPage: React.FC = () => {
 
     return (
         <>
-            <Meta title={t('supportPage.helpAndSupportTitle') + " - Opynio"} description={t('supportPage.helpAndSupportSubtitle')} />
+            <Meta title={`${t('supportPage.helpAndSupportTitle')} - Opynio${countryInTitle}`} description={`${t('supportPage.helpAndSupportSubtitle')}${countryInTitle}.`} />
             <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-10">
-                    <h1 className="text-4xl font-extrabold text-brand-dark dark:text-white">{t('supportPage.helpAndSupportTitle')}</h1>
+                    <h1 className="text-4xl font-extrabold text-brand-dark dark:text-white">{t('supportPage.helpAndSupportTitle')}{countryInTitle}</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">{t('supportPage.helpAndSupportSubtitle')}</p>
                 </div>
 

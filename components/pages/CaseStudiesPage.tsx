@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // Animated counter hook
 const useCountUp = (end: number, duration: number = 2000, startOnView: boolean = true) => {
@@ -463,6 +464,10 @@ const CaseStudiesPage: React.FC = () => {
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   const paths = pathTranslations[language] || pathTranslations.es;
 
+  // SEO: Obtener nombre del país para títulos únicos
+  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
   const caseStudies = [
     {
       titleKey: 'caseStudiesPage.case1Title',
@@ -535,8 +540,8 @@ const CaseStudiesPage: React.FC = () => {
   return (
     <>
       <Meta
-        title={t('caseStudiesPage.metaTitle')}
-        description={t('caseStudiesPage.metaDescription')}
+        title={`${t('caseStudiesPage.metaTitle')}${countryInTitle}`}
+        description={`${t('caseStudiesPage.metaDescription')}${countryInTitle}.`}
       />
 
       {/* CSS for animations */}
@@ -612,7 +617,7 @@ const CaseStudiesPage: React.FC = () => {
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-            {t('caseStudiesPage.title')}
+            {t('caseStudiesPage.title')}{countryInTitle}
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
             {t('caseStudiesPage.subtitle')}

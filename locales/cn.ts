@@ -499,6 +499,7 @@ export default {
     reviews: "评论",
     review: "评论",
     of: "/",
+    in: "在",
     areYouSureDelete: "您确定要删除此项吗？",
     couldNotDeleteItem: "无法删除该项。",
     comingSoon: "即将推出",

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // Feature card component
 const FeatureCard: React.FC<{
@@ -73,6 +74,10 @@ const ForBusinessesPage: React.FC = () => {
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   const paths = pathTranslations[language] || pathTranslations.es;
 
+  // SEO: Obtener nombre del país para títulos únicos
+  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
   const features = [
     { icon: 'fa-solid fa-paper-plane', titleKey: 'forBusinessesPage.feature1Title', descKey: 'forBusinessesPage.feature1Desc' },
     { icon: 'fa-solid fa-robot', titleKey: 'forBusinessesPage.feature2Title', descKey: 'forBusinessesPage.feature2Desc' },
@@ -85,8 +90,8 @@ const ForBusinessesPage: React.FC = () => {
   return (
     <>
       <Meta
-        title={t('forBusinessesPage.metaTitle')}
-        description={t('forBusinessesPage.metaDescription')}
+        title={`${t('forBusinessesPage.metaTitle')}${countryInTitle}`}
+        description={`${t('forBusinessesPage.metaDescription')}${countryInTitle}.`}
       />
 
       <div className="max-w-6xl mx-auto">
@@ -95,7 +100,7 @@ const ForBusinessesPage: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-                {t('forBusinessesPage.title')}
+                {t('forBusinessesPage.title')}{countryInTitle}
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-8">
                 {t('forBusinessesPage.subtitle')}

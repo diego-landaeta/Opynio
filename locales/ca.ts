@@ -500,6 +500,7 @@ export default {
     reviews: "ressenyes",
     review: "ressenya",
     of: "de",
+    in: "a",
     areYouSureDelete: "Estàs segur que vols eliminar aquest element?",
     couldNotDeleteItem: "No s'ha pogut eliminar l'element.",
     comingSoon: "Properament",

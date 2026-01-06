@@ -1,5 +1,4 @@
-
-import React, { useMemo } from 'react';
+import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
@@ -217,17 +216,17 @@ const WhatsNewPage: React.FC = () => {
     const { language } = useI18n();
     const { country } = useCountry();
 
-    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === country), [country]);
-    const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
-    const metaTitle = `${t('meta.whatsNewTitle')} - ${brandName}`;
-    const metaDescription = t('whatsNew.subtitle').replace('Opynio', brandName);
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
+
+    // SEO: Obtener nombre del país para títulos únicos
+    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     return (
         <>
             <Meta
-                title={metaTitle}
-                description={metaDescription}
+                title={`${t('meta.whatsNewTitle')}${countryInTitle}`}
+                description={`${t('whatsNew.subtitle')}${countryInTitle}.`}
             />
             <div className="max-w-5xl mx-auto space-y-10 sm:space-y-16">
                 {/* Hero Section */}
@@ -244,7 +243,7 @@ const WhatsNewPage: React.FC = () => {
                             {t('whatsNew.newVersionAvailable')}
                         </span>
                         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-                            {t('whatsNew.title')}
+                            {t('whatsNew.title')}{countryInTitle}
                         </h1>
                         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                             {t('whatsNew.subtitle')}

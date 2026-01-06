@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // FAQ Item component
 const FaqItem: React.FC<{ question: string; answer: string }> = ({ question, answer }) => {
@@ -55,6 +56,10 @@ const FAQPage: React.FC = () => {
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   const paths = pathTranslations[language] || pathTranslations.es;
 
+  // SEO: Obtener nombre del país para títulos únicos
+  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
   const categories = [
     { id: 'general', labelKey: 'faqPage.generalTitle', icon: 'fa-solid fa-circle-info' },
     { id: 'account', labelKey: 'faqPage.accountTitle', icon: 'fa-solid fa-user' },
@@ -103,15 +108,15 @@ const FAQPage: React.FC = () => {
   return (
     <>
       <Meta
-        title={t('faqPage.metaTitle')}
-        description={t('faqPage.metaDescription')}
+        title={`${t('faqPage.metaTitle')}${countryInTitle}`}
+        description={`${t('faqPage.metaDescription')}${countryInTitle}.`}
       />
 
       <div className="max-w-4xl mx-auto">
         {/* Hero Section */}
         <section className="text-center py-12 md:py-16">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            {t('faqPage.title')}
+            {t('faqPage.title')}{countryInTitle}
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             {t('faqPage.subtitle')}

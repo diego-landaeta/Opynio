@@ -500,6 +500,7 @@ export default {
     reviews: "recensioni",
     review: "recensione",
     of: "di",
+    in: "in",
     areYouSureDelete: "Sei sicuro di voler eliminare questo elemento?",
     couldNotDeleteItem: "Impossibile eliminare l'elemento.",
     comingSoon: "Prossimamente",

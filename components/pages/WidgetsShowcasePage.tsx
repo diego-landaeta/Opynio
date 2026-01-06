@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // Demo widget component for preview
 const WidgetPreviewCard: React.FC<{
@@ -68,6 +69,10 @@ const WidgetsShowcasePage: React.FC = () => {
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   const paths = pathTranslations[language] || pathTranslations.es;
 
+  // SEO: Obtener nombre del país para títulos únicos
+  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
   const widgets = [
     { id: 'carousel', titleKey: 'widgetsPage.widgetCarouselTitle', descKey: 'widgetsPage.widgetCarouselDesc', icon: 'fa-solid fa-images' },
     { id: 'grid', titleKey: 'widgetsPage.widgetGridTitle', descKey: 'widgetsPage.widgetGridDesc', icon: 'fa-solid fa-table-cells' },
@@ -82,15 +87,15 @@ const WidgetsShowcasePage: React.FC = () => {
   return (
     <>
       <Meta
-        title={t('widgetsPage.metaTitle')}
-        description={t('widgetsPage.metaDescription')}
+        title={`${t('widgetsPage.metaTitle')}${countryInTitle}`}
+        description={`${t('widgetsPage.metaDescription')}${countryInTitle}.`}
       />
 
       <div className="max-w-6xl mx-auto">
         {/* Hero Section */}
         <section className="text-center py-12 md:py-16">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            {t('widgetsPage.title')}
+            {t('widgetsPage.title')}{countryInTitle}
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-8">
             {t('widgetsPage.subtitle')}

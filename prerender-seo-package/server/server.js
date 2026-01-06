@@ -5,10 +5,10 @@ const app = express();
 const PORT = 3001;
 
 // ============================================
-// CONFIGURACIÓN
+// CONFIGURACIÓN - OPTIMIZADO PARA SEO
 // ============================================
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos de caché
-const MAX_CACHE_SIZE = 100; // Máximo 100 páginas en caché
+const CACHE_TTL = 60 * 60 * 1000; // 1 hora de caché (antes: 5 min)
+const MAX_CACHE_SIZE = 1000; // Máximo 1000 páginas en caché (antes: 100)
 const RENDER_TIMEOUT = 30000; // 30 segundos timeout
 
 // ============================================
@@ -154,7 +154,8 @@ app.get('/render', async (req, res) => {
 
         // Configurar viewport y user agent
         await page.setViewport({ width: 1280, height: 800 });
-        await page.setUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
+        // IMPORTANTE: NO usar User-Agent de bot para evitar loop con nginx
+        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Prerender');
 
         console.log(`[RENDER] Iniciando: ${url}`);
         await page.goto(url, {
@@ -163,15 +164,29 @@ app.get('/render', async (req, res) => {
         });
 
         // Esperar un poco más para que React termine
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const html = await page.content();
 
-        // Guardar en caché
-        setCache(url, html);
+        // SEO: Detectar si es página 404 para devolver código HTTP correcto
+        const is404Page = html.includes('<title>404') ||
+                          html.includes('noindex, nofollow') ||
+                          html.includes('Página No Encontrada') ||
+                          html.includes('Page Not Found');
 
-        console.log(`[RENDER] Completado: ${url}`);
-        res.send(html);
+        // Guardar en caché (solo si no es 404)
+        if (!is404Page) {
+            setCache(url, html);
+        }
+
+        console.log(`[RENDER] Completado: ${url}${is404Page ? ' (404)' : ''}`);
+
+        // Devolver código HTTP apropiado
+        if (is404Page) {
+            res.status(404).send(html);
+        } else {
+            res.send(html);
+        }
 
     } catch (error) {
         console.error(`[ERROR] ${url}: ${error.message}`);

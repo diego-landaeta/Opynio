@@ -135,7 +135,15 @@ const Meta: React.FC<MetaProps> = ({
     // IMPORTANTE: Para páginas de empresa individual, NO generar hreflang múltiples
     // porque la empresa solo existe en UN país. Generar hreflang a otros países
     // causa que Google indexe URLs 404 (ej: /co/empresa/X cuando solo existe /es/empresa/X)
-    const isBusinessPage = pathWithoutLang.includes('/empresa/') || pathWithoutLang.includes('/business/');
+    // Lista de TODOS los paths de empresa en todos los idiomas:
+    // - es/br/pt/ca: empresa
+    // - en: business
+    // - fr: entreprise
+    // - de: unternehmen
+    // - it: azienda
+    // - cn: 公司
+    const businessPaths = ['/empresa/', '/business/', '/entreprise/', '/unternehmen/', '/azienda/', '/公司/'];
+    const isBusinessPage = businessPaths.some(path => pathWithoutLang.includes(path));
 
     // Limpiar hreflang tags existentes antes de añadir nuevos
     const removeHreflangTags = () => {

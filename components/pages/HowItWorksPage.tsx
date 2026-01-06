@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // Step card component
 const StepCard: React.FC<{
@@ -64,6 +65,10 @@ const HowItWorksPage: React.FC = () => {
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   const paths = pathTranslations[language] || pathTranslations.es;
 
+  // SEO: Obtener nombre del país para títulos únicos
+  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
+
   const steps = [
     { icon: 'fa-solid fa-user-plus', titleKey: 'howItWorksPage.step1Title', descKey: 'howItWorksPage.step1Desc', detailKey: 'howItWorksPage.step1Detail' },
     { icon: 'fa-solid fa-building', titleKey: 'howItWorksPage.step2Title', descKey: 'howItWorksPage.step2Desc', detailKey: 'howItWorksPage.step2Detail' },
@@ -75,15 +80,15 @@ const HowItWorksPage: React.FC = () => {
   return (
     <>
       <Meta
-        title={t('howItWorksPage.metaTitle')}
-        description={t('howItWorksPage.metaDescription')}
+        title={`${t('howItWorksPage.metaTitle')}${countryInTitle}`}
+        description={`${t('howItWorksPage.metaDescription')}${countryInTitle}.`}
       />
 
       <div className="max-w-6xl mx-auto">
         {/* Hero Section */}
         <section className="text-center py-12 md:py-16">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            {t('howItWorksPage.title')}
+            {t('howItWorksPage.title')}{countryInTitle}
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
             {t('howItWorksPage.subtitle')}

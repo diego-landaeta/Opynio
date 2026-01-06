@@ -3,6 +3,8 @@ import Meta from '../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import { COUNTRIES } from '../../constants';
 
 // FAQ Item Component
 const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ question, children }) => {
@@ -34,6 +36,11 @@ const PricingPage = () => {
     const { user } = useAuth();
     const t = useTranslation();
     const { language } = useI18n();
+    const { country } = useCountry();
+
+    // SEO: Obtener nombre del país para títulos únicos
+    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     const plans = [
         {
@@ -112,14 +119,14 @@ const PricingPage = () => {
     return (
         <>
             <Meta
-                title={t('footer.pricingAndPlans') + " - Opynio"}
-                description={t('pricingPage.findPerfectPlanSubtitle')}
+                title={`${t('footer.pricingAndPlans')} - Opynio${countryInTitle}`}
+                description={`${t('pricingPage.findPerfectPlanSubtitle')}${countryInTitle}.`}
             />
             <div className="py-12">
                 {/* Header */}
                 <div className="text-center max-w-3xl mx-auto mb-12 px-4">
                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-brand-dark dark:text-gray-100 leading-tight">
-                        {t('pricingPage.findPerfectPlanTitle')}
+                        {t('pricingPage.findPerfectPlanTitle')}{countryInTitle}
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-4">
                         {t('pricingPage.findPerfectPlanSubtitle')}
