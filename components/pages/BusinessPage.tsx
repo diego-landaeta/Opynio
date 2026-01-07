@@ -308,6 +308,81 @@ const BusinessPage: React.FC = () => {
         return data;
     }, [business, reviews, hasSedeLocation, totalReviews, averageRating, logoToDisplay, contactPhoneToDisplay, contactEmailToDisplay, latitudeToDisplay, longitudeToDisplay, googleMapsUrlToDisplay, activeCountryCode]);
 
+    // Schema Product - Google muestra estrellas para Product (no para LocalBusiness)
+    // Según directrices de Google: https://developers.google.com/search/docs/appearance/structured-data/product
+    const productSchemaData = useMemo(() => {
+        if (!business || totalReviews === 0) return null;
+
+        const reviewsForSchema = reviews.filter(r => r.review_text && r.review_text.trim() !== '').slice(0, 10);
+        const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
+        const prefix = (activeCountryCode || business.country || 'es').toLowerCase();
+        const targetLang = getLanguageForCountryCode(activeCountryCode || business.country);
+        const paths = pathTranslations[targetLang] || pathTranslations.es;
+        const cleanUrl = `https://web.opynio.com/${prefix}/${paths.business.replace(':identifier', slug)}`;
+
+        // Fecha de validez del precio (3 meses en el futuro)
+        const priceValidUntil = new Date();
+        priceValidUntil.setMonth(priceValidUntil.getMonth() + 3);
+
+        const productData: { [key: string]: any } = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": business.name,
+            "description": business.description || `Reseñas y opiniones verificadas de ${business.name}. Lee experiencias reales de clientes en Opynio.`,
+            "url": cleanUrl,
+            "brand": {
+                "@type": "Brand",
+                "name": business.name
+            },
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": parseFloat(averageRating.toFixed(1)),
+                "reviewCount": totalReviews,
+                "bestRating": 5,
+                "worstRating": 1
+            },
+            // Offers es requerido por Google para mostrar rich snippets con estrellas
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "EUR",
+                "availability": "https://schema.org/InStock",
+                "url": cleanUrl,
+                "priceValidUntil": priceValidUntil.toISOString().split('T')[0],
+                "seller": {
+                    "@type": "Organization",
+                    "name": business.name
+                }
+            }
+        };
+
+        // Imagen (requerida para rich snippets completos)
+        if (logoToDisplay) {
+            productData.image = logoToDisplay;
+        } else {
+            // Imagen por defecto de Opynio si no hay logo
+            productData.image = "https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png";
+        }
+
+        // Añadir reseñas individuales (mejora el rich snippet)
+        if (reviewsForSchema.length > 0) {
+            productData.review = reviewsForSchema.map(review => ({
+                "@type": "Review",
+                "author": { "@type": "Person", "name": review.profiles?.name || review.original_author_name || 'Anónimo' },
+                "datePublished": new Date(review.created_at).toISOString().split('T')[0],
+                "reviewBody": review.review_text,
+                "reviewRating": { "@type": "Rating", "ratingValue": review.rating, "bestRating": 5, "worstRating": 1 }
+            }));
+        }
+
+        // Categoría del producto/servicio
+        if (business.category) {
+            productData.category = business.category.replace(':', ' > ').replace(/_/g, ' ');
+        }
+
+        return productData;
+    }, [business, reviews, totalReviews, averageRating, logoToDisplay, activeCountryCode]);
+
     const displayCategory = useMemo(() => {
         const categoryString = business?.category;
         if (!categoryString || !categoryString.includes(':')) {
@@ -647,7 +722,8 @@ const BusinessPage: React.FC = () => {
     return (
         <>
             <Meta title={metaTitle} description={metaDescription} lang={pageLang} canonical={canonicalUrl} />
-            {schemaData && <Schema data={schemaData} />}
+            {schemaData && <Schema data={schemaData} id="schema-localbusiness" />}
+            {productSchemaData && <Schema data={productSchemaData} id="schema-product" />}
             <style>{iconStyle}</style>
 
             <div className="space-y-4 sm:space-y-6">

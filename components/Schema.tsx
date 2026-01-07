@@ -2,12 +2,13 @@ import React, { useEffect } from 'react';
 
 interface SchemaProps {
   data: object;
+  id?: string; // ID único para permitir múltiples schemas en la misma página
 }
 
-const Schema: React.FC<SchemaProps> = ({ data }) => {
+const Schema: React.FC<SchemaProps> = ({ data, id = 'json-ld-schema' }) => {
   useEffect(() => {
-    const scriptId = 'json-ld-schema';
-    
+    const scriptId = id;
+
     // Clean up function to remove the script when the component unmounts or data changes
     const removeScript = () => {
       const scriptToRemove = document.getElementById(scriptId);
@@ -15,7 +16,7 @@ const Schema: React.FC<SchemaProps> = ({ data }) => {
         scriptToRemove.remove();
       }
     };
-    
+
     removeScript(); // Remove any existing script first
 
     // Create new script element
@@ -23,13 +24,13 @@ const Schema: React.FC<SchemaProps> = ({ data }) => {
     script.id = scriptId;
     script.type = 'application/ld+json';
     script.innerHTML = JSON.stringify(data, null, 2); // Pretty print for easier debugging
-    
+
     document.head.appendChild(script);
 
     return () => {
       removeScript();
     };
-  }, [data]); // Rerun effect if data changes
+  }, [data, id]); // Rerun effect if data or id changes
 
   return null;
 };
