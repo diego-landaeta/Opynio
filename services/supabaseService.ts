@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { slugify } from '../utils/slugify';
 
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -228,11 +229,15 @@ export const updateUserProfile = async (userId: string, updates: any) => {
 export const updateUserRole = async (userId: string, role: string, businessName?: string) => {
   // If upgrading to business_owner and businessName is provided, create the business first
   if (role === 'business_owner' && businessName) {
+    // Generar slug automáticamente
+    const slug = await generateUniqueSlug(businessName);
+
     // Create the business
     const { data: business, error: businessError } = await supabase
       .from('businesses')
       .insert([{
         name: businessName,
+        slug: slug || null,
         category: 'General', // Default category when admin assigns
         country: 'ES', // Default country - can be updated later
         owner_id: userId,
@@ -287,11 +292,15 @@ export const upgradeUserToBusinessOwner = async (params: {
   if (userError) throw userError;
   if (!user) throw new Error('User not authenticated');
 
+  // Generar slug automáticamente
+  const slug = await generateUniqueSlug(params.businessName);
+
   // Create the business (note: 'plan' is NOT a column in businesses table)
   const { data: business, error: businessError } = await supabase
     .from('businesses')
     .insert([{
       name: params.businessName,
+      slug: slug || null,
       category: params.category,
       country: params.country,
       description: params.description,
@@ -511,6 +520,11 @@ export const updateBusinessProfile = async (businessId: string, updates: any) =>
 };
 
 export const userCreateBusiness = async (businessData: any) => {
+  // Generar slug automáticamente si no viene en los datos y hay nombre
+  if (!businessData.slug && businessData.name) {
+    businessData.slug = await generateUniqueSlug(businessData.name);
+  }
+
   const { data, error } = await supabase
     .from('businesses')
     .insert([businessData])
@@ -1149,6 +1163,11 @@ const enrichBusinessesWithStats = async (businesses: any[]) => {
 };
 
 export const finishBusinessSignup = async (userId: string, businessData: any) => {
+  // Generar slug automáticamente si no viene en los datos y hay nombre
+  if (!businessData.slug && businessData.name) {
+    businessData.slug = await generateUniqueSlug(businessData.name);
+  }
+
   const { data, error } = await supabase
     .from('businesses')
     .insert([{ ...businessData, owner_id: userId }])
@@ -2691,6 +2710,11 @@ export const resolveClaim = async (claimId: number, status: string, adminNotes: 
 };
 
 export const adminCreateBusiness = async (businessData: any) => {
+  // Generar slug automáticamente si no viene en los datos y hay nombre
+  if (!businessData.slug && businessData.name) {
+    businessData.slug = await generateUniqueSlug(businessData.name);
+  }
+
   const { data, error } = await supabase
     .from('businesses')
     .insert([businessData])
@@ -2967,6 +2991,343 @@ export const getScrapingSession = async (sessionId: string): Promise<ScrapingSes
     .single();
   if (error) return null;
   return data as ScrapingSession;
+};
+
+// ==================== SLUG & URL REDIRECT FUNCTIONS ====================
+
+/**
+ * Buscar empresa por slug exacto
+ */
+export const getBusinessBySlug = async (slug: string) => {
+  try {
+    const cacheKey = `business_slug_${slug.toLowerCase()}`;
+    const cached = getCached<any>(cacheKey);
+    if (cached !== null) return cached;
+
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('slug', slug.toLowerCase())
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error in getBusinessBySlug:', error);
+      return null;
+    }
+
+    setCache(cacheKey, data);
+    return data;
+  } catch (error) {
+    console.error('Error in getBusinessBySlug:', error);
+    return null;
+  }
+};
+
+/**
+ * Generar un slug único para una empresa
+ * Si el slug base ya existe, agrega un sufijo numérico
+ */
+export const generateUniqueSlug = async (businessName: string): Promise<string> => {
+  const baseSlug = slugify(businessName);
+  if (!baseSlug) return '';
+
+  // Verificar si el slug base está disponible
+  const isAvailable = await isSlugAvailable(baseSlug);
+  if (isAvailable) return baseSlug;
+
+  // Si no está disponible, buscar un sufijo único
+  let counter = 2;
+  let newSlug = `${baseSlug}_${counter}`;
+
+  while (!(await isSlugAvailable(newSlug)) && counter < 100) {
+    counter++;
+    newSlug = `${baseSlug}_${counter}`;
+  }
+
+  return newSlug;
+};
+
+/**
+ * Verificar si un slug está disponible
+ */
+export const isSlugAvailable = async (slug: string, excludeBusinessId?: string): Promise<boolean> => {
+  try {
+    let query = supabase
+      .from('businesses')
+      .select('id')
+      .eq('slug', slug.toLowerCase());
+
+    if (excludeBusinessId) {
+      query = query.neq('id', excludeBusinessId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      console.error('Error checking slug availability:', error);
+      return false;
+    }
+
+    // También verificar en redirecciones
+    const { data: redirectData } = await supabase
+      .from('url_redirects')
+      .select('id')
+      .eq('old_slug', slug.toLowerCase())
+      .maybeSingle();
+
+    return !data && !redirectData;
+  } catch (error) {
+    console.error('Error in isSlugAvailable:', error);
+    return false;
+  }
+};
+
+/**
+ * Actualizar slug de empresa y opcionalmente crear redirección
+ */
+export const updateBusinessSlug = async (
+  businessId: string,
+  newSlug: string,
+  createRedirect: boolean = true
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Obtener el slug actual
+    const { data: currentBusiness } = await supabase
+      .from('businesses')
+      .select('slug, name')
+      .eq('id', businessId)
+      .single();
+
+    const oldSlug = currentBusiness?.slug || currentBusiness?.name?.replace(/ /g, '_');
+
+    // Verificar disponibilidad del nuevo slug
+    const available = await isSlugAvailable(newSlug, businessId);
+    if (!available) {
+      return { success: false, error: 'El slug ya está en uso' };
+    }
+
+    // Actualizar el slug
+    const { error: updateError } = await supabase
+      .from('businesses')
+      .update({ slug: newSlug.toLowerCase() })
+      .eq('id', businessId);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    // Crear redirección si se solicita y hay un slug anterior
+    if (createRedirect && oldSlug && oldSlug !== newSlug) {
+      await supabase
+        .from('url_redirects')
+        .insert({
+          old_slug: oldSlug.toLowerCase(),
+          business_id: businessId,
+          hits: 0
+        });
+    }
+
+    // Limpiar caché
+    clearCache('business_');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in updateBusinessSlug:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Buscar redirección por slug antiguo
+ */
+export const getRedirectByOldSlug = async (oldSlug: string): Promise<{ business_id: string; new_slug: string } | null> => {
+  try {
+    const { data: redirect, error } = await supabase
+      .from('url_redirects')
+      .select('business_id')
+      .eq('old_slug', oldSlug.toLowerCase())
+      .maybeSingle();
+
+    if (error || !redirect) return null;
+
+    // Obtener el nuevo slug de la empresa
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('slug, name')
+      .eq('id', redirect.business_id)
+      .single();
+
+    if (!business) return null;
+
+    // Incrementar hits en background (no esperar)
+    incrementRedirectHits(oldSlug);
+
+    return {
+      business_id: redirect.business_id,
+      new_slug: business.slug || business.name?.replace(/ /g, '_') || ''
+    };
+  } catch (error) {
+    console.error('Error in getRedirectByOldSlug:', error);
+    return null;
+  }
+};
+
+/**
+ * Incrementar contador de hits de redirección
+ */
+export const incrementRedirectHits = async (oldSlug: string): Promise<void> => {
+  try {
+    await supabase.rpc('increment_redirect_hits', { slug_param: oldSlug.toLowerCase() });
+  } catch (error) {
+    // Fallback: actualizar manualmente si la función RPC no existe
+    try {
+      const { data } = await supabase
+        .from('url_redirects')
+        .select('hits')
+        .eq('old_slug', oldSlug.toLowerCase())
+        .single();
+
+      if (data) {
+        await supabase
+          .from('url_redirects')
+          .update({ hits: (data.hits || 0) + 1 })
+          .eq('old_slug', oldSlug.toLowerCase());
+      }
+    } catch {
+      // Silently fail - hits tracking is not critical
+    }
+  }
+};
+
+/**
+ * Obtener todas las redirecciones (para admin)
+ */
+export const getUrlRedirects = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('url_redirects')
+      .select(`
+        *,
+        businesses:business_id (id, name, slug, country, logo_url)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error in getUrlRedirects:', error);
+    return [];
+  }
+};
+
+/**
+ * Eliminar una redirección
+ */
+export const deleteUrlRedirect = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('url_redirects')
+      .delete()
+      .eq('id', id);
+
+    return !error;
+  } catch (error) {
+    console.error('Error in deleteUrlRedirect:', error);
+    return false;
+  }
+};
+
+/**
+ * Obtener empresas con URLs problemáticas (para admin)
+ * @param page - Número de página (1-indexed)
+ * @param pageSize - Tamaño de página
+ * @param searchTerm - Término de búsqueda opcional para filtrar por nombre
+ *                     Si hay searchTerm, busca en TODAS las empresas (para poder editar cualquiera)
+ *                     Si no hay searchTerm, solo muestra las que no tienen slug
+ */
+export const getBusinessesWithProblematicUrls = async (
+  page: number = 1,
+  pageSize: number = 50,
+  searchTerm?: string
+) => {
+  try {
+    const offset = (page - 1) * pageSize;
+    const hasSearch = searchTerm && searchTerm.trim();
+
+    // Conteo de empresas SIN slug (siempre mostrar este número en el tab)
+    const { count: problematicCount, error: problemCountError } = await supabase
+      .from('businesses')
+      .select('id', { count: 'exact', head: true })
+      .is('slug', null);
+
+    if (problemCountError) throw problemCountError;
+
+    // Si hay búsqueda, buscar en TODAS las empresas
+    // Si no hay búsqueda, solo mostrar las que no tienen slug
+    let countQuery = supabase
+      .from('businesses')
+      .select('id', { count: 'exact', head: true });
+
+    if (hasSearch) {
+      // Buscar en todas las empresas
+      countQuery = countQuery.ilike('name', `%${searchTerm!.trim()}%`);
+    } else {
+      // Solo empresas sin slug
+      countQuery = countQuery.is('slug', null);
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
+    if (countError) throw countError;
+
+    // Obtener datos
+    let dataQuery = supabase
+      .from('businesses')
+      .select('id, name, slug, country, logo_url, created_at');
+
+    if (hasSearch) {
+      // Buscar en todas las empresas
+      dataQuery = dataQuery.ilike('name', `%${searchTerm!.trim()}%`);
+    } else {
+      // Solo empresas sin slug
+      dataQuery = dataQuery.is('slug', null);
+    }
+
+    const { data, error } = await dataQuery
+      .order('name', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw error;
+
+    return {
+      data: data || [],
+      total: totalCount || 0,
+      problematicCount: problematicCount || 0
+    };
+  } catch (error) {
+    console.error('Error in getBusinessesWithProblematicUrls:', error);
+    return { data: [], total: 0, problematicCount: 0 };
+  }
+};
+
+/**
+ * Actualizar múltiples slugs en batch
+ */
+export const batchUpdateSlugs = async (
+  updates: Array<{ businessId: string; newSlug: string; createRedirect: boolean }>
+): Promise<{ success: number; failed: number; errors: string[] }> => {
+  const results = { success: 0, failed: 0, errors: [] as string[] };
+
+  for (const update of updates) {
+    const result = await updateBusinessSlug(update.businessId, update.newSlug, update.createRedirect);
+    if (result.success) {
+      results.success++;
+    } else {
+      results.failed++;
+      results.errors.push(`${update.businessId}: ${result.error}`);
+    }
+  }
+
+  return results;
 };
 
 // Export a default object with all functions for convenience

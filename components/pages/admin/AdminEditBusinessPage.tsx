@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { getBusinessById, updateBusinessProfile } from '../../../services/supabaseService';
+import { getBusinessById, updateBusinessProfile, isSlugAvailable } from '../../../services/supabaseService';
 import Spinner from '../../Spinner';
 import type { Business, BusinessHours, Json, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { CATEGORIES, COUNTRIES, SEDE_COUNTRIES } from '../../../constants';
+import { slugify, isValidSlug } from '../../../utils/slugify';
 import Meta from '../../Meta';
 import { useTranslation } from '../../../contexts/i18nContext';
 import L from 'leaflet';
@@ -77,6 +78,7 @@ const AdminEditBusinessPage: React.FC = () => {
 
     const [formData, setFormData] = useState({
         name: '',
+        slug: '',
         website_url: '',
         twitter: '',
         instagram: '',
@@ -92,7 +94,9 @@ const AdminEditBusinessPage: React.FC = () => {
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [addressSearch, setAddressSearch] = useState('');
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-    
+    const [slugAvailableState, setSlugAvailableState] = useState<boolean | null>(null);
+    const [checkingSlug, setCheckingSlug] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -135,6 +139,7 @@ const AdminEditBusinessPage: React.FC = () => {
         if (business && !initialDataLoaded.current) {
             setFormData({
                 name: business.name || '',
+                slug: (business as any).slug || '',
                 website_url: business.website_url || '',
                 twitter: (business.social_links as any)?.twitter || '',
                 instagram: (business.social_links as any)?.instagram || '',
@@ -196,6 +201,30 @@ const AdminEditBusinessPage: React.FC = () => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
     };
+
+    const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        setFormData(prev => ({ ...prev, slug: value }));
+    };
+
+    // Check slug availability
+    useEffect(() => {
+        if (!formData.slug || formData.slug === (business as any)?.slug) {
+            setSlugAvailableState(null);
+            return;
+        }
+        if (!isValidSlug(formData.slug)) {
+            setSlugAvailableState(false);
+            return;
+        }
+        const timeoutId = setTimeout(async () => {
+            setCheckingSlug(true);
+            const available = await isSlugAvailable(formData.slug, businessId);
+            setSlugAvailableState(available);
+            setCheckingSlug(false);
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [formData.slug, business, businessId]);
 
     const handleHorariosChange = useCallback((day: keyof BusinessHours, value: { open: string; close: string } | 'cerrado') => {
         setHorarios(prev => ({ ...prev, [day]: value }));
@@ -265,8 +294,14 @@ const AdminEditBusinessPage: React.FC = () => {
 
             const otherSedes = sedes.filter(s => s.country_code !== business?.country);
 
+            // Only include slug in updates if it's a valid new slug
+            const slugUpdate = formData.slug && isValidSlug(formData.slug) && (slugAvailableState !== false)
+                ? { slug: formData.slug }
+                : {};
+
             const updates = {
                 name: formData.name,
+                ...slugUpdate,
                 website_url: formData.website_url,
                 social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
                 horarios: Object.keys(cleanedHorarios).length > 0 ? (cleanedHorarios as unknown as Json) : null,
@@ -340,6 +375,34 @@ const AdminEditBusinessPage: React.FC = () => {
                     <div>
                         <label htmlFor="name" className="block text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Nombre del Negocio</label>
                         <input id="name" type="text" value={formData.name} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
+                    </div>
+
+                    <div>
+                        <label htmlFor="slug" className="block text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                            {t('admin.urlManager.slug')} <span className="text-gray-400 font-normal text-sm">({t('admin.urlManager.optional')})</span>
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">/{formData.country.toLowerCase()}/empresa/</span>
+                            <input
+                                id="slug"
+                                type="text"
+                                value={formData.slug}
+                                onChange={handleSlugChange}
+                                placeholder={slugify(formData.name) || 'mi_empresa'}
+                                className={`w-full p-3 pl-[140px] border rounded-lg bg-transparent text-gray-900 dark:text-gray-100 ${
+                                    slugAvailableState === false ? 'border-red-500' : slugAvailableState === true ? 'border-green-500' : 'border-gray-300 dark:border-zinc-600'
+                                }`}
+                            />
+                            {checkingSlug && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin"></div></div>}
+                            {!checkingSlug && slugAvailableState === true && <i className="fa-solid fa-check text-green-500 absolute right-3 top-1/2 -translate-y-1/2"></i>}
+                            {!checkingSlug && slugAvailableState === false && <i className="fa-solid fa-times text-red-500 absolute right-3 top-1/2 -translate-y-1/2"></i>}
+                        </div>
+                        {slugAvailableState === false && formData.slug && (
+                            <p className="text-sm text-red-500 mt-1">
+                                {!isValidSlug(formData.slug) ? t('admin.urlManager.invalidSlug') : t('admin.urlManager.slugTaken')}
+                            </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">{t('admin.urlManager.slugHelp')}</p>
                     </div>
 
                     <div>

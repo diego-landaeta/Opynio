@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { adminCreateBusiness, importSerpApiGoogleReviews, checkGoogleMapsUrlIsTaken } from '../../../services/supabaseService';
+import { adminCreateBusiness, importSerpApiGoogleReviews, checkGoogleMapsUrlIsTaken, isSlugAvailable } from '../../../services/supabaseService';
 import { googleReviewsImporter } from '../../../services/serpApiService';
 import type { Business, BusinessHours, Json } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { CATEGORIES, COUNTRIES } from '../../../constants';
+import { slugify, isValidSlug } from '../../../utils/slugify';
 import Meta from '../../Meta';
 import L from 'leaflet';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -45,8 +46,10 @@ const AdminCreateBusinessPage: React.FC = () => {
     // Manual form states
     const [activeTab, setActiveTab] = useState<'info' | 'import'>('info');
     const [createdBusiness, setCreatedBusiness] = useState<Business | null>(null);
-    const [formData, setFormData] = useState({ name: '', website_url: '', twitter: '', instagram: '', logo_url: '', google_maps_url: '', category: '', description: '', contact_email: '', contact_phone: '', country: 'ES' });
+    const [formData, setFormData] = useState({ name: '', slug: '', website_url: '', twitter: '', instagram: '', logo_url: '', google_maps_url: '', category: '', description: '', contact_email: '', contact_phone: '', country: 'ES' });
     const [horarios, setHorarios] = useState<BusinessHours>({});
+    const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+    const [checkingSlug, setCheckingSlug] = useState(false);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [addressSearch, setAddressSearch] = useState('');
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
@@ -96,8 +99,38 @@ const AdminCreateBusinessPage: React.FC = () => {
         }
     }, [location, creationMode]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { id, value } = e.target;
+        setFormData(prev => ({ ...prev, [id]: value }));
+        // Auto-generate slug when name changes
+        if (id === 'name') {
+            setFormData(prev => ({ ...prev, slug: slugify(value) }));
+        }
+    };
+    const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        setFormData(prev => ({ ...prev, slug: value }));
+    };
     const handleHorariosChange = useCallback((day: keyof BusinessHours, value: any) => setHorarios(prev => ({ ...prev, [day]: value })), []);
+
+    // Check slug availability
+    useEffect(() => {
+        if (!formData.slug) {
+            setSlugAvailable(null);
+            return;
+        }
+        if (!isValidSlug(formData.slug)) {
+            setSlugAvailable(false);
+            return;
+        }
+        const timeoutId = setTimeout(async () => {
+            setCheckingSlug(true);
+            const available = await isSlugAvailable(formData.slug);
+            setSlugAvailable(available);
+            setCheckingSlug(false);
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [formData.slug]);
     const handleAddressSearch = async (e: React.MouseEvent) => {
         e.preventDefault();
         if (!addressSearch.trim()) return;
@@ -116,11 +149,17 @@ const AdminCreateBusinessPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const { twitter, instagram, ...restFormData } = formData;
+            const { twitter, instagram, slug, ...restFormData } = formData;
             const social_links = { twitter: twitter.trim(), instagram: instagram.trim() };
-            
+
+            // Use slug if provided and valid, otherwise generate from name
+            const finalSlug = slug && isValidSlug(slug) && slugAvailable
+                ? slug
+                : slugify(formData.name);
+
             const businessData = {
                 ...restFormData,
+                slug: finalSlug,
                 social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
                 horarios: Object.keys(horarios).length > 0 ? (horarios as unknown as Json) : null,
                 latitude: location?.lat,
@@ -239,6 +278,33 @@ const AdminCreateBusinessPage: React.FC = () => {
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminCreateBusiness.businessNameRequired')}</label>
                         <input id="name" type="text" value={formData.name} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg bg-transparent"/>
+                    </div>
+                    <div>
+                        <label htmlFor="slug" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('admin.urlManager.slug')} <span className="text-gray-400 font-normal">({t('admin.urlManager.optional')})</span>
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">/{formData.country.toLowerCase()}/empresa/</span>
+                            <input
+                                id="slug"
+                                type="text"
+                                value={formData.slug}
+                                onChange={handleSlugChange}
+                                placeholder={slugify(formData.name) || 'mi_empresa'}
+                                className={`w-full p-3 pl-[140px] border rounded-lg bg-transparent ${
+                                    slugAvailable === false ? 'border-red-500' : slugAvailable === true ? 'border-green-500' : 'border-gray-300 dark:border-zinc-600'
+                                }`}
+                            />
+                            {checkingSlug && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin"></div></div>}
+                            {!checkingSlug && slugAvailable === true && <i className="fa-solid fa-check text-green-500 absolute right-3 top-1/2 -translate-y-1/2"></i>}
+                            {!checkingSlug && slugAvailable === false && <i className="fa-solid fa-times text-red-500 absolute right-3 top-1/2 -translate-y-1/2"></i>}
+                        </div>
+                        {slugAvailable === false && formData.slug && (
+                            <p className="text-sm text-red-500 mt-1">
+                                {!isValidSlug(formData.slug) ? t('admin.urlManager.invalidSlug') : t('admin.urlManager.slugTaken')}
+                            </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">{t('admin.urlManager.slugHelp')}</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                          <div>

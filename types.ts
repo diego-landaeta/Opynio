@@ -2,6 +2,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export interface Sede {
   country_code: string;
+  slug?: string; // Slug único para esta sede (ej: "oficina_madrid_centro")
   name?: string; // Nombre de la sede/ubicación (ej: "Oficina Madrid Centro")
   description?: string | null; // Descripción específica de esta sede
   address?: string;
@@ -186,4 +187,20 @@ export interface BugReport {
   resolved_at?: string | null;
   resolved_by?: string | null;
   profiles?: Profile | null;
+}
+
+// URL Redirects para SEO
+export interface UrlRedirect {
+  id: string;
+  old_slug: string;
+  business_id: string;
+  created_at: string;
+  hits: number;
+  // Joined data
+  businesses?: SimpleBusiness | null;
+}
+
+// Business con slug para admin
+export interface BusinessWithSlug extends Business {
+  slug?: string | null;
 }

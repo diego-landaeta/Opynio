@@ -150,6 +150,7 @@ const AdminDashboardPage: React.FC = () => {
                             <ToolCard title={t('adminDashboard.scraping')} icon="fa-robot" link={`/${pathTranslations.es.adminScraping}`} description="Importa empresas masivamente desde Google Maps." color="bg-emerald-500" />
                             <ToolCard title={t('adminDashboard.bulkEdit')} icon="fa-pen-to-square" link={`/${pathTranslations.es.adminBulkEdit}`} description="Edita múltiples empresas rápidamente." color="bg-teal-500" />
                             <ToolCard title={t('adminDashboard.featuredBusinesses')} icon="fa-star" link={`/${pathTranslations.es.adminFeatured}`} description={t('adminDashboard.featuredBusinessesDesc')} color="bg-yellow-500" />
+                            <ToolCard title={t('adminDashboard.urlManager')} icon="fa-link" link={`/${pathTranslations.es.adminUrls}`} description={t('adminDashboard.urlManagerDesc')} color="bg-cyan-500" />
                         </div>
                     </div>
 

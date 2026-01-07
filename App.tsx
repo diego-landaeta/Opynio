@@ -136,6 +136,7 @@ const AdminBugsPage = lazy(() => import('./components/pages/admin/AdminBugsPage'
 const AdminReviewAppealsPage = lazy(() => import('./components/pages/admin/AdminReviewAppealsPage'));
 const AdminEnterprisePage = lazy(() => import('./components/pages/admin/AdminEnterprisePage'));
 const AdminFeaturedBusinessesPage = lazy(() => import('./components/pages/admin/AdminFeaturedBusinessesPage'));
+const AdminUrlManagerPage = lazy(() => import('./components/pages/admin/AdminUrlManagerPage'));
 const NotFoundPage = lazy(() => import('./components/pages/NotFoundPage'));
 
 // New auxiliary pages
@@ -580,6 +581,7 @@ const App = () => {
                                         <Route path="apelaciones-resenas" element={<AdminReviewAppealsPage />} />
                                         <Route path="enterprise" element={<AdminEnterprisePage />} />
                                         <Route path="destacados" element={<AdminFeaturedBusinessesPage />} />
+                                        <Route path="urls" element={<AdminUrlManagerPage />} />
                                     </Route>
 
                                     {/* Legacy redirects */}

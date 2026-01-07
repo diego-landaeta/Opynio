@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import NotFoundPage from './NotFoundPage';
 import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../types';
 import { getBusinessInsights } from '../../services/geminiService';
-import { getBusinessById, getBusinessByName, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile } from '../../services/supabaseService';
+import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile } from '../../services/supabaseService';
 import { getReviewsOptimized } from '../../services/optimizedQueries';
 import ReviewCard from '../ReviewCard';
 import StarRating from '../StarRating';
@@ -274,8 +274,12 @@ const BusinessPage: React.FC = () => {
     const schemaData = useMemo(() => {
         if (!business) return null;
         const reviewsForSchema = reviews.filter(r => r.review_text && r.review_text.trim() !== '').slice(0, 10);
-        // URL limpia para Schema (sin query params)
-        const cleanUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
+        // URL canónica para Schema - usar slug si existe
+        const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
+        const prefix = (activeCountryCode || business.country || 'es').toLowerCase();
+        const targetLang = getLanguageForCountryCode(activeCountryCode || business.country);
+        const paths = pathTranslations[targetLang] || pathTranslations.es;
+        const cleanUrl = `https://web.opynio.com/${prefix}/${paths.business.replace(':identifier', slug)}`;
         const data: { [key: string]: any } = { "@context": "https://schema.org", "@type": hasSedeLocation ? "LocalBusiness" : "Organization", "name": business.name, "url": cleanUrl };
         if (logoToDisplay) data.image = logoToDisplay;
         if (business.description) data.description = business.description;
@@ -302,7 +306,7 @@ const BusinessPage: React.FC = () => {
             }));
         }
         return data;
-    }, [business, reviews, hasSedeLocation, totalReviews, averageRating, logoToDisplay, contactPhoneToDisplay, contactEmailToDisplay, latitudeToDisplay, longitudeToDisplay, googleMapsUrlToDisplay]);
+    }, [business, reviews, hasSedeLocation, totalReviews, averageRating, logoToDisplay, contactPhoneToDisplay, contactEmailToDisplay, latitudeToDisplay, longitudeToDisplay, googleMapsUrlToDisplay, activeCountryCode]);
 
     const displayCategory = useMemo(() => {
         const categoryString = business?.category;
@@ -332,6 +336,16 @@ const BusinessPage: React.FC = () => {
         );
     }, [business?.category, t]);
 
+    // Generar URL canónica usando el slug de la empresa
+    const canonicalUrl = useMemo(() => {
+        if (!business) return undefined;
+        const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
+        const prefix = (activeCountryCode || business.country || 'es').toLowerCase();
+        const targetLanguage = getLanguageForCountryCode(activeCountryCode || business.country);
+        const paths = pathTranslations[targetLanguage] || pathTranslations.es;
+        const businessPathSegment = paths.business.replace(':identifier', slug);
+        return `https://web.opynio.com/${prefix}/${businessPathSegment}`;
+    }, [business, activeCountryCode]);
 
     const iconStyle = `
         .map-marker-icon { background: transparent; border: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); transition: all 0.2s ease-in-out; }
@@ -441,17 +455,69 @@ const BusinessPage: React.FC = () => {
         setIsLoadingBusiness(true);
         setError(null);
         setBusiness(null);
+
+        // Track if we're redirecting to avoid setting loading false
+        let isRedirecting = false;
+
         try {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-            let businessData = isUuid
-                ? await getBusinessById(identifier)
-                : await getBusinessByName(decodeURIComponent(identifier).replace(/_/g, ' ').trim());
+            const decodedIdentifier = decodeURIComponent(identifier);
+            let businessData = null;
+
+            if (isUuid) {
+                // Search by UUID
+                businessData = await getBusinessById(identifier);
+            } else {
+                // 1. First try to find by slug (new clean URLs)
+                businessData = await getBusinessBySlug(decodedIdentifier.toLowerCase());
+
+                // 2. If not found, check for redirects
+                if (!businessData) {
+                    const redirect = await getRedirectByOldSlug(decodedIdentifier);
+                    if (redirect) {
+                        // Redirect 301 to the new URL
+                        const pathLang = countryCode ? getLanguageForCountryCode(countryCode) : 'es';
+                        const paths = pathTranslations[pathLang] || pathTranslations.es;
+                        const newPath = `/${countryCode || 'es'}/${paths.business.replace(':identifier', redirect.new_slug)}`;
+                        isRedirecting = true;
+                        navigate(newPath, { replace: true });
+                        return;
+                    }
+                }
+
+                // 3. Fallback: search by name (for legacy URLs)
+                if (!businessData) {
+                    businessData = await getBusinessByName(decodedIdentifier.replace(/_/g, ' ').trim());
+                }
+            }
 
             if (!businessData) {
                 setError(t('businessPage.businessNotFound'));
                 setIsLoadingBusiness(false);
                 return;
             }
+
+            // --- SLUG CANONICALIZATION ---
+            // If business has a slug and the URL identifier doesn't match exactly,
+            // redirect to the clean URL with the correct slug
+            const businessSlug = (businessData as any).slug;
+            if (businessSlug && !isUuid) {
+                // Check if URL identifier doesn't match the canonical slug
+                // (e.g., URL is "Tarot_IA" but slug is "tarot_ia")
+                if (decodedIdentifier !== businessSlug) {
+                    const pathLang = countryCode ? getLanguageForCountryCode(countryCode) : 'es';
+                    const paths = pathTranslations[pathLang] || pathTranslations.es;
+                    const canonicalPath = `/${countryCode || businessData.country?.toLowerCase() || 'es'}/${paths.business.replace(':identifier', businessSlug)}`;
+
+                    if (location.pathname !== canonicalPath) {
+                        // Keep loading state while redirecting to avoid flash of 404
+                        isRedirecting = true;
+                        navigate(canonicalPath, { replace: true });
+                        return;
+                    }
+                }
+            }
+            // --- END SLUG CANONICALIZATION ---
 
             // --- REDIRECTION LOGIC ---
             // Only redirect if there's a country code in the URL
@@ -468,16 +534,15 @@ const BusinessPage: React.FC = () => {
                     const canonicalCountryPrefix = (businessData.country || 'es').toLowerCase();
                     const pathLang = getLanguageForCountryCode(businessData.country);
                     const paths = pathTranslations[pathLang] || pathTranslations.es;
-                    const canonicalIdentifier = encodeURIComponent(businessData.name.replace(/ /g, '_'));
+                    // Use slug if available, otherwise fallback to name
+                    const canonicalIdentifier = (businessData as any).slug || encodeURIComponent(businessData.name.replace(/ /g, '_'));
                     const canonicalPath = `/${canonicalCountryPrefix}/${paths.business.replace(':identifier', canonicalIdentifier)}`;
 
                     // Only redirect if we're not already on the canonical path
                     if (location.pathname !== canonicalPath) {
-                        setIsLoadingBusiness(false); // Stop loading before redirect
-                        // IMPORTANTE: No incluir query params ni hash en el redirect canónico
-                        // para evitar indexación de URLs con parámetros
+                        isRedirecting = true;
                         navigate(canonicalPath, { replace: true });
-                        return; // Stop execution to let the redirect happen
+                        return;
                     }
                 }
             }
@@ -495,7 +560,11 @@ const BusinessPage: React.FC = () => {
             console.error("Error fetching business data:", e instanceof Error ? e.message : String(e));
             setError(t('businessPage.errorLoadingBusiness'));
         } finally {
-            setIsLoadingBusiness(false);
+            // Only set loading false if we're not redirecting
+            // This prevents the flash of 404 during redirect
+            if (!isRedirecting) {
+                setIsLoadingBusiness(false);
+            }
         }
     }, [identifier, navigate, t, location.pathname, location.search, location.hash, countryCode]);
 
@@ -577,7 +646,7 @@ const BusinessPage: React.FC = () => {
 
     return (
         <>
-            <Meta title={metaTitle} description={metaDescription} lang={pageLang} />
+            <Meta title={metaTitle} description={metaDescription} lang={pageLang} canonical={canonicalUrl} />
             {schemaData && <Schema data={schemaData} />}
             <style>{iconStyle}</style>
 
@@ -624,7 +693,8 @@ const BusinessPage: React.FC = () => {
                                     {allSedes.map(s => {
                                         const isActive = s.country_code === activeCountryCode;
                                         const isMainSede = s.country_code === business.country;
-                                        const identifierSlug = encodeURIComponent(business.name.replace(/ /g, '_'));
+                                        // Usar el slug de la empresa si existe, sino fallback al nombre
+                                        const identifierSlug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
                                         const prefix = (s.country_code || 'es').toLowerCase();
                                         const targetLanguage = getLanguageForCountryCode(s.country_code);
                                         const paths = pathTranslations[targetLanguage] || pathTranslations.es;
