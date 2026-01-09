@@ -3088,7 +3088,8 @@ export const isSlugAvailable = async (slug: string, excludeBusinessId?: string):
 export const updateBusinessSlug = async (
   businessId: string,
   newSlug: string,
-  createRedirect: boolean = true
+  createRedirect: boolean = true,
+  originalUrlSlug?: string // URL original exacta para la redirección (con caracteres especiales)
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     // Obtener el slug actual
@@ -3098,7 +3099,8 @@ export const updateBusinessSlug = async (
       .eq('id', businessId)
       .single();
 
-    const oldSlug = currentBusiness?.slug || currentBusiness?.name?.replace(/ /g, '_');
+    // Usar la URL original si se proporciona, sino usar el slug/nombre actual
+    const oldSlug = originalUrlSlug || currentBusiness?.slug || currentBusiness?.name?.replace(/ /g, '_');
 
     // Verificar disponibilidad del nuevo slug
     const available = await isSlugAvailable(newSlug, businessId);
@@ -3117,14 +3119,63 @@ export const updateBusinessSlug = async (
     }
 
     // Crear redirección si se solicita y hay un slug anterior
-    if (createRedirect && oldSlug && oldSlug !== newSlug) {
-      await supabase
+    if (createRedirect && oldSlug && oldSlug.toLowerCase() !== newSlug.toLowerCase()) {
+      console.log('[updateBusinessSlug] Intentando crear redirección:', {
+        businessId,
+        oldSlug,
+        newSlug
+      });
+
+      // Verificar si ya existe una redirección para ESTA EMPRESA con ese old_slug
+      // La verificación debe ser por business_id + old_slug, no solo old_slug
+      const { data: exactMatch } = await supabase
         .from('url_redirects')
-        .insert({
-          old_slug: oldSlug.toLowerCase(),
-          business_id: businessId,
-          hits: 0
-        });
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('old_slug', oldSlug)
+        .maybeSingle();
+
+      let existingRedirect = exactMatch;
+
+      // Si no hay match exacto, buscar con case-insensitive para esta empresa
+      if (!existingRedirect && oldSlug !== oldSlug.toLowerCase()) {
+        const { data: caseInsensitiveMatch } = await supabase
+          .from('url_redirects')
+          .select('id')
+          .eq('business_id', businessId)
+          .eq('old_slug', oldSlug.toLowerCase())
+          .maybeSingle();
+
+        existingRedirect = caseInsensitiveMatch;
+      }
+
+      if (!existingRedirect) {
+        console.log('[updateBusinessSlug] Creando nueva redirección');
+        // Guardar la URL exacta como fue (con mayúsculas, caracteres especiales, etc.)
+        // para que se muestre correctamente en el panel admin
+        const { error: insertError } = await supabase
+          .from('url_redirects')
+          .insert({
+            old_slug: oldSlug, // Sin .toLowerCase() - mantener original
+            business_id: businessId,
+            hits: 0
+          });
+
+        if (insertError) {
+          console.error('[updateBusinessSlug] Error al crear redirección:', insertError);
+        } else {
+          console.log('[updateBusinessSlug] Redirección creada exitosamente');
+        }
+      } else {
+        console.log('[updateBusinessSlug] Redirección ya existe, saltando');
+      }
+      // Nota: Si la redirección ya existe para esta empresa, no la duplicamos
+    } else {
+      console.log('[updateBusinessSlug] No se creará redirección:', {
+        createRedirect,
+        hasOldSlug: !!oldSlug,
+        sameSlug: oldSlug?.toLowerCase() === newSlug.toLowerCase()
+      });
     }
 
     // Limpiar caché
@@ -3138,17 +3189,60 @@ export const updateBusinessSlug = async (
 };
 
 /**
+ * Eliminar el slug de una empresa (vuelve a usar URL basada en nombre)
+ * Útil cuando quieres deshacer una redirección y que la URL original funcione
+ */
+export const removeBusinessSlug = async (businessId: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error: updateError } = await supabase
+      .from('businesses')
+      .update({ slug: null })
+      .eq('id', businessId);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    // Limpiar caché
+    clearCache('business_');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in removeBusinessSlug:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Buscar redirección por slug antiguo
+ * Busca tanto la URL exacta como versión case-insensitive
  */
 export const getRedirectByOldSlug = async (oldSlug: string): Promise<{ business_id: string; new_slug: string } | null> => {
   try {
-    const { data: redirect, error } = await supabase
+    // Primero intentar búsqueda exacta, luego case-insensitive
+    let redirect = null;
+
+    // 1. Búsqueda exacta
+    const { data: exactMatch } = await supabase
       .from('url_redirects')
-      .select('business_id')
-      .eq('old_slug', oldSlug.toLowerCase())
+      .select('business_id, old_slug')
+      .eq('old_slug', oldSlug)
       .maybeSingle();
 
-    if (error || !redirect) return null;
+    if (exactMatch) {
+      redirect = exactMatch;
+    } else {
+      // 2. Búsqueda case-insensitive (ilike)
+      const { data: insensitiveMatch } = await supabase
+        .from('url_redirects')
+        .select('business_id, old_slug')
+        .ilike('old_slug', oldSlug)
+        .maybeSingle();
+
+      redirect = insensitiveMatch;
+    }
+
+    if (!redirect) return null;
 
     // Obtener el nuevo slug de la empresa
     const { data: business } = await supabase
@@ -3160,7 +3254,7 @@ export const getRedirectByOldSlug = async (oldSlug: string): Promise<{ business_
     if (!business) return null;
 
     // Incrementar hits en background (no esperar)
-    incrementRedirectHits(oldSlug);
+    incrementRedirectHits(redirect.old_slug);
 
     return {
       business_id: redirect.business_id,
@@ -3313,12 +3407,17 @@ export const getBusinessesWithProblematicUrls = async (
  * Actualizar múltiples slugs en batch
  */
 export const batchUpdateSlugs = async (
-  updates: Array<{ businessId: string; newSlug: string; createRedirect: boolean }>
+  updates: Array<{ businessId: string; newSlug: string; createRedirect: boolean; originalUrlSlug?: string }>
 ): Promise<{ success: number; failed: number; errors: string[] }> => {
   const results = { success: 0, failed: 0, errors: [] as string[] };
 
   for (const update of updates) {
-    const result = await updateBusinessSlug(update.businessId, update.newSlug, update.createRedirect);
+    const result = await updateBusinessSlug(
+      update.businessId,
+      update.newSlug,
+      update.createRedirect,
+      update.originalUrlSlug
+    );
     if (result.success) {
       results.success++;
     } else {

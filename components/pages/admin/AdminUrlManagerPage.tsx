@@ -5,7 +5,8 @@ import {
   updateBusinessSlug,
   deleteUrlRedirect,
   isSlugAvailable,
-  batchUpdateSlugs
+  batchUpdateSlugs,
+  removeBusinessSlug
 } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useTranslation } from '../../../contexts/i18nContext';
@@ -127,10 +128,13 @@ const AdminUrlManagerPage: React.FC = () => {
   }, [newSlug, editingBusiness]);
 
   // Open edit modal
-  const handleEdit = (business: BusinessForSlug) => {
+  const handleEdit = (business: BusinessForSlug, fromRedirectsTab: boolean = false) => {
     setEditingBusiness(business);
-    setNewSlug(slugify(business.name));
-    setCreateRedirect(true);
+    // Si ya tiene slug, sugerimos el slug actual; si no, generamos uno nuevo
+    setNewSlug(business.slug || slugify(business.name));
+    // Si viene del tab de redirecciones o ya tiene slug, no crear otra redirección por defecto
+    // porque la empresa ya está correctamente configurada
+    setCreateRedirect(!fromRedirectsTab && !business.slug);
     setSlugAvailable(null);
   };
 
@@ -140,7 +144,18 @@ const AdminUrlManagerPage: React.FC = () => {
 
     setSaving(true);
     try {
-      const result = await updateBusinessSlug(editingBusiness.id, newSlug, createRedirect);
+      // Construir la URL original exacta para la redirección
+      // Si no tiene slug, usar el nombre URL-encoded (como aparece en el navegador)
+      // Ejemplo: "ISEIE Innovation School | Formación" -> "ISEIE_Innovation_School_%7C_Formaci%C3%B3n"
+      const originalUrlSlug = editingBusiness.slug ||
+        encodeURIComponent(editingBusiness.name.replace(/ /g, '_'));
+
+      const result = await updateBusinessSlug(
+        editingBusiness.id,
+        newSlug,
+        createRedirect,
+        createRedirect ? originalUrlSlug : undefined // Pasar URL original solo si se crea redirección
+      );
       if (result.success) {
         showNotification(t('admin.urlManager.slugUpdated'), 'success');
         setEditingBusiness(null);
@@ -173,6 +188,24 @@ const AdminUrlManagerPage: React.FC = () => {
     }
   };
 
+  // Remove slug from business (revert to name-based URL)
+  const handleRemoveSlug = async (businessId: string, businessName: string) => {
+    if (!confirm(`¿Eliminar el slug de "${businessName}"? La empresa volverá a usar la URL basada en su nombre.`)) return;
+
+    try {
+      const result = await removeBusinessSlug(businessId);
+      if (result.success) {
+        showNotification('Slug eliminado correctamente', 'success');
+        fetchBusinesses(debouncedSearchTerm || undefined);
+        fetchRedirects();
+      } else {
+        showNotification(result.error || 'Error al eliminar slug', 'error');
+      }
+    } catch (error) {
+      showNotification('Error al eliminar slug', 'error');
+    }
+  };
+
   // Toggle selection
   const toggleSelection = (id: string) => {
     const newSelection = new Set(selectedBusinesses);
@@ -202,10 +235,16 @@ const AdminUrlManagerPage: React.FC = () => {
     try {
       const updates = Array.from(selectedBusinesses).map(id => {
         const business = businesses.find(b => b.id === id);
+        // Construir la URL original exacta para la redirección
+        // Si no tiene slug, usar el nombre URL-encoded (como aparece en el navegador)
+        const originalUrlSlug = business?.slug ||
+          encodeURIComponent((business?.name || '').replace(/ /g, '_'));
+
         return {
           businessId: id,
           newSlug: slugify(business?.name || ''),
-          createRedirect: true
+          createRedirect: true,
+          originalUrlSlug: originalUrlSlug
         };
       });
 
@@ -441,13 +480,24 @@ const AdminUrlManagerPage: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleEdit(business)}
-                          className="text-brand-dark hover:text-brand-dark/80 font-medium text-sm"
-                        >
-                          <i className="fa-solid fa-pen mr-1" />
-                          {t('admin.urlManager.edit')}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(business)}
+                            className="text-brand-dark hover:text-brand-dark/80 font-medium text-sm"
+                          >
+                            <i className="fa-solid fa-pen mr-1" />
+                            {t('admin.urlManager.edit')}
+                          </button>
+                          {business.slug && (
+                            <button
+                              onClick={() => handleRemoveSlug(business.id, business.name)}
+                              className="text-red-500 hover:text-red-600 font-medium text-sm"
+                              title="Eliminar slug (volver a URL por nombre)"
+                            >
+                              <i className="fa-solid fa-trash" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -458,7 +508,7 @@ const AdminUrlManagerPage: React.FC = () => {
         </div>
       )}
 
-      {/* Redirects Tab */}
+      {/* Redirects Tab - Updated */}
       {activeTab === 'redirects' && (
         <div>
           {loadingRedirects ? (
@@ -475,19 +525,19 @@ const AdminUrlManagerPage: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-zinc-700">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {t('admin.urlManager.oldUrl')}
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {t('admin.urlManager.redirectsTo')}
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {t('admin.urlManager.hits')}
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {t('admin.urlManager.created')}
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {t('admin.urlManager.actions')}
                     </th>
                   </tr>
@@ -498,36 +548,57 @@ const AdminUrlManagerPage: React.FC = () => {
                       key={redirect.id}
                       className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50"
                     >
-                      <td className="py-3 px-4">
-                        <code className="text-xs bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                      <td className="py-2 px-3">
+                        <code className="text-xs bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded break-all">
                           /empresa/{redirect.old_slug}
                         </code>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <i className="fa-solid fa-arrow-right text-gray-400" />
-                          <span className="text-sm text-gray-900 dark:text-white">
-                            {redirect.businesses?.name || 'Empresa eliminada'}
-                          </span>
-                        </div>
+                      <td className="py-2 px-3">
+                        <code className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded break-all">
+                          /empresa/{redirect.businesses?.slug || redirect.businesses?.name || '???'}
+                        </code>
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {redirect.hits.toLocaleString()}
+                      <td className="py-2 px-3 text-center">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          {redirect.hits}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-gray-500">
+                      <td className="py-2 px-3">
+                        <span className="text-xs text-gray-500">
                           {new Date(redirect.created_at).toLocaleDateString()}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteRedirect(redirect.id)}
-                          className="text-red-500 hover:text-red-600 text-sm"
-                        >
-                          <i className="fa-solid fa-trash" />
-                        </button>
+                      <td className="py-2 px-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          {redirect.businesses && (
+                            <button
+                              onClick={() => {
+                                // Crear objeto BusinessForSlug desde los datos del redirect
+                                const businessForEdit: BusinessForSlug = {
+                                  id: redirect.businesses.id,
+                                  name: redirect.businesses.name,
+                                  slug: redirect.businesses.slug || null,
+                                  country: redirect.businesses.country || null,
+                                  logo_url: redirect.businesses.logo_url || null,
+                                  created_at: redirect.created_at
+                                };
+                                // Pasar true para indicar que viene del tab de redirecciones
+                                handleEdit(businessForEdit, true);
+                              }}
+                              className="text-brand-dark hover:text-brand-dark/80 text-sm"
+                              title={t('admin.urlManager.editSlug')}
+                            >
+                              <i className="fa-solid fa-pen" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteRedirect(redirect.id)}
+                            className="text-red-500 hover:text-red-600 text-sm"
+                            title={t('admin.urlManager.deleteRedirect')}
+                          >
+                            <i className="fa-solid fa-trash" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
