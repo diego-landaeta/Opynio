@@ -257,8 +257,14 @@ const AdminUrlManagerPage: React.FC = () => {
       );
 
       setSelectedBusinesses(new Set());
-      fetchBusinesses();
-      fetchRedirects();
+
+      // Pequeño delay para asegurar que Supabase complete las operaciones
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await Promise.all([
+        fetchBusinesses(),
+        fetchRedirects()
+      ]);
     } catch (error) {
       showNotification(t('admin.urlManager.errorBatch'), 'error');
     } finally {

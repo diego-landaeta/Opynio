@@ -3411,19 +3411,39 @@ export const batchUpdateSlugs = async (
 ): Promise<{ success: number; failed: number; errors: string[] }> => {
   const results = { success: 0, failed: 0, errors: [] as string[] };
 
-  for (const update of updates) {
-    const result = await updateBusinessSlug(
-      update.businessId,
-      update.newSlug,
-      update.createRedirect,
-      update.originalUrlSlug
-    );
-    if (result.success) {
-      results.success++;
-    } else {
+  console.log(`[batchUpdateSlugs] Iniciando batch de ${updates.length} empresas`);
+
+  for (let i = 0; i < updates.length; i++) {
+    const update = updates[i];
+    console.log(`[batchUpdateSlugs] Procesando ${i + 1}/${updates.length}:`, update.originalUrlSlug);
+
+    try {
+      const result = await updateBusinessSlug(
+        update.businessId,
+        update.newSlug,
+        update.createRedirect,
+        update.originalUrlSlug
+      );
+
+      if (result.success) {
+        results.success++;
+        console.log(`[batchUpdateSlugs] ✓ ${i + 1}/${updates.length} exitoso`);
+      } else {
+        results.failed++;
+        results.errors.push(`${update.originalUrlSlug}: ${result.error}`);
+        console.error(`[batchUpdateSlugs] ✗ ${i + 1}/${updates.length} falló:`, result.error);
+      }
+    } catch (error: any) {
       results.failed++;
-      results.errors.push(`${update.businessId}: ${result.error}`);
+      const errorMsg = error?.message || 'Error desconocido';
+      results.errors.push(`${update.originalUrlSlug}: ${errorMsg}`);
+      console.error(`[batchUpdateSlugs] ✗ ${i + 1}/${updates.length} excepción:`, error);
     }
+  }
+
+  console.log(`[batchUpdateSlugs] Finalizado: ${results.success} exitosos, ${results.failed} fallidos`);
+  if (results.errors.length > 0) {
+    console.error('[batchUpdateSlugs] Errores:', results.errors);
   }
 
   return results;
