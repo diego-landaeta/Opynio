@@ -4,6 +4,7 @@ import { slugify } from '../utils/slugify';
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -25,6 +26,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+// Cliente admin para operaciones que requieren bypass de RLS (solo para admins)
+// IMPORTANTE: Solo usar para operaciones administrativas seguras
+const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          'x-client-info': 'opynio-admin',
+        },
+      },
+    })
+  : supabase; // Fallback al cliente normal si no hay SERVICE_ROLE
 
 // ==================== SIMPLE IN-MEMORY CACHE ====================
 interface CacheEntry<T> {
@@ -3157,7 +3174,8 @@ export const updateBusinessSlug = async (
         console.log('[updateBusinessSlug] 🔄 Creando nueva redirección...');
         // Guardar la URL exacta como fue (con mayúsculas, caracteres especiales, etc.)
         // para que se muestre correctamente en el panel admin
-        const { data: insertedData, error: insertError } = await supabase
+        // USAR supabaseAdmin para bypassear RLS
+        const { data: insertedData, error: insertError } = await supabaseAdmin
           .from('url_redirects')
           .insert({
             old_slug: oldSlug, // Sin .toLowerCase() - mantener original
@@ -3174,6 +3192,12 @@ export const updateBusinessSlug = async (
             hint: insertError.hint,
             code: insertError.code
           });
+
+          // Si el error es de RLS, mostrar mensaje específico
+          if (insertError.code === '42501' || insertError.message?.includes('row-level security')) {
+            console.error('🔒 ERROR RLS: La política de seguridad de Supabase está bloqueando el INSERT.');
+            console.error('💡 SOLUCIÓN: Añade VITE_SUPABASE_SERVICE_ROLE_KEY al .env o configura política RLS en Supabase.');
+          }
         } else {
           console.log('✅ [updateBusinessSlug] Redirección creada EXITOSAMENTE:', insertedData);
         }
