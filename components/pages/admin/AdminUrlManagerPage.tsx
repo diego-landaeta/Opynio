@@ -240,15 +240,28 @@ const AdminUrlManagerPage: React.FC = () => {
         const originalUrlSlug = business?.slug ||
           encodeURIComponent((business?.name || '').replace(/ /g, '_'));
 
-        return {
+        const update = {
           businessId: id,
           newSlug: slugify(business?.name || ''),
           createRedirect: true,
           originalUrlSlug: originalUrlSlug
         };
+
+        console.log('📦 [AdminUrlManager] Preparando update:', {
+          businessName: business?.name,
+          businessId: id,
+          currentSlug: business?.slug,
+          originalUrlSlug,
+          newSlug: update.newSlug,
+          createRedirect: true
+        });
+
+        return update;
       });
 
+      console.log('🚀 [AdminUrlManager] Enviando batch de', updates.length, 'empresas');
       const result = await batchUpdateSlugs(updates);
+      console.log('📊 [AdminUrlManager] Resultado del batch:', result);
       showNotification(
         t('admin.urlManager.batchComplete')
           .replace('{success}', String(result.success))

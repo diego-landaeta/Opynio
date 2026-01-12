@@ -3120,11 +3120,15 @@ export const updateBusinessSlug = async (
 
     // Crear redirección si se solicita y hay un slug anterior
     if (createRedirect && oldSlug && oldSlug.toLowerCase() !== newSlug.toLowerCase()) {
-      console.log('[updateBusinessSlug] Intentando crear redirección:', {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('[updateBusinessSlug] ✅ Intentando crear redirección:', {
         businessId,
         oldSlug,
-        newSlug
+        newSlug,
+        createRedirect,
+        conditionMet: true
       });
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       // Verificar si ya existe una redirección para ESTA EMPRESA con ese old_slug
       // La verificación debe ser por business_id + old_slug, no solo old_slug
@@ -3150,24 +3154,31 @@ export const updateBusinessSlug = async (
       }
 
       if (!existingRedirect) {
-        console.log('[updateBusinessSlug] Creando nueva redirección');
+        console.log('[updateBusinessSlug] 🔄 Creando nueva redirección...');
         // Guardar la URL exacta como fue (con mayúsculas, caracteres especiales, etc.)
         // para que se muestre correctamente en el panel admin
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from('url_redirects')
           .insert({
             old_slug: oldSlug, // Sin .toLowerCase() - mantener original
             business_id: businessId,
             hits: 0
-          });
+          })
+          .select();
 
         if (insertError) {
-          console.error('[updateBusinessSlug] Error al crear redirección:', insertError);
+          console.error('❌ [updateBusinessSlug] ERROR al crear redirección:', {
+            error: insertError,
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            code: insertError.code
+          });
         } else {
-          console.log('[updateBusinessSlug] Redirección creada exitosamente');
+          console.log('✅ [updateBusinessSlug] Redirección creada EXITOSAMENTE:', insertedData);
         }
       } else {
-        console.log('[updateBusinessSlug] Redirección ya existe, saltando');
+        console.log('⏭️ [updateBusinessSlug] Redirección ya existe, saltando:', existingRedirect);
       }
       // Nota: Si la redirección ya existe para esta empresa, no la duplicamos
     } else {

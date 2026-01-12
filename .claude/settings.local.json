@@ -28,7 +28,12 @@
       "Bash(timeout /t:*)",
       "Bash(npx tsc:*)",
       "Bash(ping:*)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(tar:*)",
+      "Bash(rm:*)",
+      "Bash(git stash:*)",
+      "Bash(ls:*)",
+      "Bash(node scripts/fetch-sitemap.js:*)"
     ],
     "deny": [],
     "ask": []
