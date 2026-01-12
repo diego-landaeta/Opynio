@@ -209,10 +209,10 @@ serve(async (_req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Obtiene las empresas con sus datos y país
+    // Obtiene las empresas con sus datos, país Y slug limpio
     const { data: businesses, error } = await supabaseClient
       .from('businesses')
-      .select('name, created_at, country')
+      .select('name, slug, created_at, country')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -303,7 +303,8 @@ serve(async (_req) => {
       for (const business of businesses) {
         const urlCode = countryToUrlCode[business.country || 'ES'] || 'es';
         const paths = getPathsForCountry(urlCode);
-        const businessSlug = encodeURIComponent(business.name.replace(/ /g, '_'));
+        // IMPORTANTE: Usar slug limpio si existe, sino fallback al nombre URL-encoded
+        const businessSlug = business.slug || encodeURIComponent(business.name.replace(/ /g, '_'));
 
         // Usar el path de "business" traducido (empresa/entreprise/business/azienda/etc.)
         const businessPath = `/${urlCode}/${paths.business}/${businessSlug}`;
