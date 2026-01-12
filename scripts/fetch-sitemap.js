@@ -3,12 +3,16 @@
  * Run with: node scripts/fetch-sitemap.js
  */
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import https from 'https';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // URL de tu Edge Function
-const SUPABASE_FUNCTION_URL = 'https://[TU-PROJECT-ID].supabase.co/functions/v1/generate-sitemap';
+const SUPABASE_FUNCTION_URL = 'https://hvtrrhxeqrsnjxhngdsj.supabase.co/functions/v1/generate-sitemap';
 
 console.log('🚀 Fetching sitemap from Supabase Edge Function...');
 
