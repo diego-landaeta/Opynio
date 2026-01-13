@@ -115,7 +115,11 @@
         .opynio-review-title { font-weight: 700; color: var(--text-color); margin-bottom: 0.5rem; font-size: 1rem; }
         .opynio-review-stars { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .opynio-review-stars .opynio-stars { font-size: 1.1rem; letter-spacing: 2px; }
-        .opynio-review-text { color: var(--subtext-color); line-height: 1.6; font-size: 0.9rem; flex: 1; margin-bottom: 10px; }
+        .opynio-review-text { color: var(--subtext-color); line-height: 1.6; font-size: 0.9rem; flex: 1; margin-bottom: 10px; max-height: 120px; overflow-y: auto; overflow-x: hidden; word-wrap: break-word; }
+        .opynio-review-text::-webkit-scrollbar { width: 6px; }
+        .opynio-review-text::-webkit-scrollbar-track { background: transparent; }
+        .opynio-review-text::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .opynio-review-text::-webkit-scrollbar-thumb:hover { background: var(--opynio-green); }
 
         .opynio-nav-arrow {
             position: absolute;
@@ -287,8 +291,10 @@
     }
 
     function generateStars(rating) {
+        // Validate rating - default to 0 if invalid
+        var validRating = (rating && !isNaN(rating)) ? Math.max(0, Math.min(5, rating)) : 0;
         return Array(5).fill(0).map(function(_, i) {
-            return '<span class="' + (i < Math.round(rating) ? 'full' : 'empty') + '">★</span>';
+            return '<span class="' + (i < Math.round(validRating) ? 'full' : 'empty') + '">★</span>';
         }).join('');
     }
 

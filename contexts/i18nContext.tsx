@@ -115,6 +115,7 @@ export const translateCategoryString = (
 };
 
 export const getNestedTranslation = (obj: any, key: string): string | undefined => {
+    if (!obj || !key) return undefined;
     return key.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
 };
 
