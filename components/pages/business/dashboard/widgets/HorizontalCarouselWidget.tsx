@@ -155,8 +155,8 @@ export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, th
                                         <div className="opynio-review-stars">
                                             <div className="opynio-stars"><StaticStarRating rating={review.rating} /></div>
                                         </div>
-                                        <h4 className="opynio-review-title">{review.title}</h4>
-                                        <p className="opynio-review-text">{review.review_text}</p>
+                                        <h4 className="opynio-review-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.5rem' }}>{review.title}</h4>
+                                        <p className="opynio-review-text" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>{review.review_text}</p>
                                     </div>
                                 );
                             })}
