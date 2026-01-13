@@ -72,12 +72,15 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const sourceInfo = isImportedReview ? sourceDetails[sourceKey] : null;
     const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
 
-    // Clean author name by removing country/location suffix (e.g., "John Doe, España" -> "John Doe")
-    const getCleanAuthorName = (name: string | null | undefined): string => {
-        if (!name) return 'Anónimo';
-        // Remove country/location after comma (e.g., "Name, Country" -> "Name")
-        const cleanName = name.split(',')[0].trim();
-        return cleanName || 'Anónimo';
+    // Extract author name and location from combined string (e.g., "John Doe, España" -> {name: "John Doe", location: "España"})
+    const getAuthorInfo = (nameString: string | null | undefined): { name: string; location: string | null } => {
+        if (!nameString) return { name: 'Anónimo', location: null };
+
+        const parts = nameString.split(',').map(p => p.trim());
+        const name = parts[0] || 'Anónimo';
+        const location = parts.length > 1 ? parts[1] : null;
+
+        return { name, location };
     };
 
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -319,18 +322,31 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-zinc-700">
                 <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
-                         {review.profiles?.avatar_url ? (
-                             <img src={review.profiles.avatar_url} alt={review.profiles?.name ?? 'Avatar'} width={32} height={32} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                         ) : (
-                             <span className="text-xs sm:text-sm dark:text-gray-200">{getCleanAuthorName(review.original_author_name || review.profiles?.name).charAt(0).toUpperCase()}</span>
-                         )}
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                        <span className="text-gray-500 dark:text-gray-400">
-                            {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{getCleanAuthorName(isImportedReview ? review.original_author_name : (review.profiles ? review.profiles.name : review.original_author_name))}</span>
-                        </span>
-                    </div>
+                    {(() => {
+                        const authorInfo = getAuthorInfo(isImportedReview ? review.original_author_name : (review.profiles ? review.profiles.name : review.original_author_name));
+                        return (
+                            <>
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
+                                    {review.profiles?.avatar_url ? (
+                                        <img src={review.profiles.avatar_url} alt={review.profiles?.name ?? 'Avatar'} width={32} height={32} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-xs sm:text-sm dark:text-gray-200">{authorInfo.name.charAt(0).toUpperCase()}</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                        {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{authorInfo.name}</span>
+                                    </span>
+                                    {authorInfo.location && (
+                                        <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                            <i className="fa-solid fa-location-dot" />
+                                            <span>{authorInfo.location}</span>
+                                        </span>
+                                    )}
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
                 {!isImportedReview && (
                     <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
