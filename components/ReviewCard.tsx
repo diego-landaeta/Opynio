@@ -72,6 +72,14 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const sourceInfo = isImportedReview ? sourceDetails[sourceKey] : null;
     const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
 
+    // Clean author name by removing country/location suffix (e.g., "John Doe, España" -> "John Doe")
+    const getCleanAuthorName = (name: string | null | undefined): string => {
+        if (!name) return 'Anónimo';
+        // Remove country/location after comma (e.g., "Name, Country" -> "Name")
+        const cleanName = name.split(',')[0].trim();
+        return cleanName || 'Anónimo';
+    };
+
     const getCategoryTranslation = (categoryString: string | null): string => {
         if (!categoryString) return '';
 
@@ -315,12 +323,12 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                          {review.profiles?.avatar_url ? (
                              <img src={review.profiles.avatar_url} alt={review.profiles?.name ?? 'Avatar'} width={32} height={32} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                          ) : (
-                             <span className="text-xs sm:text-sm dark:text-gray-200">{(review.original_author_name || review.profiles?.name || 'A').charAt(0).toUpperCase()}</span>
+                             <span className="text-xs sm:text-sm dark:text-gray-200">{getCleanAuthorName(review.original_author_name || review.profiles?.name).charAt(0).toUpperCase()}</span>
                          )}
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2">
                         <span className="text-gray-500 dark:text-gray-400">
-                            {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{isImportedReview ? review.original_author_name : (review.profiles ? `${review.profiles.name}` : review.original_author_name) || 'Anónimo'}</span>
+                            {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{getCleanAuthorName(isImportedReview ? review.original_author_name : (review.profiles ? review.profiles.name : review.original_author_name))}</span>
                         </span>
                     </div>
                 </div>
