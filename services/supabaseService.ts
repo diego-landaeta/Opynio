@@ -1989,7 +1989,7 @@ export const getPublicReviews = async (
       // Need to fetch full business data to check sedes JSONB array
       let businessQuery = supabase
         .from('businesses')
-        .select('id, name, category, country, sedes');
+        .select('id, name, category, country, sedes, description');
 
       if (filters.category) {
         // Categories in DB are stored as "Parent Category: Subcategory"
@@ -2005,7 +2005,11 @@ export const getPublicReviews = async (
         const normalizedSearch = removeAccents(filters.searchTerm);
         filteredBySearch = matchingBusinesses.filter(business => {
           const normalizedName = removeAccents(business.name || '');
-          return normalizedName.includes(normalizedSearch);
+          const normalizedCategory = removeAccents(business.category || '');
+          const normalizedDescription = removeAccents(business.description || '');
+          return normalizedName.includes(normalizedSearch) ||
+                 normalizedCategory.includes(normalizedSearch) ||
+                 normalizedDescription.includes(normalizedSearch);
         });
       }
 
