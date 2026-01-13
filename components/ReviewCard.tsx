@@ -329,7 +329,10 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                             {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{isImportedReview ? review.original_author_name : (review.profiles ? `${review.profiles.name}` : review.original_author_name) || 'Anónimo'}</span>
                         </span>
                         {countryInfo && (
-                            <img src={countryInfo.flag} alt={countryInfo.name} title={countryInfo.name} width={16} height={16} loading="lazy" decoding="async" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full" />
+                            <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                <i className="fa-solid fa-location-dot" />
+                                <span>{countryInfo.name}</span>
+                            </span>
                         )}
                     </div>
                 </div>
