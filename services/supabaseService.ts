@@ -478,32 +478,72 @@ export const getBusinessListItemById = async (id: string) => {
 };
 
 export const searchBusinessList = async (searchTerm: string) => {
-  // Escape special characters for ILIKE pattern matching
-  const escapedTerm = searchTerm.replace(/[%_\\]/g, '\\$&');
+  // Helper function for accent-insensitive search
+  const removeAccents = (text: string): string => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
+  // Fetch all businesses (or limit to reasonable amount)
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, category, country')
-    .ilike('name', `%${escapedTerm}%`)
-    .limit(10);
+    .select('id, name, category, country, description')
+    .limit(200);
+
   if (error) throw error;
-  return data || [];
+  if (!data) return [];
+
+  // Apply client-side accent-insensitive search
+  const normalizedSearch = removeAccents(searchTerm);
+  const filtered = data.filter(business => {
+    const normalizedName = removeAccents(business.name || '');
+    const normalizedCategory = removeAccents(business.category || '');
+    const normalizedDescription = removeAccents(business.description || '');
+    return normalizedName.includes(normalizedSearch) ||
+           normalizedCategory.includes(normalizedSearch) ||
+           normalizedDescription.includes(normalizedSearch);
+  });
+
+  return filtered.slice(0, 10); // Return top 10 results
 };
 
 export const getBusinessIdAndNameList = async (searchTerm: string = '') => {
+  // Helper function for accent-insensitive search
+  const removeAccents = (text: string): string => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
+
   let query = supabase
     .from('businesses')
-    .select('id, name, country')
+    .select('id, name, country, category, description')
     .order('name');
 
-  if (searchTerm) {
-    // Escape special characters for ILIKE pattern matching
-    const escapedTerm = searchTerm.replace(/[%_\\]/g, '\\$&');
-    query = query.ilike('name', `%${escapedTerm}%`);
+  const { data, error } = await query.limit(200);
+  if (error) throw error;
+  if (!data) return [];
+
+  // If no search term, return all results (up to limit)
+  if (!searchTerm) {
+    return data.slice(0, 50);
   }
 
-  const { data, error } = await query.limit(50);
-  if (error) throw error;
-  return data || [];
+  // Apply client-side accent-insensitive search
+  const normalizedSearch = removeAccents(searchTerm);
+  const filtered = data.filter(business => {
+    const normalizedName = removeAccents(business.name || '');
+    const normalizedCategory = removeAccents(business.category || '');
+    const normalizedDescription = removeAccents(business.description || '');
+    return normalizedName.includes(normalizedSearch) ||
+           normalizedCategory.includes(normalizedSearch) ||
+           normalizedDescription.includes(normalizedSearch);
+  });
+
+  return filtered.slice(0, 50);
 };
 
 export const getBusinessesWithLocations = async (country?: string) => {
