@@ -372,6 +372,7 @@ export default {
     software_development_it_services: "Desenvolupament de Programari i Serveis TI",
     business_consulting: "Consultoria de Negocis",
     human_resources_recruitment: "Recursos Humans i Contractació",
+    recruitment: "Contractació",
     vehicle_dealerships: "Concessionaris de Vehicles",
     mechanical_workshops_repair: "Tallers Mecànics i Reparació",
     vehicle_rental: "Lloguer de Vehicles",

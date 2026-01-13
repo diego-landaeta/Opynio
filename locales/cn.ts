@@ -373,6 +373,7 @@ export default {
     software_development_it_services: "软件开发和IT服务",
     business_consulting: "商业咨询",
     human_resources_recruitment: "人力资源和招聘",
+    recruitment: "招聘",
     vehicle_dealerships: "汽车经销商",
     mechanical_workshops_repair: "机械车间和维修",
     vehicle_rental: "车辆租赁",

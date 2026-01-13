@@ -82,6 +82,7 @@ export const SUBCATEGORY_SPANISH_TO_KEY: { [key: string]: string } = {
   "Desarrollo de Software y Servicios TI": "software_development_it_services",
   "Consultoría de Negocios": "business_consulting",
   "Recursos Humanos y Contratación": "human_resources_recruitment",
+  "Reclutamiento": "recruitment",
 
   // Automoción
   "Concesionarios de Vehículos": "vehicle_dealerships",

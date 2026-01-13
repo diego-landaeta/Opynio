@@ -379,6 +379,7 @@ export default {
     software_development_it_services: "Software Development & IT Services",
     business_consulting: "Business Consulting",
     human_resources_recruitment: "Human Resources & Recruitment",
+    recruitment: "Recruitment",
     vehicle_dealerships: "Vehicle Dealerships",
     mechanical_workshops_repair: "Mechanical Workshops & Repair",
     vehicle_rental: "Vehicle Rental",
