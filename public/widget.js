@@ -397,16 +397,16 @@
         'horizontal-carousel': function(el, business, reviews) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
             var ratingText = validRating >= 4.5 ? 'EXCELENTE' : validRating >= 3.5 ? 'MUY BUENO' : 'BUENO';
+            var businessUrl = getBusinessUrl(business);
             var cardsHTML = reviews.map(function(r) {
                 var source = (r.source || 'opynio').toString().toLowerCase().trim();
                 var badge = source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">Google</span></div>' : '';
                 var icon = source === 'google' ? '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4285f4"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' : '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#00b67a"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
                 var reviewText = r.review_text || 'Reseña multimedia.';
-                var reviewId = 'review-' + business.id + '-' + r.id;
-                // Solo mostrar "Ver más" si el texto es largo (más de 200 caracteres aproximadamente)
+                // Truncar texto a 4 líneas (~200 chars) y mostrar "Ver más" si es largo
                 var isLongText = reviewText.length > 200;
-                var verMasBtn = isLongText ? '<button class="opynio-ver-mas-btn" data-review-id="' + reviewId + '" style="background: none; border: none; color: #00b67a; cursor: pointer; font-size: 0.85rem; font-weight: 600; padding: 0.25rem 0; margin-top: 0.5rem; text-decoration: underline;">Ver más</button>' : '';
-                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || 'Anónimo') + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text' + (isLongText ? ' opynio-review-text-truncated' : '') + '" id="' + reviewId + '" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + verMasBtn + '</div>';
+                var verMasBtn = isLongText ? '<a href="' + businessUrl + '" target="_blank" style="color: #00b67a; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.5rem;">Ver más</a>' : '';
+                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || 'Anónimo') + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + verMasBtn + '</div>';
             }).join('');
 
             el.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">A base de <strong>' + (business.review_count || 0) + ' reseñas</strong></p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
@@ -439,34 +439,6 @@
             next.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(1); start(); };
             prev.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(-1); start(); };
             start();
-
-            // "Ver más" button functionality
-            var verMasBtns = el.querySelectorAll('.opynio-ver-mas-btn');
-            verMasBtns.forEach(function(btn) {
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var reviewId = btn.getAttribute('data-review-id');
-                    var reviewTextEl = document.getElementById(reviewId);
-                    if (reviewTextEl) {
-                        if (reviewTextEl.classList.contains('opynio-review-text-truncated')) {
-                            // Expand
-                            reviewTextEl.style.maxHeight = 'none';
-                            reviewTextEl.style.display = 'block';
-                            reviewTextEl.style.webkitLineClamp = 'unset';
-                            reviewTextEl.classList.remove('opynio-review-text-truncated');
-                            btn.textContent = 'Ver menos';
-                        } else {
-                            // Collapse
-                            reviewTextEl.style.maxHeight = '120px';
-                            reviewTextEl.style.display = '-webkit-box';
-                            reviewTextEl.style.webkitLineClamp = '4';
-                            reviewTextEl.classList.add('opynio-review-text-truncated');
-                            btn.textContent = 'Ver más';
-                        }
-                    }
-                };
-            });
         }
     };
 
