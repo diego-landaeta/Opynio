@@ -609,6 +609,14 @@ export const getBusinessesForDirectoryPaginated = async (
   try {
     const offset = (page - 1) * pageSize;
 
+    // Helper function for accent-insensitive search
+    const removeAccents = (text: string): string => {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    };
+
     // Build query - Note: 'city' doesn't exist as a column, it's derived from sedes
     let query = supabase
       .from('businesses')
@@ -618,9 +626,8 @@ export const getBusinessesForDirectoryPaginated = async (
       `, { count: 'exact' });
 
     // Apply filters
-    if (filters?.searchTerm) {
-      query = query.ilike('name', `%${filters.searchTerm}%`);
-    }
+    // NOTE: searchTerm filter is applied client-side for accent-insensitive search
+    // We don't apply .ilike() here to fetch more results
 
     if (filters?.category) {
       query = query.ilike('category', `${filters.category}%`);
@@ -651,8 +658,15 @@ export const getBusinessesForDirectoryPaginated = async (
         query = query.order('name', { ascending: true });
     }
 
-    // Apply pagination
-    query = query.range(offset, offset + pageSize - 1);
+    // When searching, fetch more results to filter client-side
+    // Otherwise apply normal pagination
+    if (filters?.searchTerm) {
+      // Fetch larger batch for client-side filtering
+      query = query.range(0, 499); // Fetch up to 500 results
+    } else {
+      // Apply normal pagination
+      query = query.range(offset, offset + pageSize - 1);
+    }
 
     const { data: businesses, error, count } = await query;
 
@@ -665,8 +679,20 @@ export const getBusinessesForDirectoryPaginated = async (
       return { businesses: [], totalCount: 0, hasMore: false };
     }
 
+    // Apply client-side accent-insensitive search filter
+    let filteredBusinesses = businesses;
+    if (filters?.searchTerm) {
+      const normalizedSearch = removeAccents(filters.searchTerm);
+      filteredBusinesses = businesses.filter(b => {
+        const normalizedName = removeAccents(b.name || '');
+        const normalizedDescription = removeAccents(b.description || '');
+        return normalizedName.includes(normalizedSearch) ||
+               normalizedDescription.includes(normalizedSearch);
+      });
+    }
+
     // Get review stats for these businesses (both Opynio and Google reviews are in the same table)
-    const businessIds = businesses.map(b => b.id);
+    const businessIds = filteredBusinesses.map(b => b.id);
     const { data: reviewStats } = await supabase
       .from('reviews')
       .select('business_id, rating')
@@ -685,7 +711,7 @@ export const getBusinessesForDirectoryPaginated = async (
       });
     }
 
-    const enrichedBusinesses = businesses.map(b => {
+    const enrichedBusinesses = filteredBusinesses.map(b => {
       const stats = statsMap.get(b.id);
       const reviewCount = stats?.count || 0;
       const avgRating = reviewCount > 0 ? stats!.totalRating / reviewCount : 0;
@@ -704,12 +730,25 @@ export const getBusinessesForDirectoryPaginated = async (
       enrichedBusinesses.sort((a, b) => b.review_count - a.review_count);
     }
 
-    const totalCount = count || 0;
-    const hasMore = offset + businesses.length < totalCount;
+    // Apply pagination to filtered results when searching
+    let paginatedBusinesses = enrichedBusinesses;
+    let finalTotalCount = count || 0;
 
-    console.log(`📋 Loaded page ${page}: ${businesses.length} businesses (${offset + 1}-${offset + businesses.length} of ${totalCount})`);
+    if (filters?.searchTerm) {
+      // Use filtered count and apply pagination client-side
+      finalTotalCount = enrichedBusinesses.length;
+      const startIdx = offset;
+      const endIdx = offset + pageSize;
+      paginatedBusinesses = enrichedBusinesses.slice(startIdx, endIdx);
+    }
 
-    return { businesses: enrichedBusinesses, totalCount, hasMore };
+    const hasMore = filters?.searchTerm
+      ? offset + paginatedBusinesses.length < finalTotalCount
+      : offset + filteredBusinesses.length < (count || 0);
+
+    console.log(`📋 Loaded page ${page}: ${paginatedBusinesses.length} businesses (${offset + 1}-${offset + paginatedBusinesses.length} of ${finalTotalCount})`);
+
+    return { businesses: paginatedBusinesses, totalCount: finalTotalCount, hasMore };
   } catch (error) {
     console.error('Error in getBusinessesForDirectoryPaginated:', error);
     throw error;
@@ -726,13 +765,59 @@ export const getTotalBusinessCount = async (
   }
 ): Promise<number> => {
   try {
+    // Helper function for accent-insensitive search
+    const removeAccents = (text: string): string => {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    };
+
+    // When searching, we need to fetch and filter client-side
+    if (filters?.searchTerm) {
+      let query = supabase
+        .from('businesses')
+        .select('id, name, description');
+
+      if (filters?.category) {
+        query = query.ilike('category', `${filters.category}%`);
+      }
+
+      if (filters?.countries && filters.countries.length > 0) {
+        query = query.in('country', filters.countries);
+      }
+
+      if (filters?.serviceType === 'international') {
+        query = query.eq('offers_international_services', true);
+      }
+
+      query = query.range(0, 499); // Fetch up to 500 results
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error getting total business count:', error);
+        return 0;
+      }
+
+      if (!data) return 0;
+
+      // Apply accent-insensitive filter
+      const normalizedSearch = removeAccents(filters.searchTerm);
+      const filtered = data.filter(b => {
+        const normalizedName = removeAccents(b.name || '');
+        const normalizedDescription = removeAccents(b.description || '');
+        return normalizedName.includes(normalizedSearch) ||
+               normalizedDescription.includes(normalizedSearch);
+      });
+
+      return filtered.length;
+    }
+
+    // No search term - use regular count query
     let query = supabase
       .from('businesses')
       .select('id', { count: 'exact', head: true });
-
-    if (filters?.searchTerm) {
-      query = query.ilike('name', `%${filters.searchTerm}%`);
-    }
 
     if (filters?.category) {
       query = query.ilike('category', `${filters.category}%`);
