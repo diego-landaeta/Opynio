@@ -1734,21 +1734,27 @@ const getVariedReviews = async (
   pageSize: number
 ): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean }> => {
   try {
+    // Helper function for accent-insensitive search
+    const removeAccents = (text: string): string => {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    };
+
     // Step 1: Get ALL businesses (no limit when filtering by category to ensure we get all)
     // The limit was causing issues when there are many businesses in a category
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes');
+      .select('id, name, country, logo_url, category, sedes, description');
 
     // Only apply limit when no category filter (general browse)
-    if (!filters.category) {
+    if (!filters.category && !filters.searchTerm) {
       businessQuery = businessQuery.limit(100);
     }
 
-    if (filters.searchTerm) {
-      const escapedTerm = filters.searchTerm.replace(/[%_\\]/g, '\\$&');
-      businessQuery = businessQuery.ilike('name', `%${escapedTerm}%`);
-    }
+    // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
+    // We don't apply .ilike() here
 
     if (filters.category) {
       // Use ilike with % to match category prefix (e.g., "Restaurantes y Ocio" matches "Restaurantes y Ocio: Catering")
@@ -1768,11 +1774,31 @@ const getVariedReviews = async (
       return { reviews: [], totalCount: 0, hasMore: false, businessCount: 0 };
     }
 
+    // Step 1.5: Apply client-side accent-insensitive search filter
+    let searchFilteredBusinesses = allBusinesses;
+    if (filters.searchTerm) {
+      const normalizedSearch = removeAccents(filters.searchTerm);
+      searchFilteredBusinesses = allBusinesses.filter(business => {
+        const normalizedName = removeAccents(business.name || '');
+        const normalizedCategory = removeAccents(business.category || '');
+        const normalizedDescription = removeAccents(business.description || '');
+        return normalizedName.includes(normalizedSearch) ||
+               normalizedCategory.includes(normalizedSearch) ||
+               normalizedDescription.includes(normalizedSearch);
+      });
+
+      console.log(`🔍 Search filter "${filters.searchTerm}": ${searchFilteredBusinesses.length} of ${allBusinesses.length} businesses match`);
+
+      if (searchFilteredBusinesses.length === 0) {
+        return { reviews: [], totalCount: 0, hasMore: false, businessCount: 0 };
+      }
+    }
+
     // Step 2: Filter by country if needed (client-side because sedes is JSONB)
     // IMPORTANT: If country filter is set and no businesses match, return empty - NOT fallback to all
-    let filteredBusinesses = allBusinesses;
+    let filteredBusinesses = searchFilteredBusinesses;
     if (filters.country) {
-      filteredBusinesses = allBusinesses.filter(business => {
+      filteredBusinesses = searchFilteredBusinesses.filter(business => {
         // Check main country field
         if (business.country === filters.country) return true;
         // Check sedes array for country_code
@@ -1780,7 +1806,7 @@ const getVariedReviews = async (
         return sedes.some(sede => sede.country_code === filters.country);
       });
 
-      console.log(`🌍 Country filter "${filters.country}": ${filteredBusinesses.length} of ${allBusinesses.length} businesses match`);
+      console.log(`🌍 Country filter "${filters.country}": ${filteredBusinesses.length} of ${searchFilteredBusinesses.length} businesses match`);
 
       // If no businesses in this country, return empty results (don't fallback to all)
       if (filteredBusinesses.length === 0) {
