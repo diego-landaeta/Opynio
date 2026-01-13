@@ -286,17 +286,22 @@ export const getReviewsOptimized = async (
   }
 };
 
-// Optimized query for searching businesses
+// Helper function to remove accents from text
+const removeAccents = (text: string): string => {
+  return text
+    .normalize('NFD') // Descompone caracteres acentuados
+    .replace(/[\u0300-\u036f]/g, '') // Elimina los diacríticos
+    .toLowerCase();
+};
+
+// Optimized query for searching businesses (accent-insensitive)
 export const searchBusinessesOptimized = async (searchTerm: string, filters: any = {}) => {
   let query = supabase
     .from('businesses')
     .select('id, name, category, country, logo_url, description, sedes')
     .order('name');
 
-  if (searchTerm) {
-    query = query.or(`name.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-  }
-
+  // Aplicar filtros primero para reducir el conjunto de datos
   if (filters.country) {
     query = query.eq('country', filters.country);
   }
@@ -306,9 +311,30 @@ export const searchBusinessesOptimized = async (searchTerm: string, filters: any
     query = query.ilike('category', `${filters.category}%`);
   }
 
-  const { data, error } = await query.limit(50);
+  // Obtener más resultados para filtrar en el cliente
+  const { data, error } = await query.limit(200);
   if (error) throw error;
-  return data || [];
+
+  // Si hay término de búsqueda, filtrar en el cliente para búsqueda sin acentos
+  if (searchTerm && data) {
+    const normalizedSearch = removeAccents(searchTerm);
+
+    const filtered = data.filter(business => {
+      const normalizedName = removeAccents(business.name || '');
+      const normalizedCategory = removeAccents(business.category || '');
+      const normalizedDescription = removeAccents(business.description || '');
+
+      return (
+        normalizedName.includes(normalizedSearch) ||
+        normalizedCategory.includes(normalizedSearch) ||
+        normalizedDescription.includes(normalizedSearch)
+      );
+    });
+
+    return filtered.slice(0, 50); // Limitar a 50 resultados finales
+  }
+
+  return (data || []).slice(0, 50);
 };
 
 export default {

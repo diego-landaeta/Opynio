@@ -1878,15 +1878,18 @@ export const getPublicReviews = async (
     let filteredBusinessIds: string[] | undefined = filters.businessIds;
 
     if (filters.searchTerm || filters.category || filters.country) {
+      // Helper function to remove accents
+      const removeAccents = (text: string): string => {
+        return text
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+      };
+
       // Need to fetch full business data to check sedes JSONB array
       let businessQuery = supabase
         .from('businesses')
-        .select('id, country, sedes');
-
-      if (filters.searchTerm) {
-        const escapedTerm = filters.searchTerm.replace(/[%_\\]/g, '\\$&');
-        businessQuery = businessQuery.ilike('name', `%${escapedTerm}%`);
-      }
+        .select('id, name, category, country, sedes');
 
       if (filters.category) {
         // Categories in DB are stored as "Parent Category: Subcategory"
@@ -1896,20 +1899,33 @@ export const getPublicReviews = async (
 
       const { data: matchingBusinesses, error: businessSearchError } = await businessQuery;
 
+      // Filtrar por searchTerm en el cliente para búsqueda sin acentos
+      let filteredBySearch = matchingBusinesses;
+      if (filters.searchTerm && matchingBusinesses) {
+        const normalizedSearch = removeAccents(filters.searchTerm);
+        filteredBySearch = matchingBusinesses.filter(business => {
+          const normalizedName = removeAccents(business.name || '');
+          return normalizedName.includes(normalizedSearch);
+        });
+      }
+
+      // Usar los resultados filtrados
+      const finalMatchingBusinesses = filteredBySearch;
+
       if (businessSearchError) {
         console.error('Error searching businesses:', businessSearchError);
         throw businessSearchError;
       }
 
-      if (!matchingBusinesses || matchingBusinesses.length === 0) {
+      if (!finalMatchingBusinesses || finalMatchingBusinesses.length === 0) {
         // No businesses match the search - return empty array
         return [];
       }
 
       // Filter by country/sede if specified (unless skipCountryFilter is true)
-      let countryFilteredBusinesses = matchingBusinesses;
+      let countryFilteredBusinesses = finalMatchingBusinesses;
       if (filters.country && !filters.skipCountryFilter) {
-        const countryMatches = matchingBusinesses.filter(business => {
+        const countryMatches = finalMatchingBusinesses.filter(business => {
           // Check if main country matches
           if (business.country === filters.country) {
             return true;
@@ -1925,7 +1941,7 @@ export const getPublicReviews = async (
         }
       } else if (filters.skipCountryFilter && filters.country) {
         // When loading from other countries, EXCLUDE the country businesses
-        countryFilteredBusinesses = matchingBusinesses.filter(business => {
+        countryFilteredBusinesses = finalMatchingBusinesses.filter(business => {
           const sedes = business.sedes as any[] || [];
           const isInCountry = business.country === filters.country ||
                               sedes.some(sede => sede.country_code === filters.country);
