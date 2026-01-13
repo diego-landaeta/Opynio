@@ -37,11 +37,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch business data, metrics, and reviews in parallel
-    const [businessRes, metricsRes, reviewsRes] = await Promise.all([
+    // Fetch business data and reviews in parallel
+    const [businessRes, reviewsRes, reviewStatsRes] = await Promise.all([
       supabaseAdmin.from('businesses').select('id, name, logo_url').eq('id', businessId).single(),
-      supabaseAdmin.from('business_metrics').select('avg_rating, review_count').eq('id', businessId).single(),
-      supabaseAdmin.from('reviews').select('title, review_text, rating, original_author_name, source, created_at').eq('business_id', businessId).eq('status', 'approved').not('title', 'is', null).not('review_text', 'is', null).neq('title', '').neq('review_text', '').order('created_at', { ascending: false }).limit(20)
+      supabaseAdmin.from('reviews').select('title, review_text, rating, original_author_name, source, created_at').eq('business_id', businessId).eq('status', 'approved').not('title', 'is', null).not('review_text', 'is', null).neq('title', '').neq('review_text', '').order('created_at', { ascending: false }).limit(20),
+      // Calculate avg_rating and review_count directly from reviews table
+      supabaseAdmin.from('reviews').select('rating').eq('business_id', businessId).eq('status', 'approved')
     ]);
 
     if (businessRes.error) {
@@ -54,14 +55,20 @@ serve(async (req) => {
         throw businessRes.error;
     }
     // Don't throw for other errors, just log them if they exist
-    if (metricsRes.error && metricsRes.error.code !== 'PGRST116') console.error("Metrics fetch error:", metricsRes.error);
     if (reviewsRes.error) console.error("Reviews fetch error:", reviewsRes.error);
+    if (reviewStatsRes.error) console.error("Review stats fetch error:", reviewStatsRes.error);
 
+    // Calculate review count and average rating from actual reviews
+    const allReviews = reviewStatsRes.data || [];
+    const reviewCount = allReviews.length;
+    const avgRating = reviewCount > 0
+      ? allReviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0) / reviewCount
+      : 0;
 
     const businessData = {
       ...businessRes.data,
-      avg_rating: metricsRes.data?.avg_rating ?? 0,
-      review_count: metricsRes.data?.review_count ?? 0,
+      avg_rating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
+      review_count: reviewCount,
     };
     
     const reviewsData = reviewsRes.data || [];
