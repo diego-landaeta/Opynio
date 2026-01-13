@@ -69,6 +69,7 @@ export const CATEGORIES: { [key: string]: string[] } = {
         'desarrollo_de_software_y_servicios_ti',
         'consultoria_de_negocios',
         'agencias_de_marketing_y_publicidad',
+        'recruitment',
     ],
     'Educación y Formación': [
         'formacion_profesional_y_cursos_online',
