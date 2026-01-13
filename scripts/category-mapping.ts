@@ -49,6 +49,8 @@ export const CATEGORY_MAPPING: Record<string, string> = {
 
   'Servicios Profesionales y de Empresa: Agencias de Marketing y Publicidad': 'Servicios Profesionales y de Empresa: Agencias de Marketing y Publicidad',
 
+  'Servicios Profesionales y de Empresa: Reclutamiento': 'Servicios Profesionales y de Empresa: Reclutamiento',
+
   // ============== EDUCACIÓN Y FORMACIÓN ==============
   'Educación y Formación: Formación Profesional y Cursos Online': 'Educación y Formación: Formación Profesional y Cursos Online',
   'education_and_training: vocational_training_online_courses': 'Educación y Formación: Formación Profesional y Cursos Online',
