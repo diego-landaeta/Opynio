@@ -864,17 +864,22 @@ export const getBusinessesWithReviewsPaginated = async (
   excludeIds: string[] = []
 ) => {
   try {
+    // Helper function for accent-insensitive search
+    const removeAccents = (text: string): string => {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    };
+
     // Build business query - only select columns that exist in the table
     // review_count, avg_rating, and offers_international_services don't exist as columns
     let businessQuery = supabase
       .from('businesses')
       .select('id, name, country, logo_url, category, sedes');
 
-    // Apply search filter
-    if (filters.searchTerm) {
-      const escapedTerm = filters.searchTerm.replace(/[%_\\]/g, '\\$&');
-      businessQuery = businessQuery.ilike('name', `%${escapedTerm}%`);
-    }
+    // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
+    // We don't apply .ilike() here
 
     // Apply category filter
     if (filters.category) {
@@ -903,10 +908,21 @@ export const getBusinessesWithReviewsPaginated = async (
       return { businesses: [], hasMore: false };
     }
 
-    // Filter by country (including sedes) if specified
+    // Apply client-side accent-insensitive search filter
     let filteredBusinesses = allBusinesses;
+    if (filters.searchTerm) {
+      const normalizedSearch = removeAccents(filters.searchTerm);
+      filteredBusinesses = allBusinesses.filter(b => {
+        const normalizedName = removeAccents(b.name || '');
+        const normalizedCategory = removeAccents(b.category || '');
+        return normalizedName.includes(normalizedSearch) ||
+               normalizedCategory.includes(normalizedSearch);
+      });
+    }
+
+    // Filter by country (including sedes) if specified
     if (filters.country) {
-      filteredBusinesses = allBusinesses.filter(business => {
+      filteredBusinesses = filteredBusinesses.filter(business => {
         // Check if main country matches
         if (business.country === filters.country) {
           return true;
