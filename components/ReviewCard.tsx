@@ -9,7 +9,6 @@ import { voteOnReview, getUserVoteOnReview, removeVoteOnReview } from '../servic
 import { useI18n, useTranslation, useGeminiTranslation, pathTranslations, type Language, getLanguageForCountryCode } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
 import esTranslations from '../locales/es';
-import { COUNTRIES } from '../constants';
 import { generateBusinessPath } from '../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../utils/categoryMappings';
 
@@ -73,11 +72,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const sourceInfo = isImportedReview ? sourceDetails[sourceKey] : null;
     const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
 
-    const countryInfo = useMemo(() => {
-        if (!review.businesses || !review.businesses.country) return null;
-        return COUNTRIES.find(c => c.code === review.businesses.country);
-    }, [review.businesses]);
-    
     const getCategoryTranslation = (categoryString: string | null): string => {
         if (!categoryString) return '';
 
@@ -328,12 +322,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                         <span className="text-gray-500 dark:text-gray-400">
                             {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{isImportedReview ? review.original_author_name : (review.profiles ? `${review.profiles.name}` : review.original_author_name) || 'Anónimo'}</span>
                         </span>
-                        {countryInfo && (
-                            <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <i className="fa-solid fa-location-dot" />
-                                <span>{countryInfo.name}</span>
-                            </span>
-                        )}
                     </div>
                 </div>
                 {!isImportedReview && (
