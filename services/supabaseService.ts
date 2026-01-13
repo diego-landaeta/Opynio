@@ -658,15 +658,13 @@ export const getBusinessesForDirectoryPaginated = async (
         query = query.order('name', { ascending: true });
     }
 
-    // When searching, fetch more results to filter client-side
+    // When searching, fetch ALL results to filter client-side
     // Otherwise apply normal pagination
-    if (filters?.searchTerm) {
-      // Fetch larger batch for client-side filtering
-      query = query.range(0, 499); // Fetch up to 500 results
-    } else {
-      // Apply normal pagination
+    if (!filters?.searchTerm) {
+      // Apply normal pagination only when NOT searching
       query = query.range(offset, offset + pageSize - 1);
     }
+    // If searchTerm exists, we fetch all results (no range limit)
 
     const { data: businesses, error, count } = await query;
 
@@ -791,8 +789,7 @@ export const getTotalBusinessCount = async (
         query = query.eq('offers_international_services', true);
       }
 
-      query = query.range(0, 499); // Fetch up to 500 results
-
+      // Fetch ALL results when searching (no limit)
       const { data, error } = await query;
 
       if (error) {
@@ -876,7 +873,7 @@ export const getBusinessesWithReviewsPaginated = async (
     // review_count, avg_rating, and offers_international_services don't exist as columns
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes');
+      .select('id, name, country, logo_url, category, sedes, description');
 
     // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
     // We don't apply .ilike() here
@@ -915,8 +912,10 @@ export const getBusinessesWithReviewsPaginated = async (
       filteredBusinesses = allBusinesses.filter(b => {
         const normalizedName = removeAccents(b.name || '');
         const normalizedCategory = removeAccents(b.category || '');
+        const normalizedDescription = removeAccents(b.description || '');
         return normalizedName.includes(normalizedSearch) ||
-               normalizedCategory.includes(normalizedSearch);
+               normalizedCategory.includes(normalizedSearch) ||
+               normalizedDescription.includes(normalizedSearch);
       });
     }
 

@@ -311,8 +311,8 @@ export const searchBusinessesOptimized = async (searchTerm: string, filters: any
     query = query.ilike('category', `${filters.category}%`);
   }
 
-  // Obtener más resultados para filtrar en el cliente
-  const { data, error } = await query.limit(200);
+  // Obtener TODOS los resultados para filtrar en el cliente (sin límite)
+  const { data, error } = await query;
   if (error) throw error;
 
   // Si hay término de búsqueda, filtrar en el cliente para búsqueda sin acentos
