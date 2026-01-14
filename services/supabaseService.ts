@@ -731,22 +731,40 @@ export const getBusinessesForDirectoryPaginated = async (
 
     // Get review stats for these businesses (both Opynio and Google reviews are in the same table)
     const businessIds = filteredBusinesses.map(b => b.id);
-    const { data: reviewStats } = await supabase
-      .from('reviews')
-      .select('business_id, rating')
-      .in('business_id', businessIds)
-      .eq('status', 'approved');
-
-    // Calculate avg_rating and review_count for each business (includes all sources: Opynio + Google)
     const statsMap = new Map<string, { count: number; totalRating: number }>();
-    if (reviewStats) {
-      reviewStats.forEach(r => {
-        const current = statsMap.get(r.business_id) || { count: 0, totalRating: 0 };
-        statsMap.set(r.business_id, {
-          count: current.count + 1,
-          totalRating: current.totalRating + (r.rating || 0)
-        });
-      });
+
+    // Only fetch review stats if we have business IDs
+    if (businessIds.length > 0) {
+      // Fetch reviews in batches to avoid URL length limits
+      const BATCH_SIZE = 50;
+      const batches = [];
+      for (let i = 0; i < businessIds.length; i += BATCH_SIZE) {
+        batches.push(businessIds.slice(i, i + BATCH_SIZE));
+      }
+
+      for (const batch of batches) {
+        const { data: reviewStats, error: reviewError } = await supabase
+          .from('reviews')
+          .select('business_id, rating')
+          .in('business_id', batch)
+          .eq('status', 'approved');
+
+        if (reviewError) {
+          console.error('Error fetching review stats:', reviewError);
+          continue;
+        }
+
+        // Calculate avg_rating and review_count for each business (includes all sources: Opynio + Google)
+        if (reviewStats) {
+          reviewStats.forEach(r => {
+            const current = statsMap.get(r.business_id) || { count: 0, totalRating: 0 };
+            statsMap.set(r.business_id, {
+              count: current.count + 1,
+              totalRating: current.totalRating + (r.rating || 0)
+            });
+          });
+        }
+      }
     }
 
     const enrichedBusinesses = filteredBusinesses.map(b => {
