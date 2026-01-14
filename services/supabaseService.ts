@@ -747,7 +747,8 @@ export const getBusinessesForDirectoryPaginated = async (
           .from('reviews')
           .select('business_id, rating')
           .in('business_id', batch)
-          .eq('status', 'approved');
+          .eq('status', 'approved')
+          .gt('rating', 0);
 
         if (reviewError) {
           console.error('Error fetching review stats:', reviewError);
@@ -757,11 +758,14 @@ export const getBusinessesForDirectoryPaginated = async (
         // Calculate avg_rating and review_count for each business (includes all sources: Opynio + Google)
         if (reviewStats) {
           reviewStats.forEach(r => {
-            const current = statsMap.get(r.business_id) || { count: 0, totalRating: 0 };
-            statsMap.set(r.business_id, {
-              count: current.count + 1,
-              totalRating: current.totalRating + (r.rating || 0)
-            });
+            // Only count reviews that have a valid rating (not null, not 0)
+            if (r.rating && r.rating > 0) {
+              const current = statsMap.get(r.business_id) || { count: 0, totalRating: 0 };
+              statsMap.set(r.business_id, {
+                count: current.count + 1,
+                totalRating: current.totalRating + r.rating
+              });
+            }
           });
         }
       }
