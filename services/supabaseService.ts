@@ -721,11 +721,33 @@ export const getBusinessesForDirectoryPaginated = async (
     let filteredBusinesses = businesses;
     if (filters?.searchTerm) {
       const normalizedSearch = removeAccents(filters.searchTerm);
+
+      // Filter businesses that match name OR description
       filteredBusinesses = businesses.filter(b => {
         const normalizedName = removeAccents(b.name || '');
         const normalizedDescription = removeAccents(b.description || '');
         return normalizedName.includes(normalizedSearch) ||
                normalizedDescription.includes(normalizedSearch);
+      });
+
+      // Sort results: prioritize name matches over description matches
+      filteredBusinesses.sort((a, b) => {
+        const aNameMatch = removeAccents(a.name || '').includes(normalizedSearch);
+        const bNameMatch = removeAccents(b.name || '').includes(normalizedSearch);
+
+        // Name matches come first
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+
+        // Among name matches, prioritize those that START with the search term
+        if (aNameMatch && bNameMatch) {
+          const aStartsWith = removeAccents(a.name || '').startsWith(normalizedSearch);
+          const bStartsWith = removeAccents(b.name || '').startsWith(normalizedSearch);
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+        }
+
+        return 0;
       });
     }
 
