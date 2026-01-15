@@ -3562,10 +3562,11 @@ export const incrementRedirectHits = async (oldSlug: string): Promise<void> => {
 
 /**
  * Obtener todas las redirecciones (para admin)
+ * Usa supabaseAdmin para bypass de RLS
  */
 export const getUrlRedirects = async () => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('url_redirects')
       .select(`
         *,
@@ -3573,7 +3574,10 @@ export const getUrlRedirects = async () => {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching redirects:', error);
+      throw error;
+    }
     return data || [];
   } catch (error) {
     console.error('Error in getUrlRedirects:', error);
@@ -3583,14 +3587,18 @@ export const getUrlRedirects = async () => {
 
 /**
  * Eliminar una redirección
+ * Usa supabaseAdmin para bypass de RLS
  */
 export const deleteUrlRedirect = async (id: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('url_redirects')
       .delete()
       .eq('id', id);
 
+    if (error) {
+      console.error('Error deleting redirect:', error);
+    }
     return !error;
   } catch (error) {
     console.error('Error in deleteUrlRedirect:', error);
