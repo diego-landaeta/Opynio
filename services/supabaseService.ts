@@ -3427,7 +3427,9 @@ export const updateBusinessSlug = async (
           if (insertError.code === '42501' || insertError.message?.includes('row-level security')) {
             console.error('🔒 ERROR RLS: La política de seguridad de Supabase está bloqueando el INSERT.');
             console.error('💡 SOLUCIÓN: Añade VITE_SUPABASE_SERVICE_ROLE_KEY al .env o configura política RLS en Supabase.');
+            return { success: false, error: 'Error de permisos al crear redirección. Contacta al administrador.' };
           }
+          return { success: false, error: `Error al crear redirección: ${insertError.message}` };
         } else {
           console.log('✅ [updateBusinessSlug] Redirección creada EXITOSAMENTE:', insertedData);
         }
