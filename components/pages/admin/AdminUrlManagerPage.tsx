@@ -145,10 +145,16 @@ const AdminUrlManagerPage: React.FC = () => {
     setSaving(true);
     try {
       // Construir la URL original exacta para la redirección
-      // Si no tiene slug, usar el nombre URL-encoded (como aparece en el navegador)
+      // SIEMPRE usar el nombre URL-encoded para la redirección, ya que esa es la URL
+      // "problemática" que queremos redirigir al nuevo slug limpio
       // Ejemplo: "ISEIE Innovation School | Formación" -> "ISEIE_Innovation_School_%7C_Formaci%C3%B3n"
-      const originalUrlSlug = editingBusiness.slug ||
-        encodeURIComponent(editingBusiness.name.replace(/ /g, '_'));
+      const originalUrlFromName = encodeURIComponent(editingBusiness.name.replace(/ /g, '_'));
+
+      // Si ya tiene slug y es diferente al nuevo, redirigir desde el slug actual
+      // Si no tiene slug, redirigir desde la URL basada en nombre
+      const originalUrlSlug = editingBusiness.slug && editingBusiness.slug !== newSlug
+        ? editingBusiness.slug
+        : originalUrlFromName;
 
       const result = await updateBusinessSlug(
         editingBusiness.id,

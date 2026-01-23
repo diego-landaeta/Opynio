@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getAdminBusinessesPaginated, adminBulkUpdateBusinesses } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import type { Business, BusinessHours, Database } from '../../../types';
@@ -218,6 +219,7 @@ const ScheduleEditorModal: React.FC<{
 const AdminBulkEditPage: React.FC = () => {
     const { showNotification } = useNotification();
     const t = useTranslation();
+    const navigate = useNavigate();
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -226,7 +228,7 @@ const AdminBulkEditPage: React.FC = () => {
     const [totalBusinessCount, setTotalBusinessCount] = useState(0);
     const [editedBusinesses, setEditedBusinesses] = useState<Record<string, Partial<Business>>>({});
     const [isSaving, setIsSaving] = useState(false);
-    
+
     const [openBusinessIds, setOpenBusinessIds] = useState<Set<string>>(new Set());
     const [editingLocationFor, setEditingLocationFor] = useState<Business | null>(null);
     const [editingScheduleFor, setEditingScheduleFor] = useState<Business | null>(null);
@@ -244,7 +246,7 @@ const AdminBulkEditPage: React.FC = () => {
         const fetchPaginatedBusinesses = async () => {
             setLoading(true);
             try {
-                const { data, count } = await getAdminBusinessesPaginated(currentPage, PAGE_SIZE, { name: debouncedSearchTerm });
+                const { data, count } = await getAdminBusinessesPaginated(currentPage, PAGE_SIZE, { search: debouncedSearchTerm });
                 setBusinesses(data);
                 setTotalBusinessCount(count);
             } catch (error: any) {
@@ -357,11 +359,23 @@ const AdminBulkEditPage: React.FC = () => {
 
                             return (
                                 <div key={biz.id} className={`bg-white dark:bg-zinc-800 rounded-lg shadow-sm border dark:border-zinc-700 transition-all ${isEdited ? 'border-yellow-400 dark:border-yellow-600' : ''}`}>
-                                    <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => toggleEditDrawer(biz.id)}>
-                                        <div className="font-semibold text-gray-800 dark:text-gray-100">{currentData.name}</div>
-                                        <div className="flex items-center gap-4">
+                                    <div className="flex items-center justify-between p-4">
+                                        <div className="font-semibold text-gray-800 dark:text-gray-100 cursor-pointer flex-1" onClick={() => toggleEditDrawer(biz.id)}>{currentData.name}</div>
+                                        <div className="flex items-center gap-3">
                                             <span className="text-sm text-gray-500">{currentData.country}</span>
-                                            <button className="text-gray-400 hover:text-brand-green">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/admin/empresa/editar/${biz.id}`);
+                                                }}
+                                                className="px-3 py-1.5 text-xs font-semibold bg-brand-green text-white rounded-lg hover:bg-opacity-90 transition-colors"
+                                                title="Editar a profundidad"
+                                            >
+                                                <i className="fa-solid fa-pen-to-square mr-1.5"></i>
+                                                Editar
+                                            </button>
+                                            <button className="text-gray-400 hover:text-brand-green" onClick={() => toggleEditDrawer(biz.id)}>
                                                 <i className={`fa-solid fa-chevron-down transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
                                             </button>
                                         </div>
