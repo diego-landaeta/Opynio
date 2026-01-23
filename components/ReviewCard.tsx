@@ -3,11 +3,13 @@ import type { Review } from '../types';
 import StarRating from './StarRating';
 import AudioPlayer from './AudioPlayer';
 import LazyImage from './LazyImage';
+import Modal from './Modal';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { voteOnReview, getUserVoteOnReview, removeVoteOnReview } from '../services/supabaseService';
 import { useI18n, useTranslation, useGeminiTranslation, pathTranslations, type Language, getLanguageForCountryCode } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useCountry } from '../contexts/CountryContext';
 import esTranslations from '../locales/es';
 import { generateBusinessPath } from '../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../utils/categoryMappings';
@@ -22,6 +24,7 @@ interface ReviewCardProps {
 const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = false, hideResponse = false }) => {
     const { user } = useAuth();
     const { language } = useI18n();
+    const { country } = useCountry();
     const t = useTranslation();
     const { showNotification } = useNotification();
     const { text: textToDisplay, isTranslating, canToggle, showOriginal, toggle, translationError } = useGeminiTranslation(review.review_text);
@@ -31,6 +34,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const [localNotHelpfulVotes, setLocalNotHelpfulVotes] = useState(review.not_helpful_votes || 0);
     const [isVoting, setIsVoting] = useState(false);
     const [userVote, setUserVote] = useState<'helpful' | 'not_helpful' | null>(null);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+
+    // Build login path based on current language/country
+    const countryPrefix = `/${country || 'es'}`;
+    const paths = pathTranslations[language] || pathTranslations.es;
+    const loginPath = `${countryPrefix}/${paths.login}`;
+    const registerPath = `${countryPrefix}/${paths.register}`;
 
     // Load user's vote on mount
     useEffect(() => {
@@ -199,7 +209,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
     const handleVote = async (voteType: 'helpful' | 'not_helpful') => {
         if (!user) {
-            showNotification(t('common.loginToVote') || "Debes iniciar sesión para votar.", 'info');
+            // Show login modal instead of notification
+            setShowLoginModal(true);
             return;
         }
 
@@ -394,6 +405,41 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                         {originalResponseText}
                     </p>
                 </div>
+            )}
+
+            {/* Login required modal for voting */}
+            {showLoginModal && (
+                <Modal title={t('common.loginRequired') || '¡Inicia sesión!'} onClose={() => setShowLoginModal(false)}>
+                    <div className="mt-4 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-brand-green/10 rounded-full flex items-center justify-center">
+                            <i className="fa-solid fa-user-lock text-3xl text-brand-green"></i>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            {t('common.loginToVoteMessage') || 'Para votar en las reseñas necesitas tener una cuenta en Opynio.'}
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <ReactRouterDOM.Link
+                                to={loginPath}
+                                className="w-full bg-brand-green text-white font-bold py-3 px-6 rounded-lg hover:bg-opacity-90 transition-colors text-center"
+                                onClick={() => setShowLoginModal(false)}
+                            >
+                                <i className="fa-solid fa-sign-in-alt mr-2"></i>
+                                {t('common.login') || 'Iniciar sesión'}
+                            </ReactRouterDOM.Link>
+                            <ReactRouterDOM.Link
+                                to={registerPath}
+                                className="w-full bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200 font-bold py-3 px-6 rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-600 transition-colors text-center"
+                                onClick={() => setShowLoginModal(false)}
+                            >
+                                <i className="fa-solid fa-user-plus mr-2"></i>
+                                {t('common.register') || 'Crear cuenta'}
+                            </ReactRouterDOM.Link>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                            {t('common.freeAccount') || 'Es gratis y solo toma unos segundos'}
+                        </p>
+                    </div>
+                </Modal>
             )}
         </article>
     );

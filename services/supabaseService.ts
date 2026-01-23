@@ -642,6 +642,7 @@ export const getBusinessesForDirectoryPaginated = async (
     category?: string;
     countries?: string[];
     minRating?: number;
+    maxRating?: number;
     serviceType?: 'all' | 'local' | 'international';
     sortOrder?: 'relevance' | 'alphabetical' | 'rating' | 'reviews';
   }
@@ -698,13 +699,17 @@ export const getBusinessesForDirectoryPaginated = async (
         query = query.order('name', { ascending: true });
     }
 
-    // When searching, fetch ALL results to filter client-side
-    // Otherwise apply normal pagination
-    if (!filters?.searchTerm) {
-      // Apply normal pagination only when NOT searching
+    // When searching or filtering by rating, fetch ALL results to filter client-side
+    // This is necessary because avg_rating is calculated from reviews, not stored in businesses table
+    const hasRatingFilterQuery = (filters?.minRating !== undefined && filters.minRating > 1) ||
+                                  (filters?.maxRating !== undefined && filters.maxRating < 5);
+    const needsAllResults = filters?.searchTerm || hasRatingFilterQuery;
+
+    if (!needsAllResults) {
+      // Apply normal pagination only when NOT searching and NOT filtering by rating
       query = query.range(offset, offset + pageSize - 1);
     }
-    // If searchTerm exists, we fetch all results (no range limit)
+    // If searchTerm or rating filter exists, we fetch all results (no range limit)
 
     const { data: businesses, error, count } = await query;
 
@@ -758,19 +763,24 @@ export const getBusinessesForDirectoryPaginated = async (
     // Only fetch review stats if we have business IDs
     if (businessIds.length > 0) {
       // Fetch reviews in batches to avoid URL length limits
-      const BATCH_SIZE = 50;
+      // Reduced batch size to 25 to ensure we don't hit row limits when businesses have many reviews
+      const BATCH_SIZE = 25;
       const batches = [];
       for (let i = 0; i < businessIds.length; i += BATCH_SIZE) {
         batches.push(businessIds.slice(i, i + BATCH_SIZE));
       }
 
       for (const batch of batches) {
+        // IMPORTANT: Supabase has a default limit of 1000 rows per query
+        // We need to set a higher limit to get all reviews for businesses with many reviews
+        // Using 10000 as limit to ensure we get all reviews for each batch
         const { data: reviewStats, error: reviewError } = await supabase
           .from('reviews')
           .select('business_id, rating')
           .in('business_id', batch)
           .eq('status', 'approved')
-          .gt('rating', 0);
+          .gt('rating', 0)
+          .limit(10000);
 
         if (reviewError) {
           console.error('Error fetching review stats:', reviewError);
@@ -812,19 +822,40 @@ export const getBusinessesForDirectoryPaginated = async (
       enrichedBusinesses.sort((a, b) => b.review_count - a.review_count);
     }
 
-    // Apply pagination to filtered results when searching
-    let paginatedBusinesses = enrichedBusinesses;
-    let finalTotalCount = count || 0;
-
-    if (filters?.searchTerm) {
-      // Use filtered count and apply pagination client-side
-      finalTotalCount = enrichedBusinesses.length;
-      const startIdx = offset;
-      const endIdx = offset + pageSize;
-      paginatedBusinesses = enrichedBusinesses.slice(startIdx, endIdx);
+    // Apply rating filter AFTER enrichment (since avg_rating comes from reviews)
+    // This must happen BEFORE pagination to get correct counts
+    let ratingFilteredBusinesses = enrichedBusinesses;
+    if (filters?.minRating !== undefined || filters?.maxRating !== undefined) {
+      const minRating = filters?.minRating ?? 0;
+      const maxRating = filters?.maxRating ?? 5;
+      // Only apply filter if it's not the full range (0-5 or 1-5)
+      if (minRating > 1 || maxRating < 5) {
+        ratingFilteredBusinesses = enrichedBusinesses.filter(b => {
+          const rating = b.avg_rating || 0;
+          return rating >= minRating && rating <= maxRating;
+        });
+      }
     }
 
-    const hasMore = filters?.searchTerm
+    // Apply pagination to filtered results
+    // When we have a searchTerm or rating filter, we need client-side pagination
+    let paginatedBusinesses = ratingFilteredBusinesses;
+    let finalTotalCount = count || 0;
+
+    // Check if rating filter is active (not full range)
+    const hasRatingFilter = (filters?.minRating !== undefined && filters?.minRating > 1) ||
+                            (filters?.maxRating !== undefined && filters?.maxRating < 5);
+    const needsClientSidePagination = filters?.searchTerm || hasRatingFilter;
+
+    if (needsClientSidePagination) {
+      // Use filtered count and apply pagination client-side
+      finalTotalCount = ratingFilteredBusinesses.length;
+      const startIdx = offset;
+      const endIdx = offset + pageSize;
+      paginatedBusinesses = ratingFilteredBusinesses.slice(startIdx, endIdx);
+    }
+
+    const hasMore = needsClientSidePagination
       ? offset + paginatedBusinesses.length < finalTotalCount
       : offset + filteredBusinesses.length < (count || 0);
 
@@ -2704,10 +2735,16 @@ export const getAdminBusinessesPaginated = async (page: number, pageSize: number
   return { data: data || [], count: count || 0 };
 };
 
-export const adminBulkUpdateBusinesses = async (updates: any[]) => {
+export const adminBulkUpdateBusinesses = async (updates: Array<{ id: string; payload: Partial<any> }>) => {
+  // Transformar el formato { id, payload } a objetos planos para upsert
+  const businessUpdates = updates.map(({ id, payload }) => ({
+    id,
+    ...payload
+  }));
+
   const { data, error } = await supabase
     .from('businesses')
-    .upsert(updates)
+    .upsert(businessUpdates)
     .select();
   if (error) throw error;
   return data;
@@ -3346,8 +3383,14 @@ export const updateBusinessSlug = async (
       .eq('id', businessId)
       .single();
 
-    // Usar la URL original si se proporciona, sino usar el slug/nombre actual
+    // Usar la URL original si se proporciona explícitamente
+    // Esto permite crear redirecciones desde URLs con caracteres especiales
+    // aunque el negocio ya tenga un slug limpio guardado
     const oldSlug = originalUrlSlug || currentBusiness?.slug || currentBusiness?.name?.replace(/ /g, '_');
+
+    // Para la comparación, necesitamos decodificar la URL si está encoded
+    // para evitar comparar "Cerrajeros%20Madrid" con "cerrajeros_madrid"
+    const decodedOldSlug = oldSlug ? decodeURIComponent(oldSlug).replace(/ /g, '_') : null;
 
     // Verificar disponibilidad del nuevo slug
     const available = await isSlugAvailable(newSlug, businessId);
@@ -3365,14 +3408,20 @@ export const updateBusinessSlug = async (
       return { success: false, error: updateError.message };
     }
 
-    // Crear redirección si se solicita y hay un slug anterior
-    if (createRedirect && oldSlug && oldSlug.toLowerCase() !== newSlug.toLowerCase()) {
+    // Crear redirección si se solicita y hay un slug anterior diferente
+    // Comparamos el oldSlug original (que puede tener caracteres especiales/encoded)
+    // con el newSlug normalizado. Si son diferentes, creamos la redirección.
+    // Esto permite crear redirecciones desde URLs como "Cerrajeros%C3%A1" a "cerrajeros"
+    const slugsAreDifferent = oldSlug !== newSlug && oldSlug !== newSlug.toLowerCase();
+
+    if (createRedirect && oldSlug && slugsAreDifferent) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('[updateBusinessSlug] ✅ Intentando crear redirección:', {
         businessId,
         oldSlug,
         newSlug,
         createRedirect,
+        slugsAreDifferent,
         conditionMet: true
       });
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -3441,7 +3490,9 @@ export const updateBusinessSlug = async (
       console.log('[updateBusinessSlug] No se creará redirección:', {
         createRedirect,
         hasOldSlug: !!oldSlug,
-        sameSlug: oldSlug?.toLowerCase() === newSlug.toLowerCase()
+        oldSlug,
+        newSlug,
+        slugsAreDifferent: oldSlug !== newSlug && oldSlug !== newSlug.toLowerCase()
       });
     }
 

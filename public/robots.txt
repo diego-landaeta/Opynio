@@ -71,10 +71,28 @@ Disallow: /*/payment-cancel
 Disallow: /migrar-google-reviews
 Disallow: /*/migrar-google-reviews
 
-# Evitar indexación de parámetros de búsqueda duplicados
+# Evitar indexación de parámetros de búsqueda y filtros (contenido duplicado)
+# Parámetros de búsqueda
+Disallow: /*?*q=
+Disallow: /*?*search=
+Disallow: /*?*query=
+
+# Parámetros de filtros
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
+Disallow: /*?*category=
+Disallow: /*?*rating=
+Disallow: /*?*country=
+Disallow: /*?*date=
+Disallow: /*?*verified=
+Disallow: /*?*format=
+
+# Cualquier URL con parámetros de query en páginas de explorar
+Disallow: /*/explorar?
+Disallow: /*/explore?
+Disallow: /*/buscar?
+Disallow: /*/search?
 
 # Reglas específicas para Googlebot
 User-agent: Googlebot

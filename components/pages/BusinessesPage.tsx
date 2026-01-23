@@ -186,6 +186,12 @@ const BusinessesPage: React.FC = () => {
     // Sorting
     const [sortOrder, setSortOrder] = useState<SortOrder>('relevance');
 
+    // Debounced rating filter to avoid too many API calls while dragging slider
+    const [debouncedRatingFilter, setDebouncedRatingFilter] = useState<{min: number; max: number} | null>(null);
+
+    // Request counter to prevent stale updates from old requests
+    const requestIdRef = useRef(0);
+
     const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === country), [country]);
     const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
     const metaTitle = `${t('businessesPage.businessesDirectoryTitle')} - ${brandName}`;
@@ -200,30 +206,48 @@ const BusinessesPage: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
+    // Debounce rating filter to avoid too many API calls while dragging slider
+    // Using 500ms to give more time between requests
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedRatingFilter(ratingFilter);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [ratingFilter]);
+
     // Fetch businesses with pagination
     const fetchBusinesses = useCallback(async (pageNum: number, append: boolean = false) => {
+        // Increment request ID to track this request
+        const currentRequestId = ++requestIdRef.current;
+
         setLoading(true);
 
         try {
+            // Check if rating filter is active (not full range 1-5)
+            const hasRatingFilter = debouncedRatingFilter && (debouncedRatingFilter.min !== 1 || debouncedRatingFilter.max !== 5);
+
             const filters = {
                 searchTerm: debouncedSearchTerm || undefined,
                 category: selectedCategory || undefined,
                 countries: selectedCountries.length > 0 ? selectedCountries : undefined,
                 serviceType: serviceTypeFilter,
                 sortOrder: sortOrder,
+                // Pass rating filter to API (only if active)
+                minRating: hasRatingFilter ? debouncedRatingFilter.min : undefined,
+                maxRating: hasRatingFilter ? debouncedRatingFilter.max : undefined,
             };
 
             const result = await getBusinessesForDirectoryPaginated(pageNum, BUSINESSES_PER_PAGE, filters);
 
-            // Apply client-side filters that can't be done in DB (location, rating)
-            let filteredBusinesses = result.businesses;
-
-            if (ratingFilter) {
-                filteredBusinesses = filteredBusinesses.filter(b => {
-                    const rating = b.avg_rating || 0;
-                    return rating >= ratingFilter.min && rating <= ratingFilter.max;
-                });
+            // Check if a newer request was made - if so, discard this result
+            if (currentRequestId !== requestIdRef.current) {
+                console.log(`⏭️ Discarding stale request ${currentRequestId}, current is ${requestIdRef.current}`);
+                return;
             }
+
+            // Apply client-side filters that can't be done in DB (only location now)
+            // Rating filter is now handled by the API
+            let filteredBusinesses = result.businesses;
 
             if (filterCenter) {
                 filteredBusinesses = filteredBusinesses.filter(b => {
@@ -233,22 +257,35 @@ const BusinessesPage: React.FC = () => {
                 });
             }
 
+            // Double-check before updating state
+            if (currentRequestId !== requestIdRef.current) {
+                return;
+            }
+
             setBusinesses(filteredBusinesses);
-            // Use filtered count when client-side filters are applied, otherwise use DB count
-            const hasClientSideFilters = ratingFilter !== null || filterCenter;
-            setTotalCount(hasClientSideFilters ? filteredBusinesses.length : result.totalCount);
+            // Use filtered count when location filter is applied, otherwise use API count
+            // Rating filter count is now handled by the API
+            setTotalCount(filterCenter ? filteredBusinesses.length : result.totalCount);
         } catch (error: any) {
+            // Don't show error if this is a stale request
+            if (currentRequestId !== requestIdRef.current) {
+                return;
+            }
             showNotification(error.message || t('businessesPage.errorLoading') || 'Error loading businesses', 'error');
         } finally {
-            setLoading(false);
+            // Only set loading to false if this is still the current request
+            if (currentRequestId === requestIdRef.current) {
+                setLoading(false);
+            }
         }
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, ratingFilter, filterCenter, radiusKm, showNotification, t]);
+    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, debouncedRatingFilter, filterCenter, radiusKm, showNotification, t]);
 
-    // Fetch initial total count (only when no client-side filters are active)
-    // When ratingFilter or filterCenter are active, the count is set by fetchBusinesses
+    // Fetch initial total count (only when no special filters are active)
+    // When rating filter or location filter are active, fetchBusinesses returns the correct count
     useEffect(() => {
-        // Skip if client-side filters are active - fetchBusinesses will set the count
-        if (ratingFilter !== null || filterCenter) return;
+        // Skip if rating or location filter is active - fetchBusinesses will set the correct count
+        const hasRatingFilter = debouncedRatingFilter && (debouncedRatingFilter.min !== 1 || debouncedRatingFilter.max !== 5);
+        if (hasRatingFilter || filterCenter) return;
 
         const fetchTotalCount = async () => {
             try {
@@ -264,13 +301,14 @@ const BusinessesPage: React.FC = () => {
             }
         };
         fetchTotalCount();
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, ratingFilter, filterCenter]);
+    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, debouncedRatingFilter, filterCenter]);
 
     // Fetch businesses when filters change
+    // Uses debouncedRatingFilter to avoid too many API calls while dragging slider
     useEffect(() => {
         setPage(1);
         fetchBusinesses(1, false);
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, ratingFilter, filterCenter, radiusKm]);
+    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, debouncedRatingFilter, filterCenter, radiusKm]);
 
     // Close country dropdown when clicking outside
     useEffect(() => {
@@ -442,46 +480,82 @@ const BusinessesPage: React.FC = () => {
 
                             <div>
                                 <label className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">{t('explorePage.ratingRange') || 'Valoración'}</label>
-                                <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+                                {/* Mostrar el rango seleccionado */}
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
+                                        <span>{ratingFilter?.min?.toFixed(1) || '1.0'}</span>
+                                        <i className="fa-solid fa-star text-xs"></i>
+                                    </div>
+                                    <span className="text-gray-400 text-xs">—</span>
+                                    <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
+                                        <span>{ratingFilter?.max?.toFixed(1) || '5.0'}</span>
+                                        <i className="fa-solid fa-star text-xs"></i>
+                                    </div>
+                                </div>
+                                {/* Dual range slider */}
+                                <div className="relative h-6 mb-2 mt-1">
+                                    {/* Track background */}
+                                    <div className="absolute top-1/2 -translate-y-1/2 w-full h-2 bg-gray-200 dark:bg-zinc-700 rounded-full"></div>
+                                    {/* Active track */}
+                                    <div
+                                        className="absolute top-1/2 -translate-y-1/2 h-2 bg-yellow-500 rounded-full"
+                                        style={{
+                                            left: `${((ratingFilter?.min || 1) - 1) / 4 * 100}%`,
+                                            right: `${(5 - (ratingFilter?.max || 5)) / 4 * 100}%`
+                                        }}
+                                    ></div>
+                                    {/* Min slider */}
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="5"
+                                        step="0.1"
+                                        value={ratingFilter?.min || 1}
+                                        onChange={(e) => {
+                                            const newMin = parseFloat(e.target.value);
+                                            const currentMax = ratingFilter?.max || 5;
+                                            if (newMin <= currentMax) {
+                                                setRatingFilter({ min: newMin, max: currentMax });
+                                            }
+                                        }}
+                                        className="absolute top-0 w-full h-6 appearance-none bg-transparent pointer-events-auto cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
+                                        style={{ zIndex: ratingFilter?.min === ratingFilter?.max ? 5 : 3 }}
+                                    />
+                                    {/* Max slider */}
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="5"
+                                        step="0.1"
+                                        value={ratingFilter?.max || 5}
+                                        onChange={(e) => {
+                                            const newMax = parseFloat(e.target.value);
+                                            const currentMin = ratingFilter?.min || 1;
+                                            if (newMax >= currentMin) {
+                                                setRatingFilter({ min: currentMin, max: newMax });
+                                            }
+                                        }}
+                                        className="absolute top-0 w-full h-6 appearance-none bg-transparent pointer-events-auto cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
+                                        style={{ zIndex: 4 }}
+                                    />
+                                </div>
+                                {/* Scale labels */}
+                                <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 px-1">
+                                    <span>1</span>
+                                    <span>2</span>
+                                    <span>3</span>
+                                    <span>4</span>
+                                    <span>5</span>
+                                </div>
+                                {/* Reset button */}
+                                {ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5) && (
                                     <button
                                         onClick={() => setRatingFilter(null)}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all ${ratingFilter === null ? 'bg-brand-green text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
+                                        className="mt-2 text-xs text-red-500 hover:text-red-600 hover:underline font-semibold flex items-center gap-1"
                                     >
-                                        {t('common.all')}
+                                        <i className="fa-solid fa-rotate-left text-[10px]"></i> Restablecer
                                     </button>
-                                    <button
-                                        onClick={() => setRatingFilter({min: 5, max: 5})}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 5 && ratingFilter?.max === 5 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                                    >
-                                        5 <i className="fa-solid fa-star text-[10px]"></i>
-                                    </button>
-                                    <button
-                                        onClick={() => setRatingFilter({min: 4, max: 4.9})}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 4 && ratingFilter?.max === 4.9 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                                    >
-                                        4 <i className="fa-solid fa-star text-[10px]"></i>
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-3 gap-1.5">
-                                    <button
-                                        onClick={() => setRatingFilter({min: 3, max: 3.9})}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 3 && ratingFilter?.max === 3.9 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                                    >
-                                        3 <i className="fa-solid fa-star text-[10px]"></i>
-                                    </button>
-                                    <button
-                                        onClick={() => setRatingFilter({min: 1, max: 2.9})}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 1 && ratingFilter?.max === 2.9 ? 'bg-orange-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                                    >
-                                        1-2 <i className="fa-solid fa-star text-[10px]"></i>
-                                    </button>
-                                    <button
-                                        onClick={() => setRatingFilter({min: 1, max: 3.9})}
-                                        className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 1 && ratingFilter?.max === 3.9 ? 'bg-orange-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                                    >
-                                        1-3 <i className="fa-solid fa-star text-[10px]"></i>
-                                    </button>
-                                </div>
+                                )}
                             </div>
 
                             <div>
@@ -558,7 +632,7 @@ const BusinessesPage: React.FC = () => {
                     )}
 
                     {/* Filter badges - show active filters */}
-                    {(selectedCountries.length > 0 || selectedCategory || ratingFilter !== null || serviceTypeFilter !== 'all' || filterCenter) && (
+                    {(selectedCountries.length > 0 || selectedCategory || (ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5)) || serviceTypeFilter !== 'all' || filterCenter) && (
                         <div className="mb-4 sm:mb-6 flex flex-wrap items-center gap-2">
                             <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{t('businessesPage.activeFilters')}:</span>
                             {selectedCountries.map(code => {
@@ -581,9 +655,10 @@ const BusinessesPage: React.FC = () => {
                                     </button>
                                 </span>
                             )}
-                            {ratingFilter && (
+                            {ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5) && (
                                 <span className="inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
-                                    {ratingFilter.min === ratingFilter.max ? ratingFilter.min : `${ratingFilter.min}-${Math.floor(ratingFilter.max)}`} <i className="fa-solid fa-star text-xs"></i>
+                                    {/* Mostrar rango con decimales */}
+                                    {ratingFilter.min.toFixed(1)}-{ratingFilter.max.toFixed(1)} <i className="fa-solid fa-star text-xs"></i>
                                     <button onClick={() => setRatingFilter(null)} className="ml-1 hover:text-red-500">
                                         <i className="fa-solid fa-times text-xs"></i>
                                     </button>

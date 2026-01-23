@@ -92,9 +92,12 @@ const SearchResultsPage: React.FC = () => {
 
     return (
         <>
+            {/* noindex: Las páginas de resultados de búsqueda no deben indexarse
+                ya que generan miles de URLs dinámicas con contenido duplicado */}
             <Meta
                 title={t('meta.searchTitle', { query })}
                 description={t('meta.searchDesc', { query })}
+                noindex={true}
             />
             <div className="max-w-4xl mx-auto px-4 sm:px-0">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 dark:text-gray-100">{t('searchResults')}</h1>

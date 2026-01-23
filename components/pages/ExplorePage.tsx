@@ -369,6 +369,12 @@ const ExplorePage: React.FC = () => {
     const abortControllerRef = useRef<AbortController | null>(null);
     const fetchInProgressRef = useRef(false);
 
+    // Refs to store current fetch functions (avoid recreating useEffect on function changes)
+    const fetchReviewsRef = useRef<((page: number, append: boolean) => Promise<void>) | null>(null);
+    const fetchBusinessesRef = useRef<((page: number, append: boolean, options?: any) => Promise<void>) | null>(null);
+    // Flag to track if initial country sync has completed
+    const initialCountrySyncRef = useRef(false);
+
     // Radius filter state
     const [radiusKm, setRadiusKm] = useState<number>(10);
     const [filterCenter, setFilterCenter] = useState<L.LatLng | null>(null);
@@ -394,6 +400,24 @@ const ExplorePage: React.FC = () => {
     const metaDescription = t('meta.exploreDesc').replace('Opynio', brandName);
     const exploreTitle = t('explorePage.exploreTitle').replace('Opynio', brandName);
     const exploreSubtitle = t('explorePage.exploreSubtitle').replace('Opynio', brandName);
+
+    // Detectar si hay filtros activos para evitar indexación de URLs con parámetros
+    // Esto previene que Google indexe miles de variaciones de la misma página
+    const hasActiveFilters = useMemo(() => {
+        // ratingFilter solo cuenta como activo si no es el rango completo (1-5)
+        const hasRatingFilter = ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5);
+        return !!(
+            searchTerm ||
+            reviewTextSearch ||
+            selectedCategory ||
+            hasRatingFilter ||
+            selectedBusinessFilter ||
+            dateFilter.type !== 'all' ||
+            verifiedFilter !== 'all' ||
+            formatFilter.length > 0 ||
+            filterCenter // Filtro de ubicación en mapa
+        );
+    }, [searchTerm, reviewTextSearch, selectedCategory, ratingFilter, selectedBusinessFilter, dateFilter, verifiedFilter, formatFilter, filterCenter]);
 
     const selectedBusinessForDisplay = useMemo(() => {
         if (!selectedBusinessId) return null;
@@ -484,9 +508,19 @@ const ExplorePage: React.FC = () => {
     }, [location.search, location.hash]);
 
     // Effect to sync selectedCountry when context country changes
+    // Only sync if it's the initial mount or if user navigates to a different country page
+    // We use a ref to prevent unnecessary re-syncs that would trigger re-fetches
     useEffect(() => {
         if (country) {
-            setSelectedCountry(country);
+            // Only update if it's different from current to avoid triggering fetch effect
+            setSelectedCountry(prev => {
+                if (prev !== country) {
+                    // Mark that we've done initial sync
+                    initialCountrySyncRef.current = true;
+                    return country;
+                }
+                return prev;
+            });
         }
     }, [country]);
 
@@ -887,6 +921,13 @@ const ExplorePage: React.FC = () => {
         currentPage: number,
         shouldAppend: boolean
     ) => {
+        // Cancel any ongoing fetch to prevent race conditions
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const currentAbortController = abortControllerRef.current;
+
         if (currentPage === 1) setLoading(true);
         else setLoadingMore(true);
         setManualSearchError(null);
@@ -908,12 +949,22 @@ const ExplorePage: React.FC = () => {
                 variedFeed: !isSpecificBusiness, // Use varied feed for general explore (interleaved reviews from multiple businesses)
             }, currentPage, PAGE_SIZE);
 
+            // Check if this request was aborted before updating state
+            if (currentAbortController.signal.aborted) {
+                return;
+            }
+
             // Handle both formats: object { reviews, totalCount, hasMore, businessCount } or array
             const isObjectResult = result && typeof result === 'object' && 'reviews' in result;
             const reviewsData = isObjectResult ? result.reviews : (result as any[]);
             const newTotalCount = isObjectResult ? result.totalCount : reviewsData.length;
             const newHasMore = isObjectResult ? result.hasMore : reviewsData.length === PAGE_SIZE;
             const newBusinessCount = isObjectResult && 'businessCount' in result ? (result as any).businessCount : 0;
+
+            // Double-check abort status before setState to prevent race conditions
+            if (currentAbortController.signal.aborted) {
+                return;
+            }
 
             if (shouldAppend) {
                 setReviews(prev => [...prev, ...reviewsData]);
@@ -929,7 +980,7 @@ const ExplorePage: React.FC = () => {
             setHasMore(newHasMore);
 
             // Pre-fetch the next page in the background if there are more reviews
-            if (newHasMore && !prefetchingRef.current) {
+            if (newHasMore && !prefetchingRef.current && !currentAbortController.signal.aborted) {
                 prefetchingRef.current = true;
                 const nextPage = currentPage + 1;
 
@@ -956,17 +1007,38 @@ const ExplorePage: React.FC = () => {
                 });
             }
         } catch (error) {
-            console.error("Failed to fetch reviews:", error);
-            setReviews([]);
-            setHasMore(false);
-            setManualSearchError(error instanceof Error ? error.message : t("explorePage.searchErrorBody"));
+            // Ignore abort errors - they are expected when canceling previous requests
+            if (error instanceof Error && error.name === 'AbortError') {
+                return;
+            }
+            // Only update state if this request wasn't aborted
+            if (!currentAbortController.signal.aborted) {
+                console.error("Failed to fetch reviews:", error);
+                setReviews([]);
+                setHasMore(false);
+                setManualSearchError(error instanceof Error ? error.message : t("explorePage.searchErrorBody"));
+            }
         } finally {
-            setLoading(false);
-            setLoadingMore(false);
+            // Only update loading state if this request wasn't aborted
+            if (!currentAbortController.signal.aborted) {
+                setLoading(false);
+                setLoadingMore(false);
+            }
         }
     }, [searchTerm, reviewTextSearch, selectedCategory, selectedCountry, ratingFilter, sortOrder, dateFilter, verifiedFilter, formatFilter, selectedBusinessFilter, t]);
 
+    // Keep refs updated with latest functions
+    useEffect(() => {
+        fetchReviewsRef.current = fetchReviews;
+    }, [fetchReviews]);
+
+    useEffect(() => {
+        fetchBusinessesRef.current = fetchBusinesses;
+    }, [fetchBusinesses]);
+
     // Main effect to fetch data when filters change
+    // IMPORTANT: We use refs for functions to avoid re-triggering when selectedCountry
+    // changes from context sync (which would recreate fetchReviews/fetchBusinesses)
     useEffect(() => {
         // Prevent fetching all reviews on map tab without a selection
         if (activeTab === 'map' && !selectedBusinessId) {
@@ -974,6 +1046,11 @@ const ExplorePage: React.FC = () => {
             setBusinessGroups([]);
             setLoading(false);
             setHasMore(false);
+            return;
+        }
+
+        // Wait for refs to be populated
+        if (!fetchReviewsRef.current || !fetchBusinessesRef.current) {
             return;
         }
 
@@ -987,9 +1064,9 @@ const ExplorePage: React.FC = () => {
             // Use fetchReviews for manual tab (individual reviews feed)
             // Use fetchBusinesses for map tab (grouped by business)
             if (activeTab === 'manual') {
-                fetchReviews(1, false);
+                fetchReviewsRef.current?.(1, false);
             } else {
-                fetchBusinesses(1, false);
+                fetchBusinessesRef.current?.(1, false);
             }
         }, 300);
 
@@ -999,7 +1076,11 @@ const ExplorePage: React.FC = () => {
                 abortControllerRef.current.abort();
             }
         };
-    }, [fetchBusinesses, fetchReviews, activeTab, selectedBusinessId]);
+    // Dependencies: only trigger on actual filter changes, not function recreations
+    // The refs ensure we always call the latest version of the functions
+    }, [activeTab, selectedBusinessId, searchTerm, reviewTextSearch, selectedCategory,
+        selectedCountry, ratingFilter, sortOrder, dateFilter, verifiedFilter,
+        formatFilter, selectedBusinessFilter]);
 
     const handleLoadMore = (fromOtherCountries: boolean = false) => {
         if (loadingMore) return;
@@ -1595,51 +1676,87 @@ const ExplorePage: React.FC = () => {
                         </select>
                     </div>
 
-                    {/* Rating filter - range buttons for more specific filtering */}
+                    {/* Rating filter - dual range slider */}
                     <div>
                         <label className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">
                             {t('explorePage.ratingRange')}
                         </label>
-                        <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+                        {/* Mostrar el rango seleccionado */}
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
+                                <span>{ratingFilter?.min?.toFixed(1) || '1.0'}</span>
+                                <i className="fa-solid fa-star text-xs"></i>
+                            </div>
+                            <span className="text-gray-400 text-xs">—</span>
+                            <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
+                                <span>{ratingFilter?.max?.toFixed(1) || '5.0'}</span>
+                                <i className="fa-solid fa-star text-xs"></i>
+                            </div>
+                        </div>
+                        {/* Dual range slider */}
+                        <div className="relative h-6 mb-2 mt-1">
+                            {/* Track background */}
+                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-2 bg-gray-200 dark:bg-zinc-700 rounded-full"></div>
+                            {/* Active track */}
+                            <div
+                                className="absolute top-1/2 -translate-y-1/2 h-2 bg-yellow-500 rounded-full"
+                                style={{
+                                    left: `${((ratingFilter?.min || 1) - 1) / 4 * 100}%`,
+                                    right: `${(5 - (ratingFilter?.max || 5)) / 4 * 100}%`
+                                }}
+                            ></div>
+                            {/* Min slider */}
+                            <input
+                                type="range"
+                                min="1"
+                                max="5"
+                                step="0.1"
+                                value={ratingFilter?.min || 1}
+                                onChange={(e) => {
+                                    const newMin = parseFloat(e.target.value);
+                                    const currentMax = ratingFilter?.max || 5;
+                                    if (newMin <= currentMax) {
+                                        setRatingFilter({ min: newMin, max: currentMax });
+                                    }
+                                }}
+                                className="absolute top-0 w-full h-6 appearance-none bg-transparent pointer-events-auto cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
+                                style={{ zIndex: ratingFilter?.min === ratingFilter?.max ? 5 : 3 }}
+                            />
+                            {/* Max slider */}
+                            <input
+                                type="range"
+                                min="1"
+                                max="5"
+                                step="0.1"
+                                value={ratingFilter?.max || 5}
+                                onChange={(e) => {
+                                    const newMax = parseFloat(e.target.value);
+                                    const currentMin = ratingFilter?.min || 1;
+                                    if (newMax >= currentMin) {
+                                        setRatingFilter({ min: currentMin, max: newMax });
+                                    }
+                                }}
+                                className="absolute top-0 w-full h-6 appearance-none bg-transparent pointer-events-auto cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
+                                style={{ zIndex: 4 }}
+                            />
+                        </div>
+                        {/* Scale labels */}
+                        <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 px-1">
+                            <span>1</span>
+                            <span>2</span>
+                            <span>3</span>
+                            <span>4</span>
+                            <span>5</span>
+                        </div>
+                        {/* Reset button */}
+                        {ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5) && (
                             <button
                                 onClick={() => setRatingFilter(null)}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all ${ratingFilter === null ? 'bg-brand-green text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
+                                className="mt-2 text-xs text-red-500 hover:text-red-600 hover:underline font-semibold flex items-center gap-1"
                             >
-                                {t('common.all')}
+                                <i className="fa-solid fa-rotate-left text-[10px]"></i> Restablecer
                             </button>
-                            <button
-                                onClick={() => setRatingFilter({ min: 5, max: 5 })}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 5 && ratingFilter?.max === 5 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                            >
-                                5 <i className="fa-solid fa-star text-[10px]"></i>
-                            </button>
-                            <button
-                                onClick={() => setRatingFilter({ min: 4, max: 4 })}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 4 && ratingFilter?.max === 4 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                            >
-                                4 <i className="fa-solid fa-star text-[10px]"></i>
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                            <button
-                                onClick={() => setRatingFilter({ min: 3, max: 3 })}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 3 && ratingFilter?.max === 3 ? 'bg-yellow-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                            >
-                                3 <i className="fa-solid fa-star text-[10px]"></i>
-                            </button>
-                            <button
-                                onClick={() => setRatingFilter({ min: 1, max: 2 })}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 1 && ratingFilter?.max === 2 ? 'bg-orange-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                            >
-                                1-2 <i className="fa-solid fa-star text-[10px]"></i>
-                            </button>
-                            <button
-                                onClick={() => setRatingFilter({ min: 1, max: 3 })}
-                                className={`p-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${ratingFilter?.min === 1 && ratingFilter?.max === 3 ? 'bg-orange-500 text-white shadow-md' : 'bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600'}`}
-                            >
-                                1-3 <i className="fa-solid fa-star text-[10px]"></i>
-                            </button>
-                        </div>
+                        )}
                     </div>
 
                     {/* Clear filters */}
@@ -2297,7 +2414,7 @@ const ExplorePage: React.FC = () => {
 
     return (
         <>
-        <Meta title={metaTitle} description={metaDescription} />
+        <Meta title={metaTitle} description={metaDescription} noindex={hasActiveFilters} />
         <style>{`
             ${iconStyle}
             @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
