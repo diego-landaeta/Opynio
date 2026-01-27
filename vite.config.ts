@@ -64,6 +64,25 @@ export default defineConfig({
     chunkSizeWarningLimit: 500, // Lower limit to catch large chunks
     cssCodeSplit: true, // Split CSS per chunk
     assetsInlineLimit: 4096, // Inline small assets
+    // OPTIMIZACIÓN CRÍTICA: Solo precargar chunks necesarios para páginas públicas/SEO
+    // Páginas prioritarias: HomePage, BusinessPage, BusinessesPage, ExplorePage
+    // NO precargar: admin-pages (964KB), google-ai (209KB), leaflet (146KB), business-pages, auth-pages
+    modulePreload: {
+      polyfill: false,
+      resolveDependencies: (filename, deps) => {
+        // Solo preload de chunks absolutamente críticos para páginas públicas
+        const criticalChunks = [
+          'react-core',      // React (necesario)
+          'react-router',    // Router (necesario)
+          'supabase',        // Supabase (usado en mayoría de páginas)
+          'index'            // Main bundle
+        ];
+
+        return deps.filter(dep => {
+          return criticalChunks.some(chunk => dep.includes(chunk));
+        });
+      }
+    },
   },
   // Optimize dependencies
   optimizeDeps: {
