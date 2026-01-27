@@ -1,0 +1,102 @@
+[
+  {
+    "rating": 5,
+    "title": "Excelente servicio y atención",
+    "review_text": "Muy satisfecho con la atención recibida. El personal es muy amable y profesional. Recomendado 100%. Volveré sin duda.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Juan Pérez",
+    "is_verified_customer": false,
+    "created_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "rating": 4,
+    "title": "Buena experiencia en general",
+    "review_text": "El servicio fue bueno, aunque el tiempo de espera fue un poco largo. La calidad del producto es excelente y el precio justo.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "María García",
+    "is_verified_customer": false,
+    "created_at": "2024-01-20T15:45:00Z"
+  },
+  {
+    "rating": 5,
+    "title": "Superó mis expectativas",
+    "review_text": "No esperaba un servicio tan bueno. Desde el primer contacto hasta la entrega final, todo fue perfecto. Muy profesionales.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Carlos Rodríguez",
+    "is_verified_customer": true,
+    "created_at": "2024-02-01T09:15:00Z"
+  },
+  {
+    "rating": 3,
+    "title": "Servicio aceptable",
+    "review_text": "La experiencia fue correcta, aunque hay aspectos que podrían mejorar. El precio es un poco elevado para lo que ofrecen.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Ana Martínez",
+    "is_verified_customer": false,
+    "created_at": "2024-02-10T14:20:00Z"
+  },
+  {
+    "rating": 5,
+    "title": "Lo mejor de la zona",
+    "review_text": "Sin duda, el mejor lugar de la zona. Calidad excepcional, buen precio y atención de primera. Muy recomendable.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Luis Fernández",
+    "is_verified_customer": true,
+    "created_at": "2024-02-15T11:00:00Z"
+  },
+  {
+    "rating": 4,
+    "title": "Muy recomendable",
+    "review_text": "Gran experiencia. El equipo es muy profesional y el resultado final fue excelente. Solo un pequeño detalle en los tiempos de entrega.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Laura Sánchez",
+    "is_verified_customer": false,
+    "created_at": "2024-02-20T16:30:00Z"
+  },
+  {
+    "rating": 5,
+    "title": "Perfecto en todos los aspectos",
+    "review_text": "No puedo poner ningún pero. Servicio rápido, eficiente y con gran atención al detalle. Definitivamente volveré y lo recomendaré.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Pedro González",
+    "is_verified_customer": true,
+    "created_at": "2024-02-25T10:45:00Z"
+  },
+  {
+    "rating": 4,
+    "title": "Buena relación calidad-precio",
+    "review_text": "Estoy satisfecho con el servicio recibido. La relación calidad-precio es buena y el personal es atento. Recomendable.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Carmen López",
+    "is_verified_customer": false,
+    "created_at": "2024-03-01T13:00:00Z"
+  },
+  {
+    "rating": 5,
+    "title": "Increíble atención al cliente",
+    "review_text": "La atención al cliente es excepcional. Resolvieron todas mis dudas con paciencia y profesionalidad. Muy contentos con el resultado.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Miguel Torres",
+    "is_verified_customer": true,
+    "created_at": "2024-03-05T09:30:00Z"
+  },
+  {
+    "rating": 4,
+    "title": "Satisfecho con el servicio",
+    "review_text": "El servicio cumplió con mis expectativas. Profesionales competentes y buenos precios. Algunas mejoras en comunicación serían bienvenidas.",
+    "status": "approved",
+    "source": "google",
+    "original_author_name": "Isabel Ruiz",
+    "is_verified_customer": false,
+    "created_at": "2024-03-10T15:15:00Z"
+  }
+]
