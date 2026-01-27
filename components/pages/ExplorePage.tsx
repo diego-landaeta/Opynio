@@ -316,6 +316,9 @@ const ExplorePage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<ActiveTab>('manual');
 
     // Filters for manual tab
+    // IMPORTANTE: Los filtros se mantienen en estado local React
+    // NO se sincronizan con la URL para evitar indexación de miles de combinaciones de filtros
+    // Esto mejora SEO al prevenir URLs dinámicas duplicadas
     const [isFiltersVisible, setIsFiltersVisible] = useState(true);
     const [searchTerm, setSearchTerm] = useState(''); // Search business name
     const [reviewTextSearch, setReviewTextSearch] = useState(''); // NEW: Search review content

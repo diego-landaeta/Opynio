@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { Business, Sede } from '../../types';
 import { getBusinessesForDirectoryPaginated, getTotalBusinessCount } from '../../services/supabaseService';
 import Spinner from '../Spinner';
@@ -158,7 +158,6 @@ const BusinessesPage: React.FC = () => {
     const t = useTranslation();
     const { showNotification } = useNotification();
     const { country } = useCountry();
-    const navigate = useNavigate();
 
     // Business data state
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -166,7 +165,9 @@ const BusinessesPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
 
-    // Filters
+    // Filters - IMPORTANTE: Los filtros se mantienen en estado local React
+    // NO se sincronizan con la URL para evitar indexación de miles de combinaciones de filtros
+    // Esto mejora SEO al prevenir URLs dinámicas duplicadas
     const [isFiltersVisible, setIsFiltersVisible] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
