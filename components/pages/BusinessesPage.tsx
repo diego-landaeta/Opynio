@@ -199,6 +199,19 @@ const BusinessesPage: React.FC = () => {
     const metaDescription = t('businessesPage.businessesDirectorySubtitle').replace('Opynio', brandName);
     const businessesTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
 
+    // Detectar si hay filtros activos para SEO (noindex)
+    // Si hay filtros activos, no indexar para evitar miles de combinaciones de URLs
+    const hasActiveFilters = useMemo(() => {
+        return !!(
+            debouncedSearchTerm ||
+            selectedCategory ||
+            selectedCountries.length > 0 ||
+            (ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5)) ||
+            serviceTypeFilter !== 'all' ||
+            filterCenter
+        );
+    }, [debouncedSearchTerm, selectedCategory, selectedCountries, ratingFilter, serviceTypeFilter, filterCenter]);
+
     // Debounce search term
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -421,7 +434,11 @@ const BusinessesPage: React.FC = () => {
 
     return (
         <>
-            <Meta title={metaTitle} description={metaDescription} />
+            <Meta
+                title={metaTitle}
+                description={metaDescription}
+                noindex={hasActiveFilters}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
                 <aside className="lg:col-span-3">
                     <div className="sticky top-24 bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-md border dark:border-zinc-700 space-y-4 sm:space-y-5 md:space-y-6">

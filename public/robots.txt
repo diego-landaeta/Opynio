@@ -72,27 +72,40 @@ Disallow: /migrar-google-reviews
 Disallow: /*/migrar-google-reviews
 
 # Evitar indexación de parámetros de búsqueda y filtros (contenido duplicado)
+# IMPORTANTE: Los filtros se mantienen en estado local React y NO modifican la URL
+# Estas reglas son preventivas por si alguna versión futura agrega parámetros
+
 # Parámetros de búsqueda
 Disallow: /*?*q=
 Disallow: /*?*search=
 Disallow: /*?*query=
+Disallow: /*?*searchTerm=
 
-# Parámetros de filtros
+# Parámetros de filtros - directorio y explorar
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
 Disallow: /*?*category=
 Disallow: /*?*rating=
+Disallow: /*?*minRating=
+Disallow: /*?*maxRating=
 Disallow: /*?*country=
+Disallow: /*?*countries=
 Disallow: /*?*date=
 Disallow: /*?*verified=
 Disallow: /*?*format=
+Disallow: /*?*serviceType=
+Disallow: /*?*sortOrder=
 
-# Cualquier URL con parámetros de query en páginas de explorar
+# Cualquier URL con parámetros de query en páginas de explorar, directorio y búsqueda
 Disallow: /*/explorar?
 Disallow: /*/explore?
 Disallow: /*/buscar?
 Disallow: /*/search?
+Disallow: /*/directorio?
+Disallow: /*/directory?
+Disallow: /*/empresas?
+Disallow: /*/businesses?
 
 # Reglas específicas para Googlebot
 User-agent: Googlebot
