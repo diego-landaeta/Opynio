@@ -1,9 +1,85 @@
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Plugin para inyectar modulepreload de páginas públicas críticas
+function injectPublicPagePreloads(): Plugin {
+  return {
+    name: 'inject-public-page-preloads',
+    closeBundle() {
+      // Hook para inyectar modulepreload después del build con los hashes reales
+      try {
+        const distPath = path.join(__dirname, 'dist');
+        const indexPath = path.join(distPath, 'index.html');
+
+        if (!fs.existsSync(indexPath)) return;
+
+        let html = fs.readFileSync(indexPath, 'utf-8');
+
+        // Buscar los archivos reales en dist/assets
+        const assetsPath = path.join(distPath, 'assets');
+        if (!fs.existsSync(assetsPath)) return;
+
+        const files = fs.readdirSync(assetsPath);
+        const publicPages = ['HomePage', 'BusinessPage', 'BusinessesPage', 'ExplorePage'];
+
+        // Buscar el punto de inserción (después de supabase modulepreload)
+        const supabasePreloadRegex = /<link rel="modulepreload"[^>]*href="\/assets\/supabase-[^"]+\.js"[^>]*>/;
+        const match = html.match(supabasePreloadRegex);
+
+        if (!match) {
+          console.warn('⚠️  No se encontró el punto de inserción para modulepreload de páginas públicas');
+          return;
+        }
+
+        const insertIndex = match.index! + match[0].length;
+
+        // Para cada página pública, encontrar su archivo real con hash
+        const preloadTags: string[] = [];
+        const notFound: string[] = [];
+
+        publicPages.forEach(page => {
+          // Verificar si ya está precargado por Vite
+          if (html.includes(`${page}-`)) {
+            console.log(`ℹ️  ${page} ya está precargado por Vite`);
+            return;
+          }
+
+          const regex = new RegExp(`^${page}-[a-zA-Z0-9]+\\.js$`);
+          const file = files.find((f: string) => regex.test(f));
+
+          if (file) {
+            preloadTags.push(`  <link rel="modulepreload" crossorigin href="/assets/${file}">`);
+            console.log(`✅ ${page} → ${file}`);
+          } else {
+            notFound.push(page);
+            console.warn(`⚠️  ${page} no encontrado (regex: ${regex})`);
+          }
+        });
+
+        if (preloadTags.length > 0) {
+          html = html.slice(0, insertIndex) + '\n' + preloadTags.join('\n') + html.slice(insertIndex);
+          fs.writeFileSync(indexPath, html, 'utf-8');
+          console.log(`✅ Inyectados ${preloadTags.length} modulepreload de páginas públicas`);
+        }
+
+        if (notFound.length > 0) {
+          console.warn(`⚠️  Páginas no encontradas: ${notFound.join(', ')}`);
+        }
+      } catch (err) {
+        console.warn('⚠️  No se pudieron inyectar modulepreload de páginas públicas:', err);
+      }
+    }
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), injectPublicPagePreloads()],
   server: {
     port: 3000,
     open: true,
@@ -64,22 +140,29 @@ export default defineConfig({
     chunkSizeWarningLimit: 500, // Lower limit to catch large chunks
     cssCodeSplit: true, // Split CSS per chunk
     assetsInlineLimit: 4096, // Inline small assets
-    // OPTIMIZACIÓN CRÍTICA: Solo precargar chunks necesarios para páginas públicas/SEO
-    // Páginas prioritarias: HomePage, BusinessPage, BusinessesPage, ExplorePage
-    // NO precargar: admin-pages (964KB), google-ai (209KB), leaflet (146KB), business-pages, auth-pages
+    // OPTIMIZACIÓN CRÍTICA: Bloquear preload automático de Vite
+    // Solo permitir chunks críticos + páginas públicas (inyectadas por plugin)
+    // BLOQUEADOS: admin-pages (986KB), google-ai (213KB), leaflet (149KB), business-pages (137KB)
     modulePreload: {
       polyfill: false,
       resolveDependencies: (filename, deps) => {
-        // Solo preload de chunks absolutamente críticos para páginas públicas
-        const criticalChunks = [
-          'react-core',      // React (necesario)
-          'react-router',    // Router (necesario)
-          'supabase',        // Supabase (usado en mayoría de páginas)
-          'index'            // Main bundle
+        // Lista blanca de chunks permitidos para preload
+        const allowedChunks = [
+          'react-core',
+          'react-router',
+          'supabase',
+          'index',
+          // Páginas públicas (inyectadas por plugin después)
+          'HomePage',
+          'BusinessPage',
+          'BusinessesPage',
+          'ExplorePage',
         ];
 
+        // Filtrar: solo permitir los chunks en la lista blanca
         return deps.filter(dep => {
-          return criticalChunks.some(chunk => dep.includes(chunk));
+          // Verificar si el dep contiene alguno de los chunks permitidos
+          return allowedChunks.some(chunk => dep.includes(chunk));
         });
       }
     },
