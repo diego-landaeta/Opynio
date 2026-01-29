@@ -252,14 +252,16 @@ const BusinessPage: React.FC = () => {
         return { twitter: null, instagram: null };
     }, [socialLinksToDisplay]);
 
+    const currentYear = new Date().getFullYear();
+
     const metaTitle = useMemo(() => {
         if (!business) return 'Opynio - Reseñas Auténticas de Confianza';
         const nameToDisplay = translatedContent.name || business.name;
         if (totalReviews > 0) {
-            return tMeta('meta.businessTitle', { businessName: nameToDisplay, rating: averageRating.toFixed(1), reviewCount: totalReviews, category: translatedCategory });
+            return tMeta('meta.businessTitle', { businessName: nameToDisplay, rating: averageRating.toFixed(1), reviewCount: totalReviews, category: translatedCategory, year: currentYear });
         }
-        return tMeta('meta.businessTitleNoReviews', { businessName: nameToDisplay, category: translatedCategory });
-    }, [business, tMeta, totalReviews, averageRating, translatedContent.name, translatedCategory]);
+        return tMeta('meta.businessTitleNoReviews', { businessName: nameToDisplay, category: translatedCategory, year: currentYear });
+    }, [business, tMeta, totalReviews, averageRating, translatedContent.name, translatedCategory, currentYear]);
 
     const metaDescription = useMemo(() => {
         if (!business) return "Opynio: opiniones reales que te ayudan a elegir con confianza.";
