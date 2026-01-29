@@ -153,6 +153,23 @@ const BusinessPage: React.FC = () => {
         return countryCode?.toUpperCase();
     }, [countryCode]);
 
+    // Calcular todos los países válidos para esta empresa
+    const validCountryCodes = useMemo(() => {
+        if (!business) return new Set<string>();
+        const mainCountry = business.country?.toUpperCase();
+        const sedeCountries = ((business.sedes as unknown as Sede[]) || [])
+            .map(s => s.country_code?.toUpperCase())
+            .filter(Boolean) as string[];
+        return new Set([mainCountry, ...sedeCountries].filter(Boolean));
+    }, [business]);
+
+    // SEO: Detectar si el país de la URL es incorrecto para esta empresa
+    // Si es incorrecto, aplicamos noindex para que Google indexe solo la URL correcta
+    const isWrongCountry = useMemo(() => {
+        if (!business || !activeCountryCode) return false;
+        return validCountryCodes.size > 0 && !validCountryCodes.has(activeCountryCode);
+    }, [business, activeCountryCode, validCountryCodes]);
+
     const allSedes = useMemo(() => {
         if (!business) return [];
         const mainSede = { country_code: business.country || 'ES', website_url: business.website_url, logo_url: business.logo_url };
@@ -414,15 +431,19 @@ const BusinessPage: React.FC = () => {
     }, [business?.category, t]);
 
     // Generar URL canónica usando el slug de la empresa
+    // IMPORTANTE: Si el país de la URL es incorrecto, el canonical SIEMPRE apunta al país principal
+    // Esto le dice a Google cuál es la URL correcta para indexar
     const canonicalUrl = useMemo(() => {
         if (!business) return undefined;
         const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
-        const prefix = (activeCountryCode || business.country || 'es').toLowerCase();
-        const targetLanguage = getLanguageForCountryCode(activeCountryCode || business.country);
+        // Si es país incorrecto, usar país principal; si no, usar el de la URL
+        const correctCountry = isWrongCountry ? business.country : (activeCountryCode || business.country);
+        const prefix = (correctCountry || 'es').toLowerCase();
+        const targetLanguage = getLanguageForCountryCode(correctCountry);
         const paths = pathTranslations[targetLanguage] || pathTranslations.es;
         const businessPathSegment = paths.business.replace(':identifier', slug);
         return `https://web.opynio.com/${prefix}/${businessPathSegment}`;
-    }, [business, activeCountryCode]);
+    }, [business, activeCountryCode, isWrongCountry]);
 
     const iconStyle = `
         .map-marker-icon { background: transparent; border: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); transition: all 0.2s ease-in-out; }
@@ -723,7 +744,9 @@ const BusinessPage: React.FC = () => {
 
     return (
         <>
-            <Meta title={metaTitle} description={metaDescription} lang={pageLang} canonical={canonicalUrl} />
+            {/* SEO: noindex si el país de la URL no es válido para esta empresa */}
+            {/* El canonical siempre apunta al país correcto */}
+            <Meta title={metaTitle} description={metaDescription} lang={pageLang} canonical={canonicalUrl} noindex={isWrongCountry} />
             {schemaData && <Schema data={schemaData} id="schema-localbusiness" />}
             {productSchemaData && <Schema data={productSchemaData} id="schema-product" />}
             <style>{iconStyle}</style>
