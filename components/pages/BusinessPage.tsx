@@ -164,10 +164,32 @@ const BusinessPage: React.FC = () => {
     }, [business]);
 
     // SEO: Detectar si el país de la URL es incorrecto para esta empresa
-    // Si es incorrecto, aplicamos noindex para que Google indexe solo la URL correcta
+    // LÓGICA PERMISIVA: Solo aplicar noindex si la empresa TIENE país definido
+    // y el país de la URL no coincide. Si no tiene país, permitir indexar (más seguro).
     const isWrongCountry = useMemo(() => {
         if (!business || !activeCountryCode) return false;
-        return validCountryCodes.size > 0 && !validCountryCodes.has(activeCountryCode);
+
+        // CRÍTICO: Si la empresa NO tiene país definido, NO bloquear indexación
+        // Esto evita bloquear empresas que están en proceso de configuración
+        if (!business.country) return false;
+
+        // Solo marcar como incorrecto si:
+        // 1. La empresa TIENE país/países definidos
+        // 2. Y el país de la URL NO está en la lista de países válidos
+        const isWrong = validCountryCodes.size > 0 && !validCountryCodes.has(activeCountryCode);
+
+        // DEBUG: Log para detectar problemas de indexación (solo en desarrollo)
+        if (import.meta.env.DEV) {
+            console.log('[SEO Debug]', {
+                businessName: business.name,
+                businessCountry: business.country,
+                activeCountryCode,
+                validCountries: Array.from(validCountryCodes),
+                isWrongCountry: isWrong
+            });
+        }
+
+        return isWrong;
     }, [business, activeCountryCode, validCountryCodes]);
 
     const allSedes = useMemo(() => {
