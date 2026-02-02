@@ -49,7 +49,7 @@ function injectPublicPagePreloads(): Plugin {
             return;
           }
 
-          const regex = new RegExp(`^${page}-[a-zA-Z0-9]+\\.js$`);
+          const regex = new RegExp(`^${page}-[a-zA-Z0-9_-]+\\.js$`);
           const file = files.find((f: string) => regex.test(f));
 
           if (file) {
