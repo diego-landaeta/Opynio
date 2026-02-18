@@ -23,11 +23,11 @@
         Header set Access-Control-Allow-Origin "*"
     </FilesMatch>
 
-    # Specific for widget.js
+    # Specific for widget.js - 1 day TTL so updates reach clients quickly
     <Files "widget.js">
         Header set Content-Type "application/javascript"
         Header set Access-Control-Allow-Origin "*"
-        Header set Cache-Control "public, max-age=31536000"
+        Header set Cache-Control "public, max-age=86400, stale-while-revalidate=3600"
     </Files>
 </IfModule>
 
