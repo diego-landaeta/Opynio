@@ -192,102 +192,103 @@ export const useTranslation = () => {
 };
 
 /**
- * A hook for translating a single piece of dynamic text using the Gemini API.
- * It handles caching, loading states, and provides a toggle to show the original text.
+ * Hook for translating a single piece of dynamic text.
+ * Handles caching, loading states, and provides a toggle to show the original text.
  */
-export function useGeminiTranslation(originalText: string | null | undefined) {
+export function useAutoTranslation(originalText: string | null | undefined) {
   const { language } = useI18n();
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [translationError, setTranslationError] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     setTranslatedText(null);
     setShowOriginal(false);
-    setTranslationError(false);
     setIsTranslating(false);
 
     if (language !== 'es' && originalText) {
       setIsTranslating(true);
       translateText(originalText, language)
-        .then(setTranslatedText)
-        .catch(() => {
-          console.error("Translation failed for:", originalText);
-          setTranslationError(true);
-        })
-        .finally(() => setIsTranslating(false));
+        .then(result => { if (!cancelled) setTranslatedText(result); })
+        .catch(() => { if (!cancelled) console.error("Translation failed for:", originalText); })
+        .finally(() => { if (!cancelled) setIsTranslating(false); });
     }
+
+    return () => { cancelled = true; };
   }, [originalText, language]);
 
   const textToDisplay = language !== 'es' && !showOriginal && translatedText ? translatedText : originalText;
-  const canToggle = language !== 'es' && !isTranslating && !!translatedText && !translationError;
-  
+  const canToggle = language !== 'es' && !isTranslating && !!translatedText;
+
   const toggle = useCallback(() => {
     if (canToggle) {
       setShowOriginal(prev => !prev);
     }
   }, [canToggle]);
 
-  return { 
+  return {
     text: textToDisplay,
     isTranslating,
     canToggle,
     showOriginal,
     toggle,
-    translationError,
   };
 }
 
 /**
- * A hook for translating a group of related fields (e.g., a title and description).
- * It provides a single loading state and toggle for the entire group.
+ * Hook for translating a group of related fields (e.g., a title and description).
+ * Provides a single loading state and toggle for the entire group.
  */
-export function useGeminiTranslations<T extends Record<string, string | null | undefined>>(
+export function useAutoTranslations<T extends Record<string, string | null | undefined>>(
     originals: T
 ) {
     const { language } = useI18n();
     const [translations, setTranslations] = useState<Partial<T>>({});
     const [isTranslating, setIsTranslating] = useState(false);
     const [showOriginal, setShowOriginal] = useState(false);
-    const [translationError, setTranslationError] = useState(false);
 
     const originalsString = useMemo(() => JSON.stringify(originals), [originals]);
 
     useEffect(() => {
+        let cancelled = false;
+
         setTranslations({});
         setShowOriginal(false);
         setIsTranslating(false);
-        setTranslationError(false);
 
         if (language !== 'es') {
             const toTranslate = Object.entries(originals).filter(([, value]) => value);
             if (toTranslate.length > 0) {
                 setIsTranslating(true);
-                Promise.all(
+                Promise.allSettled(
                     toTranslate.map(([, value]) => translateText(value!, language))
                 ).then(results => {
+                    if (cancelled) return;
                     const newTranslations: Partial<T> = {};
                     toTranslate.forEach(([key], index) => {
-                        newTranslations[key as keyof T] = results[index] as T[keyof T];
+                        const result = results[index];
+                        if (result.status === 'fulfilled') {
+                            newTranslations[key as keyof T] = result.value as T[keyof T];
+                        }
                     });
                     setTranslations(newTranslations);
-                }).catch(err => {
-                    console.error("Batch translation failed", err);
-                    setTranslationError(true);
                 }).finally(() => {
-                    setIsTranslating(false);
+                    if (!cancelled) setIsTranslating(false);
                 });
             }
         }
+
+        return () => { cancelled = true; };
     }, [originalsString, language]);
 
     const toggle = useCallback(() => setShowOriginal(p => !p), []);
-    const canToggle = language !== 'es' && !isTranslating && Object.keys(translations).length > 0 && !translationError;
+    const canToggle = language !== 'es' && !isTranslating && Object.keys(translations).length > 0;
 
     const translatedContent = useMemo(() => {
         const result: T = { ...originals };
-        if (language !== 'es' && !showOriginal && !translationError) {
+        if (language !== 'es' && !showOriginal) {
             for (const key in translations) {
                 if (translations[key]) {
                     result[key as keyof T] = translations[key] as T[keyof T];
@@ -295,7 +296,7 @@ export function useGeminiTranslations<T extends Record<string, string | null | u
             }
         }
         return result;
-    }, [originals, translations, showOriginal, language, translationError]);
+    }, [originals, translations, showOriginal, language]);
 
     return {
         content: translatedContent,

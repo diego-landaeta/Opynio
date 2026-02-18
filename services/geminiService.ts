@@ -238,45 +238,72 @@ export const generateSearchQueryFromPrompt = async (prompt: string): Promise<{ s
     }
 };
 
-const translationCache = new Map<string, string>();
+const memoryCache = new Map<string, string>();
 
-const LANGUAGE_NAMES: { [key: string]: string } = {
-    'en': 'English',
-    'br': 'Portuguese (Brazilian)',
-    'pt': 'Portuguese',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'ca': 'Catalan',
-    'cn': 'Chinese (Simplified)',
-    'es': 'Spanish'
+const GOOGLE_LANG_CODES: { [key: string]: string } = {
+    'en': 'en',
+    'br': 'pt',
+    'pt': 'pt',
+    'fr': 'fr',
+    'de': 'de',
+    'it': 'it',
+    'ca': 'ca',
+    'cn': 'zh-CN',
+    'es': 'es',
 };
 
-export const translateText = async (text: string, targetLanguage: string = 'en'): Promise<string> => {
-    const cacheKey = `${text}_${targetLanguage}`;
-
-    if (translationCache.has(cacheKey)) {
-        return translationCache.get(cacheKey)!;
+// Simple hash for cache keys (fast, collision-resistant enough for translations)
+function hashText(text: string): string {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) {
+        h = ((h << 5) - h + text.charCodeAt(i)) | 0;
     }
+    return h.toString(36);
+}
 
-    const targetLangName = LANGUAGE_NAMES[targetLanguage] || 'English';
-    const prompt = `Translate the following Spanish text to ${targetLangName}. Do not add any extra commentary or introductory phrases. Just provide the direct translation.\n\nText:\n---\n${text}\n---`;
+export const translateText = async (text: string, targetLanguage: string = 'en'): Promise<string> => {
+    if (!text || targetLanguage === 'es') return text;
 
+    const targetCode = GOOGLE_LANG_CODES[targetLanguage] || targetLanguage;
+    const memKey = `${text}_${targetCode}`;
+
+    // L1: Memory cache (instant)
+    if (memoryCache.has(memKey)) return memoryCache.get(memKey)!;
+
+    const textHash = hashText(text);
+
+    // L2: Supabase cache (persistent across sessions/users)
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                temperature: 0.1,
-            },
-        });
+        const { getCachedTranslation } = await import('./supabaseService');
+        const cached = await getCachedTranslation(textHash, targetCode);
+        if (cached) {
+            memoryCache.set(memKey, cached);
+            return cached;
+        }
+    } catch { /* Supabase unavailable, continue to Google */ }
 
-        const translated = response.text.trim();
-        translationCache.set(cacheKey, translated);
+    // L3: Google Translate
+    try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const segments = data?.[0];
+        if (!Array.isArray(segments)) throw new Error('Unexpected response format');
+
+        const translated = segments.map((seg: any[]) => seg[0]).join('').trim();
+        if (!translated) throw new Error('Empty translation');
+
+        memoryCache.set(memKey, translated);
+
+        // Persist to Supabase in background (best effort)
+        import('./supabaseService')
+            .then(({ setCachedTranslation }) => setCachedTranslation(textHash, text, targetCode, translated))
+            .catch(() => {});
+
         return translated;
-
-    } catch (error) {
-        console.error("Error calling Gemini API for translation:", error);
-        throw new Error("Failed to translate text.");
+    } catch {
+        return text;
     }
 };

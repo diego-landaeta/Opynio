@@ -521,6 +521,7 @@ export default {
     appealDecision: "申诉决定",
     showTranslation: "查看翻译",
     showOriginal: "查看原文",
+    translating: "翻译中...",
     closed: "关闭",
     countryChanged: "已切换到 {country}",
     switchToCountry: "切换到 {country}",
@@ -1016,6 +1017,9 @@ export default {
       widgetsContent: '<strong>（入门方案及更高版本）</strong>将您的 Opynio 评论集成到您的网站，使用我们的小部件。从不同格式中选择，自定义主题并复制代码以增加访问者的信任。',
       profileContent: '<strong>（入门方案及更高版本）</strong>编辑您企业的公开信息：名称、徽标、描述、时间表、地图位置和社交媒体。始终保持您的资料更新。',
     },
+    widgetLanguageTitle: '评论语言',
+    widgetLanguageSubtitle: '选择网站上显示评论的语言',
+    widgetLangAuto: '自动（从网站检测）',
     yourCurrentPlan: '您当前的方案',
   },
   editBusiness: {

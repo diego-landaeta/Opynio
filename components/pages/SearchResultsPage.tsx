@@ -13,14 +13,14 @@ import Spinner from '../Spinner';
 import ReviewCard from '../ReviewCard';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
-import { useTranslation, useI18n, pathTranslations, useGeminiTranslation, type Language, getLanguageForCountryCode } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, useAutoTranslation, type Language, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { Link } from 'react-router-dom';
 
 
 const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.memo(({ business }) => {
     const t = useTranslation();
-    const { text: translatedName } = useGeminiTranslation(business.name);
+    const { text: translatedName } = useAutoTranslation(business.name);
     const [imageError, setImageError] = useState(false);
 
     const businessPath = generateBusinessPath(business);

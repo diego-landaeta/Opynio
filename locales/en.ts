@@ -530,6 +530,7 @@ export default {
     appealDecision: "Appeal decision",
     showTranslation: "Show translation",
     showOriginal: "Show original",
+    translating: "Translating...",
     closed: "Closed",
     countryChanged: "Switched to {country}",
     switchToCountry: "Switch to {country}",
@@ -1054,6 +1055,9 @@ export default {
       widgetsContent: '<strong>(Starter Plan and higher)</strong> Integrate your Opynio reviews into your website with our widgets. Choose from different formats, customize the theme, and copy the code to increase your visitors\' trust.',
       profileContent: '<strong>(Starter Plan and higher)</strong> Edit your business\'s public information: name, logo, description, hours, map location, and social media. Keep your profile always up to date.',
     },
+    widgetLanguageTitle: 'Review language',
+    widgetLanguageSubtitle: 'Choose the language for reviews displayed on your website',
+    widgetLangAuto: 'Automatic (detect from website)',
     yourCurrentPlan: 'Your Current Plan',
   },
   editBusiness: {

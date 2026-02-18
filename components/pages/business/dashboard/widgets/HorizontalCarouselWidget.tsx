@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
+    lang: string;
 }
 
 const DEMO_REVIEWS = [
@@ -43,19 +45,20 @@ const DEMO_REVIEWS = [
 ];
 
 
-export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, theme }) => {
-    const ratingText = (business.avg_rating || 5) >= 4.5 ? 'EXCELENTE' : (business.avg_rating || 5) >= 3.5 ? 'MUY BUENO' : 'BUENO';
+export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+    const s = getPreviewStrings(lang);
+    const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'review_text']);
+    const ratingText = (business.avg_rating || 5) >= 4.5 ? s.ratingExcellent : (business.avg_rating || 5) >= 3.5 ? s.ratingVeryGood : s.ratingGood;
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
-    
+
     const trackRef = useRef<HTMLDivElement>(null);
     const [currentIndex, setCurrentIndex] = useState(1);
     const transitionEnabledRef = useRef(true);
 
     const duplicatedReviews = useMemo(() => {
-        if (DEMO_REVIEWS.length === 0) return [];
-        // Create an "infinite" loop by cloning items at the beginning and end
-        return [DEMO_REVIEWS[DEMO_REVIEWS.length - 1], ...DEMO_REVIEWS, DEMO_REVIEWS[0]];
-    }, []);
+        if (translatedReviews.length === 0) return [];
+        return [translatedReviews[translatedReviews.length - 1], ...translatedReviews, translatedReviews[0]];
+    }, [translatedReviews]);
 
     const scrollNext = useCallback(() => {
         if (!transitionEnabledRef.current) return;
@@ -117,7 +120,7 @@ export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, th
                             <div className="opynio-stars-display" style={{ letterSpacing: '4px' }}>
                                 <StaticStarRating rating={business.avg_rating || 5} />
                             </div>
-                            <p className="opynio-rating-count">A base de <strong>{business.review_count || 123} reseñas</strong></p>
+                            <p className="opynio-rating-count" dangerouslySetInnerHTML={{ __html: s.basedOnAlt.replace('{n}', String(business.review_count || 123)) }} />
                             <div className="opynio-logo">
                                 <div className="opynio-logo-text">Opynio</div>
                             </div>
@@ -138,7 +141,7 @@ export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, th
                                                     {isGoogle && (
                                                         <div className="opynio-google-badge">
                                                             <svg className="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg>
-                                                            <span className="opynio-google-text">Opinión de Google</span>
+                                                            <span className="opynio-google-text">{s.googleReview}</span>
                                                         </div>
                                                     )}
                                                 </div>

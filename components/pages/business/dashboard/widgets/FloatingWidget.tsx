@@ -5,6 +5,7 @@ import StaticStarRating from './StaticStarRating';
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
+    lang: string;
 }
 
 export const FloatingPreview: React.FC<PreviewProps> = ({ business, theme }) => {

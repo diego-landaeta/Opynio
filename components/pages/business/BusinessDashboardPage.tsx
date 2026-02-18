@@ -5,7 +5,7 @@ import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import { Plan, Business } from '../../../types';
 import { BusinessDashboardProvider, useBusinessDashboard } from '../../../contexts/BusinessDashboardContext';
-import { useI18n, useTranslation, pathTranslations, useGeminiTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, useAutoTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
 import { getBusinessById, getBusinessByName } from '../../../services/supabaseService';
 
@@ -24,7 +24,7 @@ const DashboardSidebar: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
-    const { text: translatedName } = useGeminiTranslation(business?.name || '');
+    const { text: translatedName } = useAutoTranslation(business?.name || '');
     const [imageError, setImageError] = useState(false);
 
     // Use country directly - don't infer from language

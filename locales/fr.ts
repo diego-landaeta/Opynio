@@ -522,6 +522,7 @@ export default {
     appealDecision: "Faire appel de la décision",
     showTranslation: "Afficher la traduction",
     showOriginal: "Afficher l'original",
+    translating: "Traduction...",
     closed: "Fermé",
     countryChanged: "Changé en {country}",
     switchToCountry: "Passer à {country}",
@@ -1037,6 +1038,9 @@ export default {
       widgetsContent: '<strong>(Plan Starter et supérieur)</strong> Intégrez vos avis Opynio à votre site web avec nos widgets. Choisissez parmi différents formats, personnalisez le thème et copiez le code pour augmenter la confiance de vos visiteurs.',
       profileContent: '<strong>(Plan Starter et supérieur)</strong> Modifiez les informations publiques de votre entreprise : nom, logo, description, horaires, emplacement sur la carte et réseaux sociaux. Maintenez votre profil toujours à jour.',
     },
+    widgetLanguageTitle: 'Langue des avis',
+    widgetLanguageSubtitle: 'Choisissez la langue des avis affichés sur votre site',
+    widgetLangAuto: 'Automatique (détecter du site web)',
     yourCurrentPlan: 'Votre Plan Actuel',
   },
   editBusiness: {

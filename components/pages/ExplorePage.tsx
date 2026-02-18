@@ -11,7 +11,7 @@ import { getDistanceFromLatLonInKm } from '../../utils/geolocation';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
 import StarRating from '../StarRating';
-import { useTranslation, useI18n, pathTranslations, type Language, getLanguageForCountryCode } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, useAutoTranslations, pathTranslations, type Language, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { generateBusinessPath } from '../../utils/linkUtils';
@@ -270,6 +270,32 @@ const FilterChangeConfirmModal: React.FC<{
         </div>
     );
 };
+
+// Sub-component to enable translation hooks inside the review .map()
+const TranslatedReviewPreview: React.FC<{ title: string | null | undefined; text: string | null | undefined; isExpanded: boolean }> = React.memo(({ title, text, isExpanded }) => {
+    const t = useTranslation();
+    const { content: translated, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations(
+        useMemo(() => ({ title: title || null, text: text || null }), [title, text])
+    );
+
+    return (
+        <div className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+            {translated.title && <p className={`font-semibold mb-1 transition-opacity duration-300 ${isTranslating ? 'opacity-50' : ''}`}>{translated.title}</p>}
+            {translated.text && <p className={`${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'} transition-opacity duration-300 ${isTranslating ? 'opacity-50' : ''}`}>{translated.text}</p>}
+            {isTranslating && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                    <i className="fa-solid fa-language"></i>
+                    <span className="animate-pulse">{t('common.translating') || 'Traduciendo...'}</span>
+                </div>
+            )}
+            {canToggle && (
+                <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="text-[10px] sm:text-xs font-bold text-brand-green hover:underline mt-1.5">
+                    {showOriginal ? t('common.showTranslation') : t('common.showOriginal')}
+                </button>
+            )}
+        </div>
+    );
+});
 
 const ExplorePage: React.FC = () => {
     const t = useTranslation();
@@ -1858,10 +1884,7 @@ const ExplorePage: React.FC = () => {
                                                 )}
 
                                                 {/* Review preview */}
-                                                <div className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
-                                                    {review.title && <p className="font-semibold mb-1">{review.title}</p>}
-                                                    <p className={isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}>{review.review_text}</p>
-                                                </div>
+                                                <TranslatedReviewPreview title={review.title} text={review.review_text} isExpanded={isExpanded} />
 
                                                 {/* Review meta */}
                                                 <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-gray-400">

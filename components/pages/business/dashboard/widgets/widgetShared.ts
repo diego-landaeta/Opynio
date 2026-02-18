@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Business } from '../../../../../types';
+import { translateText } from '../../../../../services/geminiService';
 
 // Import all widget preview components
 import { HorizontalCarouselPreview } from './HorizontalCarouselWidget';
@@ -14,7 +15,7 @@ import { WallPreview } from './WallWidget';
 export interface WidgetConfig {
     name: string;
     description: string;
-    component: React.FC<{ business: Business, theme: 'light' | 'dark' }>;
+    component: React.FC<{ business: Business, theme: 'light' | 'dark', lang: string }>;
     type: string;
 }
 
@@ -486,8 +487,75 @@ export const WIDGET_CSS = `
     }
 `;
 
-export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark'): string => {
+export interface PreviewStrings {
+    ratingExcellent: string;
+    ratingVeryGood: string;
+    ratingGood: string;
+    reviews: string;
+    outOf5: string;
+    customerRatings: string;
+    basedOn: string;
+    basedOnAlt: string;
+    writeReview: string;
+    reviewsFor: string;
+    googleReview: string;
+    opynioReview: string;
+}
+
+const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
+    es: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', writeReview: 'Escribe tu reseña', reviewsFor: 'Opiniones para', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio' },
+    en: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', writeReview: 'Write a review', reviewsFor: 'Reviews for', googleReview: 'Google Review', opynioReview: 'Opynio Review' },
+    fr: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', writeReview: 'Écrire un avis', reviewsFor: 'Avis pour', googleReview: 'Avis Google', opynioReview: 'Avis Opynio' },
+    de: { ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', writeReview: 'Bewertung schreiben', reviewsFor: 'Bewertungen für', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung' },
+    it: { ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', writeReview: 'Scrivi una recensione', reviewsFor: 'Recensioni per', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio' },
+    pt: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio' },
+    ca: { ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio' },
+    zh: { ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论' },
+};
+
+const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh' };
+
+export function getPreviewStrings(lang: string): PreviewStrings {
+    const normalized = LANG_NORMALIZE[lang] || lang;
+    return PREVIEW_STRINGS[normalized] || PREVIEW_STRINGS.en;
+}
+
+export function useTranslatedReviews<T extends Record<string, any>>(
+    reviews: T[],
+    lang: string,
+    fields: string[]
+): T[] {
+    const [translated, setTranslated] = useState<T[]>(reviews);
+
+    useEffect(() => {
+        if (lang === 'es') {
+            setTranslated(reviews);
+            return;
+        }
+
+        let cancelled = false;
+
+        Promise.all(reviews.map(async (review) => {
+            const tr = { ...review };
+            await Promise.all(fields.map(async (field) => {
+                if (typeof review[field] === 'string') {
+                    tr[field] = await translateText(review[field], lang);
+                }
+            }));
+            return tr;
+        })).then((result) => {
+            if (!cancelled) setTranslated(result);
+        });
+
+        return () => { cancelled = true; };
+    }, [lang]);
+
+    return translated;
+}
+
+export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
+    const langAttr = lang ? ` data-lang="${lang}"` : '';
     return `<!-- Opynio Widget v6.0 - ${widgetType} -->
 <script src="https://web.opynio.com/widget.js" async></script>
-<div class="opynio-widget" data-business-id="${businessId}" data-type="${widgetType}" data-theme="${theme}"></div>`;
+<div class="opynio-widget" data-business-id="${businessId}" data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
 };

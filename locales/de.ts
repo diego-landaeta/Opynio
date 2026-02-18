@@ -522,6 +522,7 @@ export default {
     appealDecision: "Entscheidung anfechten",
     showTranslation: "Übersetzung anzeigen",
     showOriginal: "Original anzeigen",
+    translating: "Übersetzen...",
     closed: "Geschlossen",
     countryChanged: "Gewechselt zu {country}",
     switchToCountry: "Wechseln zu {country}",
@@ -1037,6 +1038,9 @@ export default {
       widgetsContent: '<strong>(Starter-Plan und höher)</strong> Integrieren Sie Ihre Opynio-Bewertungen mit unseren Widgets in Ihre Website. Wählen Sie aus verschiedenen Formaten, passen Sie das Thema an und kopieren Sie den Code, um das Vertrauen Ihrer Besucher zu erhöhen.',
       profileContent: '<strong>(Starter-Plan und höher)</strong> Bearbeiten Sie die öffentlichen Informationen Ihres Unternehmens: Name, Logo, Beschreibung, Öffnungszeiten, Standort auf der Karte und soziale Medien. Halten Sie Ihr Profil immer auf dem neuesten Stand.',
     },
+    widgetLanguageTitle: 'Sprache der Bewertungen',
+    widgetLanguageSubtitle: 'Wählen Sie die Sprache der Bewertungen auf Ihrer Website',
+    widgetLangAuto: 'Automatisch (von Website erkennen)',
     yourCurrentPlan: 'Ihr aktueller Plan',
   },
   editBusiness: {

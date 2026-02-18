@@ -11,7 +11,7 @@ import { VAPID_PUBLIC_KEY, LANGUAGES, COUNTRIES } from '../constants';
 import { urlBase64ToUint8Array } from '../utils/urlBase64ToUint8Array';
 import { Json } from '../types';
 import { useTheme } from '../App';
-import { useI18n, useTranslation, pathTranslations, Language, useGeminiTranslation, getLanguageForCountryCode } from '../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useCountry, CountryCode } from '../contexts/CountryContext';
 import { markInternalNavigation } from './LanguagePopup';
@@ -404,7 +404,7 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
     const { userCountry } = useCountry(); // CAMBIO: usar userCountry
     const { language } = useI18n();
     const t = useTranslation();
-    const { text: translatedMessage } = useGeminiTranslation(notification.message);
+    const { text: translatedMessage } = useAutoTranslation(notification.message);
 
     // Use userCountry directly - don't infer from language
     const countryPrefix = userCountry ? `/${userCountry.toLowerCase()}` : '';

@@ -522,6 +522,7 @@ export default {
     appealDecision: "Apel·lar decisió",
     showTranslation: "Veure traducció",
     showOriginal: "Veure original",
+    translating: "Traduint...",
     closed: "Tancat",
     countryChanged: "Canviat a {country}",
     switchToCountry: "Canviar a {country}",
@@ -1043,6 +1044,9 @@ export default {
       widgetsContent: '<strong>(Pla Starter i superior)</strong> Integra les teves ressenyes d\'Opynio a la teva web amb els nostres ginys. Tria entre diferents formats, personalitza el tema i copia el codi per augmentar la confiança dels teus visitants.',
       profileContent: '<strong>(Pla Starter i superior)</strong> Edita la informació pública del teu negoci: nom, logo, descripció, horaris, ubicació al mapa i xarxes socials. Mantingues el teu perfil sempre actualitzat.',
     },
+    widgetLanguageTitle: 'Idioma de les ressenyes',
+    widgetLanguageSubtitle: "Tria l'idioma de les ressenyes al teu web",
+    widgetLangAuto: 'Automàtic (detectar del lloc web)',
     yourCurrentPlan: 'El Teu Pla Actual',
   },
   editBusiness: {

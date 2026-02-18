@@ -62,14 +62,16 @@ const DashboardWidgets: React.FC = () => {
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
     const t = useTranslation();
+    const { language } = useI18n();
     const [selectedWidget, setSelectedWidget] = useState<WidgetConfig>(WIDGETS[0]);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [widgetLang, setWidgetLang] = useState<string>('auto');
 
     if (!business) {
         return <div className="flex justify-center items-center h-48 sm:h-64"><Spinner /></div>;
     }
 
-    const codeSnippet = getWidgetScript(business.id, selectedWidget.type, theme);
+    const codeSnippet = getWidgetScript(business.id, selectedWidget.type, theme, widgetLang !== 'auto' ? widgetLang : undefined);
 
     const downloadCodeAsTxt = () => {
         try {
@@ -113,13 +115,35 @@ const DashboardWidgets: React.FC = () => {
                                 <button onClick={() => setTheme('dark')} className={`flex-1 py-1.5 sm:py-2 px-3 sm:px-4 rounded-md font-semibold text-xs sm:text-sm transition-all ${theme === 'dark' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent'}`}>{t('businessDashboard.darkTheme')}</button>
                             </div>
                         </div>
+                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
+                            <h2 className="text-base sm:text-lg font-bold mb-1 sm:mb-2">
+                                <i className="fa-solid fa-language mr-1.5 text-brand-green"></i>
+                                {t('businessDashboard.widgetLanguageTitle')}
+                            </h2>
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">{t('businessDashboard.widgetLanguageSubtitle')}</p>
+                            <select
+                                value={widgetLang}
+                                onChange={(e) => setWidgetLang(e.target.value)}
+                                className="w-full p-2 sm:p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-sm font-medium focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                            >
+                                <option value="auto">{t('businessDashboard.widgetLangAuto')}</option>
+                                <option value="es">Español</option>
+                                <option value="en">English</option>
+                                <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                                <option value="it">Italiano</option>
+                                <option value="pt">Português</option>
+                                <option value="ca">Català</option>
+                                <option value="zh-CN">中文</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="lg:col-span-2 space-y-4 sm:space-y-6">
                         <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
                             <h2 className="text-lg sm:text-xl font-bold mb-1">{t('businessDashboard.step3Preview', { widgetName: t(`businessDashboard.widgetNames.${selectedWidget.name}`) })}</h2>
                             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-3 sm:mb-4">{t(selectedWidget.description)}</p>
                             <div className={`p-3 sm:p-4 rounded-lg overflow-hidden ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
-                                <selectedWidget.component business={business} theme={theme} />
+                                <selectedWidget.component business={business} theme={theme} lang={widgetLang !== 'auto' ? widgetLang : language} />
                             </div>
                         </div>
                          <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">

@@ -7,7 +7,7 @@ import StarRating from '../StarRating';
 import { CATEGORIES, COUNTRIES } from '../../constants';
 import Meta from '../Meta';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
+import { useI18n, useTranslation, useAutoTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { getDistanceFromLatLonInKm } from '../../utils/geolocation';
 import { useCountry } from '../../contexts/CountryContext';
 import { generateBusinessPath } from '../../utils/linkUtils';
@@ -22,6 +22,7 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
     const { language } = useI18n();
     const businessPath = generateBusinessPath(business);
     const [imageError, setImageError] = useState(false);
+    const { text: translatedDescription, isTranslating: isTranslatingDesc } = useAutoTranslation(business.description);
 
     // Function to translate category
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -134,8 +135,8 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
                             </p>
                         )}
                         {business.description && (
-                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2 sm:mt-3 line-clamp-2 leading-relaxed">
-                                {business.description}
+                            <p className={`text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2 sm:mt-3 line-clamp-2 leading-relaxed transition-opacity duration-300 ${isTranslatingDesc ? 'opacity-50' : ''}`}>
+                                {translatedDescription}
                             </p>
                         )}
                     </div>

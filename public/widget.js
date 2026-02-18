@@ -302,6 +302,97 @@
         return BASE_URL + '/es/empresa/' + encodeURIComponent(business.name.replace(/ /g, '_'));
     }
 
+    // Widget UI strings (static text translations)
+    var UI_STRINGS = {
+        es: { reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio' },
+        en: { reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review' },
+        fr: { reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio' },
+        de: { reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung' },
+        it: { reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio' },
+        pt: { reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio' },
+        ca: { reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio" },
+        zh: { reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论' },
+        ja: { reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー' },
+        ko: { reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰' },
+        nl: { reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling' },
+        ru: { reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio' },
+        ar: { reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio' },
+    };
+
+    async function getStrings(lang) {
+        var exact = UI_STRINGS[lang] || UI_STRINGS[lang.split('-')[0]];
+        if (exact) return exact;
+        // Translate English UI strings on-the-fly for unsupported languages
+        var base = UI_STRINGS.en;
+        var keys = Object.keys(base);
+        var values = keys.map(function(k) { return base[k]; });
+        var translated = await Promise.all(values.map(function(v) {
+            // Skip strings with HTML tags — translate the plain text parts only
+            if (v.indexOf('{n}') !== -1 || v.indexOf('<') !== -1) {
+                return translateReviewText(v.replace(/<[^>]+>/g, '').replace('{n}', '888'), lang).then(function(t) {
+                    // Restore {n} placeholder and reconstruct
+                    return v.indexOf('<strong>') !== -1
+                        ? t.replace('888', '<strong>{n}').replace(/$/, '</strong>').replace(/<\/strong><\/strong>/, '</strong>')
+                        : t.replace('888', '{n}');
+                });
+            }
+            return translateReviewText(v, lang);
+        }));
+        var result = {};
+        keys.forEach(function(k, i) { result[k] = translated[i]; });
+        UI_STRINGS[lang] = result; // Cache for future use
+        return result;
+    }
+
+    // Translation via Google Translate (free gtx endpoint, no key needed)
+    var translationCache = {};
+    var LANG_MAP = { en: 'en', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar' };
+
+    function detectTargetLang() {
+        // 1. Page's <html lang="fr"> (set by i18n frameworks)
+        var htmlLang = document.documentElement.lang;
+        if (htmlLang) return htmlLang.split('-')[0].toLowerCase();
+        // 2. Fallback to browser language
+        return (navigator.language || navigator.userLanguage || 'es').split('-')[0].toLowerCase();
+    }
+
+    async function translateReviewText(text, targetLang) {
+        if (!text || targetLang === 'es') return text;
+        var targetCode = LANG_MAP[targetLang] || targetLang;
+        var key = text + '|' + targetCode;
+        if (translationCache[key]) return translationCache[key];
+        try {
+            var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + targetCode + '&dt=t&q=' + encodeURIComponent(text);
+            var resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var data = await resp.json();
+            var segments = data && data[0];
+            if (!Array.isArray(segments)) throw new Error('Bad response');
+            var translated = segments.map(function(seg) { return seg[0]; }).join('').trim();
+            if (translated) {
+                translationCache[key] = translated;
+                return translated;
+            }
+        } catch (e) { /* fallback to original */ }
+        return text;
+    }
+
+    async function translateReviews(reviews, targetLang) {
+        if (targetLang === 'es') return reviews;
+        var promises = reviews.map(function(review) {
+            return Promise.all([
+                translateReviewText(review.title, targetLang),
+                translateReviewText(review.review_text, targetLang)
+            ]).then(function(results) {
+                var copy = Object.assign({}, review);
+                copy.title = results[0];
+                copy.review_text = results[1];
+                return copy;
+            });
+        });
+        return Promise.all(promises);
+    }
+
     // Fetch widget data
     async function fetchData(businessId) {
         var response = await fetch(API_URL, {
@@ -318,24 +409,24 @@
 
     // Widget Renderers
     var renderers = {
-        'badge': function(el, business) {
-            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' de 5 estrellas</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' reseñas</div></div></div></div></a>';
+        'badge': function(el, business, reviews, s) {
+            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' ' + s.reviews + '</div></div></div></div></a>';
         },
 
-        'floating': function(el, business) {
+        'floating': function(el, business, reviews, s) {
             el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-floating"><div class="opynio-floating-trigger"><span class="opynio-floating-logo">Opynio</span><span class="opynio-floating-avg">' + (business.avg_rating || 0).toFixed(1) + '</span><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><span class="opynio-floating-count">(' + (business.review_count || 0) + ')</span></div></div></a>';
         },
 
-        'sidebar': function(el, business) {
-            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>Reviews</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' reseñas</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + BASE_URL + '/es/escribir?businessId=' + business.id + '\',\'_blank\')">Escribe tu reseña</span></div></a>';
+        'sidebar': function(el, business, reviews, s) {
+            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + BASE_URL + '/es/escribir?businessId=' + business.id + '\',\'_blank\')">' + s.writeReview + '</span></div></a>';
         },
 
-        'grid': function(el, business, reviews) {
+        'grid': function(el, business, reviews, s) {
             var ITEMS = 6, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
-                    return '<div class="opynio-grid-card"><div class="opynio-grid-header"><span class="opynio-grid-author">' + (r.original_author_name || 'Anónimo') + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-grid-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 100) + ((r.review_text || '').length > 100 ? '...' : '')) + '"</p></div>';
+                    return '<div class="opynio-grid-card"><div class="opynio-grid-header"><span class="opynio-grid-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-grid-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 100) + ((r.review_text || '').length > 100 ? '...' : '')) + '"</p></div>';
                 }).join('');
                 el.querySelector('.opynio-grid').innerHTML = html;
             }
@@ -347,12 +438,12 @@
             }
         },
 
-        'wall': function(el, business, reviews) {
+        'wall': function(el, business, reviews, s) {
             var ITEMS = 9, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
-                    return '<div class="opynio-wall-card"><div class="opynio-wall-header"><span class="opynio-wall-author">' + (r.original_author_name || 'Anónimo') + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-wall-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 180) + ((r.review_text || '').length > 180 ? '...' : '')) + '"</p></div>';
+                    return '<div class="opynio-wall-card"><div class="opynio-wall-header"><span class="opynio-wall-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-wall-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 180) + ((r.review_text || '').length > 180 ? '...' : '')) + '"</p></div>';
                 }).join('');
                 el.querySelector('.opynio-wall').innerHTML = html;
             }
@@ -364,17 +455,17 @@
             }
         },
 
-        'showcase': function(el, business, reviews) {
+        'showcase': function(el, business, reviews, s) {
             var ITEMS = 3, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
-                    var badge = r.source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">Google</span></div>' : '<div class="opynio-opynio-badge"><span class="opynio-opynio-text">Opynio</span></div>';
-                    return '<div class="opynio-showcase-card"><div class="opynio-showcase-card-header"><span class="opynio-showcase-card-name">' + (r.original_author_name || 'Anónimo') + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-showcase-card-title">' + (r.title || '') + '</h4><p class="opynio-showcase-card-text">"' + (r.review_text || '') + '"</p>' + badge + '</div>';
+                    var badge = r.source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">' + s.googleReview + '</span></div>' : '<div class="opynio-opynio-badge"><span class="opynio-opynio-text">' + s.opynioReview + '</span></div>';
+                    return '<div class="opynio-showcase-card"><div class="opynio-showcase-card-header"><span class="opynio-showcase-card-name">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-showcase-card-title">' + (r.title || '') + '</h4><p class="opynio-showcase-card-text">"' + (r.review_text || '') + '"</p>' + badge + '</div>';
                 }).join('');
                 el.querySelector('.opynio-showcase-grid').innerHTML = html;
             }
-            el.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" style="text-decoration:none;color:inherit;"><div><h2 class="opynio-showcase-biz-name">' + business.name + '</h2><p class="opynio-showcase-subtitle">Valoración de nuestros clientes</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">Basado en ' + (business.review_count || 0) + ' reseñas</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            el.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" style="text-decoration:none;color:inherit;"><div><h2 class="opynio-showcase-biz-name">' + business.name + '</h2><p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
                 el.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
@@ -382,10 +473,10 @@
             }
         },
 
-        'large-carousel': function(el, business, reviews) {
-            if (reviews.length === 0) { el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext-color);">No hay reseñas.</div>'; return; }
+        'large-carousel': function(el, business, reviews, s) {
+            if (reviews.length === 0) { el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext-color);">' + s.noReviews + '</div>'; return; }
             el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" class="opynio-widget-link"><div class="opynio-large-carousel"><div class="opynio-large-carousel-track">' + reviews.map(function(r) {
-                return '<div class="opynio-large-carousel-slide"><div class="opynio-large-carousel-quote-icon">"</div><h4 class="opynio-large-carousel-title">' + (r.title || '') + '</h4><div class="opynio-stars">' + generateStars(r.rating) + '</div><p>"' + (r.review_text || '') + '"</p><p class="author">— ' + (r.original_author_name || 'Anónimo') + '</p></div>';
+                return '<div class="opynio-large-carousel-slide"><div class="opynio-large-carousel-quote-icon">"</div><h4 class="opynio-large-carousel-title">' + (r.title || '') + '</h4><div class="opynio-stars">' + generateStars(r.rating) + '</div><p>"' + (r.review_text || '') + '"</p><p class="author">— ' + (r.original_author_name || s.anonymous) + '</p></div>';
             }).join('') + '</div><div class="opynio-large-carousel-nav"><button class="opynio-large-carousel-btn prev">‹</button><button class="opynio-large-carousel-btn next">›</button></div></div></a>';
             var track = el.querySelector('.opynio-large-carousel-track'), idx = 0;
             function update() { track.style.transform = 'translateX(-' + (idx * 100) + '%)'; }
@@ -394,22 +485,21 @@
             setInterval(function() { idx = (idx + 1) % reviews.length; update(); }, 8000);
         },
 
-        'horizontal-carousel': function(el, business, reviews) {
+        'horizontal-carousel': function(el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
-            var ratingText = validRating >= 4.5 ? 'EXCELENTE' : validRating >= 3.5 ? 'MUY BUENO' : 'BUENO';
+            var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var businessUrl = getBusinessUrl(business);
             var cardsHTML = reviews.map(function(r) {
                 var source = (r.source || 'opynio').toString().toLowerCase().trim();
-                var badge = source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">Google</span></div>' : '';
+                var badge = source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">' + s.googleReview + '</span></div>' : '';
                 var icon = source === 'google' ? '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4285f4"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' : '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#00b67a"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
-                var reviewText = r.review_text || 'Reseña multimedia.';
-                // Truncar texto a 4 líneas (~200 chars) y mostrar "Ver más" si es largo
+                var reviewText = r.review_text || s.multimediaReview;
                 var isLongText = reviewText.length > 200;
-                var verMasBtn = isLongText ? '<a href="' + businessUrl + '" target="_blank" style="color: #00b67a; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.5rem;">Ver más</a>' : '';
-                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || 'Anónimo') + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + verMasBtn + '</div>';
+                var seeMoreBtn = isLongText ? '<a href="' + businessUrl + '" target="_blank" style="color: #00b67a; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.5rem;">' + s.seeMore + '</a>' : '';
+                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + seeMoreBtn + '</div>';
             }).join('');
 
-            el.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">A base de <strong>' + (business.review_count || 0) + ' reseñas</strong></p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
+            el.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
 
             var track = el.querySelector('#track-' + business.id);
             var next = el.querySelector('.opynio-nav-next');
@@ -462,20 +552,28 @@
 
             var reviews = (data.reviews || []).filter(function(r) { return r.review_text; });
 
+            // Translate reviews to the target language
+            var targetLang = el.dataset.lang || detectTargetLang();
+            if (targetLang !== 'es' && reviews.length > 0) {
+                reviews = await translateReviews(reviews, targetLang);
+            }
+
+            var s = await getStrings(targetLang);
+
             // Widgets that only need metrics
             if (['badge', 'floating', 'sidebar'].indexOf(type) !== -1) {
-                renderers[type](el, data.business, []);
+                renderers[type](el, data.business, [], s);
                 return;
             }
 
             // Widgets that need reviews
             if (reviews.length === 0) {
-                el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">No hay reseñas con texto para mostrar.</div>';
+                el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
                 return;
             }
 
             if (renderers[type]) {
-                renderers[type](el, data.business, reviews);
+                renderers[type](el, data.business, reviews, s);
             } else {
                 renderError(el, 'Tipo de widget no soportado: ' + type);
             }

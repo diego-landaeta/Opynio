@@ -7,10 +7,9 @@ import Modal from './Modal';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { voteOnReview, getUserVoteOnReview, removeVoteOnReview } from '../services/supabaseService';
-import { useI18n, useTranslation, useGeminiTranslation, pathTranslations, type Language, getLanguageForCountryCode } from '../contexts/i18nContext';
+import { useI18n, useTranslation, useAutoTranslations, pathTranslations } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useCountry } from '../contexts/CountryContext';
-import esTranslations from '../locales/es';
 import { generateBusinessPath } from '../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../utils/categoryMappings';
 
@@ -27,7 +26,17 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const { country } = useCountry();
     const t = useTranslation();
     const { showNotification } = useNotification();
-    const { text: textToDisplay, isTranslating, canToggle, showOriginal, toggle, translationError } = useGeminiTranslation(review.review_text);
+
+    const hasResponse = review.review_responses && review.review_responses.length > 0;
+    const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
+
+    const translationFields = useMemo(() => ({
+        title: review.title,
+        text: review.review_text,
+        response: originalResponseText || null,
+    }), [review.title, review.review_text, originalResponseText]);
+
+    const { content: translated, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations(translationFields);
 
     // Local state for vote counts to update immediately after voting
     const [localHelpfulVotes, setLocalHelpfulVotes] = useState(review.helpful_votes || 0);
@@ -65,7 +74,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         setLocalNotHelpfulVotes(review.not_helpful_votes || 0);
     }, [review.helpful_votes, review.not_helpful_votes]);
     
-    const hasResponse = review.review_responses && review.review_responses.length > 0;
     const isPending = review.status === 'pending';
     const isRejected = review.status === 'rejected';
     
@@ -80,7 +88,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     };
 
     const sourceInfo = isImportedReview ? sourceDetails[sourceKey] : null;
-    const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
 
     // Extract author name and location from combined string (e.g., "John Doe, España" -> {name: "John Doe", location: "España"})
     const getAuthorInfo = (nameString: string | null | undefined): { name: string; location: string | null } => {
@@ -291,7 +298,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                     <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">{timeAgo(review.created_at)}</span>
                 </div>
 
-                <h3 className="font-bold text-base sm:text-lg text-gray-900 dark:text-gray-100 break-words">{review.title}</h3>
+                <h3 className="font-bold text-base sm:text-lg text-gray-900 dark:text-gray-100 break-words">{translated.title}</h3>
 
                 {showBusinessName && review.businesses && (
                     <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -309,13 +316,17 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                     </div>
                 )}
 
-                {isTranslating && <div className="animate-pulse bg-gray-200 dark:bg-zinc-700 h-12 sm:h-16 rounded-md"></div>}
-                {!isTranslating && translationError && <p className="text-xs sm:text-sm text-red-500 bg-red-50 dark:bg-red-900/30 p-2 rounded-md">Could not translate review. Viewing in original language.</p>}
-                {textToDisplay && <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">{textToDisplay}</p>}
+                {translated.text && <p className={`text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed transition-opacity duration-300 ${isTranslating ? 'opacity-50' : ''}`}>{translated.text}</p>}
+                {isTranslating && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                        <i className="fa-solid fa-language"></i>
+                        <span className="animate-pulse">{t('common.translating') || 'Traduciendo...'}</span>
+                    </div>
+                )}
 
                 {canToggle && (
                     <button onClick={toggle} className="text-[10px] sm:text-xs font-bold text-brand-green hover:underline self-start">
-                        {showOriginal ? 'Show translation' : 'Read in original language'}
+                        {showOriginal ? t('common.showTranslation') : t('common.showOriginal')}
                     </button>
                 )}
 
@@ -402,7 +413,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                         </div>
                     </div>
                     <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mt-2 sm:mt-3 pl-9 sm:pl-11">
-                        {originalResponseText}
+                        {translated.response}
                     </p>
                 </div>
             )}

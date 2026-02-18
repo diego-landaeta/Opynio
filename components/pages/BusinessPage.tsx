@@ -18,7 +18,7 @@ import RatingDistribution from '../RatingDistribution';
 import Modal from '../Modal';
 import LazyRender from '../LazyRender';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useI18n, pathTranslations, useTranslation, useGeminiTranslations, getLanguageForCountryCode, translations } from '../../contexts/i18nContext';
+import { useI18n, pathTranslations, useTranslation, useAutoTranslations, getLanguageForCountryCode, translations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES, SEDE_COUNTRIES } from '../../constants';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
@@ -80,7 +80,7 @@ const BusinessPage: React.FC = () => {
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
     const [mapError, setMapError] = useState(false);
     
-    const { content: translatedContent, isTranslating, canToggle, showOriginal, toggle } = useGeminiTranslations({
+    const { content: translatedContent, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations({
         name: business?.name,
         description: business?.description,
     });

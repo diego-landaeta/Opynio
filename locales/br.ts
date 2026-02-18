@@ -531,6 +531,7 @@ export default {
     appealDecision: "Apelar da decisão",
     showTranslation: "Ver tradução",
     showOriginal: "Ver original",
+    translating: "Traduzindo...",
     closed: "Fechado",
     countryChanged: "Mudado para {country}",
     switchToCountry: "Mudar para {country}",
@@ -1048,6 +1049,9 @@ export default {
       widgetsContent: '<strong>(Plano Starter e superior)</strong> Integre as suas análises da Opynio no seu site com os nossos widgets. Escolha entre diferentes formatos, personalize o tema e copie o código para aumentar a confiança dos seus visitantes.',
       profileContent: '<strong>(Plano Starter e superior)</strong> Edite as informações públicas do seu negócio: nome, logo, descrição, horários, localização no mapa e redes sociais. Mantenha o seu perfil sempre atualizado.',
     },
+    widgetLanguageTitle: 'Idioma das avaliações',
+    widgetLanguageSubtitle: 'Escolha o idioma das avaliações exibidas no seu site',
+    widgetLangAuto: 'Automático (detectar do site)',
     yourCurrentPlan: 'O Seu Plano Atual',
   },
   editBusiness: {

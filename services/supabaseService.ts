@@ -3818,4 +3818,29 @@ export default {
   sendSupportEmail,
   getEnterpriseUsers,
   searchAssignableUsers,
+  getCachedTranslation,
+  setCachedTranslation,
 };
+
+// ==================== Translation Cache ====================
+
+async function getCachedTranslation(textHash: string, targetLang: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('translation_cache')
+    .select('translated_text')
+    .eq('text_hash', textHash)
+    .eq('target_lang', targetLang)
+    .single();
+  return data?.translated_text || null;
+}
+
+async function setCachedTranslation(textHash: string, sourceText: string, targetLang: string, translatedText: string): Promise<void> {
+  await supabase
+    .from('translation_cache')
+    .upsert({
+      text_hash: textHash,
+      source_text: sourceText.slice(0, 500),
+      target_lang: targetLang,
+      translated_text: translatedText,
+    }, { onConflict: 'text_hash,target_lang' });
+}
