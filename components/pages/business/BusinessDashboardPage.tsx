@@ -24,7 +24,6 @@ const DashboardSidebar: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
-    const { text: translatedName } = useAutoTranslation(business?.name || '');
     const [imageError, setImageError] = useState(false);
 
     // Use country directly - don't infer from language
@@ -58,7 +57,7 @@ const DashboardSidebar: React.FC = () => {
                     )}
                 </div>
                 <div className="truncate min-w-0">
-                    <h2 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-100 truncate">{translatedName}</h2>
+                    <h2 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-100 truncate">{business?.name}</h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{profile?.plan} Plan</p>
                 </div>
             </div>

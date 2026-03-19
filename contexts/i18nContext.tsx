@@ -208,7 +208,7 @@ export function useAutoTranslation(originalText: string | null | undefined) {
     setShowOriginal(false);
     setIsTranslating(false);
 
-    if (language !== 'es' && originalText) {
+    if (originalText) {
       setIsTranslating(true);
       translateText(originalText, language)
         .then(result => { if (!cancelled) setTranslatedText(result); })
@@ -219,8 +219,8 @@ export function useAutoTranslation(originalText: string | null | undefined) {
     return () => { cancelled = true; };
   }, [originalText, language]);
 
-  const textToDisplay = language !== 'es' && !showOriginal && translatedText ? translatedText : originalText;
-  const canToggle = language !== 'es' && !isTranslating && !!translatedText;
+  const textToDisplay = !showOriginal && translatedText ? translatedText : originalText;
+  const canToggle = !isTranslating && !!translatedText && translatedText !== originalText;
 
   const toggle = useCallback(() => {
     if (canToggle) {
@@ -258,37 +258,38 @@ export function useAutoTranslations<T extends Record<string, string | null | und
         setShowOriginal(false);
         setIsTranslating(false);
 
-        if (language !== 'es') {
-            const toTranslate = Object.entries(originals).filter(([, value]) => value);
-            if (toTranslate.length > 0) {
-                setIsTranslating(true);
-                Promise.allSettled(
-                    toTranslate.map(([, value]) => translateText(value!, language))
-                ).then(results => {
-                    if (cancelled) return;
-                    const newTranslations: Partial<T> = {};
-                    toTranslate.forEach(([key], index) => {
-                        const result = results[index];
-                        if (result.status === 'fulfilled') {
-                            newTranslations[key as keyof T] = result.value as T[keyof T];
-                        }
-                    });
-                    setTranslations(newTranslations);
-                }).finally(() => {
-                    if (!cancelled) setIsTranslating(false);
+        const toTranslate = Object.entries(originals).filter(([, value]) => value);
+        if (toTranslate.length > 0) {
+            setIsTranslating(true);
+            Promise.allSettled(
+                toTranslate.map(([, value]) => translateText(value!, language))
+            ).then(results => {
+                if (cancelled) return;
+                const newTranslations: Partial<T> = {};
+                toTranslate.forEach(([key], index) => {
+                    const result = results[index];
+                    if (result.status === 'fulfilled') {
+                        newTranslations[key as keyof T] = result.value as T[keyof T];
+                    }
                 });
-            }
+                setTranslations(newTranslations);
+            }).finally(() => {
+                if (!cancelled) setIsTranslating(false);
+            });
         }
 
         return () => { cancelled = true; };
     }, [originalsString, language]);
 
     const toggle = useCallback(() => setShowOriginal(p => !p), []);
-    const canToggle = language !== 'es' && !isTranslating && Object.keys(translations).length > 0;
+    const hasActualTranslations = Object.entries(translations).some(
+        ([key, value]) => value && value !== originals[key as keyof T]
+    );
+    const canToggle = !isTranslating && hasActualTranslations;
 
     const translatedContent = useMemo(() => {
         const result: T = { ...originals };
-        if (language !== 'es' && !showOriginal) {
+        if (!showOriginal) {
             for (const key in translations) {
                 if (translations[key]) {
                     result[key as keyof T] = translations[key] as T[keyof T];

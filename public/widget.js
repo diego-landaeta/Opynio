@@ -357,7 +357,7 @@
     }
 
     async function translateReviewText(text, targetLang) {
-        if (!text || targetLang === 'es') return text;
+        if (!text) return text;
         var targetCode = LANG_MAP[targetLang] || targetLang;
         var key = text + '|' + targetCode;
         if (translationCache[key]) return translationCache[key];
@@ -378,7 +378,6 @@
     }
 
     async function translateReviews(reviews, targetLang) {
-        if (targetLang === 'es') return reviews;
         var promises = reviews.map(function(review) {
             return Promise.all([
                 translateReviewText(review.title, targetLang),
@@ -554,7 +553,7 @@
 
             // Translate reviews to the target language
             var targetLang = el.dataset.lang || detectTargetLang();
-            if (targetLang !== 'es' && reviews.length > 0) {
+            if (reviews.length > 0) {
                 reviews = await translateReviews(reviews, targetLang);
             }
 

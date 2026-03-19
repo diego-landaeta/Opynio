@@ -80,8 +80,7 @@ const BusinessPage: React.FC = () => {
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
     const [mapError, setMapError] = useState(false);
     
-    const { content: translatedContent, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations({
-        name: business?.name,
+    const { content: translatedContent, isTranslating } = useAutoTranslations({
         description: business?.description,
     });
 
@@ -295,22 +294,22 @@ const BusinessPage: React.FC = () => {
 
     const metaTitle = useMemo(() => {
         if (!business) return 'Opynio - Reseñas Auténticas de Confianza';
-        const nameToDisplay = translatedContent.name || business.name;
+        const nameToDisplay = business.name;
         if (totalReviews > 0) {
             return tMeta('meta.businessTitle', { businessName: nameToDisplay, rating: averageRating.toFixed(1), reviewCount: totalReviews, category: translatedCategory, year: currentYear });
         }
         return tMeta('meta.businessTitleNoReviews', { businessName: nameToDisplay, category: translatedCategory, year: currentYear });
-    }, [business, tMeta, totalReviews, averageRating, translatedContent.name, translatedCategory, currentYear]);
+    }, [business, tMeta, totalReviews, averageRating, translatedCategory, currentYear]);
 
     const metaDescription = useMemo(() => {
         if (!business) return "Opynio: opiniones reales que te ayudan a elegir con confianza.";
         if (business.meta_description_override && business.meta_description_override.trim() !== '') return business.meta_description_override;
-        const nameToDisplay = translatedContent.name || business.name;
+        const nameToDisplay = business.name;
         if (totalReviews > 0) {
             return tMeta('meta.businessDesc', { reviewCount: totalReviews, businessName: nameToDisplay, rating: averageRating.toFixed(1) });
         }
         return tMeta('meta.businessDescNoReviews', { businessName: nameToDisplay, category: translatedCategory });
-    }, [business, tMeta, totalReviews, averageRating, translatedContent.name, translatedCategory]);
+    }, [business, tMeta, totalReviews, averageRating, translatedCategory]);
 
     const schemaData = useMemo(() => {
         if (!business) return null;
@@ -784,17 +783,8 @@ const BusinessPage: React.FC = () => {
                             <div className="flex-grow min-w-0">
                                 <div className="flex flex-col gap-1.5 sm:gap-2">
                                     <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100 break-words">
-                                        {isTranslating && business?.name ? (
-                                            <span className="animate-pulse bg-gray-300 dark:bg-zinc-600 rounded-md w-full max-w-[200px] sm:max-w-xs h-6 sm:h-8 md:h-9 inline-block"></span>
-                                        ) : (
-                                            translatedContent.name
-                                        )}
+                                        {business?.name}
                                     </h1>
-                                    {canToggle && (
-                                        <button onClick={toggle} className="text-[10px] sm:text-xs font-semibold text-brand-green bg-green-50 dark:bg-green-900/50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md hover:bg-green-100 flex-shrink-0 self-start">
-                                            {showOriginal ? t('common.showTranslation') : t('common.showOriginal')}
-                                        </button>
-                                    )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 mt-1.5 sm:mt-2">
                                     <div className="flex items-center gap-1 sm:gap-1.5"><StarRating rating={averageRating} /><span className="font-bold text-xs sm:text-sm md:text-base text-gray-700 dark:text-gray-200">{averageRating.toFixed(1)}</span></div>
@@ -889,7 +879,7 @@ const BusinessPage: React.FC = () => {
                         )}
 
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700">
-                            <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.allReviewsFor', { businessName: translatedContent.name || business.name })}</h2>
+                            <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.allReviewsFor', { businessName: business.name })}</h2>
                             <div className="flex flex-col gap-3 mb-4 pb-3 sm:pb-4 border-b dark:border-zinc-700">
                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('businessPage.source')}:</span>
@@ -923,7 +913,7 @@ const BusinessPage: React.FC = () => {
                     <aside className="lg:col-span-1 space-y-3 sm:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
                         <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700 space-y-2.5 sm:space-y-3 overflow-hidden">
-                            <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.aboutBusiness', { businessName: translatedContent.name || business.name })}</h3>
+                            <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.aboutBusiness', { businessName: business.name })}</h3>
                             {isTranslating && business?.description ? (
                                 <div className="space-y-2 animate-pulse">
                                     <div className="h-3 sm:h-4 bg-gray-200 dark:bg-zinc-700 rounded w-full"></div>

@@ -20,7 +20,6 @@ import { Link } from 'react-router-dom';
 
 const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.memo(({ business }) => {
     const t = useTranslation();
-    const { text: translatedName } = useAutoTranslation(business.name);
     const [imageError, setImageError] = useState(false);
 
     const businessPath = generateBusinessPath(business);
@@ -43,7 +42,7 @@ const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.m
                     )}
                 </div>
                 <div>
-                    <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-200">{translatedName}</h3>
+                    <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-200">{business.name}</h3>
                     <p className="text-xs sm:text-sm text-brand-green font-semibold">{t('businessesPage.viewBusinessProfileLink')}</p>
                 </div>
             </div>

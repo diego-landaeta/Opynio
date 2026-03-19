@@ -262,7 +262,7 @@ function hashText(text: string): string {
 }
 
 export const translateText = async (text: string, targetLanguage: string = 'en'): Promise<string> => {
-    if (!text || targetLanguage === 'es') return text;
+    if (!text) return text;
 
     const targetCode = GOOGLE_LANG_CODES[targetLanguage] || targetLanguage;
     const memKey = `${text}_${targetCode}`;
