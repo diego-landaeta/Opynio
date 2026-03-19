@@ -385,6 +385,7 @@ export default {
     language_academies: "语言学院",
     driving_schools: "驾校",
     private_lessons_tutoring: "私人课程和辅导",
+    academic_assistant: "学术助理",
     banks_financial_entities: "银行和金融机构",
     insurance_companies: "保险公司",
     investment_services: "投资服务",

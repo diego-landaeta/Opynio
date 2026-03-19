@@ -98,6 +98,7 @@ export const SUBCATEGORY_SPANISH_TO_KEY: { [key: string]: string } = {
   "Academias de Idiomas": "language_academies",
   "Autoescuelas": "driving_schools",
   "Clases Particulares y Tutorías": "private_lessons_tutoring",
+  "Asistente Académico": "academic_assistant",
 
   // Finanzas e Inmobiliaria
   "Bancos y Entidades Financieras": "banks_financial_entities",

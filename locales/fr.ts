@@ -384,6 +384,7 @@ export default {
     language_academies: "Écoles de langues",
     driving_schools: "Auto-écoles",
     private_lessons_tutoring: "Cours particuliers et Tutorat",
+    academic_assistant: "Assistant Académique",
     banks_financial_entities: "Banques et Entités financières",
     insurance_companies: "Compagnies d'assurance",
     investment_services: "Services d'investissement",

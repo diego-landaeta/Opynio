@@ -77,6 +77,7 @@ export const CATEGORIES: { [key: string]: string[] } = {
         'universidades_y_educacion_superior',
         'colegios_y_escuelas',
         'clases_particulares_y_tutorias',
+        'academic_assistant',
     ],
     'Servicios para el Hogar': [
         'fontaneria_electricidad_y_cerrajeria',
