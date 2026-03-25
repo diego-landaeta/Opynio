@@ -823,6 +823,7 @@ export default {
     step1Title: '1. ¿Para qué empresa es tu reseña?',
     searchBusinessPlaceholder: 'Busca el nombre de la empresa...',
     createNewBusinessPrompt: '¿No encuentras "{businessName}"? Añádela a Opynio.',
+    noBusinessFound: 'No se encontró ninguna empresa con ese nombre.',
     step2Title: '2. Categoría',
     categoryWillAppear: 'La categoría aparecerá aquí cuando selecciones una empresa.',
     step3Title: '3. ¿Cómo valorarías tu experiencia?',

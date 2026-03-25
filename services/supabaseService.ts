@@ -470,7 +470,7 @@ export const getBusinessesForOwner = async (userId: string) => {
 export const getBusinessListItemById = async (id: string) => {
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, category, country')
+    .select('id, name, category, country, logo_url')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -779,6 +779,7 @@ export const getBusinessesForDirectoryPaginated = async (
           .select('business_id, rating')
           .in('business_id', batch)
           .eq('status', 'approved')
+          .lte('created_at', new Date().toISOString())
           .gt('rating', 0)
           .limit(10000);
 
@@ -1065,7 +1066,8 @@ export const getBusinessesWithReviewsPaginated = async (
       .from('reviews')
       .select('*, profiles:user_id(id, name, avatar_url)')
       .in('business_id', businessIds)
-      .eq('status', 'approved');
+      .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString());
 
     // Apply rating filter
     if (filters.minRating && filters.minRating > 0) {
@@ -1218,7 +1220,8 @@ export const getBusinessesWithStatsOnly = async (
       .from('reviews')
       .select('business_id, rating')
       .in('business_id', businessIds)
-      .eq('status', 'approved');
+      .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString());
 
     if (reviewsError) {
       console.error('Error fetching review stats:', reviewsError);
@@ -1536,7 +1539,8 @@ export const getTotalReviewCount = async (
       const { count, error } = await supabase
         .from('reviews')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'approved');
+        .eq('status', 'approved')
+        .lte('created_at', new Date().toISOString());
 
       if (error) {
         console.error('Error counting reviews:', error);
@@ -1593,6 +1597,7 @@ export const getTotalReviewCount = async (
           .from('reviews')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'approved')
+          .lte('created_at', new Date().toISOString())
           .in('business_id', batchIds);
 
         if (!error && count) {
@@ -1607,6 +1612,7 @@ export const getTotalReviewCount = async (
       .from('reviews')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString())
       .in('business_id', businessIds);
 
     if (error) {
@@ -1701,6 +1707,7 @@ const getOneReviewPerBusiness = async (
         .from('reviews')
         .select('id, business_id, rating, created_at, review_text, user_id, helpful_votes, not_helpful_votes, title, image_urls, audio_url, source, original_author_name')
         .eq('status', 'approved')
+        .lte('created_at', new Date().toISOString())
         .in('business_id', batchIds);
 
       // Apply rating filter only if specified
@@ -1901,6 +1908,7 @@ const getVariedReviews = async (
       .from('reviews')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString())
       .in('business_id', businessIds.slice(0, 100));
 
     // Apply same filters for count (min and max for range)
@@ -1966,6 +1974,7 @@ const getVariedReviews = async (
           .from('reviews')
           .select('*')
           .eq('status', 'approved')
+          .lte('created_at', new Date().toISOString())
           .eq('business_id', bizId)
           .order(sortField, { ascending })
           .limit(REVIEWS_PER_BUSINESS);
@@ -2220,7 +2229,8 @@ export const getPublicReviews = async (
     let query = supabase
       .from('reviews')
       .select('*')
-      .eq('status', 'approved');
+      .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString());
 
     // Business ID filter (single) - most common filter
     if (filters.businessId) {
@@ -2539,6 +2549,7 @@ export const getReviewsForBusiness = async (businessId: string) => {
       .select('*')
       .eq('business_id', businessId)
       .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString())
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -2591,7 +2602,8 @@ export const getReviewRatingDistribution = async (businessId: string) => {
     .from('reviews')
     .select('rating')
     .eq('business_id', businessId)
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .lte('created_at', new Date().toISOString());
   if (error) throw error;
 
   const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -2608,7 +2620,8 @@ export const getReviewSourceCounts = async (businessId: string) => {
     .from('reviews')
     .select('source, rating')
     .eq('business_id', businessId)
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .lte('created_at', new Date().toISOString());
   if (error) throw error;
 
   const counts = { opynio: 0, google: 0, trustindex: 0 };
@@ -3022,6 +3035,7 @@ export async function getBusinessAnalytics(businessId: string, days: 30 | 90 | 3
       .eq('business_id', businessId)
       .eq('status', 'approved')
       .gte('created_at', startDate.toISOString())
+      .lte('created_at', new Date().toISOString())
       .order('created_at', { ascending: true });
 
     if (error) throw error;

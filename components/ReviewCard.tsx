@@ -201,7 +201,15 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
         const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 
-        const units: { [key: string]: number } = { year: 31536000, month: 2592000, week: 604800, day: 86400, hour: 3600, minute: 60 };
+        // If 7 days or more, show formatted date DD/MM/YY
+        if (diffInSeconds >= 604800) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = String(date.getFullYear()).slice(-2);
+            return `${day}/${month}/${year}`;
+        }
+
+        const units: { [key: string]: number } = { day: 86400, hour: 3600, minute: 60 };
 
         for (const unit in units) {
             const interval = diffInSeconds / units[unit];

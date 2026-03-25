@@ -796,6 +796,7 @@ export default {
     step1Title: '1. Für welches Unternehmen ist Ihre Bewertung?',
     searchBusinessPlaceholder: 'Suchen Sie den Namen des Unternehmens...',
     createNewBusinessPrompt: 'Finden Sie "{businessName}" nicht? Fügen Sie es zu Opynio hinzu.',
+    noBusinessFound: 'Kein Unternehmen mit diesem Namen gefunden.',
     step2Title: '2. Kategorie',
     categoryWillAppear: 'Die Kategorie wird hier angezeigt, wenn Sie ein Unternehmen auswählen.',
     step3Title: '3. Wie bewerten Sie Ihre Erfahrung?',

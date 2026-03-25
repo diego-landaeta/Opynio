@@ -812,6 +812,7 @@ export default {
     step1Title: '1. Which business is your review for?',
     searchBusinessPlaceholder: 'Search for the business name...',
     createNewBusinessPrompt: 'Can\'t find "{businessName}"? Add it to Opynio.',
+    noBusinessFound: 'No business found with that name.',
     step2Title: '2. Category',
     categoryWillAppear: 'The category will appear here when you select a business.',
     step3Title: '3. How would you rate your experience?',

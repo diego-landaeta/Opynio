@@ -723,6 +723,7 @@ const BusinessPage: React.FC = () => {
                     .select('review_text')
                     .eq('business_id', business.id)
                     .eq('status', 'approved')
+                    .lte('created_at', new Date().toISOString())
                     .not('review_text', 'is', null)
                     .neq('review_text', '')
                     .limit(30);

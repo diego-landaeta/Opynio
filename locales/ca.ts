@@ -802,6 +802,7 @@ export default {
     step1Title: '1. Per a quina empresa és la teva ressenya?',
     searchBusinessPlaceholder: 'Cerca el nom de l\'empresa...',
     createNewBusinessPrompt: 'No trobes "{businessName}"? Afegeix-la a Opynio.',
+    noBusinessFound: 'No s\'ha trobat cap empresa amb aquest nom.',
     step2Title: '2. Categoria',
     categoryWillAppear: 'La categoria apareixerà aquí quan seleccionis una empresa.',
     step3Title: '3. Com valoraries la teva experiència?',

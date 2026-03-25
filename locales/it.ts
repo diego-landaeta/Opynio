@@ -802,6 +802,7 @@ export default {
     step1Title: '1. Per quale azienda è la tua recensione?',
     searchBusinessPlaceholder: 'Cerca il nome dell\'azienda...',
     createNewBusinessPrompt: 'Non trovi "{businessName}"? Aggiungila a Opynio.',
+    noBusinessFound: 'Nessuna azienda trovata con questo nome.',
     step2Title: '2. Categoria',
     categoryWillAppear: 'La categoria apparirà qui quando selezioni un\'azienda.',
     step3Title: '3. Come valuteresti la tua esperienza?',

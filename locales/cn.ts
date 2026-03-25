@@ -802,6 +802,7 @@ export default {
     step1Title: '1. 您的评论是针对哪家企业的？',
     searchBusinessPlaceholder: '搜索企业名称...',
     createNewBusinessPrompt: '找不到"{businessName}"？将其添加到 Opynio。',
+    noBusinessFound: '未找到该名称的企业。',
     step2Title: '2. 类别',
     categoryWillAppear: '选择企业后，类别将显示在此处。',
     step3Title: '3. 您如何评价您的体验？',

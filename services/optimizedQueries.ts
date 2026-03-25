@@ -54,7 +54,8 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
     .from('reviews')
     .select('business_id, rating')
     .in('business_id', businessIds)
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .lte('created_at', new Date().toISOString());
 
   if (reviewsError) {
     console.error('❌ Error fetching reviews:', reviewsError);
@@ -142,6 +143,7 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
       .from('reviews')
       .select('id, rating, review_text, created_at, user_id, business_id, title, image_urls, audio_url, source, original_author_name, helpful_votes, not_helpful_votes')
       .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString())
       .in('business_id', businessIds)
       .order('created_at', { ascending: false })
       .limit(limit * 2); // Get extra to filter
@@ -199,7 +201,8 @@ export const getReviewsOptimized = async (
       .from('reviews')
       .select(reviewFields)
       .eq('business_id', businessId)
-      .eq('status', 'approved');
+      .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString());
 
     // Apply source filter
     if (source !== 'all') {

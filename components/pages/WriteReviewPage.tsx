@@ -776,6 +776,30 @@ const WriteReviewPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 md:space-y-6">
                      <div className="relative" ref={searchContainerRef}>
                         <label htmlFor="business-search" className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1.5 sm:mb-2">{t('writeReviewPage.step1Title')}</label>
+                        {selectedBusinessId ? (
+                            <div className="flex items-center gap-3 p-2.5 sm:p-3 border border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 rounded-lg">
+                                {selectedBusinessLogoUrl ? (
+                                    <img src={selectedBusinessLogoUrl} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded" />
+                                ) : (
+                                    <i className="fa-solid fa-store text-lg sm:text-xl text-gray-400 dark:text-gray-500 w-8 sm:w-10 text-center"></i>
+                                )}
+                                <span className="text-sm sm:text-base font-medium text-gray-800 dark:text-gray-200 flex-1">{businessSearchTerm}</span>
+                                {!preselectedBusinessId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedBusinessId('');
+                                            setBusinessSearchTerm('');
+                                            setCategory('');
+                                            setSelectedBusinessLogoUrl(null);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                    >
+                                        <i className="fa-solid fa-xmark"></i>
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
                         <div className="relative">
                              <input
                                 id="business-search"
@@ -793,22 +817,16 @@ const WriteReviewPage: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        {isResultsVisible && (
+                        )}
+                        {isResultsVisible && !selectedBusinessId && (
                              <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {searchResults.length > 0 ? (
                                     searchResults.map(biz => (
                                         <BusinessSearchResultItem key={biz.id} business={biz} onSelect={handleSelectBusiness} />
                                     ))
                                  ) : (
-                                    <li 
-                                        onClick={() => {
-                                            setNewBusinessData(prev => ({ ...prev, name: businessSearchTerm }));
-                                            setIsCreateBusinessModalOpen(true);
-                                        }}
-                                        className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer text-center text-brand-green font-semibold"
-                                    >
-                                        <i className="fa-solid fa-plus-circle mr-2"></i>
-                                        {t('writeReviewPage.createNewBusinessPrompt', { businessName: businessSearchTerm })}
+                                    <li className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
+                                        {t('writeReviewPage.noBusinessFound')}
                                     </li>
                                 )}
                             </ul>
