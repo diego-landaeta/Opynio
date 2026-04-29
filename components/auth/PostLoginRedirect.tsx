@@ -66,6 +66,14 @@ const PostLoginRedirect: React.FC = () => {
             const metadataBusinessSignUp = user?.user_metadata?.intended_role === 'business_owner';
             const wantsBusinessSignUp = flagBusinessSignUp || metadataBusinessSignUp;
 
+            console.log('[postLogin] business intent detection', {
+                flagBusinessSignUp,
+                metadataBusinessSignUp,
+                wantsBusinessSignUp,
+                profileRole: profile.role,
+                userMetadata: user?.user_metadata,
+            });
+
             if (wantsBusinessSignUp) {
                 localStorage.removeItem('opynio_business_signup_flow');
                 // Only route to the completion form if the user has not been promoted yet.
@@ -73,12 +81,14 @@ const PostLoginRedirect: React.FC = () => {
                 // (e.g. they already finished it earlier), fall through to the default routing.
                 if (profile.role === 'authenticated') {
                     const completePath = `${countryPrefix}/${paths.completeBusinessRegistration}`;
+                    console.log('[postLogin] routing to completeBusinessRegistration', { completePath });
                     navigate(completePath, { replace: true });
                     return;
                 }
+                console.log('[postLogin] business intent detected but profile.role already promoted, falling through to role switch', { profileRole: profile.role });
             }
 
-            console.log("PostLoginRedirect: Redirecting based on role:", profile.role);
+            console.log('[postLogin] redirecting by role', { role: profile.role });
             switch (profile.role) {
                 case 'admin':
                     // Admin routes are NOT prefixed with country code

@@ -120,6 +120,7 @@ export const updatePassword = async (newPassword: string) => {
 };
 
 export const signUpUser = async (email: string, password: string, fullName: string, username: string) => {
+  console.log('[signUpUser] auth.signUp', { email, fullName, username });
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -131,7 +132,11 @@ export const signUpUser = async (email: string, password: string, fullName: stri
       },
     },
   });
-  if (error) throw error;
+  if (error) {
+    console.error('[signUpUser] auth.signUp error', error);
+    throw error;
+  }
+  console.log('[signUpUser] auth.signUp ok', { userId: data.user?.id, hasSession: !!data.session });
   return data;
 };
 
@@ -148,35 +153,44 @@ export const signUpBusiness = async (
   // confirma el email en otro dispositivo (donde localStorage no llega).
   // El profile siempre se crea como 'authenticated'; la promoción a
   // 'business_owner' ocurre explícitamente en CompleteBusinessRegistrationPage.
+  const metadata = {
+    full_name: contactName?.trim() || businessName,
+    username,
+    intended_role: 'business_owner',
+    business_name: businessName,
+    ...(country ? { country } : {}),
+  };
+  console.log('[signUpBusiness] auth.signUp', { email, metadata });
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        full_name: contactName?.trim() || businessName,
-        username,
-        intended_role: 'business_owner',
-        business_name: businessName,
-        ...(country ? { country } : {}),
-      },
-    },
+    options: { data: metadata },
   });
-  if (error) throw error;
+  if (error) {
+    console.error('[signUpBusiness] auth.signUp error', error);
+    throw error;
+  }
+  console.log('[signUpBusiness] auth.signUp ok', { userId: data.user?.id, hasSession: !!data.session });
   return data;
 };
 
 export const signInWithGoogleForBusiness = async () => {
+  const redirectTo = `${window.location.origin}/post-login`;
+  console.log('[signInWithGoogleForBusiness] starting OAuth', { redirectTo });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/post-login`,
+      redirectTo,
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
       },
     },
   });
-  if (error) throw error;
+  if (error) {
+    console.error('[signInWithGoogleForBusiness] OAuth init error', error);
+    throw error;
+  }
   return data;
 };
 

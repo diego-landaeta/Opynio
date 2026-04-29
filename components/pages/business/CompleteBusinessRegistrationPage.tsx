@@ -33,8 +33,10 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                 const parsed = JSON.parse(raw);
                 if (parsed?.name) setBusinessName(parsed.name);
                 if (parsed?.country) setBusinessCountry(parsed.country);
+                console.log('[completeBusinessRegistration] prefilled from localStorage', parsed);
                 return;
             } catch {
+                console.warn('[completeBusinessRegistration] localStorage payload corrupted, removing');
                 localStorage.removeItem('opynio_pending_business_data');
             }
         }
@@ -42,6 +44,11 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         const meta = user?.user_metadata as Record<string, any> | undefined;
         if (meta?.business_name) setBusinessName(String(meta.business_name));
         if (meta?.country) setBusinessCountry(String(meta.country));
+        console.log('[completeBusinessRegistration] prefill source', {
+            usedLocalStorage: false,
+            usedMetadata: !!(meta?.business_name || meta?.country),
+            metadataKeys: meta ? Object.keys(meta) : [],
+        });
     }, [user]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -57,11 +64,17 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
+            console.log('[completeBusinessRegistration] submitting RPC upgrade_user_to_business_owner', {
+                userId: user.id,
+                businessName: businessName.trim(),
+                businessCountry,
+            });
             await finishBusinessSignup(user.id, {
                 name: businessName.trim(),
                 country: businessCountry,
                 category: 'General',
             });
+            console.log('[completeBusinessRegistration] RPC succeeded, business created and role promoted');
             localStorage.removeItem('opynio_pending_business_data');
             showNotification('¡Tu empresa ha sido registrada! Redirigiendo...', 'success');
 

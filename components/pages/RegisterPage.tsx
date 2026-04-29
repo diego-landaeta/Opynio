@@ -88,11 +88,13 @@ const RegisterPage: React.FC = () => {
         }
 
         try {
+            console.log('[signup] handleSubmit start', { registerType, email: formData.email });
             if (registerType === 'user') {
                 if (!formData.name || !formData.username) {
                     throw new Error(t('registerPage.allFieldsRequiredError'));
                 }
                 await signUpUser(formData.email, formData.password, formData.name, formData.username);
+                console.log('[signup] user signup completed');
             } else {
                  if (!formData.name || !formData.username || !formData.businessName) {
                     throw new Error(t('registerPage.allFieldsRequiredError'));
@@ -101,13 +103,14 @@ const RegisterPage: React.FC = () => {
                 // Check if business name already exists before trying to sign up
                 const existingBusiness = await getBusinessByName(formData.businessName.trim());
                 if (existingBusiness) {
+                    console.warn('[signup] business name already taken', { businessName: formData.businessName });
                     setError(
                         <span dangerouslySetInnerHTML={{ __html: t('registerPage.businessExistsError') }} />
                     );
                     setLoading(false);
                     return;
                 }
-                
+
                 // Persist signup intent + pre-collected business data so PostLoginRedirect
                 // routes the user to CompleteBusinessRegistrationPage and the form arrives pre-filled.
                 localStorage.setItem('opynio_business_signup_flow', 'true');
@@ -115,6 +118,11 @@ const RegisterPage: React.FC = () => {
                     name: formData.businessName.trim(),
                     country: formData.country,
                 }));
+                console.log('[signup] business flag + pending data persisted to localStorage', {
+                    flag: 'opynio_business_signup_flow=true',
+                    businessName: formData.businessName.trim(),
+                    country: formData.country,
+                });
 
                 await signUpBusiness(
                     formData.email,
@@ -124,6 +132,7 @@ const RegisterPage: React.FC = () => {
                     formData.country,
                     formData.name,
                 );
+                console.log('[signup] business signup completed (email confirmation pending)');
             }
             setSuccess(true);
         } catch (err: any) {
@@ -142,10 +151,12 @@ const RegisterPage: React.FC = () => {
         setGoogleLoading(true);
         setError(null);
         try {
+            console.log('[signup] Google OAuth start', { registerType });
             if (registerType === 'business') {
                 // Mark this as a business signup so PostLoginRedirect can route to the
                 // complete-business-registration step after Google returns.
                 localStorage.setItem('opynio_business_signup_flow', 'true');
+                console.log('[signup] business flag persisted before Google OAuth redirect');
                 await signInWithGoogleForBusiness();
             } else {
                 await signInWithGoogle();
