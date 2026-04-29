@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { upgradeUserToBusinessOwner, supabase, getUserProfile, getBusinessesForOwner } from '../../services/supabaseService';
-import { CATEGORIES, STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_IDS, COUNTRIES } from '../../constants';
+import { CATEGORIES, STRIPE_PUBLISHABLE_KEY, COUNTRIES } from '../../constants';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useCountry } from '../../contexts/CountryContext';
 import Meta from '../Meta';
@@ -114,54 +114,61 @@ const AssignBusinessPage: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            const newBusinessId = await upgradeUserToBusinessOwner({
-                businessName: formData.name,
-                category: formData.category,
-                plan: plan,
-                country: formData.country,
-                description: formData.description,
-                logo_url: formData.logo_url,
-                google_maps_url: formData.google_maps_url,
-                latitude: location?.lat,
-                longitude: location?.lng,
-            });
-
-            // For free and enterprise plans, create business without payment
+            // For free and enterprise plans we create the business immediately — no payment.
             if (plan === 'free' || plan === 'enterprise') {
+                await upgradeUserToBusinessOwner({
+                    businessName: formData.name,
+                    category: formData.category,
+                    plan: plan,
+                    country: formData.country,
+                    description: formData.description,
+                    logo_url: formData.logo_url,
+                    google_maps_url: formData.google_maps_url,
+                    latitude: location?.lat,
+                    longitude: location?.lng,
+                });
+
                 showNotification(t('assignBusiness.businessCreatedSuccess'), 'success');
-                // Manually re-fetch data to update context
                 if (user) {
-                     const [updatedProfile, newBusinesses] = await Promise.all([
+                    const [updatedProfile, newBusinesses] = await Promise.all([
                         getUserProfile(user),
                         getBusinessesForOwner(user.id),
                     ]);
                     if (updatedProfile) setProfile(updatedProfile);
                     if (newBusinesses) setBusinesses(newBusinesses);
                 }
-
-                // Navigate with country prefix if available
                 const myBusinessesPath = `${countryPrefix}/${paths.myBusinesses}`;
                 navigate(myBusinessesPath, { replace: true });
+                return;
+            }
 
+            // For paid plans we DO NOT create the business yet. The data travels with
+            // the Stripe checkout session metadata; the webhook creates the business
+            // only when payment is confirmed. If the user cancels checkout, no business
+            // is ever persisted.
+            showNotification(t('assignBusiness.businessCreatedRedirecting'), 'info');
+            const { data, error: sessionError } = await supabase.functions.invoke('create-checkout-session', {
+                body: {
+                    plan,
+                    billingCycle: 'monthly',
+                    businessData: {
+                        name: formData.name,
+                        category: formData.category,
+                        country: formData.country,
+                        description: formData.description || undefined,
+                        logo_url: formData.logo_url || undefined,
+                        google_maps_url: formData.google_maps_url || undefined,
+                        latitude: location?.lat ?? undefined,
+                        longitude: location?.lng ?? undefined,
+                    },
+                },
+            });
+            if (sessionError) throw sessionError;
+
+            if (data?.url) {
+                window.location.href = data.url;
             } else {
-                showNotification(t('assignBusiness.businessCreatedRedirecting'), 'info');
-
-                const priceId = STRIPE_PRICE_IDS[plan as keyof typeof STRIPE_PRICE_IDS]['monthly'];
-
-                const { data, error: sessionError } = await supabase.functions.invoke('create-checkout-session', {
-                    body: { priceId, businessId: newBusinessId }
-                });
-                if (sessionError) throw sessionError;
-
-                if (data.url) {
-                    window.location.href = data.url;
-                } else {
-                    // FIX: The `redirectToCheckout` method on the client-side Stripe object is deprecated/problematic.
-                    // The backend function `create-checkout-session` is designed to always return a full URL for redirection.
-                    // This removes the faulty client-side fallback and relies on the server-provided URL, which is more robust.
-                    // If the URL is missing, it's treated as a server error.
-                    throw new Error(t('assignBusiness.noPaymentUrlError'));
-                }
+                throw new Error(t('assignBusiness.noPaymentUrlError'));
             }
         } catch (error: any) {
             showNotification(error.message || t('assignBusiness.errorCreatingBusiness'), 'error');

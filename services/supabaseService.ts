@@ -4,7 +4,6 @@ import { slugify } from '../utils/slugify';
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -26,22 +25,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
-
-// Cliente admin para operaciones que requieren bypass de RLS (solo para admins)
-// IMPORTANTE: Solo usar para operaciones administrativas seguras
-const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          'x-client-info': 'opynio-admin',
-        },
-      },
-    })
-  : supabase; // Fallback al cliente normal si no hay SERVICE_ROLE
 
 // ==================== SIMPLE IN-MEMORY CACHE ====================
 interface CacheEntry<T> {
@@ -152,15 +135,29 @@ export const signUpUser = async (email: string, password: string, fullName: stri
   return data;
 };
 
-export const signUpBusiness = async (email: string, password: string, businessName: string, username: string) => {
+export const signUpBusiness = async (
+  email: string,
+  password: string,
+  businessName: string,
+  username: string,
+  country?: string,
+  contactName?: string,
+) => {
+  // role/business_name/country viajan en raw_user_meta_data sólo para que
+  // PostLoginRedirect detecte la intención de signup-empresa cuando el usuario
+  // confirma el email en otro dispositivo (donde localStorage no llega).
+  // El profile siempre se crea como 'authenticated'; la promoción a
+  // 'business_owner' ocurre explícitamente en CompleteBusinessRegistrationPage.
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: businessName,
-        username: username,
-        role: 'business_owner',
+        full_name: contactName?.trim() || businessName,
+        username,
+        intended_role: 'business_owner',
+        business_name: businessName,
+        ...(country ? { country } : {}),
       },
     },
   });
@@ -292,7 +289,10 @@ export const upgradeUserToBusinessOwnerLegacy = async (userId: string, businessI
   return data;
 };
 
-// New function that creates a business and upgrades user
+// Calls the SECURITY DEFINER RPC that creates the business and promotes the user to
+// business_owner atomically. Plan changes are server-controlled (only Stripe webhook
+// can set paid plans), and the role-change trigger guard accepts the call because the
+// RPC runs as postgres. Direct UPDATE on profiles.role from the client is blocked.
 export const upgradeUserToBusinessOwner = async (params: {
   businessName: string;
   category: string;
@@ -303,62 +303,20 @@ export const upgradeUserToBusinessOwner = async (params: {
   google_maps_url?: string;
   latitude?: number;
   longitude?: number;
-}) => {
-  // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  if (!user) throw new Error('User not authenticated');
-
-  // Generar slug automáticamente
-  const slug = await generateUniqueSlug(params.businessName);
-
-  // Create the business (note: 'plan' is NOT a column in businesses table)
-  const { data: business, error: businessError } = await supabase
-    .from('businesses')
-    .insert([{
-      name: params.businessName,
-      slug: slug || null,
-      category: params.category,
-      country: params.country,
-      description: params.description,
-      logo_url: params.logo_url,
-      google_maps_url: params.google_maps_url,
-      latitude: params.latitude,
-      longitude: params.longitude,
-      owner_id: user.id,
-    }])
-    .select()
-    .single();
-
-  if (businessError) throw businessError;
-
-  // Update user profile to business_owner
-  // For free and enterprise plans, keep the user's existing plan
-  // For other plans, update the plan as well (they will go through Stripe checkout)
-  if (params.plan === 'free' || params.plan === 'enterprise') {
-    // Just update the role, keep the existing plan
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        role: 'business_owner',
-      })
-      .eq('id', user.id);
-
-    if (profileError) throw profileError;
-  } else {
-    // For paid plans (starter, growth, pro), update role but don't change plan yet
-    // The plan will be updated after successful Stripe payment
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        role: 'business_owner',
-      })
-      .eq('id', user.id);
-
-    if (profileError) throw profileError;
-  }
-
-  return business.id;
+}): Promise<string> => {
+  const { data, error } = await supabase.rpc('upgrade_user_to_business_owner', {
+    p_business_name: params.businessName,
+    p_category: params.category,
+    p_plan: params.plan, // server-side ignored; kept for signature compatibility
+    p_country: params.country,
+    p_description: params.description ?? null,
+    p_logo_url: params.logo_url ?? null,
+    p_google_maps_url: params.google_maps_url ?? null,
+    p_latitude: params.latitude ?? null,
+    p_longitude: params.longitude ?? null,
+  });
+  if (error) throw error;
+  return data as string;
 };
 
 // ==================== BUSINESS FUNCTIONS ====================
@@ -1397,23 +1355,23 @@ const enrichBusinessesWithStats = async (businesses: any[]) => {
   return enrichedBusinesses;
 };
 
-export const finishBusinessSignup = async (userId: string, businessData: any) => {
-  // Generar slug automáticamente si no viene en los datos y hay nombre
-  if (!businessData.slug && businessData.name) {
-    businessData.slug = await generateUniqueSlug(businessData.name);
-  }
-
-  const { data, error } = await supabase
-    .from('businesses')
-    .insert([{ ...businessData, owner_id: userId }])
-    .select()
-    .single();
+// Routes through the SECURITY DEFINER RPC so the role/plan triggers don't reject the
+// call. The userId arg is kept for backward-compatibility with existing callers, but
+// the RPC ignores it and uses auth.uid() server-side.
+export const finishBusinessSignup = async (_userId: string, businessData: any) => {
+  const { data: businessId, error } = await supabase.rpc('upgrade_user_to_business_owner', {
+    p_business_name: businessData.name,
+    p_category: businessData.category ?? 'General',
+    p_plan: 'free', // ignored server-side; paid plans flow through Stripe webhook
+    p_country: businessData.country,
+    p_description: businessData.description ?? null,
+    p_logo_url: businessData.logo_url ?? null,
+    p_google_maps_url: businessData.google_maps_url ?? null,
+    p_latitude: businessData.latitude ?? null,
+    p_longitude: businessData.longitude ?? null,
+  });
   if (error) throw error;
-
-  // Update user profile to business_owner
-  await updateUserRole(userId, 'business_owner');
-
-  return data;
+  return { id: businessId };
 };
 
 export const checkGoogleMapsUrlIsTaken = async (googleMapsUrl: string) => {
@@ -3465,10 +3423,9 @@ export const updateBusinessSlug = async (
 
       if (!existingRedirect) {
         console.log('[updateBusinessSlug] 🔄 Creando nueva redirección...');
-        // Guardar la URL exacta como fue (con mayúsculas, caracteres especiales, etc.)
-        // para que se muestre correctamente en el panel admin
-        // USAR supabaseAdmin para bypassear RLS
-        const { data: insertedData, error: insertError } = await supabaseAdmin
+        // Admin-only flow; policy "Only admins can manage redirects" allows this
+        // via the regular client when caller is admin.
+        const { data: insertedData, error: insertError } = await supabase
           .from('url_redirects')
           .insert({
             old_slug: oldSlug, // Sin .toLowerCase() - mantener original
@@ -3488,8 +3445,7 @@ export const updateBusinessSlug = async (
 
           // Si el error es de RLS, mostrar mensaje específico
           if (insertError.code === '42501' || insertError.message?.includes('row-level security')) {
-            console.error('🔒 ERROR RLS: La política de seguridad de Supabase está bloqueando el INSERT.');
-            console.error('💡 SOLUCIÓN: Añade VITE_SUPABASE_SERVICE_ROLE_KEY al .env o configura política RLS en Supabase.');
+            console.error('🔒 ERROR RLS: necesitas iniciar sesión como admin para gestionar redirecciones.');
             return { success: false, error: 'Error de permisos al crear redirección. Contacta al administrador.' };
           }
           return { success: false, error: `Error al crear redirección: ${insertError.message}` };
@@ -3626,12 +3582,12 @@ export const incrementRedirectHits = async (oldSlug: string): Promise<void> => {
 };
 
 /**
- * Obtener todas las redirecciones (para admin)
- * Usa supabaseAdmin para bypass de RLS
+ * Obtener todas las redirecciones (para admin).
+ * Admin-only flow; covered by "Only admins can manage redirects" policy.
  */
 export const getUrlRedirects = async () => {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from('url_redirects')
       .select(`
         *,
@@ -3651,12 +3607,12 @@ export const getUrlRedirects = async () => {
 };
 
 /**
- * Eliminar una redirección
- * Usa supabaseAdmin para bypass de RLS
+ * Eliminar una redirección.
+ * Admin-only flow; covered by "Only admins can manage redirects" policy.
  */
 export const deleteUrlRedirect = async (id: string): Promise<boolean> => {
   try {
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('url_redirects')
       .delete()
       .eq('id', id);

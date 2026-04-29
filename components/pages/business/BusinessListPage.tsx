@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { Business, Plan } from '../../../types';
 import Spinner from '../../Spinner';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Meta from '../../Meta';
 import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { supabase } from '../../../services/supabaseService';
@@ -161,9 +161,12 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
 
 const BusinessListPage: React.FC = () => {
     const { businesses, loading, profile, setBusinesses } = useAuth();
+    const { showNotification } = useNotification();
+    const navigate = useNavigate();
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
+    const [billingLoading, setBillingLoading] = useState(false);
 
     if (loading) {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -196,6 +199,28 @@ const BusinessListPage: React.FC = () => {
 
     const handleDeleteBusiness = (businessId: string) => {
         setBusinesses(businesses.filter(b => b.id !== businessId));
+    };
+
+    const handleManageBilling = async () => {
+        // No paid plan yet → send the user to pricing so they can pick one.
+        if (!profile || !profile.plan || profile.plan === 'free') {
+            navigate(`${countryPrefix}/${paths.pricing}`);
+            return;
+        }
+        // Active paid (or enterprise) plan → open the Stripe customer portal.
+        setBillingLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-portal-session');
+            if (error) throw error;
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No se recibió la URL del portal de facturación.');
+            }
+        } catch (err: any) {
+            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+            setBillingLoading(false);
+        }
     };
 
     return (
@@ -239,8 +264,15 @@ const BusinessListPage: React.FC = () => {
                                  <Link to={`${countryPrefix}/${paths.support}`} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline px-4 py-2 rounded-md flex items-center gap-2">
                                     <i className="fa-solid fa-life-ring"></i> {t('myBusinesses.helpAndSupport')}
                                 </Link>
-                                <button onClick={() => alert('Próximamente disponible')} className="text-sm font-semibold text-white bg-gray-700 hover:bg-gray-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 px-4 py-2 rounded-md transition-colors flex items-center gap-2">
-                                    <i className="fa-solid fa-credit-card"></i> {t('myBusinesses.manageBilling')}
+                                <button
+                                    onClick={handleManageBilling}
+                                    disabled={billingLoading}
+                                    className="text-sm font-semibold text-white bg-gray-700 hover:bg-gray-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 px-4 py-2 rounded-md transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {billingLoading
+                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        : <i className="fa-solid fa-credit-card"></i>}
+                                    <span>{t('myBusinesses.manageBilling')}</span>
                                 </button>
                             </div>
                         </div>

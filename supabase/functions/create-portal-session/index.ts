@@ -58,15 +58,31 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get Stripe Customer ID from Supabase using admin client
-    const { data: customer, error: customerError } = await supabaseAdmin
+    // Get Stripe Customer ID from Supabase using admin client. Lazily create one if missing
+    // so that any authenticated user can land on the portal even if they have not yet paid.
+    let { data: customer, error: customerError } = await supabaseAdmin
       .from("customers")
       .select("stripe_customer_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (customerError || !customer?.stripe_customer_id) {
-      return createErrorResponse("No se encontró un cliente de facturación para este usuario.", 404);
+    if (customerError) {
+      throw customerError;
+    }
+
+    let stripeCustomerId: string | undefined = customer?.stripe_customer_id ?? undefined;
+
+    if (!stripeCustomerId) {
+      const stripeCustomer = await stripe.customers.create({
+        email: user.email,
+        metadata: { supabase_user_id: user.id },
+      });
+      stripeCustomerId = stripeCustomer.id;
+
+      const { error: insertError } = await supabaseAdmin
+        .from("customers")
+        .insert({ id: user.id, stripe_customer_id: stripeCustomerId });
+      if (insertError) throw insertError;
     }
 
     // Determine SITE_URL, falling back to Origin header
@@ -84,7 +100,7 @@ serve(async (req) => {
 
     // Create Stripe Portal Session
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customer.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: `${siteUrl}/empresa/panel/facturacion`,
     });
 
