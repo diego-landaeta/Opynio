@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                             .insert({
                                 id: currentUser.id,
                                 name: currentUser.user_metadata.full_name || currentUser.user_metadata.name || 'Nuevo Usuario',
-                                username: null,
+                                username: currentUser.user_metadata.username || null,
                                 avatar_url: currentUser.user_metadata.avatar_url || null,
                                 role: 'authenticated',
                                 helpful_review_count: 0,

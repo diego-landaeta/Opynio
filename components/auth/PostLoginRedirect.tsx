@@ -59,9 +59,18 @@ const PostLoginRedirect: React.FC = () => {
                 }
             }
 
-            const isBusinessSignUpFlow = localStorage.getItem('opynio_business_signup_flow') === 'true';
-            if (isBusinessSignUpFlow) {
+            // The user signed up choosing the "business" tab if EITHER:
+            //  - localStorage flag is set (same-device flow), OR
+            //  - the auth metadata says intended_role=business_owner (cross-device email confirm).
+            const flagBusinessSignUp = localStorage.getItem('opynio_business_signup_flow') === 'true';
+            const metadataBusinessSignUp = user?.user_metadata?.intended_role === 'business_owner';
+            const wantsBusinessSignUp = flagBusinessSignUp || metadataBusinessSignUp;
+
+            if (wantsBusinessSignUp) {
                 localStorage.removeItem('opynio_business_signup_flow');
+                // Only route to the completion form if the user has not been promoted yet.
+                // If profile.role is already 'business_owner' it means signup is complete
+                // (e.g. they already finished it earlier), fall through to the default routing.
                 if (profile.role === 'authenticated') {
                     const completePath = `${countryPrefix}/${paths.completeBusinessRegistration}`;
                     navigate(completePath, { replace: true });

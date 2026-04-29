@@ -108,11 +108,21 @@ const RegisterPage: React.FC = () => {
                     return;
                 }
                 
+                // Persist signup intent + pre-collected business data so PostLoginRedirect
+                // routes the user to CompleteBusinessRegistrationPage and the form arrives pre-filled.
+                localStorage.setItem('opynio_business_signup_flow', 'true');
+                localStorage.setItem('opynio_pending_business_data', JSON.stringify({
+                    name: formData.businessName.trim(),
+                    country: formData.country,
+                }));
+
                 await signUpBusiness(
                     formData.email,
                     formData.password,
                     formData.businessName,
-                    formData.username
+                    formData.username,
+                    formData.country,
+                    formData.name,
                 );
             }
             setSuccess(true);
@@ -133,6 +143,9 @@ const RegisterPage: React.FC = () => {
         setError(null);
         try {
             if (registerType === 'business') {
+                // Mark this as a business signup so PostLoginRedirect can route to the
+                // complete-business-registration step after Google returns.
+                localStorage.setItem('opynio_business_signup_flow', 'true');
                 await signInWithGoogleForBusiness();
             } else {
                 await signInWithGoogle();

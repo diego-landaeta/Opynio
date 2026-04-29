@@ -1,6 +1,6 @@
 // components/pages/business/CompleteBusinessRegistrationPage.tsx
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { finishBusinessSignup, getUserProfile, getBusinessesForOwner } from '../../../services/supabaseService';
 import Meta from '../../Meta';
@@ -23,8 +23,33 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     const { country } = useCountry();
     const t = useTranslation();
 
+    // Pre-fill from data captured at the email-signup step so the user does not retype it.
+    // Try localStorage first (same-device flow); fall back to auth user_metadata for the
+    // cross-device case (user confirms email on a different browser/device).
+    useEffect(() => {
+        const raw = localStorage.getItem('opynio_pending_business_data');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.name) setBusinessName(parsed.name);
+                if (parsed?.country) setBusinessCountry(parsed.country);
+                return;
+            } catch {
+                localStorage.removeItem('opynio_pending_business_data');
+            }
+        }
+
+        const meta = user?.user_metadata as Record<string, any> | undefined;
+        if (meta?.business_name) setBusinessName(String(meta.business_name));
+        if (meta?.country) setBusinessCountry(String(meta.country));
+    }, [user]);
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!user) {
+            setError('No hay una sesión activa. Vuelve a iniciar sesión e inténtalo de nuevo.');
+            return;
+        }
         if (!businessName.trim()) {
             setError("El nombre de la empresa no puede estar vacío.");
             return;
@@ -32,7 +57,12 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            await finishBusinessSignup(businessName.trim(), businessCountry);
+            await finishBusinessSignup(user.id, {
+                name: businessName.trim(),
+                country: businessCountry,
+                category: 'General',
+            });
+            localStorage.removeItem('opynio_pending_business_data');
             showNotification('¡Tu empresa ha sido registrada! Redirigiendo...', 'success');
 
             // Manually re-fetch user data to update the context with the new role and business
