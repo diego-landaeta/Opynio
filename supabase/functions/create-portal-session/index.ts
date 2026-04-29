@@ -86,17 +86,9 @@ serve(async (req) => {
     }
 
     // Determine SITE_URL, falling back to Origin header
-    let siteUrl = Deno.env.get("SITE_URL");
-    if (!siteUrl) {
-        siteUrl = req.headers.get("origin");
-    }
-
-    if (!siteUrl || !siteUrl.startsWith('http')) {
-        return createErrorResponse(
-            "No se pudo determinar la URL del sitio. Configure la variable de entorno SITE_URL o asegúrese de que la cabecera 'Origin' esté presente.", 
-            500
-        );
-    }
+    // Resolution order: SITE_URL secret → request Origin header → production fallback.
+    let siteUrl = Deno.env.get("SITE_URL") ?? req.headers.get("origin") ?? "https://web.opynio.com";
+    if (!siteUrl.startsWith('http')) siteUrl = "https://web.opynio.com";
 
     // Create Stripe Portal Session
     const portalSession = await stripe.billingPortal.sessions.create({

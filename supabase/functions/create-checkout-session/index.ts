@@ -173,11 +173,9 @@ serve(async (req) => {
     }
 
     // 4) SITE_URL.
-    let siteUrl = Deno.env.get("SITE_URL");
-    if (!siteUrl) siteUrl = req.headers.get("origin");
-    if (!siteUrl || !siteUrl.startsWith('http')) {
-      return createErrorResponse("No se pudo determinar la URL del sitio.", 500);
-    }
+    // Resolution order: SITE_URL secret → request Origin header → production fallback.
+    let siteUrl = Deno.env.get("SITE_URL") ?? req.headers.get("origin") ?? "https://web.opynio.com";
+    if (!siteUrl.startsWith('http')) siteUrl = "https://web.opynio.com";
 
     // 5) Stripe Checkout Session.
     const session = await stripe.checkout.sessions.create({
