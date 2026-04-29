@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Meta from '../../Meta';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import { getScrapingQueue, startScrapingSearch, deleteScrapingQueueItems, updateScrapingQueueItem, supabase, instantFullScrape, type InstantFullScrapeResult, getScrapingSession, type ScrapingSession } from '../../../services/supabaseService';
 import type { ScrapingQueueItem } from '../../../types';
 import Spinner from '../../Spinner';
@@ -12,6 +13,7 @@ const ITEMS_PER_PAGE = 25;
 
 const AdminScrapingPage: React.FC = () => {
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     const [queue, setQueue] = useState<ScrapingQueueItem[]>([]);
     const [loadingQueue, setLoadingQueue] = useState(true);
@@ -170,13 +172,18 @@ const AdminScrapingPage: React.FC = () => {
             return;
         }
 
-        const confirmed = window.confirm(
-            `¿Deseas importar TODAS las empresas y reseñas de forma inmediata?\n\n` +
-            `Esto procesará hasta ${maxBusinesses} empresas con TODAS sus reseñas.\n` +
-            `El proceso puede tardar varios minutos dependiendo de la cantidad.\n` +
-            `Verás el progreso en tiempo real.\n\n` +
-            `¿Continuar?`
-        );
+        const confirmed = await confirm({
+            title: 'Importar empresas y reseñas',
+            message: (
+                <div className="space-y-2">
+                    <p>¿Deseas importar TODAS las empresas y reseñas de forma inmediata?</p>
+                    <p>Esto procesará hasta <strong>{maxBusinesses}</strong> empresas con TODAS sus reseñas.</p>
+                    <p>El proceso puede tardar varios minutos. Verás el progreso en tiempo real.</p>
+                </div>
+            ),
+            confirmText: 'Importar',
+            cancelText: 'Cancelar',
+        });
 
         if (!confirmed) return;
 
@@ -338,10 +345,15 @@ const AdminScrapingPage: React.FC = () => {
 
     const handleDeleteSelected = async () => {
         if (selectedIds.size === 0) return;
-        
-        if (!window.confirm(t('adminScrapingPage.confirmDelete', { count: selectedIds.size }))) {
-            return;
-        }
+
+        const ok = await confirm({
+            title: t('adminScrapingPage.deleteSelected') || 'Eliminar selección',
+            message: t('adminScrapingPage.confirmDelete', { count: selectedIds.size }),
+            confirmText: t('common.delete') || 'Eliminar',
+            cancelText: t('common.cancel') || 'Cancelar',
+            danger: true,
+        });
+        if (!ok) return;
         
         setIsDeleting(true);
         const idsToDelete = [...selectedIds];

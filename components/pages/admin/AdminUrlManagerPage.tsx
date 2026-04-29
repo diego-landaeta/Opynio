@@ -9,6 +9,7 @@ import {
   removeBusinessSlug
 } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import { useTranslation } from '../../../contexts/i18nContext';
 import { slugify, isValidSlug, hasProblematicCharacters } from '../../../utils/slugify';
 import type { UrlRedirect } from '../../../types';
@@ -27,6 +28,7 @@ interface BusinessForSlug {
 
 const AdminUrlManagerPage: React.FC = () => {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
   const t = useTranslation();
 
   // State for businesses with problematic URLs
@@ -179,7 +181,14 @@ const AdminUrlManagerPage: React.FC = () => {
 
   // Delete redirect
   const handleDeleteRedirect = async (id: string) => {
-    if (!confirm(t('admin.urlManager.confirmDeleteRedirect'))) return;
+    const ok = await confirm({
+      title: t('admin.urlManager.deleteRedirect') || 'Eliminar redirección',
+      message: t('admin.urlManager.confirmDeleteRedirect'),
+      confirmText: t('common.delete') || 'Eliminar',
+      cancelText: t('common.cancel') || 'Cancelar',
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       const success = await deleteUrlRedirect(id);
@@ -196,7 +205,14 @@ const AdminUrlManagerPage: React.FC = () => {
 
   // Remove slug from business (revert to name-based URL)
   const handleRemoveSlug = async (businessId: string, businessName: string) => {
-    if (!confirm(`¿Eliminar el slug de "${businessName}"? La empresa volverá a usar la URL basada en su nombre.`)) return;
+    const ok = await confirm({
+      title: 'Eliminar slug',
+      message: `¿Eliminar el slug de "${businessName}"? La empresa volverá a usar la URL basada en su nombre.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       const result = await removeBusinessSlug(businessId);
@@ -235,7 +251,13 @@ const AdminUrlManagerPage: React.FC = () => {
   // Batch update
   const handleBatchUpdate = async () => {
     if (selectedBusinesses.size === 0) return;
-    if (!confirm(t('admin.urlManager.confirmBatchUpdate').replace('{count}', String(selectedBusinesses.size)))) return;
+    const ok = await confirm({
+      title: t('admin.urlManager.batchUpdate') || 'Actualizar en lote',
+      message: t('admin.urlManager.confirmBatchUpdate').replace('{count}', String(selectedBusinesses.size)),
+      confirmText: t('common.confirm') || 'Confirmar',
+      cancelText: t('common.cancel') || 'Cancelar',
+    });
+    if (!ok) return;
 
     setBatchProcessing(true);
     try {

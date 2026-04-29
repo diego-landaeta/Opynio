@@ -562,7 +562,7 @@ const WriteReviewPage: React.FC = () => {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 10 * 1024 * 1024) { // 10MB limit
-                alert(t('audioFileTooLarge'));
+                showNotification(t('audioFileTooLarge'), 'error');
                 e.target.value = '';
                 return;
             }
@@ -604,7 +604,7 @@ const WriteReviewPage: React.FC = () => {
             }, 1000);
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert(t('microphoneAccessError'));
+            showNotification(t('microphoneAccessError'), 'error');
         }
     };
 

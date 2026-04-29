@@ -8,6 +8,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
 import BusinessRoute from './components/auth/BusinessRoute';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import Snackbar from './components/Snackbar';
 import RealtimeNotificationHandler from './components/RealtimeNotificationHandler';
 import Spinner from './components/Spinner';
@@ -507,6 +508,7 @@ const App = () => {
     <ErrorBoundary>
     <ThemeProvider>
         <NotificationProvider>
+        <ConfirmProvider>
             <AuthProvider>
                 <CountryProvider>
                     <I18nProvider>
@@ -644,6 +646,7 @@ const App = () => {
                     </I18nProvider>
                 </CountryProvider>
             </AuthProvider>
+        </ConfirmProvider>
         </NotificationProvider>
     </ThemeProvider>
     </ErrorBoundary>

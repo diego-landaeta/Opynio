@@ -7,6 +7,7 @@ import ReviewCard from '../../../ReviewCard';
 import { getReviewsForBusiness, submitReviewResponse, updateReviewResponse, deleteReviewResponse, incrementAiCredits } from '../../../../services/supabaseService';
 import { getSuggestedReplies } from '../../../../services/geminiService';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import { useConfirm } from '../../../../contexts/ConfirmContext';
 import { useTranslation } from '../../../../contexts/i18nContext';
 
 const PAGE_SIZE = 20;
@@ -27,6 +28,7 @@ const DashboardReviews: React.FC = () => {
     const { profile, setBusinesses } = useAuth();
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
@@ -130,21 +132,27 @@ const DashboardReviews: React.FC = () => {
             setResponseText('');
             setRespondingTo(null);
         } catch (error) {
-            alert("Hubo un error al enviar la respuesta.");
+            showNotification('Hubo un error al enviar la respuesta.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleDeleteResponse = async (responseId: number) => {
-        if (window.confirm('¿Estás seguro?')) {
-            try {
-                await deleteReviewResponse(responseId);
-                setPage(1);
-                await fetchReviewsPage(1);
-            } catch (error) {
-                alert('No se pudo eliminar la respuesta.');
-            }
+        const ok = await confirm({
+            title: 'Eliminar respuesta',
+            message: '¿Estás seguro de que quieres eliminar esta respuesta? Esta acción no se puede deshacer.',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            danger: true,
+        });
+        if (!ok) return;
+        try {
+            await deleteReviewResponse(responseId);
+            setPage(1);
+            await fetchReviewsPage(1);
+        } catch (error) {
+            showNotification('No se pudo eliminar la respuesta.', 'error');
         }
     };
 
@@ -163,7 +171,7 @@ const DashboardReviews: React.FC = () => {
             setPage(1);
             await fetchReviewsPage(1);
         } catch (error) {
-            alert('No se pudo guardar la respuesta editada.');
+            showNotification('No se pudo guardar la respuesta editada.', 'error');
         } finally {
             setIsSavingEdit(false);
         }

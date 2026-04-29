@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Meta from '../../Meta';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import { getEnterpriseUsers, supabase, searchAssignableUsers } from '../../../services/supabaseService';
 import { Profile, Json } from '../../../types';
 import Spinner from '../../Spinner';
@@ -25,6 +26,7 @@ const initialPermissions = features.reduce((acc, feature) => {
 
 const AdminEnterprisePage: React.FC = () => {
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     
     const [enterpriseUsers, setEnterpriseUsers] = useState<Profile[]>([]);
@@ -126,7 +128,14 @@ const AdminEnterprisePage: React.FC = () => {
     };
 
     const handleRemoveUser = async (userToRemove: Profile) => {
-        if (!window.confirm(t('adminEnterprisePage.removeUserConfirm', { userName: userToRemove.name }))) return;
+        const ok = await confirm({
+            title: t('adminEnterprisePage.removeUser') || 'Quitar usuario',
+            message: t('adminEnterprisePage.removeUserConfirm', { userName: userToRemove.name }),
+            confirmText: t('common.confirm') || 'Confirmar',
+            cancelText: t('common.cancel') || 'Cancelar',
+            danger: true,
+        });
+        if (!ok) return;
         setIsSubmitting(true);
         try {
             const { error } = await supabase.from('profiles').update({ plan: 'free', ai_credit_limit: null, business_limit: null, feature_permissions: null }).eq('id', userToRemove.id);

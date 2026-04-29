@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminDashboardStats, deleteBusinessesWithoutReviews } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import { useTranslation, useI18n, pathTranslations } from '../../../contexts/i18nContext';
@@ -45,6 +46,7 @@ const AdminDashboardPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isDeletingEmpty, setIsDeletingEmpty] = useState(false);
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     const { language } = useI18n();
     const langPrefix = `/${language}`;
@@ -65,9 +67,14 @@ const AdminDashboardPage: React.FC = () => {
     }, [showNotification, t]);
 
     const handleDeleteEmptyBusinesses = async () => {
-        if (!window.confirm(t('adminDashboard.confirmDeleteEmpty'))) {
-            return;
-        }
+        const ok = await confirm({
+            title: t('adminDashboard.deleteEmpty') || 'Eliminar negocios vacíos',
+            message: t('adminDashboard.confirmDeleteEmpty'),
+            confirmText: t('common.delete') || 'Eliminar',
+            cancelText: t('common.cancel') || 'Cancelar',
+            danger: true,
+        });
+        if (!ok) return;
         setIsDeletingEmpty(true);
         try {
             const deletedCount = await deleteBusinessesWithoutReviews();

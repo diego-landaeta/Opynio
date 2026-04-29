@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { adminGetFeaturedCompanies, adminSetFeaturedCompanies, getBusinessIdAndNameList } from '../../../services/supabaseService';
 import type { SimpleBusiness } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import Modal from '../../Modal';
@@ -11,6 +12,7 @@ import StarRating from '../../StarRating';
 
 const AdminFeaturedBusinessesPage: React.FC = () => {
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     const [featuredBusinesses, setFeaturedBusinesses] = useState<SimpleBusiness[]>([]);
     const [loading, setLoading] = useState(true);
@@ -56,7 +58,14 @@ const AdminFeaturedBusinessesPage: React.FC = () => {
     }, [searchTerm, isSearchModalOpen, featuredBusinesses]);
 
     const handleRemoveFeatured = async (businessId: string) => {
-        if (!window.confirm(t('adminFeatured.confirmRemove'))) return;
+        const ok = await confirm({
+            title: t('adminFeatured.removeTitle') || 'Quitar de destacados',
+            message: t('adminFeatured.confirmRemove'),
+            confirmText: t('common.remove') || 'Quitar',
+            cancelText: t('common.cancel') || 'Cancelar',
+            danger: true,
+        });
+        if (!ok) return;
         const newList = featuredBusinesses.filter(b => b.id !== businessId);
         setFeaturedBusinesses(newList);
         await saveChanges(newList);
