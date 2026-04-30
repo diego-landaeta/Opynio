@@ -552,11 +552,13 @@ const App = () => {
                                         {uniquePaths.assignBusiness?.map(p => <Route key={`root-assignBusiness-${p}`} path={p} element={<AssignBusinessPage />} />)}
                                         {uniquePaths.paymentSuccess?.map(p => <Route key={`root-paymentSuccess-${p}`} path={p} element={<PaymentSuccessPage />} />)}
                                         {uniquePaths.paymentCancel?.map(p => <Route key={`root-paymentCancel-${p}`} path={p} element={<PaymentCancelPage />} />)}
+                                        {/* Esta ruta es la transición de authenticated → business_owner;
+                                            por eso NO va dentro de BusinessRoute (que exige rol ya promovido). */}
+                                        {uniquePaths.completeBusinessRegistration?.map(p => <Route key={`root-completeBusinessRegistration-${p}`} path={p} element={<CompleteBusinessRegistrationPage />} />)}
                                     </Route>
 
                                     <Route element={<BusinessRoute><Outlet /></BusinessRoute>}>
                                         {uniquePaths.myBusinesses?.map(p => <Route key={`root-myBusinesses-${p}`} path={p} element={<BusinessListPage />} />)}
-                                        {uniquePaths.completeBusinessRegistration?.map(p => <Route key={`root-completeBusinessRegistration-${p}`} path={p} element={<CompleteBusinessRegistrationPage />} />)}
                                         {uniquePaths.migrateGoogleReviews?.map(p => <Route key={`root-migrateGoogleReviews-${p}`} path={p} element={<MigrateGoogleReviewsPage />} />)}
                                         <Route path={pathTranslations.es.businessDashboard} element={<BusinessDashboardPage />}>
                                             <Route index element={<DashboardOverview />} />
@@ -628,12 +630,14 @@ const App = () => {
                                             {uniquePaths.assignBusiness?.map(p => <Route key={`assignBusiness-${p}`} path={p} element={<AssignBusinessPage />} />)}
                                             {uniquePaths.paymentSuccess?.map(p => <Route key={`paymentSuccess-${p}`} path={p} element={<PaymentSuccessPage />} />)}
                                             {uniquePaths.paymentCancel?.map(p => <Route key={`paymentCancel-${p}`} path={p} element={<PaymentCancelPage />} />)}
+                                            {/* Esta ruta es la transición de authenticated → business_owner;
+                                                por eso NO va dentro de BusinessRoute. */}
+                                            {uniquePaths.completeBusinessRegistration?.map(p => <Route key={`country-completeBusinessRegistration-${p}`} path={p} element={<CompleteBusinessRegistrationPage />} />)}
                                         </Route>
 
                                         {/* Business routes with country prefix */}
                                         <Route element={<BusinessRoute><Outlet /></BusinessRoute>}>
                                             {uniquePaths.myBusinesses?.map(p => <Route key={`country-myBusinesses-${p}`} path={p} element={<BusinessListPage />} />)}
-                                            {uniquePaths.completeBusinessRegistration?.map(p => <Route key={`country-completeBusinessRegistration-${p}`} path={p} element={<CompleteBusinessRegistrationPage />} />)}
                                             {uniquePaths.migrateGoogleReviews?.map(p => <Route key={`country-migrateGoogleReviews-${p}`} path={p} element={<MigrateGoogleReviewsPage />} />)}
                                         </Route>
                                     </Route>
