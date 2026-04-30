@@ -118,53 +118,166 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         }
     };
 
+    // Convierte un código ISO de país en emoji bandera regional.
+    const flagEmoji = (code: string) =>
+        code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+
+    const userDisplayName =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        profile?.name ||
+        '';
+    const firstName = userDisplayName.split(' ')[0] || '';
+
     return (
         <>
             <Meta
                 title="Completar Registro de Empresa - Opynio"
                 description="Finaliza el registro de tu empresa en Opynio para empezar a gestionar tu reputación online."
             />
-            <div className="max-w-md mx-auto bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg mt-10">
-                <h1 className="text-3xl font-bold mb-2 text-center text-brand-dark">¡Casi listo!</h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-8 text-center">Solo un paso más para configurar tu cuenta de empresa.</p>
-                
-                {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
-                        <span className="block sm:inline">{error}</span>
+            <div className="min-h-[calc(100vh-200px)] flex items-start justify-center px-4 py-8 sm:py-12">
+                <div className="w-full max-w-lg">
+                    {/* Step indicator */}
+                    <div className="flex items-center justify-center gap-2 mb-6 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span className="w-8 h-1 rounded-full bg-brand-green"></span>
+                        <span className="w-8 h-1 rounded-full bg-brand-green"></span>
+                        <span className="ml-2">Último paso</span>
                     </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre de tu Empresa</label>
-                        <input 
-                            id="businessName"
-                            type="text" 
-                            value={businessName}
-                            onChange={(e) => setBusinessName(e.target.value)}
-                            required
-                            placeholder={t('common.placeholders.businessName')} 
-                            className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                        />
+
+                    <div className="relative bg-white dark:bg-zinc-800 rounded-2xl shadow-xl border border-gray-100 dark:border-zinc-700 overflow-hidden animate-fade-up">
+                        {/* Decorative gradient bar */}
+                        <div className="h-1.5 bg-gradient-to-r from-brand-green via-emerald-400 to-brand-green"></div>
+
+                        <div className="p-6 sm:p-10">
+                            {/* Hero icon + headline */}
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center mb-5 ring-4 ring-brand-green/10">
+                                    <i className="fa-solid fa-building text-3xl text-brand-green"></i>
+                                </div>
+                                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                                    {firstName ? `¡Casi listo, ${firstName}!` : '¡Casi listo!'}
+                                </h1>
+                                <p className="mt-2 text-sm sm:text-base text-gray-500 dark:text-gray-400 max-w-sm">
+                                    Cuéntanos un par de detalles sobre tu empresa para crear tu perfil de negocio.
+                                </p>
+                                {user?.email && (
+                                    <p className="mt-3 inline-flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-zinc-900/60 px-3 py-1 rounded-full">
+                                        <i className="fa-solid fa-envelope text-[10px]"></i>
+                                        <span>{user.email}</span>
+                                    </p>
+                                )}
+                            </div>
+
+                            {error && (
+                                <div className="mt-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg flex items-start gap-3" role="alert">
+                                    <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                    <span className="text-sm">{error}</span>
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                                {/* Business name */}
+                                <div>
+                                    <label htmlFor="businessName" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        Nombre de tu empresa
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
+                                            <i className="fa-solid fa-briefcase"></i>
+                                        </span>
+                                        <input
+                                            id="businessName"
+                                            type="text"
+                                            value={businessName}
+                                            onChange={(e) => setBusinessName(e.target.value)}
+                                            required
+                                            autoFocus
+                                            placeholder={t('common.placeholders.businessName')}
+                                            className="w-full pl-10 pr-3 py-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-xl bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Country selector */}
+                                <div>
+                                    <label htmlFor="businessCountry" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        País de la empresa
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg pointer-events-none" aria-hidden="true">
+                                            {flagEmoji(businessCountry)}
+                                        </span>
+                                        <select
+                                            id="businessCountry"
+                                            name="businessCountry"
+                                            value={businessCountry}
+                                            onChange={(e) => setBusinessCountry(e.target.value)}
+                                            required
+                                            className="w-full pl-11 pr-9 py-3 text-sm sm:text-base appearance-none border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all"
+                                        >
+                                            {COUNTRIES.map(c => (
+                                                <option key={c.code} value={c.code}>
+                                                    {c.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                            <i className="fa-solid fa-chevron-down text-xs"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Submit */}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="group w-full bg-brand-green text-white font-bold py-3.5 rounded-xl text-base sm:text-lg shadow-lg shadow-brand-green/20 hover:shadow-xl hover:shadow-brand-green/30 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Creando empresa…</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Finalizar registro</span>
+                                            <i className="fa-solid fa-arrow-right text-sm transition-transform group-hover:translate-x-1"></i>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Trust badges */}
+                                <div className="pt-3 grid grid-cols-3 gap-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <i className="fa-solid fa-lock text-brand-green text-base"></i>
+                                        <span>Conexión segura</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <i className="fa-solid fa-shield-halved text-brand-green text-base"></i>
+                                        <span>Datos protegidos</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <i className="fa-solid fa-bolt text-brand-green text-base"></i>
+                                        <span>Listo en segundos</span>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                     <div>
-                        <label htmlFor="businessCountry" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">País de la empresa</label>
-                        <select id="businessCountry" name="businessCountry" value={businessCountry} onChange={(e) => setBusinessCountry(e.target.value)} required className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-800">
-                            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="pt-2">
-                        <button 
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-brand-green text-white font-bold py-3 rounded-lg text-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {loading && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                            <span>{loading ? 'Creando empresa...' : 'Finalizar Registro'}</span>
-                        </button>
-                    </div>
-                </form>
+
+                    <p className="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                        Podrás editar todos estos datos más tarde desde el panel de tu empresa.
+                    </p>
+                </div>
             </div>
+
+            <style>{`
+                @keyframes fade-up {
+                    0% { opacity: 0; transform: translateY(12px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-up { animation: fade-up 0.4s ease-out forwards; }
+            `}</style>
         </>
     );
 };
