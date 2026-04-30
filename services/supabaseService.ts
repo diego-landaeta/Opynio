@@ -76,13 +76,20 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signInWithGoogle = async () => {
+  // IMPORTANTE: la ruta tiene que coincidir con el path en español ("post-acceso").
+  // En el dominio raíz, LanguagePathValidator SOLO acepta paths en español; si
+  // pasamos "/post-login" (literal en inglés/it/br) el validator dispara
+  // window.location.replace('/404') antes de que PostLoginRedirect pueda correr.
+  const redirectTo = `${window.location.origin}/post-acceso`;
+  console.log('[signInWithGoogle] starting OAuth', { redirectTo });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/post-login`,
-    },
+    options: { redirectTo },
   });
-  if (error) throw error;
+  if (error) {
+    console.error('[signInWithGoogle] OAuth init error', error);
+    throw error;
+  }
   return data;
 };
 
@@ -175,7 +182,9 @@ export const signUpBusiness = async (
 };
 
 export const signInWithGoogleForBusiness = async () => {
-  const redirectTo = `${window.location.origin}/post-login`;
+  // Misma razón que en signInWithGoogle: usar el path en español ("post-acceso")
+  // o LanguagePathValidator nos vota a /404 antes de que PostLoginRedirect arranque.
+  const redirectTo = `${window.location.origin}/post-acceso`;
   console.log('[signInWithGoogleForBusiness] starting OAuth', { redirectTo });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
