@@ -237,7 +237,7 @@ const BusinessListPage: React.FC = () => {
                             <span>{t('myBusinesses.addBusiness')}</span>
                         </Link>
                     ) : (
-                        <Link to={`${countryPrefix}/${paths.pricing}`} className="bg-brand-blue text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center gap-2">
+                        <Link to={`${countryPrefix}/${paths.pricing}`} className="bg-brand-blue hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg transition-colors shadow-sm flex items-center gap-2">
                             <i className="fa-solid fa-rocket"></i>
                             <span>{t('myBusinesses.upgradePlan')}</span>
                         </Link>

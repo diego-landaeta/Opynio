@@ -4,6 +4,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { useNotification } from '../../contexts/NotificationContext';
+import { supabase } from '../../services/supabaseService';
 import { COUNTRIES } from '../../constants';
 
 // FAQ Item Component
@@ -33,10 +35,37 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
 
 const PricingPage = () => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-    const { user } = useAuth();
+    const { user, businesses } = useAuth();
+    const { showNotification } = useNotification();
+    const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
+
+    // Si el user ya tiene al menos un negocio, "elegir plan" se interpreta como
+    // upgrade del plan de la empresa existente (Stripe checkout directo) en
+    // lugar de mandarlo a /asignar-empresa a crear otra.
+    const hasExistingBusinesses = !!user && businesses && businesses.length > 0;
+    const primaryBusinessId = businesses?.[0]?.id;
+
+    const handleUpgradeExistingBusiness = async (planName: string) => {
+        if (!primaryBusinessId) return;
+        setUpgradingPlan(planName);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                body: { plan: planName, billingCycle, businessId: primaryBusinessId },
+            });
+            if (error) throw error;
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No se recibió la URL de pago.');
+            }
+        } catch (err: any) {
+            showNotification(err.message || 'No se pudo iniciar el checkout.', 'error');
+            setUpgradingPlan(null);
+        }
+    };
 
     // SEO: Obtener nombre del país para títulos únicos
     const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -160,12 +189,18 @@ const PricingPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start pt-8">
                     {plans.map((plan) => {
                         const isAnnual = billingCycle === 'annual';
+                        const isEnterprise = plan.nameKey === 'pricingPage.planEnterprise';
+                        const planName = plan.nameKey.replace('pricingPage.plan', '').toLowerCase();
                         let ctaLinkTarget = plan.ctaLink;
 
-                        if (user && plan.nameKey !== 'pricingPage.planEnterprise') {
-                            const planName = plan.nameKey.replace('pricingPage.plan', '').toLowerCase();
+                        // 1) Sin login: ir a /registro?type=business&plan=X (default).
+                        // 2) Con login y SIN negocios: ir a /asignar-empresa?plan=X.
+                        // 3) Con login Y CON negocios: el botón se convierte en click handler
+                        //    que dispara el checkout de Stripe directamente para upgrade.
+                        if (user && !isEnterprise && !hasExistingBusinesses) {
                             ctaLinkTarget = `/${pathTranslations.es.assignBusiness}?plan=${planName}`;
                         }
+                        const shouldUpgradeInPlace = user && !isEnterprise && hasExistingBusinesses;
 
                         return (
                             <div
@@ -206,9 +241,27 @@ const PricingPage = () => {
                                         )}
                                     </div>
 
-                                    <ReactRouterDOM.Link to={ctaLinkTarget} className={`w-full block text-center font-semibold py-3 px-6 rounded-lg transition-colors ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}>
-                                        {t(plan.ctaKey)}
-                                    </ReactRouterDOM.Link>
+                                    {shouldUpgradeInPlace ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUpgradeExistingBusiness(planName)}
+                                            disabled={upgradingPlan !== null}
+                                            className={`w-full text-center font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}
+                                        >
+                                            {upgradingPlan === planName ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                    <span>Redirigiendo a Stripe…</span>
+                                                </>
+                                            ) : (
+                                                <span>{t('pricingPage.upgradeToThisPlan') || `Cambiar a ${t(plan.nameKey)}`}</span>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <ReactRouterDOM.Link to={ctaLinkTarget} className={`w-full block text-center font-semibold py-3 px-6 rounded-lg transition-colors ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}>
+                                            {t(plan.ctaKey)}
+                                        </ReactRouterDOM.Link>
+                                    )}
                                 </div>
                                 
                                 <ul className="mt-8 space-y-4 text-gray-600 dark:text-gray-300">

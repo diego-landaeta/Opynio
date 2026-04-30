@@ -22,6 +22,7 @@ export default {
         brand: {
           green: '#10b981',
           dark: '#1f2937',
+          blue: '#2563eb',
         }
       },
       fontFamily: {
