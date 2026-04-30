@@ -184,7 +184,11 @@ export const signUpBusiness = async (
 export const signInWithGoogleForBusiness = async () => {
   // Misma razón que en signInWithGoogle: usar el path en español ("post-acceso")
   // o LanguagePathValidator nos vota a /404 antes de que PostLoginRedirect arranque.
-  const redirectTo = `${window.location.origin}/post-acceso`;
+  // El query ?type=business viaja con el redirect y le dice a PostLoginRedirect
+  // que debe enrutarse a CompleteBusinessRegistrationPage. Esto es resistente
+  // a que localStorage se pierda durante el OAuth (Edge a veces lo limpia, y
+  // Google OAuth no permite custom user_metadata como en email signup).
+  const redirectTo = `${window.location.origin}/post-acceso?type=business`;
   console.log('[signInWithGoogleForBusiness] starting OAuth', { redirectTo });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

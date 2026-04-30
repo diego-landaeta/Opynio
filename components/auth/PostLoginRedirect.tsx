@@ -5,11 +5,28 @@ import Spinner from '../Spinner';
 import { useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 
+// Detecta si la sesión actual es signup-empresa, por orden de robustez:
+//   1) ?type=business en la URL del callback (lo añade signInWithGoogleForBusiness).
+//   2) user_metadata.intended_role === 'business_owner' (email signup vía signUpBusiness).
+//   3) localStorage flag opynio_business_signup_flow (legacy/same-device).
+function detectBusinessSignUpIntent(searchParams: URLSearchParams, userMetadata: any): {
+    wants: boolean;
+    source: 'query' | 'metadata' | 'flag' | 'none';
+} {
+    if (searchParams.get('type') === 'business') return { wants: true, source: 'query' };
+    if (userMetadata?.intended_role === 'business_owner') return { wants: true, source: 'metadata' };
+    if (typeof window !== 'undefined' && localStorage.getItem('opynio_business_signup_flow') === 'true') {
+        return { wants: true, source: 'flag' };
+    }
+    return { wants: false, source: 'none' };
+}
+
 const PostLoginRedirect: React.FC = () => {
     const { profile, loading, user } = useAuth();
     const { language } = useI18n();
     const { country } = useCountry();
     const navigate = ReactRouterDOM.useNavigate();
+    const location = ReactRouterDOM.useLocation();
     const [waitTime, setWaitTime] = useState(0);
 
     // Timeout fallback: if profile doesn't load after 5 seconds, redirect to home
@@ -59,22 +76,22 @@ const PostLoginRedirect: React.FC = () => {
                 }
             }
 
-            // The user signed up choosing the "business" tab if EITHER:
-            //  - localStorage flag is set (same-device flow), OR
-            //  - the auth metadata says intended_role=business_owner (cross-device email confirm).
-            const flagBusinessSignUp = localStorage.getItem('opynio_business_signup_flow') === 'true';
-            const metadataBusinessSignUp = user?.user_metadata?.intended_role === 'business_owner';
-            const wantsBusinessSignUp = flagBusinessSignUp || metadataBusinessSignUp;
+            // The user signed up choosing the "business" tab if any of:
+            //  - ?type=business in URL (added by signInWithGoogleForBusiness redirectTo).
+            //  - user_metadata.intended_role === 'business_owner' (email signup).
+            //  - localStorage flag (legacy / same-device).
+            const searchParams = new URLSearchParams(location.search);
+            const intent = detectBusinessSignUpIntent(searchParams, user?.user_metadata);
 
             console.log('[postLogin] business intent detection', {
-                flagBusinessSignUp,
-                metadataBusinessSignUp,
-                wantsBusinessSignUp,
+                source: intent.source,
+                wantsBusinessSignUp: intent.wants,
                 profileRole: profile.role,
+                searchParams: Object.fromEntries(searchParams),
                 userMetadata: user?.user_metadata,
             });
 
-            if (wantsBusinessSignUp) {
+            if (intent.wants) {
                 localStorage.removeItem('opynio_business_signup_flow');
                 // Only route to the completion form if the user has not been promoted yet.
                 // If profile.role is already 'business_owner' it means signup is complete
