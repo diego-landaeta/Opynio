@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { finishBusinessSignup, getUserProfile, getBusinessesForOwner } from '../../../services/supabaseService';
+import { finishBusinessSignup, getUserProfile, getBusinessesForOwner, clearCache } from '../../../services/supabaseService';
 import Meta from '../../Meta';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { COUNTRIES } from '../../../constants';
@@ -78,14 +78,30 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             localStorage.removeItem('opynio_pending_business_data');
             showNotification('¡Tu empresa ha sido registrada! Redirigiendo...', 'success');
 
-            // Manually re-fetch user data to update the context with the new role and business
-            if (user && profile) {
+            // Limpiar el cache in-memory de profile antes del re-fetch: el RPC acaba de
+            // cambiar profile.role a 'business_owner' en BD, pero getUserProfile tiene
+            // un cache de 60s que devolvería el profile viejo (role='authenticated')
+            // y BusinessRoute rechazaría al user al navegar a /mis-negocios.
+            clearCache(`profile_${user.id}`);
+
+            // Promover el profile en el contexto INMEDIATAMENTE para que el siguiente
+            // BusinessRoute (en /mis-negocios) no rechace al user antes de que llegue
+            // el re-fetch. El re-fetch se hace en background para sincronizar el resto
+            // de campos (plan_expires_at, etc).
+            if (profile) {
+                setProfile({ ...profile, role: 'business_owner' });
+            }
+
+            // Re-fetch real (en background) para sincronizar TODOS los campos
+            try {
                 const [updatedProfile, newBusinesses] = await Promise.all([
                     getUserProfile(user),
                     getBusinessesForOwner(user.id),
                 ]);
                 if (updatedProfile) setProfile(updatedProfile);
                 if (newBusinesses) setBusinesses(newBusinesses);
+            } catch (refetchErr) {
+                console.warn('[completeBusinessRegistration] re-fetch failed but role already promoted in context:', refetchErr);
             }
 
             // Use country directly - don't infer from language
@@ -93,6 +109,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             const pathLang = country ? getLanguageForCountryCode(country) : language;
             const paths = pathTranslations[pathLang] || pathTranslations.es;
             const myBusinessesPath = `${countryPrefix}/${paths.myBusinesses}`;
+            console.log('[completeBusinessRegistration] navigating to', myBusinessesPath);
             navigate(myBusinessesPath, { replace: true });
             
         } catch (err: any) {
