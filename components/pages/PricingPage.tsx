@@ -254,7 +254,7 @@ const PricingPage = () => {
                                                     <span>Redirigiendo a Stripe…</span>
                                                 </>
                                             ) : (
-                                                <span>{t('pricingPage.upgradeToThisPlan') || `Cambiar a ${t(plan.nameKey)}`}</span>
+                                                <span>{t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>
                                             )}
                                         </button>
                                     ) : (

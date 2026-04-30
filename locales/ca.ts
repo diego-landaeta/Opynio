@@ -1192,6 +1192,7 @@ export default {
     planStarter: 'Starter',
     starterAudience: 'Per a empreses que estan començant',
     startNow: 'Començar Ara',
+    upgradeToThisPlan: "Canviar a {plan}",
     starterFeature2: 'Invitacions per correu electrònic',
     starterFeature3: 'Ginys per al lloc web',
     starterFeature4: 'Respostes amb IA (200 crèdits/mes)',

@@ -1186,6 +1186,7 @@ export default {
     planStarter: 'Starter',
     starterAudience: 'Für Unternehmen, die gerade erst anfangen',
     startNow: 'Jetzt starten',
+    upgradeToThisPlan: "Wechseln zu {plan}",
     starterFeature2: 'E-Mail-Einladungen',
     starterFeature3: 'Website-Widgets',
     starterFeature4: 'KI-Antworten (200 Credits/Monat)',

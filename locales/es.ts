@@ -1614,6 +1614,7 @@ export default {
     planStarter: 'Starter',
     starterAudience: 'Para empresas que están empezando',
     startNow: 'Comenzar ahora',
+    upgradeToThisPlan: 'Cambiar a {plan}',
     starterFeature2: 'Invitaciones por email',
     starterFeature3: 'Widgets para sitio web',
     starterFeature4: 'Respuestas con IA (200 créditos/mes)',

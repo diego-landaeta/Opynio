@@ -1481,6 +1481,7 @@ export default {
     planStarter: '入门',
     starterAudience: '适合刚起步的企业',
     startNow: '立即开始',
+    upgradeToThisPlan: "切换到 {plan}",
     starterFeature2: '电子邮件邀请',
     starterFeature3: '网站小部件',
     starterFeature4: 'AI回复（200积分/月）',

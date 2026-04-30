@@ -1183,6 +1183,7 @@ export default {
     planStarter: 'Starter',
     starterAudience: 'Para empresas que estão a começar',
     startNow: 'Começar Agora',
+    upgradeToThisPlan: "Mudar para {plan}",
     starterFeature2: 'Convites por e-mail',
     starterFeature3: 'Widgets para o site',
     starterFeature4: 'Respostas com IA (200 créditos/mês)',
