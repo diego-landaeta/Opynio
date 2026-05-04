@@ -91,7 +91,10 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
+        // Mantener console.* en el bundle para poder debugear el flujo de signup en
+        // producción. Cambia a `true` cuando termines de diagnosticar para no ensuciar
+        // la consola de los visitantes.
+        drop_console: false,
         drop_debugger: true,
       },
     },

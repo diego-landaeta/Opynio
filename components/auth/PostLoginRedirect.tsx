@@ -92,16 +92,22 @@ const PostLoginRedirect: React.FC = () => {
             });
 
             if (intent.wants) {
-                localStorage.removeItem('opynio_business_signup_flow');
                 // Only route to the completion form if the user has not been promoted yet.
                 // If profile.role is already 'business_owner' it means signup is complete
                 // (e.g. they already finished it earlier), fall through to the default routing.
                 if (profile.role === 'authenticated') {
-                    const completePath = `${countryPrefix}/${paths.completeBusinessRegistration}`;
+                    // Propaga ?type=business al destino para que el guard de
+                    // CompleteBusinessRegistrationPage detecte la intención de empresa
+                    // incluso cuando es Google OAuth (no hay user_metadata.intended_role)
+                    // y aunque el flag de localStorage se haya perdido por cualquier motivo.
+                    // El cleanup del flag se hace en handleSubmit cuando el RPC termina con éxito.
+                    const completePath = `${countryPrefix}/${paths.completeBusinessRegistration}?type=business`;
                     console.log('[postLogin] routing to completeBusinessRegistration', { completePath });
                     navigate(completePath, { replace: true });
                     return;
                 }
+                // Profile ya está promovido → intent ya cumplido, podemos borrar el flag.
+                localStorage.removeItem('opynio_business_signup_flow');
                 console.log('[postLogin] business intent detected but profile.role already promoted, falling through to role switch', { profileRole: profile.role });
             }
 
