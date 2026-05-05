@@ -4,7 +4,9 @@ import { useNotificationState } from '../contexts/NotificationContext';
 const Snackbar: React.FC = () => {
     const { message, type, isVisible } = useNotificationState();
 
-    const baseClasses = "fixed bottom-4 right-4 sm:bottom-5 sm:right-5 p-3 sm:p-4 rounded-lg shadow-2xl text-white flex items-center gap-2 sm:gap-3 transition-all duration-300 ease-in-out transform z-50 max-w-[85vw] sm:max-w-sm";
+    // bottom-24 deja espacio sobre el FloatingLanguageButton (también en bottom-right)
+    // para que no se solapen visualmente.
+    const baseClasses = "fixed bottom-24 right-4 sm:bottom-28 sm:right-5 p-3 sm:p-4 rounded-lg shadow-2xl text-white flex items-center gap-2 sm:gap-3 transition-all duration-300 ease-in-out transform z-50 max-w-[85vw] sm:max-w-sm";
     const visibilityClasses = isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none";
     
     const typeClasses = {

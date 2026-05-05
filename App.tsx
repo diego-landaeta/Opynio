@@ -19,6 +19,7 @@ import { Business } from './types';
 import { COUNTRIES } from './constants';
 import LanguagePopup from './components/LanguagePopup';
 import FloatingLanguageButton from './components/FloatingLanguageButton';
+import PlanActivatedModal from './components/PlanActivatedModal';
 
 // Error Boundary to catch render errors and prevent blank pages
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -263,6 +264,7 @@ const MainLayout = () => {
             <Snackbar />
             <LanguagePopup />
             <FloatingLanguageButton />
+            <PlanActivatedModal />
             <LanguagePathValidator>
                 <div className="flex flex-col min-h-screen font-sans text-brand-dark dark:text-gray-200">
                     <Header />

@@ -4,11 +4,12 @@ import Spinner from '../Spinner';
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import type { Review } from '../../types';
-import { getReviewsForUser } from '../../services/supabaseService';
+import { getReviewsForUser, supabase } from '../../services/supabaseService';
 import ReviewCard from '../ReviewCard';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg flex items-center gap-4">
@@ -24,11 +25,73 @@ const StatCard: React.FC<{ title: string; value: number | string; icon: string }
 
 
 const ProfilePage: React.FC = () => {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, businesses, loading: authLoading } = useAuth();
+    const { showNotification } = useNotification();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
+    const [v2Loading, setV2Loading] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
+
+    // Flujo en dos pasos:
+    //   1) Usuario authenticated sin negocios → debe registrar su empresa (gratis).
+    //   2) Una vez es business_owner con un negocio → puede gestionar planes y v.2.
+    // 'admin' no ve ninguna de las dos secciones.
+    const isAdmin = profile?.role === 'admin';
+    const isBusinessOwner = profile?.role === 'business_owner';
+    const primaryBusinessId = businesses?.[0]?.id;
+    const hasBusiness = !!primaryBusinessId;
+    const showRegisterBusinessBlock = !!user && !isAdmin && !isBusinessOwner && !hasBusiness;
+
+    const isOnV2 = profile?.plan === 'v2';
+    // El bloque de gestión de suscripción sólo aparece cuando el usuario YA es
+    // business_owner con al menos un negocio. Antes de eso debe registrar empresa.
+    const canBuyV2 = !!user && isBusinessOwner && hasBusiness && !isOnV2;
+
+    const handleBuyV2 = async () => {
+        if (!primaryBusinessId) return;
+        setV2Loading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                body: { plan: 'v2', billingCycle: 'monthly', businessId: primaryBusinessId },
+            });
+            if (error) {
+                // 409 → ya tiene v2 → mandar al portal en su lugar.
+                // deno-lint-ignore no-explicit-any
+                const ctx: any = (error as any)?.context;
+                const status = ctx?.response?.status ?? ctx?.status;
+                if (status === 409) {
+                    await handleOpenPortal();
+                    return;
+                }
+                throw error;
+            }
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No se recibió la URL de pago.');
+            }
+        } catch (err: any) {
+            showNotification(err.message || 'No se pudo iniciar el checkout.', 'error');
+            setV2Loading(false);
+        }
+    };
+
+    const handleOpenPortal = async () => {
+        setV2Loading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-portal-session');
+            if (error) throw error;
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No se recibió la URL del portal.');
+            }
+        } catch (err: any) {
+            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+            setV2Loading(false);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -122,6 +185,91 @@ const ProfilePage: React.FC = () => {
                             <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.registeredOn')}</span> {new Date(user.created_at).toLocaleDateString(language)}</p>
                          </div>
                     </div>
+
+                    {/* Paso 1 — Usuario sin empresa: invitación a registrar empresa gratis. */}
+                    {showRegisterBusinessBlock && (
+                        <div className="mt-8 pt-6 border-t dark:border-zinc-700">
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800/50 rounded-xl p-5 sm:p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="text-brand-green bg-green-100 dark:bg-green-900/40 p-3 rounded-full flex-shrink-0">
+                                        <i className="fa-solid fa-store text-xl"></i>
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">¿Tienes un negocio?</h2>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5">
+                                            Convierte tu cuenta en una <strong>cuenta de empresa</strong> para gestionar reseñas,
+                                            responder a clientes y aparecer en Opynio. Es gratis empezar.
+                                        </p>
+                                        <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                            <ReactRouterDOM.Link
+                                                to={`/${pathTranslations[language].completeBusinessRegistration}?type=business`}
+                                                onClick={() => {
+                                                    // Marca de intent + bandera para el modal de bienvenida tras éxito.
+                                                    localStorage.setItem('opynio_business_signup_flow', 'true');
+                                                }}
+                                                className="bg-brand-green text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
+                                            >
+                                                <i className="fa-solid fa-rocket"></i>
+                                                <span>Registra tu empresa gratis</span>
+                                            </ReactRouterDOM.Link>
+                                            <ReactRouterDOM.Link
+                                                to={`/${pathTranslations[language].pricing}`}
+                                                className="bg-white dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 px-5 rounded-lg border border-gray-200 dark:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2 text-sm"
+                                            >
+                                                <i className="fa-solid fa-list-check"></i>
+                                                <span>Ver planes</span>
+                                            </ReactRouterDOM.Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Paso 2 — Business owner: gestión de plan / suscripción premium v.2. */}
+                    {isBusinessOwner && hasBusiness && (
+                        <div className="mt-8 pt-6 border-t dark:border-zinc-700">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Plan premium</h2>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                        Plan premium con capacidad para hasta <strong>20 negocios</strong>.
+                                    </p>
+                                </div>
+                                <ReactRouterDOM.Link
+                                    to={`/${pathTranslations[language].pricing}`}
+                                    className="text-xs sm:text-sm font-semibold text-brand-green hover:underline self-start sm:self-center"
+                                >
+                                    Ver todos los planes <i className="fa-solid fa-arrow-right ml-1"></i>
+                                </ReactRouterDOM.Link>
+                            </div>
+                            {isOnV2 ? (
+                                <button
+                                    type="button"
+                                    onClick={handleOpenPortal}
+                                    disabled={v2Loading}
+                                    className="bg-brand-blue text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {v2Loading
+                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        : <i className="fa-solid fa-credit-card"></i>}
+                                    <span>{v2Loading ? 'Abriendo portal…' : 'Gestionar v.2'}</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleBuyV2}
+                                    disabled={v2Loading}
+                                    className="bg-pink-600 text-white font-bold py-2.5 px-5 rounded-lg hover:bg-pink-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {v2Loading
+                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        : <i className="fa-solid fa-rocket"></i>}
+                                    <span>{v2Loading ? 'Redirigiendo a Stripe…' : 'v.2'}</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">

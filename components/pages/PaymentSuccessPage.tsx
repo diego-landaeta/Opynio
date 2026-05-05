@@ -5,6 +5,8 @@ import { getBusinessesForOwner, getUserProfile } from '../../services/supabaseSe
 import Meta from '../Meta';
 import { useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { triggerPlanActivatedModal } from '../PlanActivatedModal';
+import type { Plan } from '../../types';
 
 const PaymentSuccessPage: React.FC = () => {
     // FIX: Use setBusinesses from context to handle an array of businesses.
@@ -28,7 +30,17 @@ const PaymentSuccessPage: React.FC = () => {
                         getUserProfile(user),
                         getBusinessesForOwner(user.id),
                     ]);
-                    if (updatedProfile) setProfile(updatedProfile);
+                    if (updatedProfile) {
+                        setProfile(updatedProfile);
+                        // Disparar modal de bienvenida con el plan recién activado.
+                        // Si el webhook todavía no procesó el evento, profile.plan
+                        // seguirá siendo el anterior — en ese caso no disparamos
+                        // (mejor no mostrar nada que mostrar el plan equivocado).
+                        const newPlan = updatedProfile.plan as Plan | undefined;
+                        if (newPlan && newPlan !== 'free') {
+                            triggerPlanActivatedModal(newPlan);
+                        }
+                    }
                     // FIX: Update the context with the new array of businesses.
                     if (newBusinesses) setBusinesses(newBusinesses);
                 } catch (error) {
