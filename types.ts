@@ -77,7 +77,9 @@ export interface BusinessListItem extends Business {
   // Additional fields specific to business lists if needed
 }
 
-export type Plan = 'free' | 'starter' | 'growth' | 'pro' | 'enterprise';
+// 'v2' es un plan premium de prueba con límite de 20 negocios. No aparece en
+// la página pública de planes; sólo se ofrece desde el perfil del usuario.
+export type Plan = 'free' | 'starter' | 'growth' | 'pro' | 'v2' | 'enterprise';
 export type UserRole = 'admin' | 'business_owner' | 'authenticated';
 
 export interface Profile {

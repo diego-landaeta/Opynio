@@ -2651,23 +2651,16 @@ export const deleteReviewResponse = async (responseId: string) => {
   if (error) throw error;
 };
 
-export const incrementAiCredits = async (businessId: string, amount: number = -1) => {
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('ai_credits')
-    .eq('id', businessId)
-    .single();
-
-  const newCredits = (business?.ai_credits || 0) + amount;
-
-  const { data, error } = await supabase
-    .from('businesses')
-    .update({ ai_credits: newCredits })
-    .eq('id', businessId)
-    .select()
-    .single();
+// ai_credits_used vive en `profiles` (no en `businesses`). La RPC
+// public.increment_ai_credits(p_user_id, p_credits_used) suma de forma atómica
+// y aplica el reset mensual cuando corresponde.
+export const incrementAiCredits = async (userId: string, amount: number) => {
+  if (amount <= 0) throw new Error('amount must be positive');
+  const { error } = await supabase.rpc('increment_ai_credits', {
+    p_user_id: userId,
+    p_credits_used: amount,
+  });
   if (error) throw error;
-  return data;
 };
 
 // ==================== NOTIFICATION FUNCTIONS ====================

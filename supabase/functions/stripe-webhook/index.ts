@@ -1,80 +1,185 @@
 // supabase/functions/stripe-webhook/index.ts
+//
+// Webhook de Stripe con idempotencia robusta y procesamiento transaccional.
+//
+// Cambios vs versión anterior:
+//   • Guard de idempotencia: cada handler hace INSERT en processed_webhook_events
+//     (PK = event.id). Si el INSERT no afecta filas, el evento ya fue procesado y
+//     se descarta — protege contra reentregas de Stripe.
+//   • checkout.session.completed delega a la RPC process_checkout_completion,
+//     que envuelve los 5 writes (products/prices/subscriptions/businesses/profiles)
+//     en una única transacción PostgreSQL.
+//   • customer.subscription.updated y customer.subscription.created hacen UPSERT
+//     (no UPDATE) — auto-recuperación si el evento llega antes que checkout.session.completed.
+//   • Lectura defensiva de current_period_start/end: prefiere subscription.items[0]
+//     (formato actual) y cae al top-level (formato anterior) — forward-compat con la
+//     deprecación de Stripe API 2025-03-31.
+//   • Errores en upserts de products/prices se chequean siempre (antes se tragaban).
+//   • La respuesta de error al exterior es genérica; el detalle queda en logs.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
 
-// Type declarations for Deno environment
-declare const Deno: {
-  env: {
-    get: (key: string) => string | undefined;
-  };
-};
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: "2024-06-20",
 });
 
-// Initialize Supabase admin client
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-// Resolve the local plan name + billing cycle from a Stripe subscription.
-// If the price/product is not in our local tables yet (e.g. subscription.updated arriving
-// before checkout.session.completed), upsert them from Stripe so subsequent lookups succeed.
-async function resolvePlanFromSubscription(subscription: Stripe.Subscription) {
-  const priceItem = subscription.items.data[0].price;
-  const priceId = priceItem.id;
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
 
-  let { data: priceRow } = await supabaseAdmin
+// Override: para algunos prices, el plan name local NO se deriva del nombre del
+// product en Stripe. Por ejemplo, el plan 'v2' (premium test) usa un product
+// llamado "TESTEO OPYNIO" en Stripe pero internamente se identifica como 'v2'.
+const PRICE_TO_PLAN_OVERRIDE: Record<string, string> = {
+  "price_1TTo6JGP3zN1neHAXHFYpy1l": "v2",
+};
+
+function planNameFromPrice(priceId: string, fallbackProductName: string): string {
+  return PRICE_TO_PLAN_OVERRIDE[priceId] ?? fallbackProductName.toLowerCase();
+}
+
+// Stripe API 2025-03-31 movió current_period_* de subscription a subscription.items[0].
+// Mientras estemos pinned a 2024-06-20 ambos formatos pueden existir. Preferimos el
+// nuevo y caemos al viejo si no está. Si ambos faltan, lanzamos.
+//
+// Para suscripciones multi-item (raras en nuestro modelo, pero posibles si Stripe
+// añade items administrativamente), usamos el `current_period_end` MAYOR de todos
+// los items para que `plan_expires_at` refleje hasta cuándo está cubierto el user.
+// El `current_period_start` lo tomamos del MÍNIMO (inicio más temprano).
+function getPeriodTimestamps(subscription: Stripe.Subscription): {
+  startISO: string;
+  endISO: string;
+} {
+  const items = subscription.items?.data ?? [];
+  if (items.length === 0) {
+    throw new Error(`Subscription ${subscription.id} has no items`);
+  }
+  // deno-lint-ignore no-explicit-any
+  const subAny = subscription as any;
+  let minStart: number | undefined;
+  let maxEnd: number | undefined;
+  for (const it of items) {
+    // deno-lint-ignore no-explicit-any
+    const itAny = it as any;
+    const s = itAny.current_period_start;
+    const e = itAny.current_period_end;
+    if (typeof s === "number") minStart = minStart === undefined ? s : Math.min(minStart, s);
+    if (typeof e === "number") maxEnd = maxEnd === undefined ? e : Math.max(maxEnd, e);
+  }
+  // Fallback: si los items no traen los timestamps, usar los del nivel sub (formato viejo).
+  if (typeof minStart !== "number") minStart = subAny.current_period_start;
+  if (typeof maxEnd !== "number") maxEnd = subAny.current_period_end;
+  if (typeof minStart !== "number" || typeof maxEnd !== "number") {
+    throw new Error(
+      `Subscription ${subscription.id}: current_period_start/end missing on items and subscription`
+    );
+  }
+  return {
+    startISO: new Date(minStart * 1000).toISOString(),
+    endISO: new Date(maxEnd * 1000).toISOString(),
+  };
+}
+
+// Devuelve true si el evento es nuevo (insertado), false si ya estaba procesado.
+async function claimEvent(eventId: string, eventType: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("processed_webhook_events")
+    .insert({ event_id: eventId, type: eventType })
+    .select("event_id");
+  if (error) {
+    // 23505 = unique_violation → ya estaba procesado.
+    // deno-lint-ignore no-explicit-any
+    if ((error as any).code === "23505") return false;
+    throw error;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
+// Upsert defensivo de product+price desde un Stripe.Subscription.
+// Usado por handlers que NO van por la RPC transaccional (subscription.updated/created,
+// invoice.paid). Garantiza que la FK de subscriptions.price_id no falle.
+async function upsertProductAndPrice(subscription: Stripe.Subscription): Promise<void> {
+  const item = subscription.items.data[0];
+  if (!item) throw new Error(`Subscription ${subscription.id} has no items`);
+  const price = item.price;
+  if (typeof price.product !== "string") {
+    throw new Error(`Subscription ${subscription.id}: price.product is not a string id (was ${typeof price.product})`);
+  }
+  const product = await stripe.products.retrieve(price.product);
+
+  const { error: prodErr } = await supabaseAdmin.from("products").upsert({
+    id: product.id,
+    active: product.active,
+    name: product.name,
+    description: product.description,
+    metadata: product.metadata,
+  });
+  if (prodErr) throw prodErr;
+
+  const { error: priceErr } = await supabaseAdmin.from("prices").upsert({
+    id: price.id,
+    product_id: price.product,
+    active: price.active,
+    unit_amount: price.unit_amount,
+    currency: price.currency,
+    type: price.type,
+    interval: price.recurring?.interval,
+    interval_count: price.recurring?.interval_count,
+    metadata: price.metadata,
+  });
+  if (priceErr) throw priceErr;
+}
+
+// Resuelve plan + billing cycle desde una Stripe.Subscription. Si el price/product
+// no está aún en BD, lo upserta desde Stripe.
+async function resolvePlanFromSubscription(subscription: Stripe.Subscription) {
+  const item = subscription.items.data[0];
+  if (!item) throw new Error(`Subscription ${subscription.id} has no items`);
+  const priceId = item.price.id;
+
+  let { data: priceRow, error: priceQueryErr } = await supabaseAdmin
     .from("prices")
     .select("products(name)")
     .eq("id", priceId)
     .maybeSingle();
+  if (priceQueryErr) throw priceQueryErr;
 
   if (!priceRow) {
-    const product = await stripe.products.retrieve(priceItem.product as string);
-
-    const { error: productUpsertError } = await supabaseAdmin.from("products").upsert({
-      id: product.id,
-      active: product.active,
-      name: product.name,
-      description: product.description,
-      metadata: product.metadata,
-    });
-    if (productUpsertError) throw productUpsertError;
-
-    const { error: priceUpsertError } = await supabaseAdmin.from("prices").upsert({
-      id: priceItem.id,
-      product_id: priceItem.product as string,
-      active: priceItem.active,
-      unit_amount: priceItem.unit_amount,
-      currency: priceItem.currency,
-      type: priceItem.type,
-      interval: priceItem.recurring?.interval,
-      interval_count: priceItem.recurring?.interval_count,
-      metadata: priceItem.metadata,
-    });
-    if (priceUpsertError) throw priceUpsertError;
-
-    priceRow = { products: { name: product.name } } as any;
+    await upsertProductAndPrice(subscription);
+    const refetch = await supabaseAdmin
+      .from("prices")
+      .select("products(name)")
+      .eq("id", priceId)
+      .maybeSingle();
+    if (refetch.error) throw refetch.error;
+    priceRow = refetch.data;
   }
 
-  const planName = (priceRow!.products as { name: string } | null)?.name?.toLowerCase() ?? null;
-  const billingCycle = priceItem.recurring?.interval === 'month' ? 'monthly' : 'annual';
-
+  const productName = (priceRow?.products as { name: string } | null)?.name ?? "";
+  const planName = productName ? planNameFromPrice(priceId, productName) : null;
+  const billingCycle = item.price.recurring?.interval === "month" ? "monthly" : "annual";
   return { planName, billingCycle };
 }
+
+// -----------------------------------------------------------------------------
+// Main handler
+// -----------------------------------------------------------------------------
 
 serve(async (req) => {
   const signature = req.headers.get("Stripe-Signature");
   const body = await req.text();
 
   let event: Stripe.Event;
-
   try {
     event = await stripe.webhooks.constructEventAsync(
       body,
@@ -82,101 +187,196 @@ serve(async (req) => {
       Deno.env.get("STRIPE_WEBHOOK_SIGNING_SECRET")!
     );
   } catch (err) {
-    console.error("Webhook signature verification failed.", err.message);
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    // deno-lint-ignore no-explicit-any
+    console.error("Webhook signature verification failed.", (err as any).message);
+    return new Response("invalid signature", { status: 400 });
   }
 
   try {
+    // Idempotency guard: si el event.id ya está registrado, descartamos.
+    const isNew = await claimEvent(event.id, event.type);
+    if (!isNew) {
+      console.log(`↩️  duplicate event ${event.id} (${event.type}) — skipping`);
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        status: 200,
+      });
+    }
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
         const userId = session.metadata?.supabase_user_id;
-        const isNewBusiness = session.metadata?.is_new_business === 'true';
+        const isNewBusiness = session.metadata?.is_new_business === "true";
         const existingBusinessId = session.metadata?.business_id;
 
         if (!userId) {
           throw new Error("Metadata 'supabase_user_id' missing in checkout session.");
         }
+        if (!isNewBusiness && !existingBusinessId) {
+          throw new Error(
+            "Metadata missing 'business_id' for existing-business upgrade."
+          );
+        }
 
-        // Idempotency guard: if this subscription is already in our DB, the event was
-        // already processed (Stripe retries deliveries). Skip the side effects.
-        const { data: existingSub } = await supabaseAdmin
+        // Si ya existe una fila en subscriptions con este id, este checkout fue
+        // procesado por un evento previo (p.ej. customer.subscription.created
+        // que llegó antes). Marcamos already_processed para no re-insertar el
+        // business.
+        const { data: existingSub, error: existingSubErr } = await supabaseAdmin
           .from("subscriptions")
           .select("id")
           .eq("id", subscription.id)
           .maybeSingle();
+        if (existingSubErr) throw existingSubErr;
         const alreadyProcessed = !!existingSub;
 
-        const price = subscription.items.data[0].price;
-        const product = await stripe.products.retrieve(price.product as string);
+        const item = subscription.items.data[0];
+        if (!item) throw new Error(`Subscription ${subscription.id} has no items`);
+        const price = item.price;
+        if (typeof price.product !== "string") {
+          throw new Error(`Subscription ${subscription.id}: price.product is not a string id`);
+        }
+        const product = await stripe.products.retrieve(price.product);
 
-        // Upsert product and price info (always safe).
-        await supabaseAdmin.from("products").upsert({
-            id: product.id, active: product.active, name: product.name,
-            description: product.description, metadata: product.metadata,
-        });
-        await supabaseAdmin.from("prices").upsert({
-            id: price.id, product_id: price.product as string, active: price.active,
-            unit_amount: price.unit_amount, currency: price.currency, type: price.type,
-            interval: price.recurring?.interval, interval_count: price.recurring?.interval_count,
-            metadata: price.metadata,
-        });
+        const { startISO, endISO } = getPeriodTimestamps(subscription);
+        const planName = planNameFromPrice(price.id, product.name);
+        const billingCycle = price.recurring?.interval === "month" ? "monthly" : "annual";
 
-        // Subscription upsert.
-        const { error: subError } = await supabaseAdmin.from("subscriptions").upsert({
-          id: subscription.id,
-          user_id: userId,
-          status: subscription.status,
-          price_id: subscription.items.data[0].price.id,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        });
-        if (subError) throw subError;
+        const { error: rpcError } = await supabaseAdmin.rpc(
+          "process_checkout_completion",
+          {
+            p_subscription_id: subscription.id,
+            p_user_id: userId,
+            p_status: subscription.status,
+            p_price_id: price.id,
+            p_cancel_at_period_end: subscription.cancel_at_period_end,
+            p_current_period_start: startISO,
+            p_current_period_end: endISO,
+            p_product_id: product.id,
+            p_product_name: product.name,
+            p_product_active: product.active,
+            p_product_description: product.description,
+            p_product_metadata: product.metadata,
+            p_price_active: price.active,
+            p_price_unit_amount: price.unit_amount,
+            p_price_currency: price.currency,
+            p_price_type: price.type,
+            p_price_interval: price.recurring?.interval ?? null,
+            p_price_interval_count: price.recurring?.interval_count ?? null,
+            p_price_metadata: price.metadata,
+            p_plan_name: planName,
+            p_billing_cycle: billingCycle,
+            p_is_new_business: isNewBusiness,
+            p_already_processed: alreadyProcessed,
+            p_business_name: session.metadata?.business_name ?? null,
+            p_business_category: session.metadata?.business_category ?? null,
+            p_business_country: session.metadata?.business_country ?? null,
+            p_business_description: session.metadata?.business_description ?? null,
+            p_business_logo_url: session.metadata?.business_logo_url ?? null,
+            p_business_google_maps_url:
+              session.metadata?.business_google_maps_url ?? null,
+            // Validamos rango antes de pasar a la RPC. Coordenadas fuera de rango
+            // (cliente malicioso o bug en frontend) se descartan a NULL en lugar de
+            // contaminar la BD.
+            p_business_latitude: (() => {
+              const v = session.metadata?.business_latitude;
+              if (!v) return null;
+              const n = Number(v);
+              return Number.isFinite(n) && n >= -90 && n <= 90 ? n : null;
+            })(),
+            p_business_longitude: (() => {
+              const v = session.metadata?.business_longitude;
+              if (!v) return null;
+              const n = Number(v);
+              return Number.isFinite(n) && n >= -180 && n <= 180 ? n : null;
+            })(),
+          }
+        );
+        if (rpcError) throw rpcError;
 
-        const planName = product.name.toLowerCase();
-        const billingCycle = subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'annual';
-        const periodEndIso = new Date(subscription.current_period_end * 1000).toISOString();
+        console.log(
+          `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}`
+        );
+        break;
+      }
 
-        // For NEW business flow: defer business creation to here. Skip if this is a retry
-        // (subscription row pre-existed before this handler ran).
-        if (isNewBusiness && !alreadyProcessed) {
-          const lat = session.metadata?.business_latitude;
-          const lng = session.metadata?.business_longitude;
-          const country = session.metadata?.business_country ?? null;
-          const { error: insertError } = await supabaseAdmin.from("businesses").insert({
-            owner_id: userId,
-            name: session.metadata?.business_name ?? '',
-            category: session.metadata?.business_category ?? null,
-            country,
-            description: session.metadata?.business_description ?? null,
-            logo_url: session.metadata?.business_logo_url ?? null,
-            google_maps_url: session.metadata?.business_google_maps_url ?? null,
-            latitude: lat ? Number(lat) : null,
-            longitude: lng ? Number(lng) : null,
-            sedes: country ? [{ country_code: country }] : null,
-          });
-          if (insertError) throw insertError;
-        } else if (!isNewBusiness && !existingBusinessId) {
-          throw new Error("Metadata missing 'business_id' for existing-business upgrade.");
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        await upsertProductAndPrice(subscription);
+
+        const { startISO, endISO } = getPeriodTimestamps(subscription);
+
+        // Necesitamos user_id. Si la sub ya está en BD, lo leemos. Si no, lo
+        // resolvemos por customer → customers.id.
+        let userId: string | null = null;
+        const { data: existing } = await supabaseAdmin
+          .from("subscriptions")
+          .select("user_id")
+          .eq("id", subscription.id)
+          .maybeSingle();
+        if (existing?.user_id) {
+          userId = existing.user_id;
+        } else {
+          const { data: customer } = await supabaseAdmin
+            .from("customers")
+            .select("id")
+            .eq("stripe_customer_id", subscription.customer as string)
+            .maybeSingle();
+          userId = customer?.id ?? null;
         }
 
-        // Activate plan on the user's profile (and promote role for new owners).
-        const profileUpdate: Record<string, unknown> = {
-          plan: planName,
-          billing_cycle: billingCycle,
-          plan_expires_at: periodEndIso,
-        };
-        if (isNewBusiness) profileUpdate.role = 'business_owner';
+        if (!userId) {
+          // No podemos asociar la sub a ningún usuario nuestro. Probablemente
+          // creada manualmente desde el Stripe Dashboard. Logueamos y salimos
+          // sin error: el evento se queda marcado como procesado.
+          console.warn(
+            `⚠️  ${event.type}: cannot resolve user_id for sub ${subscription.id} (customer=${subscription.customer}).`
+          );
+          break;
+        }
 
-        const { error: profileError } = await supabaseAdmin
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("id", userId);
-        if (profileError) throw profileError;
+        const { error: subUpsertErr } = await supabaseAdmin
+          .from("subscriptions")
+          .upsert({
+            id: subscription.id,
+            user_id: userId,
+            status: subscription.status,
+            price_id: subscription.items.data[0].price.id,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            current_period_start: startISO,
+            current_period_end: endISO,
+          });
+        if (subUpsertErr) throw subUpsertErr;
 
-        console.log(`✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}`);
+        // Si la sub está activa/trialing, sincronizamos el plan en profile.
+        // Si está en estados terminales (canceled, unpaid, incomplete_expired),
+        // la sincronización de baja la maneja customer.subscription.deleted.
+        if (
+          subscription.status === "active" ||
+          subscription.status === "trialing" ||
+          subscription.status === "past_due"
+        ) {
+          const { planName, billingCycle } = await resolvePlanFromSubscription(
+            subscription
+          );
+          if (planName) {
+            const { error: profErr } = await supabaseAdmin
+              .from("profiles")
+              .update({
+                plan: planName,
+                billing_cycle: billingCycle,
+                plan_expires_at: endISO,
+              })
+              .eq("id", userId);
+            if (profErr) throw profErr;
+          }
+        }
+
+        console.log(`✅ ${event.type}: ${subscription.id} (status=${subscription.status})`);
         break;
       }
 
@@ -188,31 +388,63 @@ serve(async (req) => {
           break;
         }
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        await upsertProductAndPrice(subscription);
 
-        const { error: updateError } = await supabaseAdmin.from("subscriptions").update({
+        const { startISO, endISO } = getPeriodTimestamps(subscription);
+
+        // Buscamos user_id existente; si no, resolvemos por customer.
+        let userId: string | null = null;
+        const { data: subRow } = await supabaseAdmin
+          .from("subscriptions")
+          .select("user_id")
+          .eq("id", subscription.id)
+          .maybeSingle();
+        if (subRow?.user_id) {
+          userId = subRow.user_id;
+        } else {
+          const { data: customer } = await supabaseAdmin
+            .from("customers")
+            .select("id")
+            .eq("stripe_customer_id", subscription.customer as string)
+            .maybeSingle();
+          userId = customer?.id ?? null;
+        }
+
+        if (!userId) {
+          console.warn(
+            `⚠️  invoice.paid: cannot resolve user_id for sub ${subscription.id}.`
+          );
+          break;
+        }
+
+        // UPSERT (no UPDATE) → si la sub no estaba en BD, la creamos.
+        const { error: subUpsertErr } = await supabaseAdmin
+          .from("subscriptions")
+          .upsert({
+            id: subscription.id,
+            user_id: userId,
             status: subscription.status,
             price_id: subscription.items.data[0].price.id,
             cancel_at_period_end: subscription.cancel_at_period_end,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        }).eq("id", subscription.id);
-        if (updateError) throw updateError;
+            current_period_start: startISO,
+            current_period_end: endISO,
+          });
+        if (subUpsertErr) throw subUpsertErr;
 
-        const { data: subData } = await supabaseAdmin.from("subscriptions").select("user_id").eq("id", subscription.id).maybeSingle();
-        if (subData?.user_id) {
-            // On renewal also re-sync plan + billing_cycle so an upgrade/downgrade applied
-            // mid-cycle is reflected in the profile when the next invoice is paid.
-            const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
-            await supabaseAdmin.from("profiles").update({
-                plan: planName ?? undefined,
-                billing_cycle: billingCycle,
-                plan_expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
-            }).eq("id", subData.user_id);
-        } else {
-            console.warn(`invoice.paid: subscription ${subscription.id} not found locally, skipping profile update.`);
+        const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
+        if (planName) {
+          const { error: profErr } = await supabaseAdmin
+            .from("profiles")
+            .update({
+              plan: planName,
+              billing_cycle: billingCycle,
+              plan_expires_at: endISO,
+            })
+            .eq("id", userId);
+          if (profErr) throw profErr;
         }
 
-        console.log(`✅ invoice.paid: Updated subscription period for ${subscription.id}.`);
+        console.log(`✅ invoice.paid: synced sub ${subscription.id} for user ${userId}.`);
         break;
       }
 
@@ -225,79 +457,134 @@ serve(async (req) => {
         }
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-        // Mirror Stripe's status (typically 'past_due' or 'unpaid'). Stripe will keep retrying
-        // for the dunning window and finally emit customer.subscription.deleted, which is what
-        // actually downgrades the user to free. Until then we just record the status.
-        const { error: updateError } = await supabaseAdmin.from("subscriptions").update({
-            status: subscription.status,
-        }).eq("id", subscription.id);
-        if (updateError) throw updateError;
+        // Reflejamos el estado de Stripe (past_due / unpaid). El downgrade a free
+        // lo dispara customer.subscription.deleted al final del dunning.
+        const { error: updateErr } = await supabaseAdmin
+          .from("subscriptions")
+          .update({ status: subscription.status })
+          .eq("id", subscription.id);
+        if (updateErr) throw updateErr;
 
-        console.warn(`⚠️ invoice.payment_failed: subscription ${subscription.id} marked '${subscription.status}'.`);
+        console.warn(
+          `⚠️  invoice.payment_failed: sub ${subscription.id} marked '${subscription.status}'.`
+        );
         break;
       }
 
-      case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const { error: subUpdateError } = await supabaseAdmin.from("subscriptions").update({
-          status: subscription.status,
-          price_id: subscription.items.data[0].price.id,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        }).eq("id", subscription.id);
-        if (subUpdateError) throw subUpdateError;
+      case "checkout.session.async_payment_succeeded": {
+        // Para métodos asíncronos (SEPA, Bizum, transferencia) Stripe emite este
+        // evento cuando el pago finalmente se confirma. Lo tratamos como un
+        // checkout.session.completed tardío: si la sub aún no está sincronizada,
+        // delegamos en el mismo handler.
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (!session.subscription) {
+          console.log("async_payment_succeeded: no subscription attached, ignoring.");
+          break;
+        }
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+        await upsertProductAndPrice(subscription);
 
-        const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
-
-        const { data: sub } = await supabaseAdmin.from("subscriptions").select("user_id").eq("id", subscription.id).maybeSingle();
-        if (!sub) {
-          console.warn(`customer.subscription.updated: subscription ${subscription.id} not found locally, skipping profile update.`);
+        const { startISO, endISO } = getPeriodTimestamps(subscription);
+        const userId = session.metadata?.supabase_user_id;
+        if (!userId) {
+          console.warn(
+            `async_payment_succeeded: no supabase_user_id in metadata for sub ${subscription.id}.`
+          );
           break;
         }
 
-        await supabaseAdmin.from("profiles").update({
-            plan: planName ?? undefined,
-            billing_cycle: billingCycle,
-            plan_expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
-        }).eq("id", sub.user_id);
+        const { error: subUpsertErr } = await supabaseAdmin
+          .from("subscriptions")
+          .upsert({
+            id: subscription.id,
+            user_id: userId,
+            status: subscription.status,
+            price_id: subscription.items.data[0].price.id,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            current_period_start: startISO,
+            current_period_end: endISO,
+          });
+        if (subUpsertErr) throw subUpsertErr;
 
-        console.log(`✅ customer.subscription.updated: Updated subscription ${subscription.id}.`);
+        const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
+        if (planName) {
+          const { error: profErr } = await supabaseAdmin
+            .from("profiles")
+            .update({
+              plan: planName,
+              billing_cycle: billingCycle,
+              plan_expires_at: endISO,
+            })
+            .eq("id", userId);
+          if (profErr) throw profErr;
+        }
+
+        console.log(`✅ async_payment_succeeded: synced sub ${subscription.id} for user ${userId}.`);
+        break;
+      }
+
+      case "checkout.session.async_payment_failed": {
+        // El pago asíncrono no se completó. NO promovemos plan ni creamos
+        // negocio: el flujo `checkout.session.completed` no ha disparado
+        // todavía y posiblemente no lo haga. Sólo logueamos.
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.warn(
+          `⚠️  async_payment_failed: session ${session.id} (customer=${session.customer}).`
+        );
         break;
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
 
-        const { error: deleteSubError } = await supabaseAdmin.from("subscriptions").update({
-            status: 'canceled',
-            ended_at: new Date().toISOString()
-        }).eq("id", subscription.id);
-        if (deleteSubError) throw deleteSubError;
+        const { error: subErr } = await supabaseAdmin
+          .from("subscriptions")
+          .update({ status: "canceled", ended_at: new Date().toISOString() })
+          .eq("id", subscription.id);
+        if (subErr) throw subErr;
 
-        const { data: sub } = await supabaseAdmin.from("subscriptions").select("user_id").eq("id", subscription.id).maybeSingle();
-        if (!sub) {
-          console.warn(`customer.subscription.deleted: subscription ${subscription.id} not found locally, skipping profile downgrade.`);
+        const { data: subRow } = await supabaseAdmin
+          .from("subscriptions")
+          .select("user_id")
+          .eq("id", subscription.id)
+          .maybeSingle();
+        if (!subRow) {
+          console.warn(
+            `customer.subscription.deleted: sub ${subscription.id} not found locally.`
+          );
           break;
         }
 
-        await supabaseAdmin.from("profiles").update({
-            plan: 'free',
-            billing_cycle: null,
-            plan_expires_at: null,
-        }).eq("id", sub.user_id);
+        const { error: profErr } = await supabaseAdmin
+          .from("profiles")
+          .update({ plan: "free", billing_cycle: null, plan_expires_at: null })
+          .eq("id", subRow.user_id);
+        if (profErr) throw profErr;
 
-        console.log(`✅ customer.subscription.deleted: Canceled subscription ${subscription.id}.`);
+        console.log(`✅ customer.subscription.deleted: ${subscription.id}.`);
         break;
       }
 
       default:
-        console.log(`🤷‍♀️ Unhandled event type: ${event.type}`);
+        console.log(`🤷 Unhandled event type: ${event.type}`);
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (error) {
-    console.error("Webhook handler failed:", error);
-    return new Response(`Webhook Error: ${error.message}`, { status: 400 });
+    // Si fallamos, borramos el lock de idempotencia para que Stripe pueda
+    // reintentar y se reprocese el evento desde cero. El detalle del error
+    // queda en logs, no se filtra al exterior.
+    console.error(`Webhook handler failed for event ${event.id} (${event.type}):`, error);
+    try {
+      await supabaseAdmin
+        .from("processed_webhook_events")
+        .delete()
+        .eq("event_id", event.id);
+    } catch (cleanupErr) {
+      console.error("Failed to release idempotency lock:", cleanupErr);
+    }
+    return new Response("internal error", { status: 500 });
   }
 });
