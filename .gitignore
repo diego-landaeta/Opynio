@@ -32,3 +32,11 @@ nul
 # Local scripts and test files
 scripts/reviews-injection/
 test-widgets.html
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Temporary script artifacts
+.tmp-*.mjs
+.tmp-*.json
+.tmp-*.txt

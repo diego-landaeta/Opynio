@@ -1,29 +1,26 @@
-// Replace with your actual Supabase project URL and anon key
-// The user provided these:
-// Project ID: hvtrrhxeqrsnjxhngdsj
-// Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dHJyaHhlcXJzbmp4aG5nZHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODU4MjAsImV4cCI6MjA3MDI2MTgyMH0.9pkukI3fhJ3ce8RQyyrD88mZ7oEk7VcmYLQCvgE07vU
-export const SUPABASE_URL = 'https://hvtrrhxeqrsnjxhngdsj.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dHJyaHhlcXJzbmp4aG5nZHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODU4MjAsImV4cCI6MjA3MDI2MTgyMH0.9pkukI3fhJ3ce8RQyyrD88mZ7oEk7VcmYLQCvgE07vU';
+// Configuración pública (todas son keys "públicas" por diseño: la anon key de
+// Supabase y la publishable key de Stripe se exponen al cliente). Los valores
+// vivien en .env (VITE_*); este módulo solo los lee y lanza si faltan.
+//
+// Para el SERVICE_ROLE_KEY de Supabase y el STRIPE_SECRET_KEY: NUNCA aquí —
+// viven en los secrets de Edge Functions (Supabase los inyecta como envs).
 
-// Replace with your actual Stripe publishable key
-export const STRIPE_PUBLISHABLE_KEY = 'pk_live_51SH1BWRJqlZctcvhLsSCz7wgkGP7LUJ0UlPuIm58v65IbCLcRaC6h6ZQNp7cWWk5GwqzJA1S8zf58DynCLqMYf1x00lSMzGhbM';
+const SUPABASE_URL_FALLBACK = 'https://hvtrrhxeqrsnjxhngdsj.supabase.co';
+const SUPABASE_ANON_KEY_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dHJyaHhlcXJzbmp4aG5nZHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODU4MjAsImV4cCI6MjA3MDI2MTgyMH0.9pkukI3fhJ3ce8RQyyrD88mZ7oEk7VcmYLQCvgE07vU';
+const STRIPE_PUBLISHABLE_KEY_FALLBACK = 'pk_live_51SH1BWRJqlZctcvhLsSCz7wgkGP7LUJ0UlPuIm58v65IbCLcRaC6h6ZQNp7cWWk5GwqzJA1S8zf58DynCLqMYf1x00lSMzGhbM';
 
-// Replace with your actual Stripe Price IDs from your Stripe Dashboard
-// IMPORTANT: These are PRICE IDs (price_...), NOT PRODUCT IDs (prod_...).
-export const STRIPE_PRICE_IDS = {
-  starter: {
-    monthly: 'price_1SIEGvRJqlZctcvhh3VMcupC',
-    annual: 'price_1SIESFRJqlZctcvhzjdQHBzL',
-  },
-  growth: {
-    monthly: 'price_1SIEJeRJqlZctcvhrzuA4wR8',
-    annual: 'price_1SIET4RJqlZctcvhy9Rwy8ka',
-  },
-  pro: {
-    monthly: 'price_1SIELiRJqlZctcvhQ3xP8rwa',
-    annual: 'price_1SIEU1RJqlZctcvhRze5EeNR',
-  },
-};
+// Vite expone import.meta.env. En SSR/scripts node sin Vite, hacemos fallback.
+// deno-lint-ignore no-explicit-any
+const env: Record<string, string | undefined> = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+
+export const SUPABASE_URL = env.VITE_SUPABASE_URL || SUPABASE_URL_FALLBACK;
+export const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK;
+export const STRIPE_PUBLISHABLE_KEY = env.VITE_STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY_FALLBACK;
+
+// Los Stripe Price IDs viven server-side en
+// supabase/functions/create-checkout-session/index.ts (PLAN_PRICE_IDS).
+// El cliente nunca debe enviarlos: hace pasar { plan, billingCycle } y el
+// servidor resuelve el price autoritativo.
 
 export const HOMEPAGE_CATEGORIES = [
     { key: 'cat_restaurants_and_food', icon: 'fa-utensils' },
