@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview — Email templates Opynio</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Helvetica, Arial, sans-serif; background: #f3f4f6; color: #111827; }
+  @media (prefers-color-scheme: dark) { body { background: #0f172a; color: #f1f5f9; } }
+
+  header { padding: 24px 32px; border-bottom: 1px solid rgba(125,125,125,0.2); position: sticky; top: 0; background: inherit; backdrop-filter: blur(8px); z-index: 10; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0 0; font-size: 13px; color: #6b7280; }
+  @media (prefers-color-scheme: dark) { header p { color: #94a3b8; } }
+
+  nav { padding: 16px 32px; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid rgba(125,125,125,0.15); }
+  nav a { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; color: #10b981; background: rgba(16,185,129,0.08); transition: all 0.15s; }
+  nav a:hover { background: #10b981; color: white; }
+
+  .grid { display: grid; gap: 24px; padding: 24px 32px; grid-template-columns: 1fr; }
+  @media (min-width: 1100px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .card { background: white; border: 1px solid rgba(125,125,125,0.2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  @media (prefers-color-scheme: dark) { .card { background: #1e293b; border-color: #334155; } }
+
+  .card-header { padding: 14px 18px; border-bottom: 1px solid rgba(125,125,125,0.15); display: flex; justify-content: space-between; align-items: center; }
+  .card-header h2 { margin: 0; font-size: 15px; font-weight: 700; }
+  .card-header small { font-size: 12px; color: #6b7280; }
+  .card-header a.open { font-size: 12px; font-weight: 600; color: #10b981; text-decoration: none; padding: 4px 10px; border-radius: 6px; background: rgba(16,185,129,0.1); }
+  .card-header a.open:hover { background: #10b981; color: white; }
+
+  iframe { width: 100%; height: 720px; border: 0; display: block; background: #f3f4f6; }
+
+  .badge { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; border-radius: 999px; margin-right: 6px; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-blue { background: #dbeafe; color: #1e3a8a; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Email templates · Opynio</h1>
+  <p>Vista previa de las 6 plantillas aplicadas a Supabase Auth. Cada iframe carga el HTML real.</p>
+</header>
+
+<nav>
+  <a href="#confirm">1. Confirmar registro</a>
+  <a href="#magic">2. Magic link</a>
+  <a href="#reset">3. Reset password</a>
+  <a href="#change">4. Cambio email</a>
+  <a href="#invite">5. Invitación</a>
+  <a href="#reauth">6. Reautenticación</a>
+</nav>
+
+<div class="grid">
+
+  <section class="card" id="confirm">
+    <div class="card-header">
+      <h2><span class="badge badge-green">Confirm signup</span>1. Confirmar registro</h2>
+      <a class="open" href="01-confirm-signup.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="01-confirm-signup.html" loading="lazy"></iframe>
+  </section>
+
+  <section class="card" id="magic">
+    <div class="card-header">
+      <h2><span class="badge badge-blue">Magic link</span>2. Login mágico</h2>
+      <a class="open" href="02-magic-link.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="02-magic-link.html" loading="lazy"></iframe>
+  </section>
+
+  <section class="card" id="reset">
+    <div class="card-header">
+      <h2><span class="badge badge-green">Recovery</span>3. Reset password</h2>
+      <a class="open" href="03-reset-password.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="03-reset-password.html" loading="lazy"></iframe>
+  </section>
+
+  <section class="card" id="change">
+    <div class="card-header">
+      <h2><span class="badge badge-green">Email change</span>4. Cambio de email</h2>
+      <a class="open" href="04-change-email.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="04-change-email.html" loading="lazy"></iframe>
+  </section>
+
+  <section class="card" id="invite">
+    <div class="card-header">
+      <h2><span class="badge badge-green">Invite</span>5. Invitación</h2>
+      <a class="open" href="05-invite-user.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="05-invite-user.html" loading="lazy"></iframe>
+  </section>
+
+  <section class="card" id="reauth">
+    <div class="card-header">
+      <h2><span class="badge badge-green">Reauthentication</span>6. Reautenticación</h2>
+      <a class="open" href="06-reauthentication.html" target="_blank">Abrir solo</a>
+    </div>
+    <iframe src="06-reauthentication.html" loading="lazy"></iframe>
+  </section>
+
+</div>
+
+</body>
+</html>
