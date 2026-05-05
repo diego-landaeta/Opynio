@@ -12,20 +12,21 @@ import { useTranslation } from '../../../../contexts/i18nContext';
 
 const PAGE_SIZE = 20;
 
-// FIX: Add 'enterprise' plan to PLAN_CREDIT_LIMITS to match the Plan type definition.
 const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
     free: 0,
     starter: 200,
     growth: 1000,
-    pro: 5000, // Assumption
-    enterprise: 100000, // High limit for enterprise
+    pro: 5000,
+    v2: 100000,
+    enterprise: 100000,
 };
 const AI_SUGGESTION_COST = 10;
 
 
 const DashboardReviews: React.FC = () => {
-    // FIX: Get setBusinesses from useAuth to update business state after using credits.
-    const { profile, setBusinesses } = useAuth();
+    // Plan y créditos viven en `profiles`. setProfile actualiza el contador
+    // local tras consumir créditos para feedback inmediato.
+    const { profile, setProfile } = useAuth();
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
     const { confirm } = useConfirm();
@@ -69,17 +70,16 @@ const DashboardReviews: React.FC = () => {
     }, [business, fetchReviewsPage]);
 
     const handleSuggestReplies = async (review: Review) => {
-        // FIX: Check against business plan, not profile plan. Free plan cannot use this.
-        if (!profile || !business || business.plan === 'free') {
+        // Plan y créditos viven en `profiles`.
+        if (!profile || !business || profile.plan === 'free') {
             showNotification(t('businessDashboard.aiSuggestionRequiresPaidPlan'), 'info');
             return;
         }
         if (!review.review_text) return;
 
-        // FIX: Credit check logic now uses business's plan and credit usage.
-        const creditLimit = PLAN_CREDIT_LIMITS[business.plan];
-        const creditsUsed = business.ai_credits_used || 0;
-        
+        const creditLimit = PLAN_CREDIT_LIMITS[profile.plan];
+        const creditsUsed = profile.ai_credits_used || 0;
+
         if (creditLimit > 0 && creditsUsed + AI_SUGGESTION_COST > creditLimit) {
             showNotification(t('businessDashboard.aiCreditLimitReached'), 'error');
             setSuggestionError(t('businessDashboard.aiCreditLimitError'));
@@ -92,18 +92,15 @@ const DashboardReviews: React.FC = () => {
         try {
             const replies = await getSuggestedReplies(review.review_text, review.rating);
             setSuggestedReplies({ reviewId: review.id, suggestions: replies });
-            
+
             if (creditLimit > 0) {
-                // FIX: Pass business.id to increment credits for the correct entity.
-                await incrementAiCredits(business.id, AI_SUGGESTION_COST);
-                
-                // FIX: Update the businesses array in the global context for immediate UI feedback on credit usage.
-                setBusinesses(prevBusinesses => 
-                    prevBusinesses.map(b => 
-                        b.id === business.id 
-                        ? { ...b, ai_credits_used: (b.ai_credits_used || 0) + AI_SUGGESTION_COST } 
-                        : b
-                    )
+                // Descuenta créditos en profile.ai_credits_used vía RPC server-side.
+                await incrementAiCredits(profile.id, AI_SUGGESTION_COST);
+
+                // Reflejo local inmediato del contador para la UI.
+                setProfile(prev => prev
+                    ? { ...prev, ai_credits_used: (prev.ai_credits_used || 0) + AI_SUGGESTION_COST }
+                    : prev
                 );
             }
 
@@ -245,11 +242,11 @@ const DashboardReviews: React.FC = () => {
                                                 <button onClick={() => setRespondingTo(review.id)} className="bg-green-100 text-brand-green font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{t('businessDashboard.respond')}</button>
                                                 <button
                                                     onClick={() => handleSuggestReplies(review)}
-                                                    disabled={isSuggesting === review.id || !review.review_text || business.plan === 'free'}
+                                                    disabled={isSuggesting === review.id || !review.review_text || profile?.plan === 'free'}
                                                     className="bg-purple-100 text-purple-800 font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                                    title={business.plan === 'free' ? 'Mejora tu plan para usar sugerencias con IA' : 'Generar respuestas sugeridas'}
+                                                    title={profile?.plan === 'free' ? 'Mejora tu plan para usar sugerencias con IA' : 'Generar respuestas sugeridas'}
                                                 >
-                                                    {business.plan === 'free' && <i className="fa-solid fa-lock text-xs mr-1.5 sm:mr-2"></i>}
+                                                    {profile?.plan === 'free' && <i className="fa-solid fa-lock text-xs mr-1.5 sm:mr-2"></i>}
                                                     {isSuggesting === review.id ? t('common.creating') : t('businessDashboard.suggestWithAI')}
                                                 </button>
                                             </div>

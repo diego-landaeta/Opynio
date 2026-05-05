@@ -8,6 +8,7 @@ import ReviewCard from '../../../ReviewCard';
 import RatingDistribution from '../../../RatingDistribution';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg shadow-sm flex items-center justify-between border dark:border-zinc-700">
@@ -21,18 +22,19 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: string }
     </div>
 );
 
-// FIX: Add 'enterprise' plan to PLAN_CREDIT_LIMITS to match the Plan type definition.
 const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
     free: 0,
     starter: 200,
     growth: 1000,
-    pro: 5000, // Assumption
-    enterprise: 100000, // High limit for enterprise
+    pro: 5000,
+    v2: 100000,
+    enterprise: 100000,
 };
 
 
 const DashboardOverview: React.FC = () => {
     const { business } = useBusinessDashboard();
+    const { profile } = useAuth();
     const t = useTranslation();
     const { language } = useI18n();
     const [stats, setStats] = useState<{
@@ -92,10 +94,12 @@ const DashboardOverview: React.FC = () => {
         return <div className="text-center text-sm sm:text-base p-6 sm:p-8">{t('businessDashboard.errorLoadingStats')}</div>;
     }
 
-    const creditLimit = (business.plan === 'enterprise' && business.profiles?.ai_credit_limit)
-        ? business.profiles.ai_credit_limit
-        : PLAN_CREDIT_LIMITS[business.plan];
-    const creditsUsed = business.ai_credits_used || 0;
+    // Plan, créditos y AI usage viven en `profiles`, NO en `businesses`.
+    const currentPlan: Plan = profile?.plan ?? 'free';
+    const creditLimit = (currentPlan === 'enterprise' && profile?.ai_credit_limit)
+        ? profile.ai_credit_limit
+        : PLAN_CREDIT_LIMITS[currentPlan];
+    const creditsUsed = profile?.ai_credits_used || 0;
 
     return (
         <div className="space-y-5 sm:space-y-6 md:space-y-8">

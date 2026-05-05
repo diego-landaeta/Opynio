@@ -9,12 +9,14 @@ import { useI18n, useTranslation, pathTranslations, useAutoTranslation, getLangu
 import { useCountry } from '../../../contexts/CountryContext';
 import { getBusinessById, getBusinessByName } from '../../../services/supabaseService';
 
-// FIX: Add 'enterprise' plan to PLAN_HIERARCHY to match the Plan type definition.
+// 'v2' (premium test) tiene el mismo nivel de gating que enterprise: desbloquea
+// toda la jerarquía de features.
 const PLAN_HIERARCHY: Record<Plan, number> = {
     free: 0,
     starter: 1,
     growth: 2,
     pro: 3,
+    v2: 4,
     enterprise: 4,
 };
 

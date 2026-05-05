@@ -18,6 +18,7 @@ const PLAN_HIERARCHY: Record<Plan, number> = {
     starter: 1,
     growth: 2,
     pro: 3,
+    v2: 4,
     enterprise: 4,
 };
 

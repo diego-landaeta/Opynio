@@ -10,6 +10,7 @@ const PLAN_DESCRIPTIONS: Record<Plan, { nameKey: string; descriptionKey: string;
     starter: { nameKey: 'businessDashboard.starterPlanName', descriptionKey: 'businessDashboard.starterPlanDesc', color: 'text-green-500' },
     growth: { nameKey: 'businessDashboard.growthPlanName', descriptionKey: 'businessDashboard.growthPlanDesc', color: 'text-blue-500' },
     pro: { nameKey: 'businessDashboard.proPlanName', descriptionKey: 'businessDashboard.proPlanDesc', color: 'text-purple-500' },
+    v2: { nameKey: 'businessDashboard.proPlanName', descriptionKey: 'businessDashboard.proPlanDesc', color: 'text-pink-500' },
     enterprise: { nameKey: 'businessDashboard.enterprisePlanName', descriptionKey: 'businessDashboard.enterprisePlanDesc', color: 'text-indigo-500' },
 };
 

@@ -7,13 +7,13 @@ import { Plan } from '../../../../types';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
 
-// FIX: Add 'enterprise' plan to PLAN_CREDIT_LIMITS to match the Plan type definition.
 const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
     free: 0,
     starter: 200,
     growth: 1000,
-    pro: 5000, // Assumption
-    enterprise: 100000, // High limit for enterprise
+    pro: 5000,
+    v2: 100000,        // premium test: alto pero finito
+    enterprise: 100000,
 };
 
 const DashboardBilling: React.FC = () => {
@@ -28,19 +28,32 @@ const DashboardBilling: React.FC = () => {
         return null;
     }
 
-    // FIX: Use the business object for plan and credit information.
-    const { plan, billing_cycle, plan_expires_at, ai_credits_used, ai_credits_last_reset } = business;
+    // Plan, billing cycle, expiración y créditos viven en `profiles` (no en `businesses`).
+    const { plan, billing_cycle, plan_expires_at, ai_credits_used, ai_credits_last_reset } = profile;
 
-    const renewalDate = plan_expires_at 
+    const renewalDate = plan_expires_at
         ? new Date(plan_expires_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
-        
-    const creditLimit = (plan === 'enterprise' && business.profiles?.ai_credit_limit) 
-        ? business.profiles.ai_credit_limit 
+
+    const creditLimit = (plan === 'enterprise' && profile.ai_credit_limit)
+        ? profile.ai_credit_limit
         : PLAN_CREDIT_LIMITS[plan];
     const creditsUsed = ai_credits_used || 0;
     const creditPercentage = creditLimit > 0 ? (creditsUsed / creditLimit) * 100 : 0;
-    const creditResetDate = ai_credits_last_reset ? new Date(new Date(ai_credits_last_reset).setMonth(new Date(ai_credits_last_reset).getMonth() + 1)).toLocaleDateString('es-ES') : 'N/A';
+
+    // setMonth con día 31 desborda al mes siguiente (ene 31 → mar 3). Para
+    // evitarlo, sumamos un mes con clamping al último día del mes destino.
+    const computeNextResetDate = (lastResetIso: string | null | undefined): string => {
+        if (!lastResetIso) return 'N/A';
+        const last = new Date(lastResetIso);
+        const target = new Date(last);
+        target.setDate(1);
+        target.setMonth(target.getMonth() + 1);
+        const lastDayOfTargetMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+        target.setDate(Math.min(last.getDate(), lastDayOfTargetMonth));
+        return target.toLocaleDateString('es-ES');
+    };
+    const creditResetDate = computeNextResetDate(ai_credits_last_reset);
 
     const handleManageSubscription = async () => {
         setIsPortalLoading(true);
@@ -94,9 +107,13 @@ const DashboardBilling: React.FC = () => {
 
                 <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <button
+                        type="button"
                         onClick={handleManageSubscription}
+                        // Sólo planes pagos (no free, no enterprise) gestionan vía Stripe Portal.
+                        // Enterprise no factura por Stripe → el portal estaría vacío.
                         className="w-full bg-brand-blue text-white font-bold py-2.5 sm:py-3 px-5 sm:px-6 rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
-                        disabled={isPortalLoading || plan === 'free'}
+                        disabled={isPortalLoading || plan === 'free' || plan === 'enterprise'}
+                        title={plan === 'enterprise' ? 'Tu plan Enterprise no se gestiona por el portal de pagos. Contacta con tu account manager.' : undefined}
                     >
                         {isPortalLoading ? t('businessDashboard.opening') : t('businessDashboard.manageSubscription')}
                     </button>

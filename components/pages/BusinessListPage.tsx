@@ -41,12 +41,12 @@ const BusinessListPage: React.FC = () => {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
     }
 
-    // FIX: Add 'enterprise' plan to PLAN_LIMITS to match the Plan type definition.
     const PLAN_LIMITS: Record<Plan, number> = {
         free: 1,
         starter: 1,
         growth: 3,
         pro: 10,
+        v2: 20,
         enterprise: Infinity,
     };
 

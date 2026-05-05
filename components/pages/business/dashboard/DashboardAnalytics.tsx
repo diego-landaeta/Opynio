@@ -7,12 +7,12 @@ import { getBusinessAnalytics } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
 
-// FIX: Add 'enterprise' plan to PLAN_HIERARCHY to match the Plan type definition.
 const PLAN_HIERARCHY: Record<Plan, number> = {
     free: 0,
     starter: 1,
     growth: 2,
     pro: 3,
+    v2: 4,
     enterprise: 4,
 };
 

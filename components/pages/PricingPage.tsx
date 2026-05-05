@@ -35,9 +35,10 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
 
 const PricingPage = () => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-    const { user, businesses } = useAuth();
+    const { user, businesses, profile } = useAuth();
     const { showNotification } = useNotification();
     const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+    const [openingPortal, setOpeningPortal] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
@@ -48,6 +49,35 @@ const PricingPage = () => {
     const hasExistingBusinesses = !!user && businesses && businesses.length > 0;
     const primaryBusinessId = businesses?.[0]?.id;
 
+    // Plan + ciclo actuales según profile (la fuente de verdad mirror del webhook).
+    const currentPlanName = profile?.plan ?? null;
+    const currentBillingCycle = profile?.billing_cycle ?? null;
+
+    // El usuario ya está suscrito al mismo (plan, ciclo) que está mirando.
+    // En ese caso, en lugar de re-checkout, abrimos el portal de Stripe.
+    const isCurrentSubscription = (planName: string) =>
+        !!user &&
+        currentPlanName === planName &&
+        currentBillingCycle === billingCycle &&
+        planName !== 'free' &&
+        planName !== 'enterprise';
+
+    const handleManageBilling = async () => {
+        setOpeningPortal(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-portal-session');
+            if (error) throw error;
+            if (data?.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No se recibió la URL del portal de facturación.');
+            }
+        } catch (err: any) {
+            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+            setOpeningPortal(false);
+        }
+    };
+
     const handleUpgradeExistingBusiness = async (planName: string) => {
         if (!primaryBusinessId) return;
         setUpgradingPlan(planName);
@@ -55,7 +85,19 @@ const PricingPage = () => {
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
                 body: { plan: planName, billingCycle, businessId: primaryBusinessId },
             });
-            if (error) throw error;
+            if (error) {
+                // El backend devuelve 409 con error: 'duplicate_subscription' si el
+                // usuario ya tiene este plan activo. En ese caso, mandamos al portal.
+                // deno-lint-ignore no-explicit-any
+                const ctx: any = (error as any)?.context;
+                const status = ctx?.response?.status ?? ctx?.status;
+                if (status === 409) {
+                    setUpgradingPlan(null);
+                    await handleManageBilling();
+                    return;
+                }
+                throw error;
+            }
             if (data?.url) {
                 window.location.href = data.url;
             } else {
@@ -194,11 +236,11 @@ const PricingPage = () => {
                         let ctaLinkTarget = plan.ctaLink;
 
                         // 1) Sin login: ir a /registro?type=business&plan=X (default).
-                        // 2) Con login y SIN negocios: ir a /asignar-empresa?plan=X.
+                        // 2) Con login y SIN negocios: ir a /asignar-empresa?plan=X&billingCycle=Y.
                         // 3) Con login Y CON negocios: el botón se convierte en click handler
                         //    que dispara el checkout de Stripe directamente para upgrade.
                         if (user && !isEnterprise && !hasExistingBusinesses) {
-                            ctaLinkTarget = `/${pathTranslations.es.assignBusiness}?plan=${planName}`;
+                            ctaLinkTarget = `/${pathTranslations.es.assignBusiness}?plan=${planName}&billingCycle=${billingCycle}`;
                         }
                         const shouldUpgradeInPlace = user && !isEnterprise && hasExistingBusinesses;
 
@@ -241,7 +283,23 @@ const PricingPage = () => {
                                         )}
                                     </div>
 
-                                    {shouldUpgradeInPlace ? (
+                                    {isCurrentSubscription(planName) ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleManageBilling}
+                                            disabled={openingPortal}
+                                            className={`w-full text-center font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.isPopular ? 'bg-brand-blue text-white hover:bg-opacity-90 shadow-md' : 'bg-blue-50 text-brand-blue hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50'}`}
+                                        >
+                                            {openingPortal ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                    <span>Abriendo portal…</span>
+                                                </>
+                                            ) : (
+                                                <span><i className="fa-solid fa-credit-card mr-2"></i>{t('myBusinesses.manageBilling')}</span>
+                                            )}
+                                        </button>
+                                    ) : shouldUpgradeInPlace ? (
                                         <button
                                             type="button"
                                             onClick={() => handleUpgradeExistingBusiness(planName)}

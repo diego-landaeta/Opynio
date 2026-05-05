@@ -155,6 +155,7 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
         { key: 'pricingPage.proFeature8', icon: 'fa-solid fa-code-compare', comingSoon: true },
         { key: 'pricingPage.proFeature9', icon: 'fa-solid fa-headset', comingSoon: true },
     ],
+    v2: [],
     enterprise: [],
 };
 
@@ -177,6 +178,7 @@ const BusinessListPage: React.FC = () => {
         starter: 1,
         growth: 3,
         pro: 10,
+        v2: 20,
         enterprise: Infinity,
     };
 
@@ -207,7 +209,13 @@ const BusinessListPage: React.FC = () => {
             navigate(`${countryPrefix}/${paths.pricing}`);
             return;
         }
-        // Active paid (or enterprise) plan → open the Stripe customer portal.
+        // Enterprise no factura por Stripe → el portal estaría vacío. Lo mandamos
+        // a soporte/contacto en su lugar.
+        if (profile.plan === 'enterprise') {
+            navigate(`${countryPrefix}/${paths.support}`);
+            return;
+        }
+        // Active paid plan → open the Stripe customer portal.
         setBillingLoading(true);
         try {
             const { data, error } = await supabase.functions.invoke('create-portal-session');

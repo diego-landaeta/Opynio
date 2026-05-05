@@ -2,17 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { upgradeUserToBusinessOwner, supabase, getUserProfile, getBusinessesForOwner } from '../../services/supabaseService';
-import { CATEGORIES, STRIPE_PUBLISHABLE_KEY, COUNTRIES } from '../../constants';
+import { CATEGORIES, COUNTRIES } from '../../constants';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useCountry } from '../../contexts/CountryContext';
 import Meta from '../Meta';
 import Modal from '../Modal';
 import L from 'leaflet';
 import type { Plan } from '../../types';
-import { loadStripe } from '@stripe/stripe-js';
 import { useI18n, pathTranslations, useTranslation, getLanguageForCountryCode } from '../../contexts/i18nContext';
-
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
 
 const AssignBusinessPage: React.FC = () => {
     const [searchParams] = ReactRouterDOM.useSearchParams();
@@ -29,6 +26,7 @@ const AssignBusinessPage: React.FC = () => {
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
     const [plan, setPlan] = useState<string | null>(null);
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form state
@@ -41,14 +39,29 @@ const AssignBusinessPage: React.FC = () => {
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
 
+    // Flag que evita que el guard "free + ya tiene negocio" se redispare cuando
+    // `businesses` se actualiza tras una creación exitosa (race condition).
+    const hasJustCreatedRef = useRef(false);
+
     useEffect(() => {
         const planParam = searchParams.get('plan');
         if (planParam) {
             setPlan(planParam);
         }
+        // billingCycle viene de PricingPage por query string. Default mensual.
+        const cycleParam = searchParams.get('billingCycle');
+        if (cycleParam === 'annual' || cycleParam === 'monthly') {
+            setBillingCycle(cycleParam);
+        }
     }, [searchParams]);
 
     useEffect(() => {
+        // No redirigir si acabamos de crear el negocio en esta misma sesión:
+        // `businesses.length` pasa de 0 a 1 y el effect se redispara antes de que
+        // navegamos a /mis-negocios → falsa alarma "ya tienes 1 negocio gratis".
+        if (hasJustCreatedRef.current) return;
+        if (isSubmitting) return;
+
         const isFreePlanUser = profile?.plan === 'free';
         const urlPlan = searchParams.get('plan');
 
@@ -57,7 +70,7 @@ const AssignBusinessPage: React.FC = () => {
             showNotification(t('assignBusiness.freePlanLimitError'), 'error');
             navigate('/planes', { replace: true });
         }
-    }, [profile, businesses, searchParams, showNotification, navigate]);
+    }, [profile, businesses, searchParams, showNotification, navigate, isSubmitting, t]);
     
     useEffect(() => {
         if (mapContainerRef.current && !mapRef.current) {
@@ -128,6 +141,9 @@ const AssignBusinessPage: React.FC = () => {
                     longitude: location?.lng,
                 });
 
+                // Marca antes de actualizar el contexto para que el useEffect de guard
+                // ignore el cambio de `businesses` que viene a continuación.
+                hasJustCreatedRef.current = true;
                 showNotification(t('assignBusiness.businessCreatedSuccess'), 'success');
                 if (user) {
                     const [updatedProfile, newBusinesses] = await Promise.all([
@@ -150,7 +166,7 @@ const AssignBusinessPage: React.FC = () => {
             const { data, error: sessionError } = await supabase.functions.invoke('create-checkout-session', {
                 body: {
                     plan,
-                    billingCycle: 'monthly',
+                    billingCycle,
                     businessData: {
                         name: formData.name,
                         category: formData.category,
