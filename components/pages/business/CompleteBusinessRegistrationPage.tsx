@@ -154,8 +154,27 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         }
     };
 
-    const flagEmoji = (code: string) =>
-        code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+    // Las banderas Regional Indicator Symbols no se renderizan en Windows
+    // (muestra "US", "ES", etc. en texto plano). Usamos FlagCDN — CDN público
+    // con todas las banderas ISO 3166-1 alpha-2 — para garantizar renderizado
+    // consistente en todos los SO/navegadores. Wrapper con aspect-ratio fijo
+    // para evitar layout shift mientras carga la imagen.
+    const CountryFlag: React.FC<{ code: string; size?: 'sm' | 'md' | 'lg' }> = ({ code, size = 'md' }) => {
+        const lower = code.toLowerCase();
+        const dim = size === 'sm' ? { w: 16, h: 12 } : size === 'lg' ? { w: 28, h: 21 } : { w: 22, h: 16 };
+        return (
+            <img
+                src={`https://flagcdn.com/w40/${lower}.png`}
+                srcSet={`https://flagcdn.com/w80/${lower}.png 2x`}
+                alt={code}
+                width={dim.w}
+                height={dim.h}
+                loading="lazy"
+                className="inline-block rounded-sm shadow-sm align-middle"
+                style={{ width: `${dim.w}px`, height: `${dim.h}px`, objectFit: 'cover' }}
+            />
+        );
+    };
 
     const userDisplayName =
         (user?.user_metadata?.full_name as string | undefined) ||
@@ -319,8 +338,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                     País <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className="relative group">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl pointer-events-none" aria-hidden="true">
-                                                        {flagEmoji(businessCountry)}
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true">
+                                                        <CountryFlag code={businessCountry} size="md" />
                                                     </span>
                                                     <select
                                                         id="businessCountry"
@@ -356,7 +375,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{businessName}</p>
                                                         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
-                                                            <span aria-hidden="true">{flagEmoji(businessCountry)}</span>
+                                                            <CountryFlag code={businessCountry} size="sm" />
                                                             <span>{COUNTRIES.find(c => c.code === businessCountry)?.name || businessCountry}</span>
                                                         </p>
                                                     </div>
@@ -541,7 +560,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                 <div className="p-5">
                                     <div className="flex items-start gap-3">
                                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-green/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-2xl">{flagEmoji(businessCountry)}</span>
+                                            <CountryFlag code={businessCountry} size="lg" />
                                         </div>
                                         <div className="min-w-0 flex-grow">
                                             <p className="font-bold text-gray-800 dark:text-gray-100 truncate">
