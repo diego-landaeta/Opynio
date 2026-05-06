@@ -641,6 +641,17 @@ const App = () => {
                                         <Route element={<BusinessRoute><Outlet /></BusinessRoute>}>
                                             {uniquePaths.myBusinesses?.map(p => <Route key={`country-myBusinesses-${p}`} path={p} element={<BusinessListPage />} />)}
                                             {uniquePaths.migrateGoogleReviews?.map(p => <Route key={`country-migrateGoogleReviews-${p}`} path={p} element={<MigrateGoogleReviewsPage />} />)}
+                                            {/* businessDashboard también necesita country prefix; sin esto
+                                                las URLs /:lang/empresa/panel/:nombre caían al 404. */}
+                                            <Route path={pathTranslations.es.businessDashboard} element={<BusinessDashboardPage />}>
+                                                <Route index element={<DashboardOverview />} />
+                                                <Route path={pathTranslations.es.dashboardReviews} element={<DashboardReviews />} />
+                                                <Route path={pathTranslations.es.dashboardAnalytics} element={<DashboardAnalytics />} />
+                                                <Route path={pathTranslations.es.dashboardInvitations} element={<DashboardInvitations />} />
+                                                <Route path={pathTranslations.es.dashboardWidgets} element={<DashboardWidgets />} />
+                                                <Route path={pathTranslations.es.dashboardEdit} element={<EditBusinessPage />} />
+                                                <Route path={pathTranslations.es.dashboardUserManual} element={<DashboardUserManual />} />
+                                            </Route>
                                         </Route>
                                     </Route>
 
