@@ -8,16 +8,15 @@ import { useCountry } from '../../contexts/CountryContext';
 import { getPlanBenefits } from '../PlanActivatedModal';
 import type { Plan } from '../../types';
 
-// Pantalla dedicada de "gracias por tu suscripción". Se monta como overlay
-// fijo full-screen (z-[60]) que tapa el Header (z-30) y el Footer del
-// MainLayout — el flujo post-pago tiene su propio chrome dedicado, sin
-// distracciones de navegación. Sin confeti pero con atmósfera (gradient
-// orbs blureados, halo en el check, gradient text en el título) para
-// transmitir celebración serena, premium.
+// Confirmación de suscripción tras pago. Diseño tipo "documento" /
+// recibo enterprise: tipografía clara, secciones etiquetadas, sin
+// ornamentos (gradient text, halos, orbes…). Brand-green sólo en el
+// check y el CTA primario; color del plan limitado al badge.
 //
-// Esta página NO dispara el PlanActivatedModal global: la propia página ES
-// la celebración. El modal sigue usándose en el flujo de registro free
-// (CompleteBusinessRegistrationPage) donde no hay /pago-exitoso.
+// Overlay full-screen (z-[60]) tapando Header (z-30) y Footer del
+// MainLayout — no se ve navegación, la pantalla es dedicada.
+//
+// No dispara el PlanActivatedModal global (esta página ya celebra).
 
 const PaymentSuccessPage: React.FC = () => {
     const { user, profile, setProfile, setBusinesses } = useAuth();
@@ -29,14 +28,8 @@ const PaymentSuccessPage: React.FC = () => {
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
-    // Tras el pago refresca profile y businesses para que cualquier
-    // navegación posterior use los datos actualizados (plan ya promocionado
-    // por el webhook de Stripe). Limpia también el flag del PlanActivatedModal
-    // para evitar que el popup se asome encima — la propia página ya celebra.
     useEffect(() => {
         try { localStorage.removeItem('opynio_pending_plan_welcome'); } catch {}
-        // Bloqueamos el scroll del body mientras el overlay está montado para
-        // que la celebración se sienta como una toma full-screen real.
         const prevOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         const refreshUserData = async () => {
@@ -58,17 +51,9 @@ const PaymentSuccessPage: React.FC = () => {
         };
     }, [user, setProfile, setBusinesses]);
 
-    // Plan info — usa profile.plan si está cargado, fallback v2 (asumimos
-    // que el flujo de pago aterriza aquí solo para planes pagos).
     const plan: Plan = (profile?.plan as Plan | undefined) ?? 'v2';
     const data = getPlanBenefits(plan, t);
     const planLabel = plan === 'v2' ? 'v.2' : plan.charAt(0).toUpperCase() + plan.slice(1);
-
-    // Tagline con el plan name interpolado en la cadena traducida.
-    const taglineTpl = t('paymentSuccessPage.taglineWithPlan');
-    const taglineWithPlan = taglineTpl
-        .replace('{planName}', planLabel)
-        .replace('{planTagline}', data.tagline);
 
     return (
         <>
@@ -78,136 +63,128 @@ const PaymentSuccessPage: React.FC = () => {
                 noindex={true}
             />
 
-            {/* Overlay full-screen z-[60] tapando Header (z-30) y Footer */}
-            <div className="fixed inset-0 z-[60] overflow-y-auto bg-white dark:bg-zinc-950 animate-fade-in-page">
+            <div className="fixed inset-0 z-[60] overflow-y-auto bg-gray-50 dark:bg-zinc-950">
 
-                {/* Atmósfera — orbes gradient blureados muy sutiles, evocan
-                    celebración sin recurrir a confeti */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-                    <div className={`absolute -top-[20%] -left-[15%] w-[700px] h-[700px] rounded-full bg-gradient-to-br ${data.color} opacity-[0.10] dark:opacity-[0.18] blur-[120px]`} />
-                    <div className={`absolute -bottom-[20%] -right-[15%] w-[700px] h-[700px] rounded-full bg-gradient-to-br ${data.color} opacity-[0.08] dark:opacity-[0.14] blur-[120px]`} />
-                </div>
+                {/* ───────── Top bar: solo wordmark, sin nav ───────── */}
+                <header className="border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+                        <Link to={`${countryPrefix}/`} className="text-lg font-extrabold text-brand-green tracking-tight">
+                            Opynio
+                        </Link>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500">
+                            {t('paymentSuccessPage.eyebrow')}
+                        </span>
+                    </div>
+                </header>
 
-                {/* Línea fina superior con gradient del plan */}
-                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${data.color}`} aria-hidden="true" />
+                {/* ───────── Documento de confirmación ───────── */}
+                <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14 animate-fade-page">
+                    <article className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
 
-                {/* Mini header con sólo el wordmark — recuerda dónde estás */}
-                <div className="relative z-10 px-6 py-5 flex items-center justify-center">
-                    <Link to={`${countryPrefix}/`} className="text-xl font-extrabold text-brand-green tracking-tight">
-                        Opynio
-                    </Link>
-                </div>
-
-                {/* Contenido centrado vertical */}
-                <div className="relative z-10 min-h-[calc(100vh-80px)] flex items-center justify-center px-6 pb-12">
-                    <div className="w-full max-w-2xl text-center">
-
-                        {/* Hero check con halo pulsante — "ganas" sin ser juguetón */}
-                        <div className="relative mx-auto w-20 h-20 mb-7">
-                            <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${data.color} opacity-40 blur-2xl animate-pulse-soft`} aria-hidden="true" />
-                            <div className={`relative w-full h-full rounded-full bg-gradient-to-br ${data.color} flex items-center justify-center shadow-xl`}>
-                                <i className="fa-solid fa-check text-white text-3xl" aria-hidden="true"></i>
+                        {/* Cabecera del documento */}
+                        <div className="px-6 sm:px-10 pt-10 pb-8 border-b border-gray-100 dark:border-zinc-800">
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-brand-green/10 dark:bg-brand-green/15 flex items-center justify-center">
+                                    <i className="fa-solid fa-check text-brand-green text-base" aria-hidden="true"></i>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-tight">
+                                        {t('paymentSuccessPage.thanksTitle')}
+                                    </h1>
+                                    <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed">
+                                        {t('paymentSuccessPage.taglineWithPlan')
+                                            .replace('{planName}', planLabel)
+                                            .replace('{planTagline}', data.tagline)}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Eyebrow */}
-                        <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                            {t('paymentSuccessPage.eyebrow')}
-                        </p>
-
-                        {/* Título con gradient text — gana presencia sin gritar */}
-                        <h1 className={`mt-3 text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r ${data.color} bg-clip-text text-transparent leading-[1.05] pb-1`}>
-                            {t('paymentSuccessPage.thanksTitle')}
-                        </h1>
-
-                        {/* Tagline con plan name */}
-                        <p className="mt-5 text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-xl mx-auto leading-relaxed">
-                            {taglineWithPlan}
-                        </p>
-
-                        {/* Plan badge prominente con icono del plan */}
-                        <div className={`inline-flex items-center gap-2.5 mt-7 px-5 py-2.5 rounded-full bg-gradient-to-r ${data.color} text-white text-xs sm:text-sm font-bold uppercase tracking-wider shadow-xl`}>
-                            <i className={`fa-solid ${data.icon} text-base`} aria-hidden="true"></i>
-                            <span>Plan {planLabel}</span>
-                        </div>
-
-                        {/* Features en grid 2-col — mejor uso del ancho, ritmo visual */}
-                        <div className="mt-12 grid sm:grid-cols-2 gap-x-6 gap-y-3 text-left max-w-xl mx-auto">
-                            {data.features.map((feat, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-start gap-3 p-3 rounded-lg bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm border border-gray-200/60 dark:border-zinc-800/60 animate-fade-up-page"
-                                    style={{ animationDelay: `${120 + i * 80}ms` }}
-                                >
-                                    <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-brand-green/15 text-brand-green flex items-center justify-center">
-                                        <i className="fa-solid fa-check text-[10px]" aria-hidden="true"></i>
-                                    </span>
-                                    <span className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-                                        {feat}
-                                    </span>
+                        {/* Sección: PLAN ACTIVO */}
+                        <section className="px-6 sm:px-10 py-7 border-b border-gray-100 dark:border-zinc-800">
+                            <div className="flex items-baseline justify-between mb-4">
+                                <h2 className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                                    Plan activo
+                                </h2>
+                                <span className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
+                                    {new Date().toLocaleDateString(language, { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className={`flex-shrink-0 w-9 h-9 rounded-md bg-gradient-to-br ${data.color} flex items-center justify-center shadow-sm`}>
+                                    <i className={`fa-solid ${data.icon} text-white text-sm`} aria-hidden="true"></i>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-base font-bold text-gray-900 dark:text-gray-100">
+                                        {data.title.replace(/[¡!]/g, '').trim()}
+                                    </p>
+                                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                        {data.tagline}
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
 
-                        {/* CTAs — primario grande con shadow glow del color del plan */}
-                        <div className="mt-12 flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
-                            <Link
-                                to={`${countryPrefix}/${paths.myBusinesses}`}
-                                className={`flex-1 bg-gradient-to-r ${data.color} text-white font-bold px-7 py-4 rounded-xl text-base shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2`}
-                            >
-                                <span>{t('paymentSuccessPage.ctaPrimary')}</span>
-                                <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true"></i>
-                            </Link>
-                            <Link
-                                to={`${countryPrefix}/${paths.profile}`}
-                                className="flex-1 bg-white/80 dark:bg-zinc-900/80 backdrop-blur text-gray-700 dark:text-gray-200 font-semibold px-7 py-4 rounded-xl text-base border border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 hover:bg-white dark:hover:bg-zinc-900 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <i className="fa-solid fa-user text-sm" aria-hidden="true"></i>
-                                <span>{t('paymentSuccessPage.ctaSecondary')}</span>
-                            </Link>
-                        </div>
+                        {/* Sección: INCLUYE */}
+                        <section className="px-6 sm:px-10 py-7 border-b border-gray-100 dark:border-zinc-800">
+                            <h2 className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400 mb-4">
+                                {t('paymentSuccessPage.divider')}
+                            </h2>
+                            <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                                {data.features.map((feat, i) => (
+                                    <li key={i} className="flex items-start gap-2.5">
+                                        <i className="fa-solid fa-check text-brand-green text-xs mt-1.5 flex-shrink-0" aria-hidden="true"></i>
+                                        <span className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                                            {feat}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
 
-                        {/* Footer minimal — info del recibo + soporte */}
-                        <div className="mt-12 pt-6 border-t border-gray-200/60 dark:border-zinc-800/60 max-w-md mx-auto text-xs text-gray-500 dark:text-gray-500 leading-relaxed">
-                            <p>
-                                <i className="fa-solid fa-envelope-open-text mr-1.5 text-gray-400" aria-hidden="true"></i>
+                        {/* Sección: RECIBO + SOPORTE */}
+                        <section className="px-6 sm:px-10 py-6 bg-gray-50/50 dark:bg-zinc-950/40">
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                <i className="fa-solid fa-envelope-open-text mr-1.5 text-gray-400 dark:text-gray-500" aria-hidden="true"></i>
                                 {t('paymentSuccessPage.receiptNote')}
                             </p>
-                            <p className="mt-1.5">
+                            <p className="mt-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                 {t('paymentSuccessPage.supportPrompt')}{' '}
                                 <Link
                                     to={`${countryPrefix}/${paths.support}`}
-                                    className="text-brand-green hover:underline font-medium"
+                                    className="text-brand-green hover:underline font-semibold"
                                 >
                                     {t('paymentSuccessPage.supportLink')}
                                 </Link>
                             </p>
-                        </div>
+                        </section>
+                    </article>
+
+                    {/* ───────── CTAs fuera del documento — focus en acción ───────── */}
+                    <div className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                        <Link
+                            to={`${countryPrefix}/${paths.myBusinesses}`}
+                            className="flex-1 bg-brand-green text-white font-semibold px-6 py-3.5 rounded-lg text-sm sm:text-base shadow-sm hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span>{t('paymentSuccessPage.ctaPrimary')}</span>
+                            <i className="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i>
+                        </Link>
+                        <Link
+                            to={`${countryPrefix}/${paths.profile}`}
+                            className="flex-1 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 font-semibold px-6 py-3.5 rounded-lg text-sm sm:text-base border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
+                        >
+                            {t('paymentSuccessPage.ctaSecondary')}
+                        </Link>
                     </div>
-                </div>
+                </main>
 
                 <style>{`
-                    @keyframes fade-in-page {
-                        from { opacity: 0; }
-                        to   { opacity: 1; }
-                    }
-                    .animate-fade-in-page {
-                        animation: fade-in-page 0.4s ease-out forwards;
-                    }
-                    @keyframes fade-up-page {
-                        from { opacity: 0; transform: translateY(8px); }
+                    @keyframes fade-page {
+                        from { opacity: 0; transform: translateY(4px); }
                         to   { opacity: 1; transform: translateY(0); }
                     }
-                    .animate-fade-up-page {
-                        opacity: 0;
-                        animation: fade-up-page 0.5s ease-out forwards;
-                    }
-                    @keyframes pulse-soft {
-                        0%, 100% { opacity: 0.40; transform: scale(1); }
-                        50%      { opacity: 0.60; transform: scale(1.08); }
-                    }
-                    .animate-pulse-soft {
-                        animation: pulse-soft 2.4s ease-in-out infinite;
+                    .animate-fade-page {
+                        animation: fade-page 0.35s ease-out forwards;
                     }
                 `}</style>
             </div>
