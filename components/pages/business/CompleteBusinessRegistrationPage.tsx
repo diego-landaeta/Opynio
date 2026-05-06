@@ -182,12 +182,18 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             {/* Wrapper con margenes negativos para que el hero verde llegue a los bordes */}
             <div className="relative -mx-3 sm:-mx-4 md:-mx-6 -mt-8 sm:-mt-10 md:-mt-12 pb-12">
 
-                {/* === HERO verde gradient con step indicator === */}
-                <div className="relative bg-gradient-to-br from-emerald-600 via-brand-green to-teal-500 px-4 pt-12 pb-32 sm:pt-16 sm:pb-40 overflow-hidden">
-                    {/* Patrón decorativo radial */}
-                    <div className="absolute inset-0 opacity-30 pointer-events-none"
-                         style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.18) 0%, transparent 35%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.12) 0%, transparent 35%)' }}>
+                {/* === HERO verde gradient con step indicator ===
+                    rounded-b-[X] curva el bottom para que no se vea como un rectángulo
+                    plano cortado. La curva es generosa pero responsive: 32px en móvil,
+                    48px en tablet, 64px en desktop. */}
+                <div className="relative bg-gradient-to-br from-emerald-600 via-brand-green to-teal-500 px-4 pt-10 pb-28 sm:pt-16 sm:pb-40 overflow-hidden rounded-b-[32px] sm:rounded-b-[48px] lg:rounded-b-[64px]">
+                    {/* Patrones decorativos radiales — varios para dar profundidad y
+                        evitar la sensación de "fondo plano". */}
+                    <div className="absolute inset-0 opacity-40 pointer-events-none"
+                         style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.22) 0%, transparent 40%), radial-gradient(circle at 85% 75%, rgba(255,255,255,0.16) 0%, transparent 40%), radial-gradient(circle at 50% 100%, rgba(16,185,129,0.35) 0%, transparent 50%)' }}>
                     </div>
+                    {/* Suave fade hacia el body en el bottom para difuminar mejor */}
+                    <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none bg-gradient-to-t from-emerald-600/0 via-emerald-600/0 to-emerald-700/20"></div>
 
                     <div className="relative max-w-4xl mx-auto text-center">
                         <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-white/80 mb-3">
@@ -219,20 +225,23 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     : 'bg-white/25';
                                 return (
                                     <React.Fragment key={step.label}>
-                                        <div className="flex flex-col items-center gap-2 min-w-0">
-                                            <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 flex items-center justify-center transition-all ${dotClasses}`}>
+                                        <div className="flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
+                                            <div className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full border-2 flex items-center justify-center transition-all ${dotClasses}`}>
                                                 {step.done ? (
-                                                    <i className="fa-solid fa-check text-sm"></i>
+                                                    <i className="fa-solid fa-check text-xs sm:text-sm"></i>
                                                 ) : (
-                                                    <i className={`fa-solid ${step.icon} text-xs sm:text-sm`}></i>
+                                                    <i className={`fa-solid ${step.icon} text-[10px] sm:text-sm`}></i>
                                                 )}
                                             </div>
-                                            <span className={`text-[10px] sm:text-xs uppercase tracking-wider whitespace-nowrap ${labelClasses}`}>
+                                            {/* En mobile (xs) ocultamos labels; sólo se muestran a partir de sm
+                                                para evitar texto apretado / overflow. El paso actual mantiene su
+                                                label visible siempre como referencia. */}
+                                            <span className={`text-[10px] sm:text-xs uppercase tracking-wider whitespace-nowrap ${labelClasses} ${step.current ? 'inline-block' : 'hidden sm:inline-block'}`}>
                                                 {step.label}
                                             </span>
                                         </div>
                                         {!isLast && (
-                                            <div className={`flex-1 h-0.5 mx-1 sm:mx-2 -mt-5 sm:-mt-6 transition-all ${connectorClasses}`}></div>
+                                            <div className={`flex-1 h-0.5 mx-1 sm:mx-2 -mt-4 sm:-mt-6 transition-all ${connectorClasses}`}></div>
                                         )}
                                     </React.Fragment>
                                 );
@@ -242,12 +251,12 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                 </div>
 
                 {/* === Card flotante con sombra de color brand === */}
-                <div className="relative max-w-5xl mx-auto px-4 -mt-20 sm:-mt-24">
-                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-6 lg:gap-8 items-start">
+                <div className="relative max-w-5xl mx-auto px-3 sm:px-4 -mt-16 sm:-mt-24">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-5 sm:gap-6 lg:gap-8 items-start">
 
                         {/* === FORM (columna principal) === */}
-                        <div className="relative bg-white dark:bg-zinc-800 rounded-3xl shadow-2xl shadow-brand-green/20 border border-gray-100 dark:border-zinc-700 overflow-hidden animate-fade-up">
-                            <div className="p-6 sm:p-10">
+                        <div className="relative bg-white dark:bg-zinc-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-brand-green/20 border border-gray-100 dark:border-zinc-700 overflow-hidden animate-fade-up">
+                            <div className="p-5 sm:p-8 md:p-10">
                                 {/* Mini-header del paso actual */}
                                 <div className="flex items-start gap-4 mb-6">
                                     <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all ${
