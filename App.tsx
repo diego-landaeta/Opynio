@@ -14,7 +14,7 @@ import RealtimeNotificationHandler from './components/RealtimeNotificationHandle
 import Spinner from './components/Spinner';
 import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode } from './contexts/i18nContext';
 import { CountryProvider, useCountry, CountryCode } from './contexts/CountryContext';
-import { getBusinessByName } from './services/supabaseService';
+import { getBusinessByName, getBusinessById } from './services/supabaseService';
 import { Business } from './types';
 import { COUNTRIES } from './constants';
 import LanguagePopup from './components/LanguagePopup';
@@ -466,7 +466,16 @@ const LegacyBusinessRedirect = () => {
             }
 
             try {
-                const business = await getBusinessByName(decodeURIComponent(identifier).replace(/_/g, ' '));
+                // El identifier puede llegar como UUID (típico de notificaciones
+                // push donde se incrusta business_id) o como nombre slug-ificado
+                // (legacy URLs). Detectamos UUID primero para usar la query
+                // adecuada — antes siempre se llamaba a getBusinessByName(UUID),
+                // que devolvía null y mandaba a /404.
+                const decoded = decodeURIComponent(identifier);
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded);
+                const business = isUuid
+                    ? await getBusinessById(decoded)
+                    : await getBusinessByName(decoded.replace(/_/g, ' '));
                 if (business && business.country) {
                     const countryCode = business.country.toLowerCase();
                     const newIdentifier = encodeURIComponent(business.name.replace(/ /g, '_'));
