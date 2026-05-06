@@ -231,6 +231,21 @@ const MainLayout = () => {
         }
     }, [location.pathname, setLanguage]);
 
+    // Sincroniza el idioma de la UI cuando el path no tiene country prefix
+    // (p.ej. el usuario entra directo a /register, /preise, /prezzi, etc.).
+    // Para paths con country prefix la fuente de verdad es el país, así que
+    // no tocamos el idioma aquí (lo gestiona LanguagePopup).
+    useEffect(() => {
+        if (countryCode) return; // ya hay país, no interferir
+        if (location.pathname.startsWith('/admin')) return; // admin = es, ya tratado
+        const segs = location.pathname.split('/').filter(Boolean);
+        if (segs.length === 0) return;
+        const detected = detectLanguageFromPath(segs[0]);
+        if (detected && detected !== language) {
+            setLanguage(detected);
+        }
+    }, [location.pathname, countryCode, language, setLanguage]);
+
     // Sync viewingCountry from URL parameter (NOT userCountry)
     // If no countryCode is in the URL (root path), set viewingCountry to null
     useEffect(() => {
@@ -325,6 +340,28 @@ const getPathKeyFromPath = (path: string): keyof typeof pathTranslations.es | nu
     return null;
 };
 
+// Detect which language a top-level path segment belongs to. Used in
+// MainLayout para sincronizar el idioma de la UI cuando el usuario entra
+// a una URL como /register, /login, /pricing... así la i18n del Header
+// y resto del shell coincide con el idioma del path.
+// Si el segmento aparece en varios idiomas (p.ej. "widgets", "support"
+// que comparten texto), devuelve el primer match — irrelevante porque
+// el contenido renderizado es el mismo.
+const detectLanguageFromPath = (pathSegment: string): Language | null => {
+    if (!pathSegment) return null;
+    const languages = Object.keys(pathTranslations) as Language[];
+    for (const lang of languages) {
+        const paths = pathTranslations[lang];
+        for (const value of Object.values(paths)) {
+            const basePath = (value as string).split('/')[0].split(':')[0];
+            if (basePath && (pathSegment === basePath || pathSegment.startsWith(basePath + '/'))) {
+                return lang;
+            }
+        }
+    }
+    return null;
+};
+
 // Component that validates the path language matches the country
 // Shows 404 for paths in wrong language (not redirect, to avoid indexing issues)
 // Also validates that routes WITHOUT country prefix only accept Spanish paths
@@ -356,44 +393,14 @@ const LanguagePathValidator: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Case 1: Routes WITHOUT country prefix (original Opynio site)
-    // These should ONLY accept Spanish paths
+    // Aceptamos paths en cualquier idioma (es/en/fr/de/it/br/ca/cn). Antes
+    // sólo se admitía español y se forzaba 404 al resto, lo que rompía
+    // cosas como /register, /login (en), /preise (de), /prezzi (it), etc.
+    // Ahora si el path es válido en cualquier idioma deja pasar; el shell
+    // (Header/Footer) sincroniza su idioma a partir del path en MainLayout.
     if (!countryCode) {
-        // Skip validation for root path, admin routes, and special routes
-        if (pathSegments.length === 0 ||
-            pathSegments[0] === 'admin' ||
-            pathSegments[0] === '404') {
-            return <>{children}</>;
-        }
-
-        const currentPathSegment = pathSegments[0];
-        const spanishPaths = pathTranslations.es;
-
-        // Check if current path is valid for Spanish
-        const isValidForSpanish = Object.values(spanishPaths).some(p => {
-            const basePath = (p as string).split('/')[0].split(':')[0];
-            return currentPathSegment === basePath || currentPathSegment.startsWith(basePath + '/');
-        });
-
-        if (isValidForSpanish) {
-            return <>{children}</>;
-        }
-
-        // Check if it's a valid path in ANOTHER language (should not be allowed on root site)
-        const pathKey = getPathKeyFromPath(currentPathSegment);
-        if (pathKey) {
-            // This is a valid path but NOT in Spanish - trigger 404 with real HTTP status
-            console.log(`❌ 404: Path "${currentPathSegment}" is valid but not Spanish (original site only accepts Spanish paths)`);
-            if (!shouldShow404) {
-                setShouldShow404(true);
-            }
-            return (
-                <div className="flex justify-center items-center h-64">
-                    <Spinner />
-                </div>
-            );
-        }
-
-        // Not a recognized path at all, let it fall through to normal routing
+        // Cualquier path se deja pasar; los routes registrados en uniquePaths
+        // los manejan, y los que no matcheen caen al catch-all 404.
         return <>{children}</>;
     }
 
