@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBusinessesForOwner, getUserProfile } from '../../services/supabaseService';
 import Meta from '../Meta';
-import { useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
-import { PLAN_BENEFITS } from '../PlanActivatedModal';
+import { getPlanBenefits } from '../PlanActivatedModal';
 import type { Plan } from '../../types';
 
 // Pantalla dedicada de "gracias por tu suscripción". Diseño full-bleed
@@ -21,6 +21,7 @@ const PaymentSuccessPage: React.FC = () => {
     const { user, profile, setProfile, setBusinesses } = useAuth();
     const { language } = useI18n();
     const { country } = useCountry();
+    const t = useTranslation();
 
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
     const pathLang = country ? getLanguageForCountryCode(country) : language;
@@ -52,14 +53,20 @@ const PaymentSuccessPage: React.FC = () => {
     // Plan info — usa profile.plan si está cargado, fallback v2 (asumimos
     // que el flujo de pago aterriza aquí solo para planes pagos).
     const plan: Plan = (profile?.plan as Plan | undefined) ?? 'v2';
-    const data = PLAN_BENEFITS[plan] ?? PLAN_BENEFITS.v2;
+    const data = getPlanBenefits(plan, t);
     const planLabel = plan === 'v2' ? 'v.2' : plan.charAt(0).toUpperCase() + plan.slice(1);
+
+    // Tagline con el plan name interpolado en la cadena traducida.
+    const taglineTpl = t('paymentSuccessPage.taglineWithPlan');
+    const taglineWithPlan = taglineTpl
+        .replace('{planName}', planLabel)
+        .replace('{planTagline}', data.tagline);
 
     return (
         <>
             <Meta
-                title="¡Suscripción activada! - Opynio"
-                description="Gracias por tu suscripción a Opynio."
+                title={t('paymentSuccessPage.metaTitle')}
+                description={t('paymentSuccessPage.metaDesc')}
                 noindex={true}
             />
 
@@ -87,7 +94,7 @@ const PaymentSuccessPage: React.FC = () => {
                     <div className="text-center animate-fade-in-page">
                         {/* Eyebrow discreto */}
                         <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-                            Suscripción confirmada
+                            {t('paymentSuccessPage.eyebrow')}
                         </p>
 
                         {/* Icono de plan — elemento gráfico principal, contenido y proporcionado */}
@@ -99,22 +106,22 @@ const PaymentSuccessPage: React.FC = () => {
 
                         {/* Título principal */}
                         <h1 className="mt-8 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100 leading-[1.1]">
-                            Gracias por confiar
+                            {t('paymentSuccessPage.thanksTitle')}
                             <br className="hidden sm:block" />
                             <span className="sm:hidden"> </span>
-                            en Opynio
+                            {t('paymentSuccessPage.thanksTitleSecondLine')}
                         </h1>
 
                         {/* Tagline + plan name */}
                         <p className="mt-5 text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
-                            Tu plan <strong className="text-gray-900 dark:text-gray-100 font-bold">{planLabel}</strong> ya está activo. {data.tagline}
+                            {taglineWithPlan}
                         </p>
 
                         {/* Separador visual minimal */}
                         <div className="mt-12 flex items-center gap-4 max-w-md mx-auto">
                             <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
                             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500">
-                                Lo que incluye tu plan
+                                {t('paymentSuccessPage.divider')}
                             </span>
                             <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
                         </div>
@@ -139,7 +146,7 @@ const PaymentSuccessPage: React.FC = () => {
                                 to={`${countryPrefix}/${paths.myBusinesses}`}
                                 className={`flex-1 bg-gradient-to-r ${data.color} text-white font-semibold px-6 py-3.5 rounded-lg text-sm sm:text-base shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2`}
                             >
-                                <span>Ir a mis negocios</span>
+                                <span>{t('paymentSuccessPage.ctaPrimary')}</span>
                                 <i className="fa-solid fa-arrow-right text-xs"></i>
                             </Link>
                             <Link
@@ -147,7 +154,7 @@ const PaymentSuccessPage: React.FC = () => {
                                 className="flex-1 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 font-semibold px-6 py-3.5 rounded-lg text-sm sm:text-base border border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <i className="fa-solid fa-user text-xs"></i>
-                                <span>Ver mi perfil</span>
+                                <span>{t('paymentSuccessPage.ctaSecondary')}</span>
                             </Link>
                         </div>
 
@@ -155,15 +162,15 @@ const PaymentSuccessPage: React.FC = () => {
                         <div className="mt-14 pt-8 border-t border-gray-100 dark:border-zinc-800/60 max-w-md mx-auto">
                             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-500 leading-relaxed">
                                 <i className="fa-solid fa-envelope-open-text mr-1.5 text-gray-400"></i>
-                                Recibirás el recibo de la suscripción en tu correo en los próximos minutos.
+                                {t('paymentSuccessPage.receiptNote')}
                             </p>
                             <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-500">
-                                ¿Tienes alguna duda?{' '}
+                                {t('paymentSuccessPage.supportPrompt')}{' '}
                                 <Link
                                     to={`${countryPrefix}/${paths.support}`}
                                     className="text-brand-green hover:underline font-medium"
                                 >
-                                    Habla con nuestro equipo
+                                    {t('paymentSuccessPage.supportLink')}
                                 </Link>
                                 .
                             </p>

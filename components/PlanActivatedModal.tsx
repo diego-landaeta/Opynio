@@ -11,89 +11,53 @@
 
 import React, { useEffect, useState } from 'react';
 import type { Plan } from '../types';
+import { useTranslation } from '../contexts/i18nContext';
 
-export const PLAN_BENEFITS: Record<Plan, { title: string; tagline: string; color: string; icon: string; features: string[] }> = {
-    free: {
-        title: '¡Tu empresa está activa!',
-        tagline: 'Bienvenido a Opynio. Tu plan Free ya está listo.',
-        color: 'from-emerald-400 via-brand-green to-teal-500',
-        icon: 'fa-store',
-        features: [
-            '1 perfil de empresa público',
-            'Reseñas ilimitadas de tus clientes',
-            'Responder a cada reseña',
-            'Estadísticas básicas',
-        ],
-    },
-    starter: {
-        title: '¡Plan Starter activado!',
-        tagline: 'Tu negocio acaba de subir de nivel.',
-        color: 'from-emerald-400 via-brand-green to-teal-500',
-        icon: 'fa-paper-plane',
-        features: [
-            '1 perfil de empresa premium',
-            'Invitaciones por email a clientes',
-            'Widget embebible en tu web',
-            'Sugerencias de respuesta con IA',
-            'Filtros avanzados',
-        ],
-    },
-    growth: {
-        title: '¡Plan Growth activado!',
-        tagline: 'Multiplica tus negocios y tu reputación.',
-        color: 'from-blue-400 via-indigo-500 to-purple-500',
-        icon: 'fa-chart-line',
-        features: [
-            'Hasta 3 negocios',
-            'Estadísticas avanzadas',
-            'Widgets premium (badge, wall, QR)',
-            'API de integración',
-            'Soporte prioritario',
-        ],
-    },
-    pro: {
-        title: '¡Plan Pro activado!',
-        tagline: 'Toda la potencia de Opynio en tu mano.',
-        color: 'from-purple-500 via-pink-500 to-rose-500',
-        icon: 'fa-crown',
-        features: [
-            'Hasta 10 negocios',
-            'Integración WhatsApp',
-            'Filtros con etiquetas y temas',
-            'Alertas en tiempo real',
-            'Análisis comparativo',
-            'Soporte dedicado',
-        ],
-    },
-    v2: {
-        title: '¡Plan v.2 activado!',
-        tagline: 'Acceso premium con capacidad ampliada.',
-        color: 'from-pink-500 via-fuchsia-500 to-purple-600',
-        icon: 'fa-rocket',
-        features: [
-            'Hasta 20 negocios',
-            'Todas las funciones premium',
-            'Créditos IA ampliados',
-            'Soporte prioritario',
-        ],
-    },
-    enterprise: {
-        title: '¡Plan Enterprise activo!',
-        tagline: 'Capacidades a medida para tu organización.',
-        color: 'from-amber-400 via-orange-500 to-red-500',
-        icon: 'fa-building-shield',
-        features: [
-            'Negocios ilimitados',
-            'Funciones a la carta',
-            'SLA dedicado',
-            'Soporte premium',
-        ],
-    },
+// Datos visuales del plan (color, icono) — estáticos, no se traducen.
+// Las strings (title/tagline/features) viven en los locales bajo el namespace
+// `planBenefits.<plan>` y se resuelven en runtime con t() vía getPlanBenefits().
+const PLAN_VISUALS: Record<Plan, { color: string; icon: string }> = {
+    free:       { color: 'from-emerald-400 via-brand-green to-teal-500', icon: 'fa-store' },
+    starter:    { color: 'from-emerald-400 via-brand-green to-teal-500', icon: 'fa-paper-plane' },
+    growth:     { color: 'from-blue-400 via-indigo-500 to-purple-500',   icon: 'fa-chart-line' },
+    pro:        { color: 'from-purple-500 via-pink-500 to-rose-500',     icon: 'fa-crown' },
+    v2:         { color: 'from-pink-500 via-fuchsia-500 to-purple-600',  icon: 'fa-rocket' },
+    enterprise: { color: 'from-amber-400 via-orange-500 to-red-500',     icon: 'fa-building-shield' },
 };
+
+// Cuenta de features por plan — necesaria para iterar sobre las claves
+// `planBenefits.<plan>.feature{1..N}`. free/v2/enterprise tienen 4, starter/growth 5, pro 6.
+const PLAN_FEATURE_COUNT: Record<Plan, number> = {
+    free: 4,
+    starter: 5,
+    growth: 5,
+    pro: 6,
+    v2: 4,
+    enterprise: 4,
+};
+
+// Resuelve los beneficios traducidos del plan en runtime. Devuelve la
+// estructura completa que esperan el modal y la PaymentSuccessPage.
+export function getPlanBenefits(plan: Plan, t: (key: string) => string) {
+    const visual = PLAN_VISUALS[plan];
+    const count = PLAN_FEATURE_COUNT[plan];
+    const features: string[] = [];
+    for (let i = 1; i <= count; i++) {
+        features.push(t(`planBenefits.${plan}.feature${i}`));
+    }
+    return {
+        title: t(`planBenefits.${plan}.title`),
+        tagline: t(`planBenefits.${plan}.tagline`),
+        color: visual.color,
+        icon: visual.icon,
+        features,
+    };
+}
 
 const STORAGE_KEY = 'opynio_pending_plan_welcome';
 
 const PlanActivatedModal: React.FC = () => {
+    const t = useTranslation();
     const [plan, setPlan] = useState<Plan | null>(null);
     const [visible, setVisible] = useState(false);
     const [closing, setClosing] = useState(false);
@@ -104,7 +68,7 @@ const PlanActivatedModal: React.FC = () => {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (!raw) return;
-                if (Object.prototype.hasOwnProperty.call(PLAN_BENEFITS, raw)) {
+                if (Object.prototype.hasOwnProperty.call(PLAN_VISUALS, raw)) {
                     setPlan(raw as Plan);
                     // Pequeño delay para que la animación de entrada se vea.
                     requestAnimationFrame(() => setVisible(true));
@@ -154,7 +118,7 @@ const PlanActivatedModal: React.FC = () => {
     }, [plan]);
 
     if (!plan) return null;
-    const data = PLAN_BENEFITS[plan];
+    const data = getPlanBenefits(plan, t);
 
     const overlayClasses = closing
         ? 'opacity-0'
