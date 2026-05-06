@@ -36,16 +36,28 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 // Card "Comparte tu negocio" — genera la URL pública del perfil y permite
 // compartirla por WhatsApp / email / redes, con un mensaje sugerido para
 // pedir reseñas. Disponible en todos los planes (incluido free).
+const SUPPORTED_LANGS = ['es', 'en', 'ca', 'fr', 'de', 'it', 'pt', 'br', 'cn'];
 const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = ({ businessName, language }) => {
     const { showNotification } = useNotification();
     const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
 
-    // Construye la URL pública del perfil. window.location.origin permite que
-    // el enlace funcione tanto en localhost (test) como en producción.
+    // Construye la URL pública del perfil tomando el lang code del PATH ACTUAL
+    // del navegador (no del context i18n, que puede quedarse stale tras un
+    // cambio de idioma rápido). Así si el dueño está viendo /en/... el enlace
+    // que comparte también es /en/...
     const publicUrl = useMemo(() => {
         const slug = encodeURIComponent(businessName.replace(/ /g, '_'));
-        const base = (typeof window !== 'undefined' && window.location.origin) || 'https://web.opynio.com';
-        return `${base}/${language}/empresa/${slug}`;
+        let base = 'https://web.opynio.com';
+        let langCode = language || 'es';
+        if (typeof window !== 'undefined') {
+            base = window.location.origin;
+            const segs = window.location.pathname.split('/').filter(Boolean);
+            // Primer segmento puede ser un país (ES, US…) o un idioma (es, en…).
+            // Sólo aceptamos el segundo si está en la whitelist de idiomas.
+            const first = (segs[0] || '').toLowerCase();
+            if (SUPPORTED_LANGS.includes(first)) langCode = first;
+        }
+        return `${base}/${langCode}/empresa/${slug}`;
     }, [businessName, language]);
 
     const suggestedMessage = useMemo(
@@ -124,33 +136,42 @@ const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = 
                     </div>
                 </div>
 
-                {/* URL pública */}
+                {/* URL pública — diseño "URL pill" con icono globo, URL en mono,
+                    botón copiar integrado a la derecha. Click en cualquier sitio
+                    del pill copia el enlace. Hover effect sutil. */}
                 <div className="mb-4">
                     <label className="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
                         Enlace público de tu perfil
                     </label>
-                    <div className="flex items-stretch gap-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent transition-all">
-                        <input
-                            readOnly
-                            value={publicUrl}
-                            onFocus={(e) => e.target.select()}
-                            aria-label="Enlace público del perfil"
-                            title="Enlace público del perfil"
-                            className="flex-grow min-w-0 px-3 py-2.5 text-xs sm:text-sm text-gray-700 dark:text-gray-200 bg-transparent focus:outline-none truncate"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => copyToClipboard(publicUrl, 'url')}
-                            className={`flex-shrink-0 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
-                                copiedField === 'url'
-                                    ? 'bg-brand-green text-white'
-                                    : 'bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-700'
-                            }`}
-                        >
-                            <i className={`fa-solid ${copiedField === 'url' ? 'fa-check' : 'fa-copy'} text-xs`}></i>
-                            <span className="hidden xs:inline">{copiedField === 'url' ? 'Copiado' : 'Copiar'}</span>
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={() => copyToClipboard(publicUrl, 'url')}
+                        title="Copiar enlace"
+                        className={`group w-full flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all text-left ${
+                            copiedField === 'url'
+                                ? 'bg-brand-green/10 border-brand-green/40 dark:bg-brand-green/15'
+                                : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:border-brand-green/40 hover:bg-brand-green/5 dark:hover:bg-brand-green/5'
+                        }`}
+                    >
+                        <span className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center transition-colors ${
+                            copiedField === 'url'
+                                ? 'bg-brand-green text-white'
+                                : 'bg-brand-green/10 text-brand-green group-hover:bg-brand-green group-hover:text-white'
+                        }`}>
+                            <i className={`fa-solid ${copiedField === 'url' ? 'fa-check' : 'fa-link'} text-xs sm:text-sm`}></i>
+                        </span>
+                        <span className="flex-grow min-w-0 font-mono text-xs sm:text-[13px] text-gray-700 dark:text-gray-200 truncate">
+                            {publicUrl}
+                        </span>
+                        <span className={`hidden xs:flex flex-shrink-0 items-center gap-1 text-[11px] sm:text-xs font-semibold transition-colors ${
+                            copiedField === 'url'
+                                ? 'text-brand-green'
+                                : 'text-gray-400 group-hover:text-brand-green'
+                        }`}>
+                            <i className={`fa-solid ${copiedField === 'url' ? 'fa-check' : 'fa-copy'} text-[10px]`}></i>
+                            <span>{copiedField === 'url' ? 'Copiado' : 'Copiar'}</span>
+                        </span>
+                    </button>
                 </div>
 
                 {/* Quick share buttons */}
