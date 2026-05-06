@@ -1,79 +1,289 @@
 # robots.txt para Opynio - https://web.opynio.com
-# Optimizado para mejor indexación en Google y otros motores
+# Cobertura multilingüe: es / en / fr / de / it / br / ca / cn
+# Cobertura de país: ES / US / GB / MX / BR / PT / CO / AR / PE / VE /
+#                    CL / EC / GT / CR / PA / UY / FR / DE / IT / AD / CN
 
 # Reglas generales para todos los crawlers
 User-agent: *
 Allow: /
 
-# Páginas públicas importantes - prioridad alta
+# === Países permitidos (cualquier path bajo /xx/ ya pasa por Allow: / arriba,
+#     pero los listamos explícitos para señalizar a los crawlers que son
+#     subdominios válidos). El validador de la app 404 los combos inválidos. ===
 Allow: /es/
+Allow: /us/
+Allow: /gb/
 Allow: /mx/
-Allow: /ar/
-Allow: /co/
-Allow: /cl/
-Allow: /pe/
 Allow: /br/
 Allow: /pt/
-Allow: /us/
+Allow: /co/
+Allow: /ar/
+Allow: /pe/
+Allow: /ve/
+Allow: /cl/
+Allow: /ec/
+Allow: /gt/
+Allow: /cr/
+Allow: /pa/
+Allow: /uy/
 Allow: /fr/
 Allow: /de/
 Allow: /it/
+Allow: /ad/
+Allow: /cn/
 
-# Páginas de empresas - muy importantes para SEO
+# === Páginas públicas — perfil de empresa (todos los idiomas) ===
 Allow: /*/empresa/
 Allow: /*/business/
-Allow: /*/empresas
-Allow: /*/explorar
+Allow: /*/entreprise/
+Allow: /*/unternehmen/
+Allow: /*/azienda/
 
-# Disallow - páginas privadas y de administración
+# === Páginas públicas — listado de empresas ===
+Allow: /*/empresas
+Allow: /*/businesses
+Allow: /*/entreprises
+Allow: /*/aziende
+Allow: /*/empreses
+
+# === Páginas públicas — explorar ===
+Allow: /*/explorar
+Allow: /*/explore
+Allow: /*/explorer
+Allow: /*/entdecken
+Allow: /*/esplora
+
+# === Páginas auxiliares públicas (for-businesses, how-it-works, etc.) ===
+Allow: /*/para-empresas
+Allow: /*/for-businesses
+Allow: /*/pour-les-entreprises
+Allow: /*/per-le-aziende
+Allow: /*/per-a-empreses
+Allow: /*/como-funciona
+Allow: /*/how-it-works
+Allow: /*/comment-ca-marche
+Allow: /*/come-funziona
+Allow: /*/com-funciona
+Allow: /*/casos-exito
+Allow: /*/case-studies
+Allow: /*/cas-clients
+Allow: /*/casi-di-successo
+Allow: /*/casos-de-sucesso
+Allow: /*/preguntas-frecuentes
+Allow: /*/faq
+Allow: /*/domande-frequenti
+Allow: /*/preguntes-frequents
+Allow: /*/perguntas-frequentes
+Allow: /*/sobre-nosotros
+Allow: /*/about
+Allow: /*/a-propos
+Allow: /*/chi-siamo
+Allow: /*/sobre-nos
+Allow: /*/sobre-nosaltres
+
+# ============================================================
+# DISALLOW — admin y rutas privadas (todos los idiomas)
+# ============================================================
+
+# Admin (forzado a español por la app, pero bloqueamos cualquier prefijo)
 Disallow: /admin/
 Disallow: /*/admin/
-Disallow: /perfil/
-Disallow: /*/perfil/
-Disallow: /profile/
-Disallow: /*/profile/
+
+# === Perfil ===
+Disallow: /perfil
+Disallow: /*/perfil
+Disallow: /profile
+Disallow: /*/profile
+Disallow: /profil
+Disallow: /*/profil
+Disallow: /profilo
+Disallow: /*/profilo
+
+# === Editar perfil ===
+Disallow: /perfil/editar
+Disallow: /*/perfil/editar
+Disallow: /profile/edit
+Disallow: /*/profile/edit
+Disallow: /profil/modifier
+Disallow: /*/profil/modifier
+Disallow: /profil/bearbeiten
+Disallow: /*/profil/bearbeiten
+Disallow: /profilo/modifica
+Disallow: /*/profilo/modifica
+
+# === Post-login ===
 Disallow: /post-acceso
 Disallow: /*/post-acceso
 Disallow: /post-login
 Disallow: /*/post-login
+Disallow: /post-connexion
+Disallow: /*/post-connexion
+Disallow: /nach-anmeldung
+Disallow: /*/nach-anmeldung
+Disallow: /post-acces
+Disallow: /*/post-acces
+
+# === Business dashboard (privado, sólo para owners) ===
 Disallow: /empresa/panel/
 Disallow: /*/empresa/panel/
-Disallow: /business/panel/
-Disallow: /*/business/panel/
+Disallow: /business/dashboard/
+Disallow: /*/business/dashboard/
+Disallow: /entreprise/tableau-de-bord/
+Disallow: /*/entreprise/tableau-de-bord/
+Disallow: /unternehmen/dashboard/
+Disallow: /*/unternehmen/dashboard/
+Disallow: /azienda/cruscotto/
+Disallow: /*/azienda/cruscotto/
+Disallow: /empresa/painel/
+Disallow: /*/empresa/painel/
+Disallow: /empresa/panell/
+Disallow: /*/empresa/panell/
+
+# === Escribir reseña (requiere login) ===
 Disallow: /escribir-resena
 Disallow: /*/escribir-resena
 Disallow: /write-review
 Disallow: /*/write-review
+Disallow: /ecrire-un-avis
+Disallow: /*/ecrire-un-avis
+Disallow: /bewertung-schreiben
+Disallow: /*/bewertung-schreiben
+Disallow: /scrivi-una-recensione
+Disallow: /*/scrivi-una-recensione
+Disallow: /escrever-avaliacao
+Disallow: /*/escrever-avaliacao
+Disallow: /escriure-ressenya
+Disallow: /*/escriure-ressenya
+
+# === Asignar empresa (privado) ===
 Disallow: /asignar-empresa
 Disallow: /*/asignar-empresa
 Disallow: /assign-business
 Disallow: /*/assign-business
+Disallow: /assigner-entreprise
+Disallow: /*/assigner-entreprise
+Disallow: /unternehmen-zuweisen
+Disallow: /*/unternehmen-zuweisen
+Disallow: /assegna-azienda
+Disallow: /*/assegna-azienda
+Disallow: /atribuir-empresa
+Disallow: /*/atribuir-empresa
+Disallow: /assignar-empresa
+Disallow: /*/assignar-empresa
+
+# === Mis empresas ===
 Disallow: /mis-negocios
 Disallow: /*/mis-negocios
 Disallow: /my-businesses
 Disallow: /*/my-businesses
-Disallow: /editar-perfil
-Disallow: /*/editar-perfil
-Disallow: /edit-profile
-Disallow: /*/edit-profile
-Disallow: /completar-registro
-Disallow: /*/completar-registro
-Disallow: /complete-registration
-Disallow: /*/complete-registration
+Disallow: /mes-entreprises
+Disallow: /*/mes-entreprises
+Disallow: /meine-unternehmen
+Disallow: /*/meine-unternehmen
+Disallow: /le-mie-aziende
+Disallow: /*/le-mie-aziende
+Disallow: /meus-negocios
+Disallow: /*/meus-negocios
+Disallow: /les-meves-empreses
+Disallow: /*/les-meves-empreses
+
+# === Completar registro de empresa ===
+Disallow: /completar-registro-empresa
+Disallow: /*/completar-registro-empresa
+Disallow: /complete-business-registration
+Disallow: /*/complete-business-registration
+Disallow: /finaliser-inscription-entreprise
+Disallow: /*/finaliser-inscription-entreprise
+Disallow: /unternehmensregistrierung-abschliessen
+Disallow: /*/unternehmensregistrierung-abschliessen
+Disallow: /completa-registrazione-azienda
+Disallow: /*/completa-registrazione-azienda
+Disallow: /completar-registre-empresa
+Disallow: /*/completar-registre-empresa
+
+# === Pagos (success / cancel) ===
 Disallow: /pago-exitoso
 Disallow: /*/pago-exitoso
-Disallow: /pago-cancelado
-Disallow: /*/pago-cancelado
 Disallow: /payment-success
 Disallow: /*/payment-success
-Disallow: /payment-cancel
-Disallow: /*/payment-cancel
-Disallow: /migrar-google-reviews
-Disallow: /*/migrar-google-reviews
+Disallow: /paiement-reussi
+Disallow: /*/paiement-reussi
+Disallow: /zahlung-erfolgreich
+Disallow: /*/zahlung-erfolgreich
+Disallow: /pagamento-riuscito
+Disallow: /*/pagamento-riuscito
+Disallow: /pagamento-sucesso
+Disallow: /*/pagamento-sucesso
+Disallow: /pagament-exit
+Disallow: /*/pagament-exit
 
-# Evitar indexación de parámetros de búsqueda y filtros (contenido duplicado)
-# IMPORTANTE: Los filtros se mantienen en estado local React y NO modifican la URL
-# Estas reglas son preventivas por si alguna versión futura agrega parámetros
+Disallow: /pago-cancelado
+Disallow: /*/pago-cancelado
+Disallow: /payment-cancelled
+Disallow: /*/payment-cancelled
+Disallow: /paiement-annule
+Disallow: /*/paiement-annule
+Disallow: /zahlung-abgebrochen
+Disallow: /*/zahlung-abgebrochen
+Disallow: /pagamento-annullato
+Disallow: /*/pagamento-annullato
+Disallow: /pagamento-cancelado
+Disallow: /*/pagamento-cancelado
+Disallow: /pagament-cancel-lat
+Disallow: /*/pagament-cancel-lat
+
+# === Migrar reseñas de Google (privado, business owners) ===
+Disallow: /empresa/migrar-google-reviews
+Disallow: /*/empresa/migrar-google-reviews
+Disallow: /business/migrate-google-reviews
+Disallow: /*/business/migrate-google-reviews
+Disallow: /entreprise/migrer-avis-google
+Disallow: /*/entreprise/migrer-avis-google
+Disallow: /unternehmen/google-bewertungen-migrieren
+Disallow: /*/unternehmen/google-bewertungen-migrieren
+Disallow: /azienda/migra-recensioni-google
+Disallow: /*/azienda/migra-recensioni-google
+Disallow: /empresa/migrar-ressenyes-google
+Disallow: /*/empresa/migrar-ressenyes-google
+
+# === Recuperación / reset de contraseña ===
+Disallow: /olvide-contrasena
+Disallow: /*/olvide-contrasena
+Disallow: /forgot-password
+Disallow: /*/forgot-password
+Disallow: /mot-de-passe-oublie
+Disallow: /*/mot-de-passe-oublie
+Disallow: /passwort-vergessen
+Disallow: /*/passwort-vergessen
+Disallow: /password-dimenticata
+Disallow: /*/password-dimenticata
+Disallow: /esqueci-senha
+Disallow: /*/esqueci-senha
+Disallow: /he-oblidat-la-contrasenya
+Disallow: /*/he-oblidat-la-contrasenya
+Disallow: /restablecer-contrasena
+Disallow: /*/restablecer-contrasena
+Disallow: /reset-password
+Disallow: /*/reset-password
+Disallow: /reinitialiser-mot-de-passe
+Disallow: /*/reinitialiser-mot-de-passe
+Disallow: /passwort-zuruecksetzen
+Disallow: /*/passwort-zuruecksetzen
+Disallow: /reimposta-password
+Disallow: /*/reimposta-password
+Disallow: /redefinir-senha
+Disallow: /*/redefinir-senha
+Disallow: /restablir-contrasenya
+Disallow: /*/restablir-contrasenya
+
+# === Página interna /404 ===
+Disallow: /404
+
+# ============================================================
+# DISALLOW — query strings y filtros (anti-duplicate-content)
+# Los filtros de la app van en estado local React y no modifican la URL,
+# pero estas reglas previenen indexación si en el futuro se añaden.
+# ============================================================
 
 # Parámetros de búsqueda
 Disallow: /*?*q=
@@ -81,7 +291,7 @@ Disallow: /*?*search=
 Disallow: /*?*query=
 Disallow: /*?*searchTerm=
 
-# Parámetros de filtros - directorio y explorar
+# Parámetros de filtro / paginación
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
@@ -97,22 +307,29 @@ Disallow: /*?*format=
 Disallow: /*?*serviceType=
 Disallow: /*?*sortOrder=
 
-# Cualquier URL con parámetros de query en páginas de explorar, directorio y búsqueda
+# Cualquier URL de listado con query
 Disallow: /*/explorar?
 Disallow: /*/explore?
+Disallow: /*/explorer?
+Disallow: /*/entdecken?
+Disallow: /*/esplora?
 Disallow: /*/buscar?
 Disallow: /*/search?
-Disallow: /*/directorio?
-Disallow: /*/directory?
+Disallow: /*/rechercher?
+Disallow: /*/suchen?
+Disallow: /*/cerca?
+Disallow: /*/cercar?
 Disallow: /*/empresas?
 Disallow: /*/businesses?
+Disallow: /*/entreprises?
+Disallow: /*/aziende?
+Disallow: /*/empreses?
 
-# Reglas específicas para Googlebot
+# === Reglas específicas por bot ===
 User-agent: Googlebot
 Allow: /
 Crawl-delay: 1
 
-# Reglas para Bingbot
 User-agent: Bingbot
 Allow: /
 Crawl-delay: 2
