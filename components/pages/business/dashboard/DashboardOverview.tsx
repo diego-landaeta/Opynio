@@ -7,7 +7,7 @@ import type { Review, Plan } from '../../../../types';
 import ReviewCard from '../../../ReviewCard';
 import RatingDistribution from '../../../RatingDistribution';
 import * as ReactRouterDOM from 'react-router-dom';
-import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../../../contexts/i18nContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useNotification } from '../../../../contexts/NotificationContext';
 
@@ -37,29 +37,26 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 // apuntando a producción web.opynio.com) y permite compartirla por
 // WhatsApp / email / redes, con un QR descargable y estilizado para
 // imprimir o mostrar en el local. Disponible en todos los planes.
-const SUPPORTED_LANGS = ['es', 'en', 'ca', 'fr', 'de', 'it', 'pt', 'br', 'cn'];
 const PUBLIC_BASE_URL = 'https://web.opynio.com';
 
-const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = ({ businessName, language }) => {
+const ShareBusinessCard: React.FC<{ businessName: string; businessCountry: string | null | undefined }> = ({ businessName, businessCountry }) => {
     const { showNotification } = useNotification();
     const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
     const [showQr, setShowQr] = useState(false);
 
-    // Construye la URL pública del perfil. Siempre usa el dominio de
-    // producción (web.opynio.com) para que el link sea válido también si
-    // el dueño está mirando el dashboard en localhost o staging.
-    // Lang code se toma del path actual con whitelist (no del context, que
-    // puede quedarse stale al cambiar idioma).
+    // Construye la URL pública del perfil. El idioma se decide a partir del
+    // PAÍS DE LA EMPRESA (no del idioma del navegador del dueño): una empresa
+    // en US comparte siempre /en/business/..., una en ES comparte /es/empresa/...,
+    // etc. Así el visitante aterriza en el idioma correcto del negocio
+    // independientemente de en qué idioma esté navegando el dueño.
+    // El segmento "business" también se traduce (empresa / business /
+    // entreprise / unternehmen / azienda / 公司 …).
     const publicUrl = useMemo(() => {
         const slug = encodeURIComponent(businessName.replace(/ /g, '_'));
-        let langCode = language || 'es';
-        if (typeof window !== 'undefined') {
-            const segs = window.location.pathname.split('/').filter(Boolean);
-            const first = (segs[0] || '').toLowerCase();
-            if (SUPPORTED_LANGS.includes(first)) langCode = first;
-        }
-        return `${PUBLIC_BASE_URL}/${langCode}/empresa/${slug}`;
-    }, [businessName, language]);
+        const langCode = getLanguageForCountryCode(businessCountry);
+        const businessPath = (pathTranslations[langCode]?.business ?? 'empresa/:identifier').replace('/:identifier', '');
+        return `${PUBLIC_BASE_URL}/${langCode}/${businessPath}/${slug}`;
+    }, [businessName, businessCountry]);
 
     const suggestedMessage = useMemo(
         () => `¡Hola! Si has tenido una buena experiencia con ${businessName}, ¿podrías compartirla con una reseña en Opynio? Tu opinión nos ayuda muchísimo. Aquí tienes el enlace: ${publicUrl}`,
@@ -342,7 +339,7 @@ const DashboardOverview: React.FC = () => {
             {/* Sección "Comparte tu empresa" — accesible para todos los planes,
                 permite obtener más reseñas de forma orgánica antes de pasar a
                 invitaciones automatizadas (planes pago). */}
-            <ShareBusinessCard businessName={business.name} language={language} />
+            <ShareBusinessCard businessName={business.name} businessCountry={business.country} />
 
             <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
                 <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 dark:text-gray-100">{t('businessDashboard.ratingDistribution')}</h2>
