@@ -32,6 +32,7 @@ const ProfilePage: React.FC = () => {
     const [v2Loading, setV2Loading] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
+    const navigate = ReactRouterDOM.useNavigate();
 
     // Flujo en dos pasos:
     //   1) Usuario authenticated sin negocios → debe registrar su empresa (gratis).
@@ -42,6 +43,28 @@ const ProfilePage: React.FC = () => {
     const primaryBusinessId = businesses?.[0]?.id;
     const hasBusiness = !!primaryBusinessId;
     const showRegisterBusinessBlock = !!user && !isAdmin && !isBusinessOwner && !hasBusiness;
+
+    // Auto-redirect: si el usuario se registró como empresa (intención
+    // detectada en user_metadata o en el flag de localStorage) pero aún
+    // no completó el wizard, mandarlo allí en lugar de mostrarle el perfil
+    // de "usuario normal". Antes el usuario quedaba con role=authenticated
+    // tras abandonar el wizard y la siguiente vez que entraba veía la pantalla
+    // de "¿Tienes un negocio?" como si nunca se hubiera registrado como tal.
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user || !profile) return;
+        if (isAdmin || isBusinessOwner) return;
+        const intendedBusiness =
+            user.user_metadata?.intended_role === 'business_owner' ||
+            (typeof window !== 'undefined' && (
+                localStorage.getItem('opynio_business_signup_flow') === 'true' ||
+                localStorage.getItem('opynio_pending_business_data') !== null
+            ));
+        if (intendedBusiness) {
+            const completePath = `/${pathTranslations[language].completeBusinessRegistration}?type=business`;
+            navigate(completePath, { replace: true });
+        }
+    }, [authLoading, user, profile, isAdmin, isBusinessOwner, language, navigate]);
 
     const isOnV2 = profile?.plan === 'v2';
     // El bloque de gestión de suscripción sólo aparece cuando el usuario YA es

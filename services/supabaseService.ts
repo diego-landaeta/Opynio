@@ -167,11 +167,18 @@ export const signUpBusiness = async (
     business_name: businessName,
     ...(country ? { country } : {}),
   };
-  console.log('[signUpBusiness] auth.signUp', { email, metadata });
+  // emailRedirectTo asegura que tras confirmar el email (potencialmente
+  // en otro dispositivo donde no llega localStorage) Supabase devuelva al
+  // usuario a /post-acceso?type=business → PostLoginRedirect detecta el
+  // ?type=business y lo enruta al wizard sin depender de la metadata.
+  const emailRedirectTo = typeof window !== 'undefined'
+    ? `${window.location.origin}/post-acceso?type=business`
+    : undefined;
+  console.log('[signUpBusiness] auth.signUp', { email, metadata, emailRedirectTo });
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: metadata },
+    options: { data: metadata, emailRedirectTo },
   });
   if (error) {
     console.error('[signUpBusiness] auth.signUp error', error);
