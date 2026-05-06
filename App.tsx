@@ -562,15 +562,22 @@ const App = () => {
                                     <Route element={<BusinessRoute><Outlet /></BusinessRoute>}>
                                         {uniquePaths.myBusinesses?.map(p => <Route key={`root-myBusinesses-${p}`} path={p} element={<BusinessListPage />} />)}
                                         {uniquePaths.migrateGoogleReviews?.map(p => <Route key={`root-migrateGoogleReviews-${p}`} path={p} element={<MigrateGoogleReviewsPage />} />)}
-                                        <Route path={pathTranslations.es.businessDashboard} element={<BusinessDashboardPage />}>
-                                            <Route index element={<DashboardOverview />} />
-                                            <Route path={pathTranslations.es.dashboardReviews} element={<DashboardReviews />} />
-                                            <Route path={pathTranslations.es.dashboardAnalytics} element={<DashboardAnalytics />} />
-                                            <Route path={pathTranslations.es.dashboardInvitations} element={<DashboardInvitations />} />
-                                            <Route path={pathTranslations.es.dashboardWidgets} element={<DashboardWidgets />} />
-                                            <Route path={pathTranslations.es.dashboardEdit} element={<EditBusinessPage />} />
-                                            <Route path={pathTranslations.es.dashboardUserManual} element={<DashboardUserManual />} />
-                                        </Route>
+                                        {/* Dashboard tree multilingüe: registra parent + children en
+                                            todos los idiomas para que cualquier combo (p.ej. /business/dashboard/X/reviews)
+                                            haga match. El LanguagePathValidator se encarga de bloquear
+                                            combos cruzados por país (lo que no aplica aquí porque no
+                                            hay country prefix, pero no estorba). */}
+                                        {uniquePaths.businessDashboard?.map(parentPath => (
+                                            <Route key={`root-businessDashboard-${parentPath}`} path={parentPath} element={<BusinessDashboardPage />}>
+                                                <Route index element={<DashboardOverview />} />
+                                                {uniquePaths.dashboardReviews?.map(p => <Route key={`root-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
+                                                {uniquePaths.dashboardAnalytics?.map(p => <Route key={`root-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
+                                                {uniquePaths.dashboardInvitations?.map(p => <Route key={`root-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                {uniquePaths.dashboardWidgets?.map(p => <Route key={`root-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
+                                                {uniquePaths.dashboardEdit?.map(p => <Route key={`root-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
+                                                {uniquePaths.dashboardUserManual?.map(p => <Route key={`root-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}
+                                            </Route>
+                                        ))}
                                     </Route>
                                     
                                     <Route path="admin" element={<AdminRoute><Outlet /></AdminRoute>}>
@@ -641,17 +648,21 @@ const App = () => {
                                         <Route element={<BusinessRoute><Outlet /></BusinessRoute>}>
                                             {uniquePaths.myBusinesses?.map(p => <Route key={`country-myBusinesses-${p}`} path={p} element={<BusinessListPage />} />)}
                                             {uniquePaths.migrateGoogleReviews?.map(p => <Route key={`country-migrateGoogleReviews-${p}`} path={p} element={<MigrateGoogleReviewsPage />} />)}
-                                            {/* businessDashboard también necesita country prefix; sin esto
-                                                las URLs /:lang/empresa/panel/:nombre caían al 404. */}
-                                            <Route path={pathTranslations.es.businessDashboard} element={<BusinessDashboardPage />}>
-                                                <Route index element={<DashboardOverview />} />
-                                                <Route path={pathTranslations.es.dashboardReviews} element={<DashboardReviews />} />
-                                                <Route path={pathTranslations.es.dashboardAnalytics} element={<DashboardAnalytics />} />
-                                                <Route path={pathTranslations.es.dashboardInvitations} element={<DashboardInvitations />} />
-                                                <Route path={pathTranslations.es.dashboardWidgets} element={<DashboardWidgets />} />
-                                                <Route path={pathTranslations.es.dashboardEdit} element={<EditBusinessPage />} />
-                                                <Route path={pathTranslations.es.dashboardUserManual} element={<DashboardUserManual />} />
-                                            </Route>
+                                            {/* Dashboard tree multilingüe bajo country prefix. Antes
+                                                sólo aceptaba paths en español, así que /us/business/dashboard/X
+                                                caía al 404. Ahora cada parent path se registra para todos
+                                                los idiomas, con todos los children traducidos. */}
+                                            {uniquePaths.businessDashboard?.map(parentPath => (
+                                                <Route key={`country-businessDashboard-${parentPath}`} path={parentPath} element={<BusinessDashboardPage />}>
+                                                    <Route index element={<DashboardOverview />} />
+                                                    {uniquePaths.dashboardReviews?.map(p => <Route key={`country-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
+                                                    {uniquePaths.dashboardAnalytics?.map(p => <Route key={`country-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
+                                                    {uniquePaths.dashboardInvitations?.map(p => <Route key={`country-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                    {uniquePaths.dashboardWidgets?.map(p => <Route key={`country-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
+                                                    {uniquePaths.dashboardEdit?.map(p => <Route key={`country-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
+                                                    {uniquePaths.dashboardUserManual?.map(p => <Route key={`country-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}
+                                                </Route>
+                                            ))}
                                         </Route>
                                     </Route>
 
