@@ -549,42 +549,48 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
 
                         {/* === COLUMNA LATERAL (preview + info) === */}
                         <aside className="space-y-5 lg:sticky lg:top-24">
-                            {/* === Live preview de la empresa === */}
-                            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg shadow-brand-green/5 border border-gray-100 dark:border-zinc-700 overflow-hidden">
-                                <div className="bg-gradient-to-br from-brand-green to-emerald-600 px-5 py-3 flex items-center gap-2">
-                                    <i className="fa-solid fa-eye text-white/90 text-xs"></i>
-                                    <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/90">
-                                        Vista previa
-                                    </span>
-                                </div>
-                                <div className="p-5">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-green/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                                            <CountryFlag code={businessCountry} size="lg" />
-                                        </div>
-                                        <div className="min-w-0 flex-grow">
-                                            <p className="font-bold text-gray-800 dark:text-gray-100 truncate">
-                                                {businessName || 'Tu empresa'}
-                                            </p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                                                {businessCategory || 'Sin categoría'} · {COUNTRIES.find(c => c.code === businessCountry)?.name || businessCountry}
-                                            </p>
-                                            {/* Star rating placeholder */}
-                                            <div className="flex items-center gap-0.5 mt-1.5">
-                                                {[1,2,3,4,5].map(n => (
-                                                    <i key={n} className="fa-solid fa-star text-gray-300 dark:text-zinc-600 text-xs"></i>
-                                                ))}
-                                                <span className="text-[11px] text-gray-400 ml-1.5">Aún sin reseñas</span>
+                            {/* === Live preview de la empresa ===
+                                Sólo se muestra en el paso de personalización: en el paso 1
+                                el usuario aún está rellenando datos esenciales y la preview
+                                tendría poco contenido. animate-fade-up para que aparezca
+                                con suavidad cuando el wizard cambia de paso. */}
+                            {wizardStep === 'personalization' && (
+                                <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg shadow-brand-green/5 border border-gray-100 dark:border-zinc-700 overflow-hidden animate-fade-up">
+                                    <div className="bg-gradient-to-br from-brand-green to-emerald-600 px-5 py-3 flex items-center gap-2">
+                                        <i className="fa-solid fa-eye text-white/90 text-xs"></i>
+                                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/90">
+                                            Vista previa
+                                        </span>
+                                    </div>
+                                    <div className="p-5">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-green/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                                                <CountryFlag code={businessCountry} size="lg" />
+                                            </div>
+                                            <div className="min-w-0 flex-grow">
+                                                <p className="font-bold text-gray-800 dark:text-gray-100 truncate">
+                                                    {businessName || 'Tu empresa'}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                                    {businessCategory || 'Sin categoría'} · {COUNTRIES.find(c => c.code === businessCountry)?.name || businessCountry}
+                                                </p>
+                                                {/* Star rating placeholder */}
+                                                <div className="flex items-center gap-0.5 mt-1.5">
+                                                    {[1,2,3,4,5].map(n => (
+                                                        <i key={n} className="fa-solid fa-star text-gray-300 dark:text-zinc-600 text-xs"></i>
+                                                    ))}
+                                                    <span className="text-[11px] text-gray-400 ml-1.5">Aún sin reseñas</span>
+                                                </div>
                                             </div>
                                         </div>
+                                        {businessDescription && (
+                                            <p className="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-700 text-xs text-gray-600 dark:text-gray-300 line-clamp-3">
+                                                {businessDescription}
+                                            </p>
+                                        )}
                                     </div>
-                                    {businessDescription && (
-                                        <p className="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-700 text-xs text-gray-600 dark:text-gray-300 line-clamp-3">
-                                            {businessDescription}
-                                        </p>
-                                    )}
                                 </div>
-                            </div>
+                            )}
 
                             {/* === Plan Free incluido === */}
                             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-800/40 p-5">
