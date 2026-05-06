@@ -1876,6 +1876,7 @@ export default {
     metaTitle: 'Assinatura ativada! - Opynio',
     metaDesc: 'Obrigado pela sua assinatura no Opynio.',
     eyebrow: 'Assinatura confirmada',
+    activePlanLabel: 'Plano ativo',
     thanksTitle: 'Obrigado pela sua assinatura',
     thanksTitleSecondLine: '',
     taglineWithPlan: 'Seu plano {planName} já está ativo. {planTagline}',

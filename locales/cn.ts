@@ -1932,6 +1932,7 @@ export default {
     metaTitle: '订阅已激活！- Opynio',
     metaDesc: '感谢您订阅 Opynio。',
     eyebrow: '订阅已确认',
+    activePlanLabel: '活跃套餐',
     thanksTitle: '感谢您的订阅',
     thanksTitleSecondLine: '',
     taglineWithPlan: '您的 {planName} 套餐已激活。{planTagline}',

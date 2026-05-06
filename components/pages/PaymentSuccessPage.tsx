@@ -107,7 +107,7 @@ const PaymentSuccessPage: React.FC = () => {
                             <section className="px-4 sm:px-7 py-4 sm:py-5 border-b border-gray-100 dark:border-zinc-800">
                                 <div className="flex items-baseline justify-between mb-2.5">
                                     <h2 className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                                        Plan activo
+                                        {t('paymentSuccessPage.activePlanLabel')}
                                     </h2>
                                     <span className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">
                                         {new Date().toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}

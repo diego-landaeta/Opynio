@@ -1885,6 +1885,7 @@ export default {
     metaTitle: 'Abonnement aktiviert! - Opynio',
     metaDesc: 'Danke für dein Abonnement bei Opynio.',
     eyebrow: 'Abonnement bestätigt',
+    activePlanLabel: 'Aktiver Plan',
     thanksTitle: 'Danke für dein Abonnement',
     thanksTitleSecondLine: '',
     taglineWithPlan: 'Dein {planName}-Plan ist jetzt aktiv. {planTagline}',
