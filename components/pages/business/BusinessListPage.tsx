@@ -52,7 +52,13 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const dashboardPath = pathTranslations.es.businessDashboard.replace(':businessName', encodeURIComponent(business.name.replace(/ /g, '_')));
+    // El path del dashboard usa el idioma asociado al país de la empresa
+    // (consistente con cómo se construye la URL pública en el ShareCard).
+    // Si no hay country, se cae al idioma actual del usuario.
+    const { language } = useI18n();
+    const dashLang = business.country ? getLanguageForCountryCode(business.country) : language;
+    const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', encodeURIComponent(business.name.replace(/ /g, '_')));
+    const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -105,7 +111,7 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
                     </button>
                 </div>
                 <div className="mt-auto pt-4 border-t dark:border-zinc-700">
-                    <Link to={`/${dashboardPath}`} className="text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 flex items-center gap-2">
+                    <Link to={`${countryPrefix}/${dashboardPath}`} className="text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 flex items-center gap-2">
                         <span>{t('myBusinesses.manage')}</span>
                         <i className="fa-solid fa-arrow-right"></i>
                     </Link>

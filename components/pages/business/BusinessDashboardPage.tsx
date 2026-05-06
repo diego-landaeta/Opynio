@@ -171,7 +171,19 @@ const BusinessDashboardPage: React.FC = () => {
                     const subRouteIndex = pathParts.indexOf(identifier) + 1;
                     const subRoute = pathParts.slice(subRouteIndex).join('/');
 
-                    const newPath = `/${pathTranslations.es.businessDashboard.replace(':businessName', encodeURIComponent(businessData.name.replace(/ /g, '_')))}`;
+                    // Conserva el country prefix actual (si lo hay) y usa el
+                    // idioma del país de la empresa para construir el path
+                    // traducido. Antes saltaba siempre a /empresa/panel/...
+                    // (es, sin country), rompiendo la navegación en otros idiomas.
+                    const segs = location.pathname.split('/').filter(Boolean);
+                    const firstSeg = (segs[0] || '').toLowerCase();
+                    const looksLikeCountry = firstSeg.length === 2 && /^[a-z]{2}$/.test(firstSeg);
+                    const countryPrefix = looksLikeCountry ? `/${firstSeg}` : '';
+                    const targetLang = businessData.country
+                        ? getLanguageForCountryCode(businessData.country)
+                        : language;
+                    const targetPaths = pathTranslations[targetLang] ?? pathTranslations.es;
+                    const newPath = `${countryPrefix}/${targetPaths.businessDashboard.replace(':businessName', encodeURIComponent(businessData.name.replace(/ /g, '_')))}`;
 
                     navigate(`${newPath}${subRoute ? `/${subRoute}` : ''}`, { replace: true });
                     return; // Stop execution to let redirect happen

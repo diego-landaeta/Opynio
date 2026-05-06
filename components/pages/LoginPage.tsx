@@ -23,7 +23,7 @@ const LoginPage: React.FC = () => {
         setError(null);
         try {
             await signIn(email, password);
-            navigate(`/${pathTranslations.es.postLogin}`);
+            navigate(`/${pathTranslations[language].postLogin}`);
         } catch (err: any) {
             setError(t('loginPage.error'));
             console.error(err);

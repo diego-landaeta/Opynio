@@ -164,7 +164,7 @@ const ProfilePage: React.FC = () => {
                                 {roleInfo.name}
                             </span>
                         </div>
-                         <ReactRouterDOM.Link to={`/${pathTranslations.es.editProfile}`} className="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-zinc-600 transition-all text-sm self-start sm:self-center">
+                         <ReactRouterDOM.Link to={`/${pathTranslations[language].editProfile}`} className="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-zinc-600 transition-all text-sm self-start sm:self-center">
                             {t('profilePage.editProfile')}
                         </ReactRouterDOM.Link>
                     </div>
@@ -288,7 +288,7 @@ const ProfilePage: React.FC = () => {
                         <div className="text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-900/50 rounded-lg">
                             <p className="font-semibold">{t('profilePage.noReviewsWrittenYet')}</p>
                             <p className="text-sm mt-1">
-                                <ReactRouterDOM.Link to={`/${pathTranslations.es.writeReview}`} className="text-brand-green font-bold hover:underline">
+                                <ReactRouterDOM.Link to={`/${pathTranslations[language].writeReview}`} className="text-brand-green font-bold hover:underline">
                                     {t('profilePage.shareFirstExperience')}
                                 </ReactRouterDOM.Link>
                             </p>

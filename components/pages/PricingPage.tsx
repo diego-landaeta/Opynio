@@ -240,7 +240,7 @@ const PricingPage = () => {
                         // 3) Con login Y CON negocios: el botón se convierte en click handler
                         //    que dispara el checkout de Stripe directamente para upgrade.
                         if (user && !isEnterprise && !hasExistingBusinesses) {
-                            ctaLinkTarget = `/${pathTranslations.es.assignBusiness}?plan=${planName}&billingCycle=${billingCycle}`;
+                            ctaLinkTarget = `/${pathTranslations[language].assignBusiness}?plan=${planName}&billingCycle=${billingCycle}`;
                         }
                         const shouldUpgradeInPlace = user && !isEnterprise && hasExistingBusinesses;
 

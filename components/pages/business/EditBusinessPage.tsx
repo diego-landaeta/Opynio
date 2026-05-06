@@ -9,7 +9,7 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import { CATEGORIES, COUNTRIES, SEDE_COUNTRIES } from '../../../constants';
 import Meta from '../../Meta';
 import L from 'leaflet';
-import { useTranslation } from '../../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -367,6 +367,7 @@ const EditBusinessPage: React.FC = () => {
     const navigate = ReactRouterDOM.useNavigate();
     const { showNotification } = useNotification();
     const t = useTranslation();
+    const { language } = useI18n();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -888,7 +889,14 @@ const EditBusinessPage: React.FC = () => {
                         </div>
 
                         <div className="pt-4 flex items-center justify-end gap-4 border-t dark:border-zinc-700">
-                            <button type="button" onClick={() => navigate(`/empresa/panel/${encodeURIComponent(business.name.replace(/ /g, '_'))}`)} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
+                            <button type="button" onClick={() => {
+                                // Cancel: vuelve al dashboard del negocio respetando el país e idioma del propio business.
+                                const lang = business.country ? getLanguageForCountryCode(business.country) : language;
+                                const paths = pathTranslations[lang] ?? pathTranslations.es;
+                                const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
+                                const slug = encodeURIComponent(business.name.replace(/ /g, '_'));
+                                navigate(`${countryPrefix}/${paths.businessDashboard.replace(':businessName', slug)}`);
+                            }} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
                                 {t('common.cancel')}
                             </button>
                             <button
