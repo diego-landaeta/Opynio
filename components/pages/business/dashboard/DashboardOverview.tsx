@@ -114,121 +114,96 @@ const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = 
     ];
 
     return (
-        <div className="relative bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-900/15 dark:via-zinc-800 dark:to-teal-900/15 rounded-xl shadow-sm border border-emerald-200 dark:border-emerald-800/40 overflow-hidden">
-            {/* Decorative ribbon */}
-            <div className="h-1 bg-gradient-to-r from-emerald-500 via-brand-green to-teal-500"></div>
-
-            <div className="p-4 sm:p-6">
-                <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-5">
-                    <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-brand-green flex items-center justify-center shadow-md shadow-brand-green/20">
-                        <i className="fa-solid fa-share-nodes text-white text-lg sm:text-xl"></i>
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border dark:border-zinc-700 overflow-hidden">
+            {/* Header compacto: solo título + descripción de una línea */}
+            <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 flex items-start justify-between gap-3 border-b border-gray-100 dark:border-zinc-700/60">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-brand-green/10 text-brand-green flex items-center justify-center">
+                        <i className="fa-solid fa-share-nodes text-base sm:text-lg"></i>
                     </div>
-                    <div className="flex-grow min-w-0">
-                        <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.14em] text-brand-green">
-                            Consigue más reseñas
-                        </p>
-                        <h2 className="text-base sm:text-lg font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mt-0.5">
+                    <div className="min-w-0">
+                        <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                             Comparte tu empresa
                         </h2>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            Cuantas más reseñas, más confianza. Comparte el enlace con tus clientes para que valoren su experiencia.
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            Más reseñas, más confianza
                         </p>
                     </div>
                 </div>
+            </div>
 
-                {/* URL pública — diseño "URL pill" con icono globo, URL en mono,
-                    botón copiar integrado a la derecha. Click en cualquier sitio
-                    del pill copia el enlace. Hover effect sutil. */}
-                <div className="mb-4">
-                    <label className="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                        Enlace público de tu perfil
-                    </label>
-                    <button
-                        type="button"
-                        onClick={() => copyToClipboard(publicUrl, 'url')}
-                        title="Copiar enlace"
-                        className={`group w-full flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border transition-all text-left ${
-                            copiedField === 'url'
-                                ? 'bg-brand-green/10 border-brand-green/40 dark:bg-brand-green/15'
-                                : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:border-brand-green/40 hover:bg-brand-green/5 dark:hover:bg-brand-green/5'
-                        }`}
-                    >
-                        <span className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center transition-colors ${
-                            copiedField === 'url'
-                                ? 'bg-brand-green text-white'
-                                : 'bg-brand-green/10 text-brand-green group-hover:bg-brand-green group-hover:text-white'
-                        }`}>
-                            <i className={`fa-solid ${copiedField === 'url' ? 'fa-check' : 'fa-link'} text-xs sm:text-sm`}></i>
-                        </span>
-                        <span className="flex-grow min-w-0 font-mono text-xs sm:text-[13px] text-gray-700 dark:text-gray-200 truncate">
-                            {publicUrl}
-                        </span>
-                        <span className={`hidden xs:flex flex-shrink-0 items-center gap-1 text-[11px] sm:text-xs font-semibold transition-colors ${
-                            copiedField === 'url'
-                                ? 'text-brand-green'
-                                : 'text-gray-400 group-hover:text-brand-green'
-                        }`}>
-                            <i className={`fa-solid ${copiedField === 'url' ? 'fa-check' : 'fa-copy'} text-[10px]`}></i>
-                            <span>{copiedField === 'url' ? 'Copiado' : 'Copiar'}</span>
-                        </span>
-                    </button>
+            <div className="p-4 sm:p-5 space-y-4">
+                {/* URL pública — pill clickeable que copia el enlace */}
+                <button
+                    type="button"
+                    onClick={() => copyToClipboard(publicUrl, 'url')}
+                    title="Copiar enlace"
+                    className={`group w-full flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                        copiedField === 'url'
+                            ? 'bg-brand-green/10 border-brand-green/40 dark:bg-brand-green/15'
+                            : 'bg-gray-50 dark:bg-zinc-900/60 border-gray-200 dark:border-zinc-700 hover:border-brand-green/40 hover:bg-brand-green/5 dark:hover:bg-brand-green/5'
+                    }`}
+                >
+                    <i className={`fa-solid ${copiedField === 'url' ? 'fa-check text-brand-green' : 'fa-link text-gray-400 group-hover:text-brand-green'} text-sm flex-shrink-0 transition-colors`}></i>
+                    <span className="flex-grow min-w-0 font-mono text-xs sm:text-[13px] text-gray-700 dark:text-gray-200 truncate">
+                        {publicUrl}
+                    </span>
+                    <span className={`hidden xs:inline flex-shrink-0 text-[11px] sm:text-xs font-semibold transition-colors ${
+                        copiedField === 'url' ? 'text-brand-green' : 'text-gray-400 group-hover:text-brand-green'
+                    }`}>
+                        {copiedField === 'url' ? '¡Copiado!' : 'Copiar'}
+                    </span>
+                </button>
+
+                {/* Botones de share como iconos circulares grandes — share sheet style */}
+                <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                    {shareLinks.map((s) => (
+                        <a
+                            key={s.label}
+                            href={s.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Compartir por ${s.label}`}
+                            className="group flex flex-col items-center gap-1.5 sm:gap-2"
+                        >
+                            <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${s.color} text-white flex items-center justify-center shadow-md transition-all group-hover:-translate-y-0.5 group-hover:shadow-lg`}>
+                                <i className={`${s.icon} text-base sm:text-lg`}></i>
+                            </div>
+                            <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors truncate max-w-full">
+                                {s.label}
+                            </span>
+                        </a>
+                    ))}
                 </div>
 
-                {/* Quick share buttons */}
-                <div className="mb-4">
-                    <label className="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-                        Compartir por
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                        {shareLinks.map((s) => (
-                            <a
-                                key={s.label}
-                                href={s.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={`Compartir por ${s.label}`}
-                                className={`group inline-flex items-center gap-2 ${s.color} text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm transition-all hover:-translate-y-0.5`}
-                            >
-                                <i className={`${s.icon} text-sm`}></i>
-                                <span>{s.label}</span>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Mensaje sugerido */}
-                <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Mensaje sugerido
-                        </label>
+                {/* Mensaje sugerido — colapsable, fuera de la vista por defecto para no
+                    abrumar con texto. Al expandirlo aparece el mensaje + botón copiar. */}
+                <details className="group">
+                    <summary className="flex items-center justify-between gap-2 cursor-pointer list-none py-2 -my-2 select-none">
+                        <span className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            <i className="fa-solid fa-message text-brand-green text-xs"></i>
+                            Mensaje sugerido para enviar
+                        </span>
+                        <i className="fa-solid fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                        <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 leading-relaxed">
+                            {suggestedMessage}
+                        </p>
                         <button
                             type="button"
                             onClick={() => copyToClipboard(suggestedMessage, 'message')}
-                            className={`text-[11px] sm:text-xs font-semibold transition-colors flex items-center gap-1 ${
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${
                                 copiedField === 'message'
                                     ? 'text-brand-green'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-brand-green'
                             }`}
                         >
                             <i className={`fa-solid ${copiedField === 'message' ? 'fa-check' : 'fa-copy'} text-[10px]`}></i>
-                            <span>{copiedField === 'message' ? 'Copiado' : 'Copiar mensaje'}</span>
+                            <span>{copiedField === 'message' ? '¡Mensaje copiado!' : 'Copiar mensaje'}</span>
                         </button>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-zinc-900/40 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 leading-relaxed">
-                        {suggestedMessage}
-                    </p>
-                </div>
-
-                {/* Tip pro */}
-                <div className="mt-4 pt-4 border-t border-emerald-200/50 dark:border-emerald-800/30 flex items-start gap-2.5">
-                    <i className="fa-solid fa-lightbulb text-amber-500 text-sm mt-0.5 flex-shrink-0"></i>
-                    <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                        <strong className="text-gray-700 dark:text-gray-300">Tip:</strong> el mejor momento
-                        para pedir una reseña es justo después de una experiencia positiva. Mejora tu plan
-                        para enviar invitaciones masivas por email o generar códigos QR.
-                    </p>
-                </div>
+                </details>
             </div>
         </div>
     );
