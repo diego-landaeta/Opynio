@@ -33,69 +33,44 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 };
 
 
-// Card "Comparte tu negocio" — genera la URL pública del perfil y permite
-// compartirla por WhatsApp / email / redes, con varias plantillas de mensaje
-// para pedir reseñas y un QR descargable para imprimir o mostrar en el local.
-// Disponible en todos los planes (incluido free).
+// Card "Comparte tu negocio" — genera la URL pública del perfil (siempre
+// apuntando a producción web.opynio.com) y permite compartirla por
+// WhatsApp / email / redes, con un QR descargable y estilizado para
+// imprimir o mostrar en el local. Disponible en todos los planes.
 const SUPPORTED_LANGS = ['es', 'en', 'ca', 'fr', 'de', 'it', 'pt', 'br', 'cn'];
-
-type MessageTone = 'friendly' | 'short' | 'warm';
-const MESSAGE_TEMPLATES: { id: MessageTone; label: string; icon: string; build: (name: string, url: string) => string }[] = [
-    {
-        id: 'friendly',
-        label: 'Amable',
-        icon: 'fa-face-smile',
-        build: (name, url) => `¡Hola! Si has tenido una buena experiencia con ${name}, ¿podrías compartirla con una reseña en Opynio? Tu opinión nos ayuda muchísimo. Aquí tienes el enlace: ${url}`,
-    },
-    {
-        id: 'short',
-        label: 'Directo',
-        icon: 'fa-bolt',
-        build: (name, url) => `¡Hola! ¿Nos dejas una reseña sobre ${name} en Opynio? Solo te lleva 1 minuto: ${url}`,
-    },
-    {
-        id: 'warm',
-        label: 'Cercano',
-        icon: 'fa-heart',
-        build: (name, url) => `¡Gracias por confiar en ${name}! Si te ha gustado, tu reseña en Opynio sería un regalazo. Te dejo el enlace: ${url}`,
-    },
-];
+const PUBLIC_BASE_URL = 'https://web.opynio.com';
 
 const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = ({ businessName, language }) => {
     const { showNotification } = useNotification();
     const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
-    const [activeTone, setActiveTone] = useState<MessageTone>('friendly');
     const [showQr, setShowQr] = useState(false);
 
-    // Construye la URL pública del perfil tomando el lang code del PATH ACTUAL
-    // del navegador (no del context i18n, que puede quedarse stale tras un
-    // cambio de idioma rápido). Así si el dueño está viendo /en/... el enlace
-    // que comparte también es /en/...
+    // Construye la URL pública del perfil. Siempre usa el dominio de
+    // producción (web.opynio.com) para que el link sea válido también si
+    // el dueño está mirando el dashboard en localhost o staging.
+    // Lang code se toma del path actual con whitelist (no del context, que
+    // puede quedarse stale al cambiar idioma).
     const publicUrl = useMemo(() => {
         const slug = encodeURIComponent(businessName.replace(/ /g, '_'));
-        let base = 'https://web.opynio.com';
         let langCode = language || 'es';
         if (typeof window !== 'undefined') {
-            base = window.location.origin;
             const segs = window.location.pathname.split('/').filter(Boolean);
-            // Primer segmento puede ser un país (ES, US…) o un idioma (es, en…).
-            // Sólo aceptamos el segundo si está en la whitelist de idiomas.
             const first = (segs[0] || '').toLowerCase();
             if (SUPPORTED_LANGS.includes(first)) langCode = first;
         }
-        return `${base}/${langCode}/empresa/${slug}`;
+        return `${PUBLIC_BASE_URL}/${langCode}/empresa/${slug}`;
     }, [businessName, language]);
 
-    const activeTemplate = MESSAGE_TEMPLATES.find(m => m.id === activeTone) ?? MESSAGE_TEMPLATES[0];
     const suggestedMessage = useMemo(
-        () => activeTemplate.build(businessName, publicUrl),
-        [activeTemplate, businessName, publicUrl]
+        () => `¡Hola! Si has tenido una buena experiencia con ${businessName}, ¿podrías compartirla con una reseña en Opynio? Tu opinión nos ayuda muchísimo. Aquí tienes el enlace: ${publicUrl}`,
+        [businessName, publicUrl]
     );
 
-    // QR generado por servicio público (sin libs ni tokens). Tamaño grande para
-    // imprimir bien en cartelitos / sticker de mesa.
+    // QR estilizado: color verde de marca, alta corrección de errores (H)
+    // para soportar la insignia central de Opynio sin perder lectura.
+    // Servicio público (sin libs, sin auth).
     const qrSrc = useMemo(
-        () => `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=12&data=${encodeURIComponent(publicUrl)}`,
+        () => `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&qzone=1&ecc=H&color=10b981&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`,
         [publicUrl]
     );
 
@@ -206,30 +181,49 @@ const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = 
                 </div>
 
                 {/* QR desplegable — pensado para imprimir en cartelitos y mesas.
-                    Genera la imagen vía api.qrserver.com (público, sin auth). */}
+                    QR en color brand-green con marco gradient e insignia central
+                    de Opynio (alta corrección de errores ECC=H lo permite). */}
                 {showQr && (
-                    <div className="rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60 p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
-                        <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm flex-shrink-0">
-                            <img
-                                src={qrSrc}
-                                alt={`Código QR para ${businessName}`}
-                                width={160}
-                                height={160}
-                                loading="lazy"
-                                className="block w-32 h-32 sm:w-40 sm:h-40"
-                            />
+                    <div className="rounded-2xl bg-gradient-to-br from-brand-green/5 via-emerald-50 to-teal-50 dark:from-brand-green/10 dark:via-zinc-900/60 dark:to-zinc-900/60 border border-brand-green/20 dark:border-brand-green/30 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
+                        {/* Marco del QR — gradient verde + tarjeta blanca + insignia O */}
+                        <div className="relative flex-shrink-0 p-[3px] rounded-2xl bg-gradient-to-br from-brand-green via-emerald-500 to-teal-500 shadow-lg">
+                            <div className="bg-white rounded-[14px] p-3 sm:p-4">
+                                <div className="relative w-36 h-36 sm:w-44 sm:h-44">
+                                    <img
+                                        src={qrSrc}
+                                        alt={`Código QR para dejar una reseña a ${businessName}`}
+                                        width={176}
+                                        height={176}
+                                        loading="lazy"
+                                        className="block w-full h-full"
+                                    />
+                                    {/* Insignia central (logo Opynio) — el ECC=H permite tapar
+                                        un ~12% del área central sin romper la lectura del QR. */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white shadow-md ring-[3px] ring-white flex items-center justify-center">
+                                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-white font-extrabold text-sm sm:text-base">
+                                                O
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div className="flex-1 min-w-0 text-center sm:text-left">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                Imprime este QR en tu local
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-green/10 text-brand-green text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2">
+                                <i className="fa-solid fa-qrcode text-[10px]"></i>
+                                Listo para imprimir
+                            </div>
+                            <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                                Tus reseñas, a un escaneo de distancia
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
-                                Tus clientes lo escanean y van directo a tu perfil para dejarte una reseña en segundos.
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                                Coloca este QR en tu mostrador, recibo o tarjeta. Tus clientes lo escanean y van directo a tu perfil para dejarte una reseña.
                             </p>
                             <a
                                 href={qrSrc}
                                 download={`opynio-qr-${businessName.toLowerCase().replace(/\s+/g, '-')}.png`}
-                                className="mt-3 inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-green hover:underline"
+                                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-green text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
                             >
                                 <i className="fa-solid fa-download text-[11px]"></i>
                                 Descargar QR
@@ -258,57 +252,6 @@ const ShareBusinessCard: React.FC<{ businessName: string; language: string }> = 
                         </a>
                     ))}
                 </div>
-
-                {/* Plantillas de mensaje para pedir reseñas — el dueño elige el tono
-                    (amable / directo / cercano) y copia el mensaje listo. Colapsable
-                    para no abrumar con texto cuando el card sólo se usa para share. */}
-                <details className="group rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50/50 dark:bg-zinc-900/40">
-                    <summary className="flex items-center justify-between gap-2 cursor-pointer list-none px-3 py-2.5 select-none">
-                        <span className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            <i className="fa-solid fa-comment-dots text-brand-green text-xs"></i>
-                            Plantillas para pedir reseñas
-                        </span>
-                        <i className="fa-solid fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
-                    </summary>
-                    <div className="px-3 pb-3 pt-1 space-y-2.5">
-                        {/* Selector de tono */}
-                        <div className="flex flex-wrap gap-1.5">
-                            {MESSAGE_TEMPLATES.map(tpl => {
-                                const active = tpl.id === activeTone;
-                                return (
-                                    <button
-                                        key={tpl.id}
-                                        type="button"
-                                        onClick={() => setActiveTone(tpl.id)}
-                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all ${
-                                            active
-                                                ? 'bg-brand-green text-white shadow-sm'
-                                                : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-zinc-700 hover:border-brand-green/50 hover:text-brand-green'
-                                        }`}
-                                    >
-                                        <i className={`fa-solid ${tpl.icon} text-[10px]`}></i>
-                                        {tpl.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 leading-relaxed">
-                            {suggestedMessage}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => copyToClipboard(suggestedMessage, 'message')}
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${
-                                copiedField === 'message'
-                                    ? 'text-brand-green'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-brand-green'
-                            }`}
-                        >
-                            <i className={`fa-solid ${copiedField === 'message' ? 'fa-check' : 'fa-copy'} text-[10px]`}></i>
-                            <span>{copiedField === 'message' ? '¡Mensaje copiado!' : 'Copiar mensaje'}</span>
-                        </button>
-                    </div>
-                </details>
             </div>
         </div>
     );
