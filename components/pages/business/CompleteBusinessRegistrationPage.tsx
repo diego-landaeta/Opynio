@@ -202,17 +202,16 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             <div className="relative -mx-3 sm:-mx-4 md:-mx-6 -mt-8 sm:-mt-10 md:-mt-12 pb-12">
 
                 {/* === HERO verde gradient con step indicator ===
-                    rounded-b-[X] curva el bottom para que no se vea como un rectángulo
-                    plano cortado. La curva es generosa pero responsive: 32px en móvil,
-                    48px en tablet, 64px en desktop. */}
-                <div className="relative bg-gradient-to-br from-emerald-600 via-brand-green to-teal-500 px-4 pt-10 pb-28 sm:pt-16 sm:pb-40 overflow-hidden rounded-b-[32px] sm:rounded-b-[48px] lg:rounded-b-[64px]">
+                    Sin curva inferior y sin solape: el hero termina recto y las cards
+                    se colocan debajo en su flujo natural. Antes intentábamos solapar
+                    las cards sobre una curva inferior, pero el resultado generaba un
+                    "dent" feo donde la curva chocaba con las esquinas de las cards. */}
+                <div className="relative bg-gradient-to-br from-emerald-600 via-brand-green to-teal-500 px-4 pt-10 pb-12 sm:pt-16 sm:pb-16 overflow-hidden">
                     {/* Patrones decorativos radiales — varios para dar profundidad y
                         evitar la sensación de "fondo plano". */}
                     <div className="absolute inset-0 opacity-40 pointer-events-none"
                          style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.22) 0%, transparent 40%), radial-gradient(circle at 85% 75%, rgba(255,255,255,0.16) 0%, transparent 40%), radial-gradient(circle at 50% 100%, rgba(16,185,129,0.35) 0%, transparent 50%)' }}>
                     </div>
-                    {/* Suave fade hacia el body en el bottom para difuminar mejor */}
-                    <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none bg-gradient-to-t from-emerald-600/0 via-emerald-600/0 to-emerald-700/20"></div>
 
                     <div className="relative max-w-4xl mx-auto text-center">
                         <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-white/80 mb-3">
@@ -269,8 +268,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* === Card flotante con sombra de color brand === */}
-                <div className="relative max-w-5xl mx-auto px-3 sm:px-4 -mt-16 sm:-mt-24">
+                {/* === Cards del wizard === */}
+                <div className="relative max-w-5xl mx-auto px-3 sm:px-4 mt-6 sm:mt-8">
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-5 sm:gap-6 lg:gap-8 items-start">
 
                         {/* === FORM (columna principal) === */}
