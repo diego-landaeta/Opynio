@@ -592,8 +592,15 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* === Plan Free incluido === */}
-                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-2xl border border-emerald-200 dark:border-emerald-800/40 p-5">
+                            {/* === Plan Free incluido ===
+                                Fondo neutro (blanco / zinc-800) con accent verde solo en
+                                ribbon superior y border. Antes era gradient emerald-50 →
+                                teal-50 que en dark mode se mezclaba con el verde del hero
+                                y creaba un efecto de "recorte" feo. */}
+                            <div className="relative bg-white dark:bg-zinc-800 rounded-2xl border border-gray-100 dark:border-zinc-700 shadow-lg shadow-brand-green/5 overflow-hidden">
+                                {/* Ribbon superior verde como acento */}
+                                <div className="h-1 bg-gradient-to-r from-emerald-400 via-brand-green to-teal-400"></div>
+                                <div className="p-5">
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-gray-100">
                                         <i className="fa-solid fa-gift text-brand-green"></i>
@@ -621,6 +628,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     Ver planes premium
                                     <i className="fa-solid fa-arrow-right text-[10px]"></i>
                                 </ReactRouterDOM.Link>
+                                </div>
                             </div>
 
                             {/* === Tip === */}
