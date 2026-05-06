@@ -203,7 +203,7 @@ const PlanActivatedModal: React.FC = () => {
                 {/* Top gradient ribbon */}
                 <div className={`h-2 bg-gradient-to-r ${data.color}`}></div>
 
-                <div className="p-8 sm:p-10 text-center">
+                <div className="p-6 sm:p-10 text-center">
                     {/* Icon */}
                     <div className={`mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br ${data.color} flex items-center justify-center shadow-2xl mb-5 ring-8 ring-white/30 dark:ring-zinc-800/50 animate-bounce-in`}>
                         <i className={`fa-solid ${data.icon} text-white text-3xl sm:text-4xl`}></i>

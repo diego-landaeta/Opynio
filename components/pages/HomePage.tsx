@@ -37,12 +37,12 @@ const LanguageSelectionBanner: React.FC<{ isOpen: boolean, onClose: () => void }
                         <i className="fa-solid fa-globe text-brand-green"></i>
                         <span className="font-medium">{t('homepage.selectLanguageTitle')}</span>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                         {LANGUAGES.slice(0, 5).map(lang => (
                             <button
                                 key={lang.code}
                                 onClick={() => handleSelectLanguage(lang.code as Language)}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 text-xs font-medium"
+                                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 text-xs font-medium"
                             >
                                 <img src={lang.flag} alt={lang.name} width={16} height={16} className="w-4 h-4 rounded-full object-cover" />
                                 <span className="text-gray-700 dark:text-gray-300">{lang.code.toUpperCase()}</span>

@@ -281,7 +281,7 @@ const MobileMenu: React.FC<{
                 )}
             </div>
             <div
-                className={`fixed top-0 left-0 h-full w-[75vw] max-w-xs sm:w-80 bg-white dark:bg-zinc-900 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`fixed top-0 left-0 h-full w-[88vw] max-w-[320px] sm:w-80 bg-white dark:bg-zinc-900 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="menu-title"
