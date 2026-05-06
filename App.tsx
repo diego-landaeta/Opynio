@@ -12,7 +12,7 @@ import { ConfirmProvider } from './contexts/ConfirmContext';
 import Snackbar from './components/Snackbar';
 import RealtimeNotificationHandler from './components/RealtimeNotificationHandler';
 import Spinner from './components/Spinner';
-import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode } from './contexts/i18nContext';
+import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode, detectLanguageFromPath } from './contexts/i18nContext';
 import { CountryProvider, useCountry, CountryCode } from './contexts/CountryContext';
 import { getBusinessByName, getBusinessById } from './services/supabaseService';
 import { Business } from './types';
@@ -340,27 +340,9 @@ const getPathKeyFromPath = (path: string): keyof typeof pathTranslations.es | nu
     return null;
 };
 
-// Detect which language a top-level path segment belongs to. Used in
-// MainLayout para sincronizar el idioma de la UI cuando el usuario entra
-// a una URL como /register, /login, /pricing... así la i18n del Header
-// y resto del shell coincide con el idioma del path.
-// Si el segmento aparece en varios idiomas (p.ej. "widgets", "support"
-// que comparten texto), devuelve el primer match — irrelevante porque
-// el contenido renderizado es el mismo.
-const detectLanguageFromPath = (pathSegment: string): Language | null => {
-    if (!pathSegment) return null;
-    const languages = Object.keys(pathTranslations) as Language[];
-    for (const lang of languages) {
-        const paths = pathTranslations[lang];
-        for (const value of Object.values(paths)) {
-            const basePath = (value as string).split('/')[0].split(':')[0];
-            if (basePath && (pathSegment === basePath || pathSegment.startsWith(basePath + '/'))) {
-                return lang;
-            }
-        }
-    }
-    return null;
-};
+// detectLanguageFromPath vive ahora en contexts/i18nContext.tsx para
+// poder reutilizarse desde Meta.tsx (canonical inteligente). Se importa
+// en el bloque de imports al inicio de App.tsx.
 
 // Component that validates the path language matches the country
 // Shows 404 for paths in wrong language (not redirect, to avoid indexing issues)

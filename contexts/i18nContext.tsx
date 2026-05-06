@@ -56,6 +56,40 @@ export const pathTranslations: {
   cn: cnTranslations.paths,
 };
 
+// Detecta el idioma al que pertenece un segmento del path comparándolo
+// contra los basePath registrados en pathTranslations. Devuelve null si
+// no matchea nada. Los segmentos compartidos por varios idiomas (p.ej.
+// "widgets", "support") devuelven el primer match — irrelevante porque
+// el contenido renderizado es el mismo.
+export const detectLanguageFromPath = (pathSegment: string | null | undefined): Language | null => {
+    if (!pathSegment) return null;
+    const languages = Object.keys(pathTranslations) as Language[];
+    for (const lang of languages) {
+        const paths = pathTranslations[lang];
+        for (const value of Object.values(paths)) {
+            const basePath = (value as string).split('/')[0].split(':')[0];
+            if (basePath && (pathSegment === basePath || pathSegment.startsWith(basePath + '/'))) {
+                return lang;
+            }
+        }
+    }
+    return null;
+};
+
+// País por defecto que canonicaliza un idioma en el dominio raíz.
+// Cuando la URL es /login (sin country prefix), su canonical apunta a
+// /us/login porque "us" es el país default para inglés. Español NO se
+// mapea porque el dominio raíz ES la versión canónica española.
+export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
+    en: 'us',
+    de: 'de',
+    fr: 'fr',
+    it: 'it',
+    br: 'br',
+    ca: 'ad',
+    cn: 'cn',
+};
+
 // Maps a country code from the URL to a language code for path generation.
 export const getLanguageForCountryCode = (countryCode: string | null | undefined): Language => {
     if (!countryCode) return 'es';

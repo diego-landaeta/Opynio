@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { detectLanguageFromPath, LANGUAGE_DEFAULT_COUNTRY } from '../contexts/i18nContext';
 
 interface MetaProps {
   title: string;
@@ -95,8 +96,35 @@ const Meta: React.FC<MetaProps> = ({
     }
 
     // La canonical NUNCA debe incluir query params (sort, filter, page, etc.)
-    // Si se pasa una canonical explícita, usarla; si no, construir desde pathname limpio
-    const canonicalUrl = canonical || `${APP_URL}${currentPath}`;
+    // Si se pasa una canonical explícita, usarla; si no, construir el canonical:
+    //   - Para paths con country prefix → canonical = URL actual.
+    //   - Para paths en raíz en español → canonical = URL actual (el dominio
+    //     raíz ES la versión canónica española).
+    //   - Para paths en raíz en otro idioma (en/de/fr/it/br/ca/cn) →
+    //     canonical = /<countryDefault>/<path> para evitar duplicate content
+    //     entre /login (raíz) y /us/login (country-prefixed).
+    // Patrón identificador de country/lang prefix (mismo set que el resto del Meta).
+    const PREFIX_RE = /^\/(es|en|br|pt|ca|fr|de|it|mx|ar|co|pe|ve|cl|ec|gt|cr|pa|uy|us|gb|ad|cn)(?=\/|$)/;
+    let canonicalUrl: string;
+    if (canonical) {
+      canonicalUrl = canonical;
+    } else if (PREFIX_RE.test(currentPath)) {
+      // Tiene country prefix → la URL actual es ya la canónica.
+      canonicalUrl = `${APP_URL}${currentPath}`;
+    } else {
+      // No tiene country prefix → estamos en el dominio raíz. Detectar
+      // idioma del primer segmento. Si es no-español, redirigir el
+      // canonical al país default de ese idioma.
+      const firstSeg = currentPath.split('/').filter(Boolean)[0] || '';
+      const detectedLang = detectLanguageFromPath(firstSeg);
+      const defaultCountry = detectedLang ? LANGUAGE_DEFAULT_COUNTRY[detectedLang] : undefined;
+      if (defaultCountry) {
+        canonicalUrl = `${APP_URL}/${defaultCountry}${currentPath}`;
+      } else {
+        // Path en español o no detectado → la URL actual es canónica.
+        canonicalUrl = `${APP_URL}${currentPath}`;
+      }
+    }
     setLinkTag('canonical', canonicalUrl);
 
     // También actualizar og:url para que coincida con canonical
