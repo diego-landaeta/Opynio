@@ -41,7 +41,7 @@ const supabaseAdmin = createClient(
 // product en Stripe. Por ejemplo, el plan 'v2' (premium test) usa un product
 // llamado "TESTEO OPYNIO" en Stripe pero internamente se identifica como 'v2'.
 const PRICE_TO_PLAN_OVERRIDE: Record<string, string> = {
-  "price_1TTo6JGP3zN1neHAXHFYpy1l": "v2",
+  "price_1TTqZNRJqlZctcvhV711xZuz": "v2",
 };
 
 function planNameFromPrice(priceId: string, fallbackProductName: string): string {

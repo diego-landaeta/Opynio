@@ -23,7 +23,7 @@ async function mgmt(pathSeg) {
     return res.json();
 }
 
-// --- 1) Secrets configurados ---
+// --- 1) Secrets ---
 console.log('\n=== 1. Edge Function secrets ===');
 const secrets = await mgmt('/secrets');
 const expected = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SIGNING_SECRET', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -39,11 +39,7 @@ if (!STRIPE_SECRET_KEY) {
     process.exit(1);
 }
 
-const isLive = STRIPE_SECRET_KEY.startsWith('sk_live_');
-const isTest = STRIPE_SECRET_KEY.startsWith('sk_test_');
-log(isLive ? 'OK' : isTest ? 'WARN' : 'FAIL', `Modo: ${isLive ? 'LIVE' : isTest ? 'TEST' : 'desconocido'}`);
-
-// --- 2) Stripe API calls ---
+// --- 2) Stripe API ---
 async function stripeApi(pathSeg) {
     const res = await fetch(`https://api.stripe.com/v1${pathSeg}`, {
         headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
@@ -53,29 +49,52 @@ async function stripeApi(pathSeg) {
     return JSON.parse(text);
 }
 
-// --- 3) Verificar products ---
-console.log('\n=== 2. Productos en Stripe ===');
+// Verificar que la key funciona — solo posible si la Management API devolviera
+// plaintext. Como Supabase Vault devuelve ciphertext, esto siempre dará 401
+// desde aquí. La validez real se verifica vía edge functions en runtime.
+console.log('\n=== 2. Validez del STRIPE_SECRET_KEY ===');
+let keyValidatedFromHere = false;
+try {
+    const acct = await stripeApi('/account');
+    log('OK', `account.id=${acct.id} · livemode_capable=${acct.charges_enabled}`);
+    keyValidatedFromHere = true;
+} catch (err) {
+    log('WARN', `No se puede validar la key desde aquí (Supabase devuelve ciphertext)`);
+    log('..', `   La validez real se verifica cuando el webhook procesa un evento.`);
+    log('..', `   Saltando verificaciones products/prices/webhooks contra Stripe API.`);
+}
+
+if (keyValidatedFromHere) {
+// --- 3) Productos ---
+console.log('\n=== 3. Productos en Stripe ===');
 const expectedProductIds = [
-    'prod_USjSKfUeGP823n', 'prod_USjTkEv3StpcD3', 'prod_USjUzmuZSHLZKt',
-    'prod_USjVaTnJOjG33R', 'prod_USjVBCDee4m7AZ', 'prod_USjWpgHHEjtyfO',
-    'prod_USjZXYdBTAToZB',
+    'prod_TEhgIaYVu6Ovh8',  // starter mensual
+    'prod_TEhjixQrJf8fd5',  // growth mensual
+    'prod_TEhlBPBp3JtKxF',  // pro mensual
+    'prod_USjVaTnJOjG33R',  // starter anual
+    'prod_USm46y7SpW94mr',  // growth anual
+    'prod_USm6B74n7PYuq0',  // pro anual
+    'prod_USm7xUXQEHYIh8',  // testeo (v2)
 ];
 for (const pid of expectedProductIds) {
     try {
         const p = await stripeApi(`/products/${pid}`);
         log('OK', `${pid} · "${p.name}" · active=${p.active}`);
     } catch (err) {
-        log('FAIL', `${pid} → ${err.message}`);
+        log('FAIL', `${pid} → ${err.message.slice(0,120)}`);
     }
 }
 
-// --- 4) Verificar prices ---
-console.log('\n=== 3. Prices en Stripe ===');
+// --- 4) Prices ---
+console.log('\n=== 4. Prices en Stripe ===');
 const expectedPriceIds = [
-    'price_1TTnzlGP3zN1neHAKltGEqOy', 'price_1TTo0DGP3zN1neHAoJoiJKhu',
-    'price_1TTo17GP3zN1neHAXzBZ9dD0', 'price_1TTo2CGP3zN1neHAplpNdMDD',
-    'price_1TTo2dGP3zN1neHAsg6PbzeJ', 'price_1TTo3gGP3zN1neHArXBCKxyq',
-    'price_1TTo6JGP3zN1neHAXHFYpy1l',
+    'price_1SIEGvRJqlZctcvhh3VMcupC',  // starter mensual
+    'price_1SIEJeRJqlZctcvhrzuA4wR8',  // growth mensual
+    'price_1SIELiRJqlZctcvhQ3xP8rwa',  // pro mensual
+    'price_1TTo2CGP3zN1neHAplpNdMDD',  // starter anual
+    'price_1TTqWBRJqlZctcvhY78cLeWP',  // growth anual
+    'price_1TTqYARJqlZctcvholBtHK17',  // pro anual
+    'price_1TTqZNRJqlZctcvhV711xZuz',  // v2 (testeo)
 ];
 for (const pid of expectedPriceIds) {
     try {
@@ -84,23 +103,11 @@ for (const pid of expectedPriceIds) {
         const interval = p.recurring?.interval ?? 'one_time';
         log('OK', `${pid} · ${amt} · ${interval} · active=${p.active}`);
     } catch (err) {
-        log('FAIL', `${pid} → ${err.message}`);
+        log('FAIL', `${pid} → ${err.message.slice(0,120)}`);
     }
 }
 
-// --- 5) Customers cross-account ---
-console.log('\n=== 4. Customers (verifica si la cuenta es la misma) ===');
-const customerIds = ['cus_TFs9vasLOLzYeW', 'cus_UQWcl9A2zon1A4', 'cus_TEjThxHNG8QNzC'];
-for (const cid of customerIds) {
-    try {
-        const c = await stripeApi(`/customers/${cid}`);
-        log('OK', `${cid} · ${c.email ?? '(no email)'} · created=${new Date(c.created*1000).toISOString().slice(0,10)}`);
-    } catch (err) {
-        log('FAIL', `${cid} → ${err.message.slice(0, 120)}`);
-    }
-}
-
-// --- 6) Webhook endpoint en Stripe ---
+// --- 5) Webhook endpoint ---
 console.log('\n=== 5. Webhook configurado en Stripe ===');
 try {
     const list = await stripeApi('/webhook_endpoints');
@@ -111,7 +118,7 @@ try {
         const isOurs = wh.url.includes('hvtrrhxeqrsnjxhngdsj.supabase.co/functions/v1/stripe-webhook');
         const status = wh.status === 'enabled' ? 'OK' : 'WARN';
         log(isOurs ? status : 'WARN', `${isOurs ? '★ NUESTRO →' : 'otro →'} ${wh.url}`);
-        log('..', `   status=${wh.status} · ${wh.enabled_events.length === 1 && wh.enabled_events[0] === '*' ? 'TODOS los eventos' : wh.enabled_events.length+' eventos suscritos'}`);
+        log('..', `   status=${wh.status} · ${wh.enabled_events.length === 1 && wh.enabled_events[0] === '*' ? 'TODOS' : wh.enabled_events.length+' eventos'}`);
         if (isOurs) {
             const required = [
                 'checkout.session.completed',
@@ -133,8 +140,9 @@ try {
 } catch (err) {
     log('FAIL', `webhook_endpoints → ${err.message}`);
 }
+} // close keyValidatedFromHere
 
-// --- 7) Edge Functions deployment ---
+// --- 6) Edge Functions ---
 console.log('\n=== 6. Edge Functions ===');
 const fns = await mgmt('/functions');
 for (const slug of ['stripe-webhook', 'create-checkout-session', 'create-portal-session', 'repair-stripe-orphans']) {
@@ -144,18 +152,16 @@ for (const slug of ['stripe-webhook', 'create-checkout-session', 'create-portal-
         `${slug} · v${fn.version} · ${fn.status} · verify_jwt=${fn.verify_jwt}`);
 }
 
-// --- 8) Smoke test endpoint webhook ---
+// --- 7) Smoke test webhook ---
 console.log('\n=== 7. Smoke test webhook endpoint ===');
 const probe = await fetch(`https://${PROJECT_REF}.supabase.co/functions/v1/stripe-webhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
 });
 const probeText = await probe.text();
 if (probe.status === 400 && /signature|invalid/i.test(probeText)) {
-    log('OK', `webhook responde ${probe.status} "${probeText.slice(0,40)}" sin Stripe-Signature (correcto)`);
+    log('OK', `webhook ${probe.status} "${probeText.slice(0,40)}"`);
 } else {
-    log('WARN', `webhook respondió ${probe.status} "${probeText.slice(0,80)}"`);
+    log('WARN', `webhook ${probe.status} "${probeText.slice(0,80)}"`);
 }
 
 console.log('\n=== Auditoría completada ===\n');

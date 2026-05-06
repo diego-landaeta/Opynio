@@ -56,11 +56,11 @@ function corsHeadersFor(origin: string): HeadersInit {
 //
 // 'v2' es un plan premium de prueba con un único price (sin distinción mensual/anual);
 // se usa el mismo Stripe price para ambos billingCycle.
-const V2_PRICE_ID = "price_1TTo6JGP3zN1neHAXHFYpy1l";
+const V2_PRICE_ID = "price_1TTqZNRJqlZctcvhV711xZuz";
 const PLAN_PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
-  starter: { monthly: "price_1TTnzlGP3zN1neHAKltGEqOy", annual: "price_1TTo2CGP3zN1neHAplpNdMDD" },
-  growth:  { monthly: "price_1TTo0DGP3zN1neHAoJoiJKhu", annual: "price_1TTo2dGP3zN1neHAsg6PbzeJ" },
-  pro:     { monthly: "price_1TTo17GP3zN1neHAXzBZ9dD0", annual: "price_1TTo3gGP3zN1neHArXBCKxyq" },
+  starter: { monthly: "price_1SIEGvRJqlZctcvhh3VMcupC", annual: "price_1TTo2CGP3zN1neHAplpNdMDD" },
+  growth:  { monthly: "price_1SIEJeRJqlZctcvhrzuA4wR8", annual: "price_1TTqWBRJqlZctcvhY78cLeWP" },
+  pro:     { monthly: "price_1SIELiRJqlZctcvhQ3xP8rwa", annual: "price_1TTqYARJqlZctcvholBtHK17" },
   v2:      { monthly: V2_PRICE_ID,                     annual: V2_PRICE_ID },
 };
 
