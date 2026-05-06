@@ -564,7 +564,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     <div className="p-5">
                                         <div className="flex items-start gap-3">
                                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-green/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                                                <CountryFlag code={businessCountry} size="lg" />
+                                                <i className="fa-solid fa-building text-brand-green text-xl"></i>
                                             </div>
                                             <div className="min-w-0 flex-grow">
                                                 <p className="font-bold text-gray-800 dark:text-gray-100 truncate">
