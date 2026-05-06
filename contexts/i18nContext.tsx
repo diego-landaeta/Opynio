@@ -76,6 +76,44 @@ export const detectLanguageFromPath = (pathSegment: string | null | undefined): 
     return null;
 };
 
+// Detecta si la ruta corresponde a un dashboard (admin, panel del business
+// owner, mis-negocios, migrar-google-reviews, completar-registro-empresa).
+// Usado para ocultar selectores de idioma/país que no deberían estar
+// disponibles dentro del panel — la URL de los dashboards está atada al
+// país de la empresa y cambiar el idioma rompería navegación.
+export const isDashboardRoute = (pathname: string): boolean => {
+    if (pathname.startsWith('/admin')) return true;
+
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length === 0) return false;
+
+    // El primer segmento puede ser un código de país (us, es, fr…) — si lo es,
+    // el segmento relevante es el siguiente. Importamos los países perezosamente
+    // para evitar un import circular con constants.ts (que importa types).
+    // Los códigos de país ISO 3166-1 alpha-2 son siempre 2 letras.
+    const first = segments[0].toLowerCase();
+    const looksLikeCountry = first.length === 2 && /^[a-z]{2}$/.test(first);
+    const rawSeg = looksLikeCountry && segments.length > 1 ? segments[1] : segments[0];
+    const seg = decodeURIComponent(rawSeg);
+
+    // Recorre las traducciones de paths de cada idioma y comprueba si el
+    // segmento corresponde a un path de dashboard.
+    const languages = Object.keys(pathTranslations) as Language[];
+    for (const lang of languages) {
+        const paths = pathTranslations[lang];
+        const dashboardSegs = [
+            paths.myBusinesses,
+            paths.businessDashboard?.split('/')[0],
+            paths.completeBusinessRegistration?.split('/')[0],
+            paths.migrateGoogleReviews?.split('/')[0],
+        ].filter(Boolean);
+        if (dashboardSegs.some(p => seg === p || seg.startsWith(p + '/'))) {
+            return true;
+        }
+    }
+    return false;
+};
+
 // País por defecto que canonicaliza un idioma en el dominio raíz.
 // Cuando la URL es /login (sin country prefix), su canonical apunta a
 // /us/login porque "us" es el país default para inglés. Español NO se

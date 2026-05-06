@@ -1,16 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useI18n, Language } from '../contexts/i18nContext';
+import { useLocation } from 'react-router-dom';
+import { useI18n, Language, isDashboardRoute } from '../contexts/i18nContext';
 import { LANGUAGES } from '../constants';
 
 const DISMISSED_KEY = 'opynio_lang_button_dismissed';
 
 const FloatingLanguageButton: React.FC = () => {
     const { language, setLanguage } = useI18n();
+    const location = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const [isDismissed, setIsDismissed] = useState(() => {
         return sessionStorage.getItem(DISMISSED_KEY) === 'true';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Oculta el botón en dashboards (admin / panel business owner) — la URL
+    // está atada al país de la empresa y cambiar el idioma desde aquí
+    // rompería la navegación.
+    const hideOnDashboard = isDashboardRoute(location.pathname);
 
     // Get current language info
     const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
@@ -44,6 +51,7 @@ const FloatingLanguageButton: React.FC = () => {
     };
 
     if (isDismissed) return null;
+    if (hideOnDashboard) return null;
 
     return (
         <div

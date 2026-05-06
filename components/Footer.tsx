@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, Language } from '../contexts/i18nContext';
+import { Link, useLocation } from 'react-router-dom';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, isDashboardRoute, Language } from '../contexts/i18nContext';
 import { useCountry } from '../contexts/CountryContext';
 import { LANGUAGES } from '../constants';
 
@@ -9,8 +9,13 @@ const Footer: React.FC = () => {
   const t = useTranslation();
   const { country } = useCountry();
   const { language, setLanguage } = useI18n();
+  const location = useLocation();
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  // En dashboards el cambio de idioma se oculta — la URL está atada al país
+  // de la empresa y cambiar idioma rompería navegación.
+  const hideLanguageSwitcher = isDashboardRoute(location.pathname);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -89,8 +94,9 @@ const Footer: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center text-xs sm:text-sm mt-8 sm:mt-10 md:mt-12 pt-6 sm:pt-8 border-t border-gray-700 dark:border-zinc-700 gap-4">
           <p className="text-center sm:text-left">&copy; {new Date().getFullYear()} Opynio. {t('footer.allRightsReserved')}</p>
 
-          {/* Language Selector - Desktop only (hidden on mobile, shown in mobile menu) */}
-          <div className="hidden sm:block relative" ref={langDropdownRef}>
+          {/* Language Selector - Desktop only (hidden on mobile, shown in mobile menu).
+              Oculto también en dashboards (URL atada a país de la empresa). */}
+          <div className={`${hideLanguageSwitcher ? 'hidden' : 'hidden sm:block'} relative`} ref={langDropdownRef}>
             <button
               onClick={() => setLangDropdownOpen(v => !v)}
               className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-full border border-gray-600 hover:border-gray-500 text-sm"
