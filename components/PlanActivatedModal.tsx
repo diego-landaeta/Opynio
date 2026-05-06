@@ -12,7 +12,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Plan } from '../types';
 
-const PLAN_BENEFITS: Record<Plan, { title: string; tagline: string; color: string; icon: string; features: string[] }> = {
+export const PLAN_BENEFITS: Record<Plan, { title: string; tagline: string; color: string; icon: string; features: string[] }> = {
     free: {
         title: '¡Tu empresa está activa!',
         tagline: 'Bienvenido a Opynio. Tu plan Free ya está listo.',
