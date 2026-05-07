@@ -1,6 +1,6 @@
-# 10 — Plan de blindaje SEO para `horizontal-carousel`
+# 10 — Plan de blindaje SEO para `stars-carousel`
 
-> **Objetivo**: convertir el widget `horizontal-carousel` en una bestia de SEO. Es el widget que se embebe en sitios cliente externos, así que su comportamiento ante Googlebot debe ser impecable: sin canibalizar a Opynio, maximizando rich snippets y consolidando autoridad de marca.
+> **Objetivo**: convertir el widget `stars-carousel` en una bestia de SEO. Es el widget que se embebe en sitios cliente externos, así que su comportamiento ante Googlebot debe ser impecable: sin canibalizar a Opynio, maximizando rich snippets y consolidando autoridad de marca.
 >
 > **Para quién**: el siguiente Claude que continúe este trabajo. Todo lo que necesita saber está aquí.
 
@@ -9,15 +9,16 @@
 ## 1. Contexto rápido
 
 - El widget vive en `public/widget.js` (vanilla JS, IIFE) y se sirve desde `https://web.opynio.com/widget.js`.
-- Los clientes lo embeben con `<div class="opynio-widget" data-business-id="..." data-type="horizontal-carousel">`.
-- Hay un **swap reciente** (commit `4f8fcab`): el `data-type="horizontal-carousel"` ahora renderiza el diseño compacto (panel verde + 3 cards mini + footer "Ver reseñas completas"). El diseño viejo (cards grandes con texto) quedó bajo `stars-carousel`.
-- Las CSS classes internas del nuevo diseño se renombraron a `opynio-horizontal-carousel-*`.
+- Los clientes lo embeben con `<div class="opynio-widget" data-business-id="..." data-type="stars-carousel">`.
+- Es el widget visualmente más cuidado: panel verde "EXCELENTE" a la izquierda + 3 cards mini rotando + footer "Ver reseñas completas". Diseño compacto pensado para encajar en cualquier sitio cliente.
+- Las CSS classes internas usan prefix `opynio-stars-carousel-*`.
+- El componente React de preview vive en `components/pages/business/dashboard/widgets/StarsCarouselWidget.tsx` (export `StarsCarouselPreview`).
 
 ---
 
 ## 2. Estado actual del bot path (baseline)
 
-Localización: `public/widget.js`, función `'horizontal-carousel'` (~línea 709).
+Localización: `public/widget.js`, función `'stars-carousel'`.
 
 ```js
 // Líneas relevantes:
@@ -45,6 +46,8 @@ if (IS_BOT) {
 ```
 
 `BOT_REGEX` cubre: Googlebot, Bingbot, AhrefsBot, SemrushBot, DuckDuckBot, Slurp, Baiduspider, YandexBot, facebookexternalhit, Twitterbot, LinkedInBot, WhatsApp, Discordbot, Applebot.
+
+`SELF_HANDLED_EMPTY = ['stars-carousel']` — el renderer maneja internamente el caso de 0 reseñas.
 
 **Lo que ya está bien:**
 - ✅ Bot detection + bot path minimal (no canibaliza Opynio).
@@ -317,10 +320,11 @@ curl -A "Googlebot/2.1" https://web.opynio.com/widget.js | node -e "..."
 
 ## 9. Estado del trabajo previo
 
-- `09-WIDGET-SEO-FIX-PLAN.html` / `.pdf` — plan general previo de SEO del widget. **Léelo primero**, este documento es la continuación específica para el `horizontal-carousel` post-swap.
-- Commit `4f8fcab` — swap `horizontal-carousel ↔ stars-carousel` aplicado.
+- `09-WIDGET-SEO-FIX-PLAN.html` / `.pdf` — plan general previo de SEO del widget. **Léelo primero**, este documento es la continuación específica para `stars-carousel`.
 - Commit `cc006a9` — galería visual + limpieza mini-carousel.
 - Commit `05f0e5e` — añade los nuevos widgets (mini-carousel y stars-carousel originales) con SEO baseline.
+
+**Nota**: hubo un swap experimental temporal (`horizontal-carousel ↔ stars-carousel`, commits `4f8fcab` y revert `d03239c`) para probar cómo migrar clientes ya embebidos al nuevo diseño manteniendo su `data-type`. Se descartó. Si en algún momento se vuelve a hacer ese swap, los IDs y CSS classes de este documento deberán intercambiarse.
 
 ---
 
