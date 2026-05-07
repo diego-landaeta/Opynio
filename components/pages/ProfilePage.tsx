@@ -276,7 +276,7 @@ const ProfilePage: React.FC = () => {
                                     {v2Loading
                                         ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         : <i className="fa-solid fa-credit-card"></i>}
-                                    <span>{v2Loading ? 'Abriendo portal…' : 'Gestionar v.2'}</span>
+                                    <span>{v2Loading ? 'Abriendo portal…' : 'Gestionar plan'}</span>
                                 </button>
                             ) : (
                                 <button
@@ -288,7 +288,7 @@ const ProfilePage: React.FC = () => {
                                     {v2Loading
                                         ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         : <i className="fa-solid fa-rocket"></i>}
-                                    <span>{v2Loading ? 'Redirigiendo a Stripe…' : 'v.2'}</span>
+                                    <span>{v2Loading ? 'Redirigiendo a Stripe…' : 'Activar plan'}</span>
                                 </button>
                             )}
                         </div>
