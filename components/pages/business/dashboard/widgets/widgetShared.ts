@@ -21,8 +21,8 @@ export interface WidgetConfig {
 }
 
 export const WIDGETS: WidgetConfig[] = [
-    { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel' },
     { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel' },
+    { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel' },
     { name: 'showcase', description: 'businessDashboard.widgetDescriptions.showcase', component: ShowcasePreview, type: 'showcase' },
     { name: 'large-carousel', description: 'businessDashboard.widgetDescriptions.large-carousel', component: LargeCarouselPreview, type: 'large-carousel' },
     { name: 'wall', description: 'businessDashboard.widgetDescriptions.wall', component: WallPreview, type: 'wall' },
@@ -491,7 +491,7 @@ export const WIDGET_CSS = `
        3 cards (avatar+nombre+estrellas) en bucle infinito + botón footer centrado.
        container-type permite que el widget responda a SU ancho (no al del viewport),
        imprescindible para previews en columnas estrechas del dashboard. */
-    .opynio-horizontal-carousel-widget {
+    .opynio-stars-carousel-widget {
         background: var(--card-bg);
         border-radius: 20px;
         box-shadow: var(--shadow-lg);
@@ -503,13 +503,13 @@ export const WIDGET_CSS = `
         flex-direction: column;
         container-type: inline-size;
     }
-    .opynio-horizontal-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
+    .opynio-stars-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
     /* Columna derecha: cards arriba + botón "Ver reseñas completas" centrado debajo de las cards */
-    .opynio-horizontal-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
+    .opynio-stars-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
 
     /* Panel CTA "Ver más" a la izquierda */
-    .opynio-horizontal-carousel-cta-link { text-decoration: none; color: inherit; display: flex; flex-shrink: 0; }
-    .opynio-horizontal-carousel-cta {
+    .opynio-stars-carousel-cta-link { text-decoration: none; color: inherit; display: flex; flex-shrink: 0; }
+    .opynio-stars-carousel-cta {
         flex: 1;
         min-width: 210px;
         text-align: center;
@@ -520,24 +520,24 @@ export const WIDGET_CSS = `
         gap: 8px;
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
-    .opynio-horizontal-carousel-cta-link:hover .opynio-horizontal-carousel-cta {
+    .opynio-stars-carousel-cta-link:hover .opynio-stars-carousel-cta {
         transform: translateY(-2px);
         box-shadow: 0 10px 24px rgba(0, 182, 122, 0.18);
     }
-    .opynio-theme-light .opynio-horizontal-carousel-cta { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-    .opynio-theme-dark  .opynio-horizontal-carousel-cta { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
-    .opynio-horizontal-carousel-score {
+    .opynio-theme-light .opynio-stars-carousel-cta { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .opynio-theme-dark  .opynio-stars-carousel-cta { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
+    .opynio-stars-carousel-score {
         font-size: 2.6rem; font-weight: 800;
         color: var(--text-color); line-height: 1;
         letter-spacing: -0.02em;
         font-variant-numeric: tabular-nums;
     }
-    .opynio-horizontal-carousel-score-stars { font-size: 1.15rem; letter-spacing: 3px; color: var(--opynio-star); }
-    .opynio-horizontal-carousel-score-stars .empty { color: var(--border-color); }
-    .opynio-horizontal-carousel-count { font-size: 0.82rem; color: var(--subtext-color); font-weight: 500; }
-    .opynio-horizontal-carousel-count strong { color: var(--text-color); font-weight: 700; }
+    .opynio-stars-carousel-score-stars { font-size: 1.15rem; letter-spacing: 3px; color: var(--opynio-star); }
+    .opynio-stars-carousel-score-stars .empty { color: var(--border-color); }
+    .opynio-stars-carousel-count { font-size: 0.82rem; color: var(--subtext-color); font-weight: 500; }
+    .opynio-stars-carousel-count strong { color: var(--text-color); font-weight: 700; }
     /* Label del rating (EXCELENTE/MUY BUENO/BUENO) — tipográfico con dos líneas verdes laterales */
-    .opynio-horizontal-carousel-rating-label {
+    .opynio-stars-carousel-rating-label {
         display: inline-flex;
         align-items: center;
         gap: 10px;
@@ -550,8 +550,8 @@ export const WIDGET_CSS = `
         padding: 4px 0;
         margin-top: 4px;
     }
-    .opynio-horizontal-carousel-rating-label::before,
-    .opynio-horizontal-carousel-rating-label::after {
+    .opynio-stars-carousel-rating-label::before,
+    .opynio-stars-carousel-rating-label::after {
         content: '';
         display: inline-block;
         width: 16px;
@@ -563,10 +563,10 @@ export const WIDGET_CSS = `
 
     /* Botón inferior "Ver reseñas completas" — CTA principal verde sólido,
        separado del wrapper con un divisor sutil */
-    .opynio-horizontal-carousel-footer {
+    .opynio-stars-carousel-footer {
         display: flex; justify-content: center;
     }
-    .opynio-horizontal-carousel-footer-btn {
+    .opynio-stars-carousel-footer-btn {
         display: inline-flex; align-items: center; gap: 8px;
         padding: 12px 28px;
         border-radius: 50px;
@@ -579,23 +579,23 @@ export const WIDGET_CSS = `
         box-shadow: 0 6px 16px rgba(0, 182, 122, 0.3);
         transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
     }
-    .opynio-horizontal-carousel-footer-btn:hover {
+    .opynio-stars-carousel-footer-btn:hover {
         background: var(--opynio-green-dark) !important;
         background-color: #008f5f !important;
         transform: translateY(-2px);
         box-shadow: 0 10px 22px rgba(0, 182, 122, 0.4);
     }
-    .opynio-horizontal-carousel-footer-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
-    .opynio-horizontal-carousel-footer-btn svg { width: 14px; height: 14px; fill: white; transition: transform 0.2s ease; }
-    .opynio-horizontal-carousel-footer-btn:hover svg { transform: translateX(2px); }
+    .opynio-stars-carousel-footer-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+    .opynio-stars-carousel-footer-btn svg { width: 14px; height: 14px; fill: white; transition: transform 0.2s ease; }
+    .opynio-stars-carousel-footer-btn:hover svg { transform: translateX(2px); }
 
     /* Carousel de cards (solo estrellas) */
     /* cards-area = ancho exacto para 3 cards + padding lateral para las flechas */
-    .opynio-horizontal-carousel-cards-area { flex: 0 1 auto; position: relative; padding: 0 42px; display: flex; align-items: center; }
+    .opynio-stars-carousel-cards-area { flex: 0 1 auto; position: relative; padding: 0 42px; display: flex; align-items: center; }
     /* cards-container = exactamente 3 cards (3 * 165 + 2 * 14 = 523px). El clone queda fuera del overflow:hidden. */
-    .opynio-horizontal-carousel-cards-container { width: 523px; max-width: 100%; position: relative; overflow: hidden; padding: 4px 0; display: flex; align-items: center; }
-    .opynio-horizontal-carousel-track { display: flex; gap: 14px; transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-    .opynio-horizontal-carousel-card {
+    .opynio-stars-carousel-cards-container { width: 523px; max-width: 100%; position: relative; overflow: hidden; padding: 4px 0; display: flex; align-items: center; }
+    .opynio-stars-carousel-track { display: flex; gap: 14px; transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+    .opynio-stars-carousel-card {
         min-width: 165px; max-width: 165px; width: 165px;
         flex-shrink: 0;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -612,15 +612,15 @@ export const WIDGET_CSS = `
         outline: none;
         transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     }
-    .opynio-horizontal-carousel-card:hover {
+    .opynio-stars-carousel-card:hover {
         transform: translateY(-4px);
         border-color: var(--opynio-green) !important;
         border-color: #00b67a !important;
         box-shadow: 0 10px 26px rgba(0, 182, 122, 0.15);
     }
-    .opynio-horizontal-carousel-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
-    .opynio-horizontal-carousel-card-avatar { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
-    .opynio-horizontal-carousel-card-name {
+    .opynio-stars-carousel-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+    .opynio-stars-carousel-card-avatar { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
+    .opynio-stars-carousel-card-name {
         font-weight: 700;
         color: var(--text-color);
         font-size: 0.9rem;
@@ -629,15 +629,15 @@ export const WIDGET_CSS = `
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .opynio-horizontal-carousel-card-stars {
+    .opynio-stars-carousel-card-stars {
         font-size: 1rem;
         letter-spacing: 2px;
         color: var(--opynio-star);
     }
-    .opynio-horizontal-carousel-card-stars .empty { color: var(--border-color); }
+    .opynio-stars-carousel-card-stars .empty { color: var(--border-color); }
 
     /* Flechas */
-    .opynio-horizontal-carousel-nav {
+    .opynio-stars-carousel-nav {
         position: absolute; top: 50%; transform: translateY(-50%);
         width: 42px; height: 42px;
         border-radius: 50%;
@@ -652,48 +652,48 @@ export const WIDGET_CSS = `
         z-index: 10;
         transition: background 0.3s ease, transform 0.3s ease;
     }
-    .opynio-theme-dark .opynio-horizontal-carousel-nav { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
-    .opynio-horizontal-carousel-nav:hover {
+    .opynio-theme-dark .opynio-stars-carousel-nav { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
+    .opynio-stars-carousel-nav:hover {
         background: var(--opynio-green) !important;
         background-color: #00b67a !important;
         transform: translateY(-50%) scale(1.1);
     }
-    .opynio-horizontal-carousel-nav svg {
+    .opynio-stars-carousel-nav svg {
         width: 20px; height: 20px;
         fill: var(--opynio-green) !important;
         fill: #00b67a !important;
         transition: fill 0.3s ease;
         pointer-events: none;
     }
-    .opynio-horizontal-carousel-nav:hover svg { fill: white !important; }
-    .opynio-horizontal-carousel-nav:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
-    .opynio-horizontal-carousel-nav-next { right: 0; }
-    .opynio-horizontal-carousel-nav-prev {
+    .opynio-stars-carousel-nav:hover svg { fill: white !important; }
+    .opynio-stars-carousel-nav:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
+    .opynio-stars-carousel-nav-next { right: 0; }
+    .opynio-stars-carousel-nav-prev {
         left: 0;
         opacity: 0;
         transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
     }
-    .opynio-horizontal-carousel-cards-area:hover .opynio-horizontal-carousel-nav-prev { opacity: 1; }
+    .opynio-stars-carousel-cards-area:hover .opynio-stars-carousel-nav-prev { opacity: 1; }
 
     /* Container queries: responden al ancho del widget, no al viewport.
        Crítico para previews en columnas estrechas del dashboard. */
     @container (max-width: 760px) {
-        .opynio-horizontal-carousel-widget { padding: 22px 18px; }
-        .opynio-horizontal-carousel-wrapper { flex-direction: column; gap: 18px; }
-        .opynio-horizontal-carousel-cta-link { width: 100%; }
-        .opynio-horizontal-carousel-cta { min-width: 100%; padding: 20px 16px; }
-        .opynio-horizontal-carousel-right { width: 100%; }
-        .opynio-horizontal-carousel-cards-area { padding: 0 42px; width: 100%; }
-        .opynio-horizontal-carousel-cards-container { width: 100%; max-width: 100%; }
-        .opynio-horizontal-carousel-track { justify-content: center; }
-        .opynio-horizontal-carousel-nav-prev { opacity: 1; }
+        .opynio-stars-carousel-widget { padding: 22px 18px; }
+        .opynio-stars-carousel-wrapper { flex-direction: column; gap: 18px; }
+        .opynio-stars-carousel-cta-link { width: 100%; }
+        .opynio-stars-carousel-cta { min-width: 100%; padding: 20px 16px; }
+        .opynio-stars-carousel-right { width: 100%; }
+        .opynio-stars-carousel-cards-area { padding: 0 42px; width: 100%; }
+        .opynio-stars-carousel-cards-container { width: 100%; max-width: 100%; }
+        .opynio-stars-carousel-track { justify-content: center; }
+        .opynio-stars-carousel-nav-prev { opacity: 1; }
     }
     @container (max-width: 480px) {
-        .opynio-horizontal-carousel-widget { padding: 18px 12px; }
-        .opynio-horizontal-carousel-score { font-size: 2.2rem; }
-        .opynio-horizontal-carousel-card { min-width: 150px; max-width: 150px; width: 150px; padding: 16px 12px; }
-        .opynio-horizontal-carousel-card .opynio-avatar-placeholder { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
-        .opynio-horizontal-carousel-nav { width: 32px; height: 32px; }
+        .opynio-stars-carousel-widget { padding: 18px 12px; }
+        .opynio-stars-carousel-score { font-size: 2.2rem; }
+        .opynio-stars-carousel-card { min-width: 150px; max-width: 150px; width: 150px; padding: 16px 12px; }
+        .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
+        .opynio-stars-carousel-nav { width: 32px; height: 32px; }
     }
 
 `;

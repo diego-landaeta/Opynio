@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
-import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
+import { getPreviewStrings } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
@@ -10,55 +10,27 @@ interface PreviewProps {
 }
 
 const DEMO_REVIEWS = [
-    {
-      "id": 1,
-      "title": "¡Superó nuestras expectativas!",
-      "original_author_name": "Elena Rodríguez",
-      "rating": 5,
-      "review_text": "Contacté con ellos para crear nuestra tienda online y el resultado ha superado todas nuestras expectativas. El equipo demostró una profesionalidad increíble, cuidando cada detalle y asesorándonos en todo momento.",
-      "source": "google"
-    },
-    {
-      "id": 2,
-      "title": "Diseño limpio y profesional",
-      "original_author_name": "Carlos Sánchez",
-      "rating": 5,
-      "review_text": "El diseño web que nos hicieron es limpio, profesional y muy funcional. ¡Me encantó el resultado!",
-      "source": "opynio"
-    },
-     {
-      "id": 3,
-      "title": "Atención al cliente de 10",
-      "original_author_name": "Laura Gómez",
-      "rating": 5,
-      "review_text": "El soporte post-lanzamiento ha sido fantástico. Responden rápido y solucionan cualquier duda que tengamos. Se nota que se preocupan por sus clientes.",
-      "source": "opynio"
-    },
-    {
-      "id": 4,
-      "title": "Una gran inversión",
-      "original_author_name": "Javier Martín",
-      "rating": 4,
-      "review_text": "Aunque la inversión inicial fue considerable, ha merecido la pena. Nuestras ventas online han aumentado un 40% desde el lanzamiento de la nueva web. Muy recomendables.",
-      "source": "google"
-    }
+    { id: 1, original_author_name: "Elena Rodríguez", rating: 5 },
+    { id: 2, original_author_name: "Carlos Sánchez", rating: 5 },
+    { id: 3, original_author_name: "Laura Gómez", rating: 5 },
 ];
-
 
 export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
     const s = getPreviewStrings(lang);
-    const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'review_text']);
-    const ratingText = (business.avg_rating || 5) >= 4.5 ? s.ratingExcellent : (business.avg_rating || 5) >= 3.5 ? s.ratingVeryGood : s.ratingGood;
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
+    const reviewCount = business.review_count || 123;
+    const score = (business.avg_rating || 5).toFixed(1);
+    const ratingText = (business.avg_rating || 5) >= 4.5 ? s.ratingExcellent : (business.avg_rating || 5) >= 3.5 ? s.ratingVeryGood : s.ratingGood;
 
     const trackRef = useRef<HTMLDivElement>(null);
+    const pausedRef = useRef(false);
     const [currentIndex, setCurrentIndex] = useState(1);
     const transitionEnabledRef = useRef(true);
 
-    const duplicatedReviews = useMemo(() => {
-        if (translatedReviews.length === 0) return [];
-        return [translatedReviews[translatedReviews.length - 1], ...translatedReviews, translatedReviews[0]];
-    }, [translatedReviews]);
+    const duplicated = useMemo(() => {
+        if (DEMO_REVIEWS.length === 0) return [];
+        return [DEMO_REVIEWS[DEMO_REVIEWS.length - 1], ...DEMO_REVIEWS, DEMO_REVIEWS[0]];
+    }, []);
 
     const scrollNext = useCallback(() => {
         if (!transitionEnabledRef.current) return;
@@ -71,101 +43,110 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
         setCurrentIndex(prev => prev - 1);
         transitionEnabledRef.current = true;
     }, []);
-    
+
     useEffect(() => {
-        const interval = setInterval(scrollNext, 5000);
+        const interval = setInterval(() => {
+            if (!pausedRef.current) scrollNext();
+        }, 3500);
         return () => clearInterval(interval);
     }, [scrollNext]);
 
     useEffect(() => {
         const track = trackRef.current;
         if (!track) return;
-    
-        const cardWidth = 350; // From CSS
-        const gap = 20;
+
+        const cardWidth = 165;
+        const gap = 14;
         const moveDistance = cardWidth + gap;
 
         if (transitionEnabledRef.current) {
-            track.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            track.style.transition = 'transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
         } else {
             track.style.transition = 'none';
         }
-    
         track.style.transform = `translateX(-${currentIndex * moveDistance}px)`;
-    
+
         const handleTransitionEnd = () => {
-            if (currentIndex === 0) { // If we're at the clone of the last item
+            if (currentIndex === 0) {
                 transitionEnabledRef.current = false;
                 setCurrentIndex(DEMO_REVIEWS.length);
-            } else if (currentIndex === DEMO_REVIEWS.length + 1) { // If we're at the clone of the first item
+            } else if (currentIndex === DEMO_REVIEWS.length + 1) {
                 transitionEnabledRef.current = false;
                 setCurrentIndex(1);
             }
         };
-    
-        track.addEventListener('transitionend', handleTransitionEnd);
-        return () => {
-            track.removeEventListener('transitionend', handleTransitionEnd);
-        };
-    }, [currentIndex, DEMO_REVIEWS.length]);
 
+        track.addEventListener('transitionend', handleTransitionEnd);
+        return () => { track.removeEventListener('transitionend', handleTransitionEnd); };
+    }, [currentIndex]);
 
     return (
         <div className={`opynio-widget ${themeClass}`}>
-            <div className="opynio-horizontal-widget" style={{padding: '1.5rem', boxShadow: 'none', maxWidth: '100%'}}>
-                <div className="opynio-horizontal-wrapper">
-                    <div className="opynio-rating-panel-wrapper">
-                        <div className="opynio-rating-panel" style={{minWidth: '280px', padding: '2rem 1.5rem'}}>
-                            <div className="opynio-rating-badge">{ratingText}</div>
-                            <div className="opynio-stars-display" style={{ letterSpacing: '4px' }}>
+            <div
+                className="opynio-stars-carousel-widget"
+                onMouseEnter={() => { pausedRef.current = true; }}
+                onMouseLeave={() => { pausedRef.current = false; }}
+            >
+                <div className="opynio-stars-carousel-wrapper">
+                    <a
+                        href="#"
+                        className="opynio-stars-carousel-cta-link"
+                        onClick={(e) => e.preventDefault()}
+                    >
+                        <div className="opynio-stars-carousel-cta">
+                            <div className="opynio-stars-carousel-score">{score}</div>
+                            <div className="opynio-stars-carousel-score-stars">
                                 <StaticStarRating rating={business.avg_rating || 5} />
                             </div>
-                            <p className="opynio-rating-count" dangerouslySetInnerHTML={{ __html: s.basedOnAlt.replace('{n}', String(business.review_count || 123)) }} />
-                            <div className="opynio-logo">
-                                <div className="opynio-logo-text">Opynio</div>
+                            <div className="opynio-stars-carousel-count">
+                                <strong>{reviewCount}</strong> {s.reviews}
                             </div>
+                            <div className="opynio-stars-carousel-rating-label">{ratingText}</div>
                         </div>
-                    </div>
+                    </a>
 
-                    <div className="opynio-cards-container">
-                        <div className="opynio-cards-track" ref={trackRef}>
-                            {duplicatedReviews.map((review, index) => {
-                                const isGoogle = review.source === 'google';
-                                return (
-                                    <div key={`${review.id}-${index}`} className="opynio-review-card" style={{boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)' }}>
-                                        <div className="opynio-review-header">
-                                            <div className="opynio-review-user">
-                                                <div className="opynio-avatar-placeholder">{review.original_author_name.charAt(0)}</div>
-                                                <div className="opynio-user-content">
-                                                    <div className="opynio-username">{review.original_author_name}</div>
-                                                    {isGoogle && (
-                                                        <div className="opynio-google-badge">
-                                                            <svg className="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg>
-                                                            <span className="opynio-google-text">{s.googleReview}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                    <div className="opynio-stars-carousel-right">
+                        <div className="opynio-stars-carousel-cards-area">
+                            <button onClick={scrollPrev} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-prev" type="button" aria-label="Anterior">
+                                <svg style={{ transform: 'rotate(180deg)' }} viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>
+                            </button>
+                            <div className="opynio-stars-carousel-cards-container" role="region" aria-label="Reseñas" aria-live="polite" aria-roledescription="carrusel">
+                                <div className="opynio-stars-carousel-track" ref={trackRef}>
+                                    {duplicated.map((review, index) => (
+                                        <a
+                                            key={`${review.id}-${index}`}
+                                            href="#"
+                                            className="opynio-stars-carousel-card"
+                                            onClick={(e) => e.preventDefault()}
+                                            title={review.original_author_name}
+                                        >
+                                            <div className="opynio-avatar-placeholder opynio-stars-carousel-card-avatar">
+                                                {review.original_author_name.charAt(0)}
                                             </div>
-                                            {!isGoogle && (
-                                                <div className="opynio-platform-badge">
-                                                    <svg viewBox="0 0 24 24" fill="#00b67a">
-                                                        <circle cx="12" cy="12" r="10" fill="var(--opynio-green)"></circle>
-                                                        <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"></path>
-                                                    </svg>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="opynio-review-stars">
-                                            <div className="opynio-stars"><StaticStarRating rating={review.rating} /></div>
-                                        </div>
-                                        <h4 className="opynio-review-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.5rem' }}>{review.title}</h4>
-                                        <p className="opynio-review-text" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>{review.review_text}</p>
-                                    </div>
-                                );
-                            })}
+                                            <div className="opynio-stars-carousel-card-name">{review.original_author_name.split(' ')[0]}</div>
+                                            <div className="opynio-stars-carousel-card-stars">
+                                                <StaticStarRating rating={review.rating} />
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                            <button onClick={scrollNext} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-next" type="button" aria-label="Siguiente">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>
+                            </button>
                         </div>
-                        <button onClick={scrollPrev} className="opynio-nav-arrow opynio-nav-prev" type="button"><svg style={{transform: 'rotate(180deg)'}} viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
-                        <button onClick={scrollNext} className="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+                        <div className="opynio-stars-carousel-footer">
+                            <a
+                                href="#"
+                                className="opynio-stars-carousel-footer-btn"
+                                onClick={(e) => e.preventDefault()}
+                            >
+                                {s.seeAllReviews || 'Ver reseñas completas'}
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

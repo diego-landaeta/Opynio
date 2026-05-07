@@ -969,7 +969,7 @@ export default {
     getCodeSubtitle: '复制并粘贴此代码到您的网站中，您希望显示小部件的位置。',
     downloadCodeButton: '下载代码',
     widgetNames: {
-      'stars-carousel': '水平轮播',
+      'horizontal-carousel': '水平轮播',
       'showcase': '展示',
       'large-carousel': '大型轮播',
       'sidebar': '侧边栏',
@@ -977,10 +977,10 @@ export default {
       'grid': '网格',
       'badge': '徽章',
       'wall': '评论墙',
-      'horizontal-carousel': '星级轮播'
+      'stars-carousel': '星级轮播'
     },
     widgetDescriptions: {
-      'stars-carousel': '交互式轮播，展示您最好的评论和整体评分。',
+      'horizontal-carousel': '交互式轮播，展示您最好的评论和整体评分。',
       'showcase': '完整的小部件，非常适合专门的评论页面。',
       'large-carousel': '以大而有吸引力的格式一次展示一条精选评论。',
       'sidebar': '紧凑的垂直小部件，非常适合侧边栏。',
@@ -988,7 +988,7 @@ export default {
       'grid': '以清晰有序的网格格式显示多条评论。',
       'badge': '快速显示平均评分的简单徽章。',
       'wall': '动态"砌体"风格的评论墙，一次显示许多意见。',
-      'horizontal-carousel': '大型轮播：左侧显示综合评分和"查看更多"按钮，右侧动态卡片显示作者和星级。'
+      'stars-carousel': '大型轮播：左侧显示综合评分和"查看更多"按钮，右侧动态卡片显示作者和星级。'
     },
     billingAndPlanTitle: '账单和方案',
     yourSubscription: '您的订阅',

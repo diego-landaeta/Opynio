@@ -278,7 +278,7 @@
 
         /* Stars Carousel — cuadro blanco + panel verde + 3 cards + botón footer.
            container-type: el widget responde a SU ancho, no al viewport. */
-        .opynio-horizontal-carousel-widget {
+        .opynio-stars-carousel-widget {
             background: var(--card-bg);
             border-radius: 20px;
             box-shadow: var(--shadow-lg);
@@ -290,10 +290,10 @@
             flex-direction: column;
             container-type: inline-size;
         }
-        .opynio-horizontal-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
-        .opynio-horizontal-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
-        .opynio-horizontal-carousel-cta-link { text-decoration: none; color: inherit; display: flex; flex-shrink: 0; }
-        .opynio-horizontal-carousel-cta {
+        .opynio-stars-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
+        .opynio-stars-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
+        .opynio-stars-carousel-cta-link { text-decoration: none; color: inherit; display: flex; flex-shrink: 0; }
+        .opynio-stars-carousel-cta {
             flex: 1;
             min-width: 210px; text-align: center;
             padding: 22px 18px; border-radius: 16px; box-shadow: var(--shadow);
@@ -301,23 +301,23 @@
             gap: 8px;
             transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
-        .opynio-horizontal-carousel-cta-link:hover .opynio-horizontal-carousel-cta {
+        .opynio-stars-carousel-cta-link:hover .opynio-stars-carousel-cta {
             transform: translateY(-2px);
             box-shadow: 0 10px 24px rgba(0, 182, 122, 0.18);
         }
-        .opynio-theme-light .opynio-horizontal-carousel-cta { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-        .opynio-theme-dark  .opynio-horizontal-carousel-cta { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
-        .opynio-horizontal-carousel-score {
+        .opynio-theme-light .opynio-stars-carousel-cta { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+        .opynio-theme-dark  .opynio-stars-carousel-cta { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
+        .opynio-stars-carousel-score {
             font-size: 2.6rem; font-weight: 800;
             color: var(--text-color); line-height: 1;
             letter-spacing: -0.02em;
             font-variant-numeric: tabular-nums;
         }
-        .opynio-horizontal-carousel-score-stars { font-size: 1.15rem; letter-spacing: 3px; color: var(--opynio-star); }
-        .opynio-horizontal-carousel-score-stars .empty { color: var(--border-color); }
-        .opynio-horizontal-carousel-count { font-size: 0.82rem; color: var(--subtext-color); font-weight: 500; }
-        .opynio-horizontal-carousel-count strong { color: var(--text-color); font-weight: 700; }
-        .opynio-horizontal-carousel-rating-label {
+        .opynio-stars-carousel-score-stars { font-size: 1.15rem; letter-spacing: 3px; color: var(--opynio-star); }
+        .opynio-stars-carousel-score-stars .empty { color: var(--border-color); }
+        .opynio-stars-carousel-count { font-size: 0.82rem; color: var(--subtext-color); font-weight: 500; }
+        .opynio-stars-carousel-count strong { color: var(--text-color); font-weight: 700; }
+        .opynio-stars-carousel-rating-label {
             display: inline-flex; align-items: center; gap: 10px;
             color: var(--opynio-green-dark) !important;
             color: #008f5f !important;
@@ -325,18 +325,18 @@
             text-transform: uppercase; letter-spacing: 2.5px;
             padding: 4px 0; margin-top: 4px;
         }
-        .opynio-horizontal-carousel-rating-label::before,
-        .opynio-horizontal-carousel-rating-label::after {
+        .opynio-stars-carousel-rating-label::before,
+        .opynio-stars-carousel-rating-label::after {
             content: ''; display: inline-block;
             width: 16px; height: 2px;
             background: var(--opynio-green) !important;
             background-color: #00b67a !important;
             border-radius: 1px;
         }
-        .opynio-horizontal-carousel-footer {
+        .opynio-stars-carousel-footer {
             display: flex; justify-content: center;
         }
-        .opynio-horizontal-carousel-footer-btn {
+        .opynio-stars-carousel-footer-btn {
             display: inline-flex; align-items: center; gap: 8px;
             padding: 12px 28px; border-radius: 50px;
             background: var(--opynio-green) !important;
@@ -348,19 +348,19 @@
             box-shadow: 0 6px 16px rgba(0, 182, 122, 0.3);
             transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
         }
-        .opynio-horizontal-carousel-footer-btn:hover {
+        .opynio-stars-carousel-footer-btn:hover {
             background: var(--opynio-green-dark) !important;
             background-color: #008f5f !important;
             transform: translateY(-2px);
             box-shadow: 0 10px 22px rgba(0, 182, 122, 0.4);
         }
-        .opynio-horizontal-carousel-footer-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
-        .opynio-horizontal-carousel-footer-btn svg { width: 14px; height: 14px; fill: white; transition: transform 0.2s ease; }
-        .opynio-horizontal-carousel-footer-btn:hover svg { transform: translateX(2px); }
-        .opynio-horizontal-carousel-cards-area { flex: 0 1 auto; position: relative; padding: 0 42px; display: flex; align-items: center; }
-        .opynio-horizontal-carousel-cards-container { width: 523px; max-width: 100%; position: relative; overflow: hidden; padding: 4px 0; display: flex; align-items: center; }
-        .opynio-horizontal-carousel-track { display: flex; gap: 14px; transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-        .opynio-horizontal-carousel-card {
+        .opynio-stars-carousel-footer-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+        .opynio-stars-carousel-footer-btn svg { width: 14px; height: 14px; fill: white; transition: transform 0.2s ease; }
+        .opynio-stars-carousel-footer-btn:hover svg { transform: translateX(2px); }
+        .opynio-stars-carousel-cards-area { flex: 0 1 auto; position: relative; padding: 0 42px; display: flex; align-items: center; }
+        .opynio-stars-carousel-cards-container { width: 523px; max-width: 100%; position: relative; overflow: hidden; padding: 4px 0; display: flex; align-items: center; }
+        .opynio-stars-carousel-track { display: flex; gap: 14px; transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .opynio-stars-carousel-card {
             min-width: 165px; max-width: 165px; width: 165px;
             flex-shrink: 0;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -374,25 +374,25 @@
             text-decoration: none; color: inherit; cursor: pointer; outline: none;
             transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
-        .opynio-horizontal-carousel-card:hover {
+        .opynio-stars-carousel-card:hover {
             transform: translateY(-4px);
             border-color: var(--opynio-green) !important;
             border-color: #00b67a !important;
             box-shadow: 0 10px 26px rgba(0, 182, 122, 0.15);
         }
-        .opynio-horizontal-carousel-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
-        .opynio-horizontal-carousel-card .opynio-avatar-placeholder { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
-        .opynio-horizontal-carousel-card-name {
+        .opynio-stars-carousel-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+        .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
+        .opynio-stars-carousel-card-name {
             font-weight: 700; color: var(--text-color);
             font-size: 0.9rem;
             max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .opynio-horizontal-carousel-card-stars {
+        .opynio-stars-carousel-card-stars {
             font-size: 1rem; letter-spacing: 2px;
             color: var(--opynio-star);
         }
-        .opynio-horizontal-carousel-card-stars .empty { color: var(--border-color); }
-        .opynio-horizontal-carousel-nav {
+        .opynio-stars-carousel-card-stars .empty { color: var(--border-color); }
+        .opynio-stars-carousel-nav {
             position: absolute; top: 50%; transform: translateY(-50%);
             width: 42px; height: 42px; border-radius: 50%;
             border: 2px solid var(--opynio-green) !important;
@@ -403,43 +403,43 @@
             outline: none !important; z-index: 10;
             transition: background 0.3s ease, transform 0.3s ease;
         }
-        .opynio-theme-dark .opynio-horizontal-carousel-nav { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
-        .opynio-horizontal-carousel-nav:hover {
+        .opynio-theme-dark .opynio-stars-carousel-nav { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
+        .opynio-stars-carousel-nav:hover {
             background: var(--opynio-green) !important;
             background-color: #00b67a !important;
             transform: translateY(-50%) scale(1.1);
         }
-        .opynio-horizontal-carousel-nav svg {
+        .opynio-stars-carousel-nav svg {
             width: 20px; height: 20px;
             fill: var(--opynio-green) !important;
             fill: #00b67a !important;
             transition: fill 0.3s ease; pointer-events: none;
         }
-        .opynio-horizontal-carousel-nav:hover svg { fill: white !important; }
-        .opynio-horizontal-carousel-nav:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
-        .opynio-horizontal-carousel-nav-next { right: 0; }
-        .opynio-horizontal-carousel-nav-prev {
+        .opynio-stars-carousel-nav:hover svg { fill: white !important; }
+        .opynio-stars-carousel-nav:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
+        .opynio-stars-carousel-nav-next { right: 0; }
+        .opynio-stars-carousel-nav-prev {
             left: 0; opacity: 0;
             transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
         }
-        .opynio-horizontal-carousel-cards-area:hover .opynio-horizontal-carousel-nav-prev { opacity: 1; }
+        .opynio-stars-carousel-cards-area:hover .opynio-stars-carousel-nav-prev { opacity: 1; }
         @container (max-width: 760px) {
-            .opynio-horizontal-carousel-widget { padding: 22px 18px; }
-            .opynio-horizontal-carousel-wrapper { flex-direction: column; gap: 18px; }
-            .opynio-horizontal-carousel-cta-link { width: 100%; }
-            .opynio-horizontal-carousel-cta { min-width: 100%; padding: 20px 16px; }
-            .opynio-horizontal-carousel-right { width: 100%; }
-            .opynio-horizontal-carousel-cards-area { padding: 0 42px; width: 100%; }
-            .opynio-horizontal-carousel-cards-container { width: 100%; max-width: 100%; }
-            .opynio-horizontal-carousel-track { justify-content: center; }
-            .opynio-horizontal-carousel-nav-prev { opacity: 1; }
+            .opynio-stars-carousel-widget { padding: 22px 18px; }
+            .opynio-stars-carousel-wrapper { flex-direction: column; gap: 18px; }
+            .opynio-stars-carousel-cta-link { width: 100%; }
+            .opynio-stars-carousel-cta { min-width: 100%; padding: 20px 16px; }
+            .opynio-stars-carousel-right { width: 100%; }
+            .opynio-stars-carousel-cards-area { padding: 0 42px; width: 100%; }
+            .opynio-stars-carousel-cards-container { width: 100%; max-width: 100%; }
+            .opynio-stars-carousel-track { justify-content: center; }
+            .opynio-stars-carousel-nav-prev { opacity: 1; }
         }
         @container (max-width: 480px) {
-            .opynio-horizontal-carousel-widget { padding: 18px 12px; }
-            .opynio-horizontal-carousel-score { font-size: 2.2rem; }
-            .opynio-horizontal-carousel-card { min-width: 150px; max-width: 150px; width: 150px; padding: 16px 12px; }
-            .opynio-horizontal-carousel-card .opynio-avatar-placeholder { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
-            .opynio-horizontal-carousel-nav { width: 32px; height: 32px; }
+            .opynio-stars-carousel-widget { padding: 18px 12px; }
+            .opynio-stars-carousel-score { font-size: 2.2rem; }
+            .opynio-stars-carousel-card { min-width: 150px; max-width: 150px; width: 150px; padding: 16px 12px; }
+            .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
+            .opynio-stars-carousel-nav { width: 32px; height: 32px; }
         }
 
     `;
@@ -656,7 +656,7 @@
             setInterval(function() { idx = (idx + 1) % reviews.length; update(); }, 8000);
         },
 
-        'stars-carousel': function(el, business, reviews, s) {
+        'horizontal-carousel': function(el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
             var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var businessUrl = getBusinessUrl(business);
@@ -706,7 +706,7 @@
         // cards on the right (avatar + name + stars). JSON-LD AggregateRating with
         // itemReviewed is emitted ALWAYS so the rich snippet works for humans and bots.
         // Bots additionally skip the per-review HTML to avoid duplicate-content indexation.
-        'horizontal-carousel': function(el, business, reviews, s) {
+        'stars-carousel': function(el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
             var rating = validRating.toFixed(1);
             var count = business.review_count || 0;
@@ -723,19 +723,19 @@
             // Top 3 reviews — keep it tight and focused.
             var picks = (reviews || []).slice(0, 3);
             var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
-            var ctaHTML = '<a href="' + businessUrl + '" target="_blank" class="opynio-horizontal-carousel-cta-link">'
-                        + '<div class="opynio-horizontal-carousel-cta">'
-                        +   '<div class="opynio-horizontal-carousel-score">' + rating + '</div>'
-                        +   '<div class="opynio-horizontal-carousel-score-stars opynio-stars">' + generateStars(validRating) + '</div>'
-                        +   '<div class="opynio-horizontal-carousel-count"><strong>' + count + '</strong> ' + s.reviews + '</div>'
-                        +   '<div class="opynio-horizontal-carousel-rating-label">' + ratingText + '</div>'
+            var ctaHTML = '<a href="' + businessUrl + '" target="_blank" class="opynio-stars-carousel-cta-link">'
+                        + '<div class="opynio-stars-carousel-cta">'
+                        +   '<div class="opynio-stars-carousel-score">' + rating + '</div>'
+                        +   '<div class="opynio-stars-carousel-score-stars opynio-stars">' + generateStars(validRating) + '</div>'
+                        +   '<div class="opynio-stars-carousel-count"><strong>' + count + '</strong> ' + s.reviews + '</div>'
+                        +   '<div class="opynio-stars-carousel-rating-label">' + ratingText + '</div>'
                         + '</div>'
                         + '</a>';
 
-            var footerHTML = '<div class="opynio-horizontal-carousel-footer"><a href="' + businessUrl + '" target="_blank" class="opynio-horizontal-carousel-footer-btn">' + (s.seeAllReviews || 'Ver reseñas completas') + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></a></div>';
+            var footerHTML = '<div class="opynio-stars-carousel-footer"><a href="' + businessUrl + '" target="_blank" class="opynio-stars-carousel-footer-btn">' + (s.seeAllReviews || 'Ver reseñas completas') + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></a></div>';
 
             if (picks.length === 0) {
-                el.innerHTML = '<div class="opynio-horizontal-carousel-widget"><div class="opynio-horizontal-carousel-wrapper">' + ctaHTML + '<div class="opynio-horizontal-carousel-right">' + footerHTML + '</div></div></div>' + jsonLd;
+                el.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">' + ctaHTML + '<div class="opynio-stars-carousel-right">' + footerHTML + '</div></div></div>' + jsonLd;
                 return;
             }
 
@@ -743,33 +743,33 @@
                 var fullName = r.original_author_name || s.anonymous;
                 var firstName = fullName.split(' ')[0];
                 var initial = fullName.charAt(0).toUpperCase();
-                return '<a href="' + businessUrl + '" target="_blank" class="opynio-horizontal-carousel-card" title="' + fullName + '">'
-                     +   '<div class="opynio-avatar-placeholder opynio-horizontal-carousel-card-avatar">' + initial + '</div>'
-                     +   '<div class="opynio-horizontal-carousel-card-name">' + firstName + '</div>'
-                     +   '<div class="opynio-horizontal-carousel-card-stars opynio-stars">' + generateStars(r.rating) + '</div>'
+                return '<a href="' + businessUrl + '" target="_blank" class="opynio-stars-carousel-card" title="' + fullName + '">'
+                     +   '<div class="opynio-avatar-placeholder opynio-stars-carousel-card-avatar">' + initial + '</div>'
+                     +   '<div class="opynio-stars-carousel-card-name">' + firstName + '</div>'
+                     +   '<div class="opynio-stars-carousel-card-stars opynio-stars">' + generateStars(r.rating) + '</div>'
                      + '</a>';
             }).join('');
 
-            el.innerHTML = '<div class="opynio-horizontal-carousel-widget"><div class="opynio-horizontal-carousel-wrapper">'
+            el.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">'
                          + ctaHTML
-                         + '<div class="opynio-horizontal-carousel-right">'
-                         +   '<div class="opynio-horizontal-carousel-cards-area">'
-                         +     '<button type="button" class="opynio-horizontal-carousel-nav opynio-horizontal-carousel-nav-prev" aria-label="' + (s.previous || 'Anterior') + '"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
-                         +     '<div class="opynio-horizontal-carousel-cards-container" role="region" aria-label="' + (s.reviews || 'Reseñas') + '" aria-live="polite" aria-roledescription="carrusel">'
-                         +       '<div class="opynio-horizontal-carousel-track" id="stars-track-' + business.id + '">' + cardsHTML + '</div>'
+                         + '<div class="opynio-stars-carousel-right">'
+                         +   '<div class="opynio-stars-carousel-cards-area">'
+                         +     '<button type="button" class="opynio-stars-carousel-nav opynio-stars-carousel-nav-prev" aria-label="' + (s.previous || 'Anterior') + '"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
+                         +     '<div class="opynio-stars-carousel-cards-container" role="region" aria-label="' + (s.reviews || 'Reseñas') + '" aria-live="polite" aria-roledescription="carrusel">'
+                         +       '<div class="opynio-stars-carousel-track" id="stars-track-' + business.id + '">' + cardsHTML + '</div>'
                          +     '</div>'
-                         +     '<button type="button" class="opynio-horizontal-carousel-nav opynio-horizontal-carousel-nav-next" aria-label="' + (s.next || 'Siguiente') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
+                         +     '<button type="button" class="opynio-stars-carousel-nav opynio-stars-carousel-nav-next" aria-label="' + (s.next || 'Siguiente') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
                          +   '</div>'
                          +   footerHTML
                          + '</div>'
                          + '</div></div>'
                          + jsonLd;
 
-            var widget = el.querySelector('.opynio-horizontal-carousel-widget');
+            var widget = el.querySelector('.opynio-stars-carousel-widget');
             var track = el.querySelector('#stars-track-' + business.id);
-            var nextBtn = el.querySelector('.opynio-horizontal-carousel-nav-next');
-            var prevBtn = el.querySelector('.opynio-horizontal-carousel-nav-prev');
-            var cards = el.querySelectorAll('.opynio-horizontal-carousel-card');
+            var nextBtn = el.querySelector('.opynio-stars-carousel-nav-next');
+            var prevBtn = el.querySelector('.opynio-stars-carousel-nav-prev');
+            var cards = el.querySelectorAll('.opynio-stars-carousel-card');
             if (!widget || !track || cards.length === 0) return;
 
             // Clone all cards for infinite scroll (cards still inside overflow:hidden track).
@@ -835,7 +835,7 @@
             }
 
             // Widgets that need reviews — these handle the empty case themselves (SEO-safe fallback).
-            var SELF_HANDLED_EMPTY = ['horizontal-carousel'];
+            var SELF_HANDLED_EMPTY = ['stars-carousel'];
             if (reviews.length === 0 && SELF_HANDLED_EMPTY.indexOf(type) === -1) {
                 el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
                 return;

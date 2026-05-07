@@ -1001,7 +1001,7 @@ export default {
     getCodeSubtitle: 'Copie e cole este código no seu site onde quer que o widget apareça.',
     downloadCodeButton: 'Descarregar Código',
     widgetNames: {
-      'stars-carousel': 'Carrossel Horizontal',
+      'horizontal-carousel': 'Carrossel Horizontal',
       'showcase': 'Mostruário',
       'large-carousel': 'Carrossel Grande',
       'sidebar': 'Barra Lateral',
@@ -1009,10 +1009,10 @@ export default {
       'grid': 'Grelha',
       'badge': 'Selo',
       'wall': 'Mural de Análises',
-      'horizontal-carousel': 'Carrossel de Estrelas'
+      'stars-carousel': 'Carrossel de Estrelas'
     },
     widgetDescriptions: {
-      'stars-carousel': 'Um carrossel interativo que exibe as suas melhores análises juntamente com a sua pontuação geral.',
+      'horizontal-carousel': 'Um carrossel interativo que exibe as suas melhores análises juntamente com a sua pontuação geral.',
       'showcase': 'Um widget completo ideal para uma página dedicada às suas análises.',
       'large-carousel': 'Exibe uma análise em destaque de cada vez num formato grande e atraente.',
       'sidebar': 'Um widget compacto e vertical, perfeito para barras laterais.',
@@ -1020,7 +1020,7 @@ export default {
       'grid': 'Exibe várias análises num formato de grelha limpo e ordenado.',
       'badge': 'Um selo simples para mostrar rapidamente a sua pontuação média.',
       'wall': 'Um mural de análises dinâmico estilo "masonry" que exibe muitas opiniões de uma só vez.',
-      'horizontal-carousel': 'Carrossel grande com a sua pontuação geral e um botão "Ver mais" à esquerda, e cartões animados à direita com autor + estrelas.'
+      'stars-carousel': 'Carrossel grande com a sua pontuação geral e um botão "Ver mais" à esquerda, e cartões animados à direita com autor + estrelas.'
     },
     billingAndPlanTitle: 'Faturação e Plano',
     yourSubscription: 'A Sua Assinatura',

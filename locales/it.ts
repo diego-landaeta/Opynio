@@ -996,7 +996,7 @@ export default {
     getCodeSubtitle: 'Copia e incolla questo codice nel tuo sito web dove vuoi che appaia il widget.',
     downloadCodeButton: 'Scarica Codice',
     widgetNames: {
-      'stars-carousel': 'Carosello Orizzontale',
+      'horizontal-carousel': 'Carosello Orizzontale',
       'showcase': 'Vetrina',
       'large-carousel': 'Carosello Grande',
       'sidebar': 'Barra Laterale',
@@ -1004,10 +1004,10 @@ export default {
       'grid': 'Griglia',
       'badge': 'Badge',
       'wall': 'Muro di Recensioni',
-      'horizontal-carousel': 'Carosello di Stelle'
+      'stars-carousel': 'Carosello di Stelle'
     },
     widgetDescriptions: {
-      'stars-carousel': 'Un carosello interattivo che mostra le tue migliori recensioni insieme al tuo punteggio generale.',
+      'horizontal-carousel': 'Un carosello interattivo che mostra le tue migliori recensioni insieme al tuo punteggio generale.',
       'showcase': 'Un widget completo ideale per una pagina dedicata alle tue recensioni.',
       'large-carousel': 'Mostra una recensione in primo piano alla volta in un formato grande e accattivante.',
       'sidebar': 'Un widget compatto e verticale, perfetto per le barre laterali.',
@@ -1015,7 +1015,7 @@ export default {
       'grid': 'Mostra più recensioni in un formato a griglia pulito e ordinato.',
       'badge': 'Un semplice badge per mostrare rapidamente il tuo punteggio medio.',
       'wall': 'Un muro di recensioni dinamico in stile "masonry" che mostra molte opinioni contemporaneamente.',
-      'horizontal-carousel': 'Carosello grande con il tuo punteggio complessivo e un pulsante "Vedi di più" a sinistra, e carte animate a destra con autore + stelle.'
+      'stars-carousel': 'Carosello grande con il tuo punteggio complessivo e un pulsante "Vedi di più" a sinistra, e carte animate a destra con autore + stelle.'
     },
     billingAndPlanTitle: 'Fatturazione e Piano',
     yourSubscription: 'La Tua Sottoscrizione',

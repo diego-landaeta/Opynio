@@ -1018,7 +1018,7 @@ export default {
     getCodeSubtitle: 'Copia y pega este código en tu sitio web donde quieras que aparezca el widget.',
     downloadCodeButton: 'Descargar Código',
     widgetNames: {
-      'stars-carousel': 'Carrusel Horizontal',
+      'horizontal-carousel': 'Carrusel Horizontal',
       'showcase': 'Escaparate',
       'large-carousel': 'Carrusel Grande',
       'sidebar': 'Barra Lateral',
@@ -1026,10 +1026,10 @@ export default {
       'grid': 'Cuadrícula',
       'badge': 'Insignia',
       'wall': 'Muro de Reseñas',
-      'horizontal-carousel': 'Carrusel de Estrellas'
+      'stars-carousel': 'Carrusel de Estrellas'
     },
     widgetDescriptions: {
-      'stars-carousel': 'Un carrusel interactivo que muestra tus mejores reseñas junto con tu puntuación general.',
+      'horizontal-carousel': 'Un carrusel interactivo que muestra tus mejores reseñas junto con tu puntuación general.',
       'showcase': 'Un widget completo ideal para una página dedicada a tus reseñas.',
       'large-carousel': 'Muestra una reseña destacada a la vez en un formato grande y atractivo.',
       'sidebar': 'Un widget compacto y vertical, perfecto para barras laterales.',
@@ -1037,7 +1037,7 @@ export default {
       'grid': 'Muestra múltiples reseñas en un formato de cuadrícula limpio y ordenado.',
       'badge': 'Una insignia simple para mostrar rápidamente tu puntuación media.',
       'wall': 'Un muro de reseñas dinámico estilo "masonry" que muestra muchas opiniones a la vez.',
-      'horizontal-carousel': 'Carrusel grande con tu nota global y un botón "Ver más" a la izquierda, y cards animadas con autor + estrellas a la derecha.'
+      'stars-carousel': 'Carrusel grande con tu nota global y un botón "Ver más" a la izquierda, y cards animadas con autor + estrellas a la derecha.'
     },
     billingAndPlanTitle: 'Facturación y Plan',
     yourSubscription: 'Tu Suscripción',
