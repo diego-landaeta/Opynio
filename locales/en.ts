@@ -1015,7 +1015,6 @@ export default {
       'grid': 'Grid',
       'badge': 'Badge',
       'wall': 'Review Wall',
-      'mini-carousel': 'Mini Carousel',
       'stars-carousel': 'Stars Carousel'
     },
     widgetDescriptions: {
@@ -1027,7 +1026,6 @@ export default {
       'grid': 'Displays multiple reviews in a clean and orderly grid format.',
       'badge': 'A simple badge to quickly show your average score.',
       'wall': 'A dynamic "masonry" style review wall that displays many opinions at once.',
-      'mini-carousel': 'A minimalist carousel that rotates through your 3 top reviews showing only the author name and the stars.',
       'stars-carousel': 'Large carousel with your overall score and a "See more" button on the left, and animated cards on the right showing author + stars.'
     },
     billingAndPlanTitle: 'Billing & Plan',

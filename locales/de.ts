@@ -998,7 +998,6 @@ export default {
       'grid': 'Raster',
       'badge': 'Abzeichen',
       'wall': 'Bewertungswand',
-      'mini-carousel': 'Mini-Karussell',
       'stars-carousel': 'Sterne-Karussell'
     },
     widgetDescriptions: {
@@ -1010,7 +1009,6 @@ export default {
       'grid': 'Zeigt mehrere Bewertungen in einem sauberen und geordneten Rasterformat an.',
       'badge': 'Ein einfaches Abzeichen, um schnell Ihre Durchschnittsbewertung anzuzeigen.',
       'wall': 'Eine dynamische "Masonry"-Bewertungswand, die viele Meinungen auf einmal anzeigt.',
-      'mini-carousel': 'Ein minimalistisches Karussell, das Ihre 3 besten Bewertungen rotiert und nur den Autorennamen und die Sterne anzeigt.',
       'stars-carousel': 'Großes Karussell mit Ihrer Gesamtbewertung und einer "Mehr sehen"-Schaltfläche links, und animierten Karten rechts, die Autor + Sterne anzeigen.'
     },
     billingAndPlanTitle: 'Abrechnung & Plan',

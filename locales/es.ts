@@ -1026,7 +1026,6 @@ export default {
       'grid': 'Cuadrícula',
       'badge': 'Insignia',
       'wall': 'Muro de Reseñas',
-      'mini-carousel': 'Mini Carrusel',
       'stars-carousel': 'Carrusel de Estrellas'
     },
     widgetDescriptions: {
@@ -1038,7 +1037,6 @@ export default {
       'grid': 'Muestra múltiples reseñas en un formato de cuadrícula limpio y ordenado.',
       'badge': 'Una insignia simple para mostrar rápidamente tu puntuación media.',
       'wall': 'Un muro de reseñas dinámico estilo "masonry" que muestra muchas opiniones a la vez.',
-      'mini-carousel': 'Carrusel minimalista que rota entre tus 3 mejores reseñas mostrando solo el nombre del autor y las estrellas.',
       'stars-carousel': 'Carrusel grande con tu nota global y un botón "Ver más" a la izquierda, y cards animadas con autor + estrellas a la derecha.'
     },
     billingAndPlanTitle: 'Facturación y Plan',

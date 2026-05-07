@@ -20,18 +20,40 @@ const StatCard: React.FC<{ title: string; value: number; icon: string; color: st
     </div>
 );
 
-const ToolCard: React.FC<{ title: string; icon: string; link: string; description: string; color: string }> = ({ title, icon, link, description, color }) => (
-    <Link to={link} className="group flex items-start gap-4 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green transition-all hover:shadow-md">
-        <div className={`p-3 rounded-xl ${color} text-white flex-shrink-0`}>
-            <i className={`fa-solid ${icon} text-lg`}></i>
-        </div>
-        <div className="min-w-0">
-            <h3 className="font-bold text-gray-800 dark:text-gray-100 group-hover:text-brand-green transition-colors">{title}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{description}</p>
-        </div>
-        <i className="fa-solid fa-chevron-right text-gray-300 dark:text-zinc-600 group-hover:text-brand-green transition-colors ml-auto self-center"></i>
-    </Link>
-);
+const ToolCard: React.FC<{ title: string; icon: string; link: string; description: string; color: string; comingSoon?: boolean }> = ({ title, icon, link, description, color, comingSoon }) => {
+    const inner = (
+        <>
+            <div className={`p-3 rounded-xl ${color} text-white flex-shrink-0 ${comingSoon ? 'opacity-60' : ''}`}>
+                <i className={`fa-solid ${icon} text-lg`}></i>
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className={`font-bold text-gray-800 dark:text-gray-100 ${comingSoon ? '' : 'group-hover:text-brand-green'} transition-colors`}>{title}</h3>
+                    {comingSoon && (
+                        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+                            Próximamente
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{description}</p>
+            </div>
+            {!comingSoon && <i className="fa-solid fa-chevron-right text-gray-300 dark:text-zinc-600 group-hover:text-brand-green transition-colors ml-auto self-center"></i>}
+        </>
+    );
+    const baseCls = 'group flex items-start gap-4 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 transition-all';
+    if (comingSoon) {
+        return (
+            <div className={`${baseCls} opacity-75 cursor-not-allowed`} aria-disabled="true" title="En desarrollo">
+                {inner}
+            </div>
+        );
+    }
+    return (
+        <Link to={link} className={`${baseCls} hover:border-brand-green dark:hover:border-brand-green hover:shadow-md`}>
+            {inner}
+        </Link>
+    );
+};
 
 const SectionTitle: React.FC<{ icon: string; title: string; color: string }> = ({ icon, title, color }) => (
     <div className="flex items-center gap-3 mb-4">
@@ -137,6 +159,7 @@ const AdminDashboardPage: React.FC = () => {
                             <ToolCard title={t('adminDashboard.moderateReviews')} icon="fa-comments" link={`/${pathTranslations.es.adminReviewModeration}`} description="Aprueba o rechaza nuevas reseñas." color="bg-orange-500" />
                             <ToolCard title={t('adminDashboard.reviewAppeals')} icon="fa-flag" link={`/${pathTranslations.es.adminReviewAppeals}`} description="Revisa apelaciones de reseñas rechazadas." color="bg-orange-400" />
                             <ToolCard title={t('adminDashboard.bugs')} icon="fa-bug" link={`/${pathTranslations.es.adminBugs}`} description="Gestiona informes de errores de usuarios." color="bg-red-500" />
+                            <ToolCard title="Soporte" icon="fa-headset" link="#" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" comingSoon />
                         </div>
                     </div>
 

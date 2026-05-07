@@ -1004,7 +1004,6 @@ export default {
       'grid': 'Graella',
       'badge': 'Insígnia',
       'wall': 'Mur de Ressenyes',
-      'mini-carousel': 'Mini Carrusel',
       'stars-carousel': 'Carrusel d\'Estrelles'
     },
     widgetDescriptions: {
@@ -1016,7 +1015,6 @@ export default {
       'grid': 'Mostra diverses ressenyes en un format de graella net i ordenat.',
       'badge': 'Una insígnia simple per mostrar ràpidament la teva puntuació mitjana.',
       'wall': 'Un mur de ressenyes dinàmic estil "masonry" que mostra moltes opinions a la vegada.',
-      'mini-carousel': 'Un carrusel minimalista que rota entre les teves 3 millors ressenyes mostrant només el nom de l\'autor i les estrelles.',
       'stars-carousel': 'Carrusel gran amb la teva nota global i un botó "Veure més" a l\'esquerra, i targetes animades a la dreta amb autor + estrelles.'
     },
     billingAndPlanTitle: 'Facturació i Pla',

@@ -18,7 +18,7 @@
 
     // Bot detection — used to avoid injecting indexable review content into client pages.
     // Googlebot Mobile renders with headless Chromium, so any HTML inserted by widget.js is indexed.
-    // Widgets that opt into this guard (mini-carousel, etc.) render an SEO-safe minimal block for bots.
+    // Widgets that opt into this guard (stars-carousel, etc.) render an SEO-safe minimal block for bots.
     var BOT_REGEX = /Googlebot|bingbot|AhrefsBot|SemrushBot|DuckDuckBot|Slurp|Baiduspider|YandexBot|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|Applebot/i;
     var IS_BOT = BOT_REGEX.test((typeof navigator !== 'undefined' && navigator.userAgent) || '');
 
@@ -276,118 +276,8 @@
         /* Badge count */
         .opynio-badge-count { font-size: 0.7rem; color: var(--subtext-color); margin-top: 2px; }
 
-        /* Mini Carousel — versión compacta del horizontal-carousel principal */
-        .opynio-mini-widget {
-            background: var(--card-bg);
-            border-radius: 18px;
-            box-shadow: var(--shadow);
-            padding: 28px;
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-        }
-        .opynio-mini-wrapper { display: flex; gap: 24px; align-items: stretch; }
-        .opynio-mini-rating-wrapper { flex-shrink: 0; }
-        .opynio-mini-rating-panel {
-            min-width: 200px; height: 100%;
-            text-align: center; padding: 24px 18px;
-            border-radius: 16px; box-shadow: var(--shadow);
-            display: flex; flex-direction: column; justify-content: center;
-        }
-        .opynio-theme-light .opynio-mini-rating-panel { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-        .opynio-theme-dark  .opynio-mini-rating-panel { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
-        .opynio-mini-rating-badge {
-            display: inline-block;
-            background: var(--opynio-green) !important;
-            background-color: #00b67a !important;
-            color: white !important;
-            padding: 7px 18px; border-radius: 50px;
-            font-weight: 700; font-size: 1rem;
-            text-transform: uppercase; letter-spacing: 1.5px;
-            margin-bottom: 12px;
-        }
-        .opynio-mini-stars-display { font-size: 1.5rem; color: var(--opynio-star); letter-spacing: 5px; margin-bottom: 10px; text-shadow: 0 2px 6px rgba(255, 193, 7, 0.3); }
-        .opynio-mini-stars-display .empty { color: var(--border-color); text-shadow: none; }
-        .opynio-mini-rating-count { font-size: 0.85rem; color: var(--subtext-color); font-weight: 500; margin-bottom: 12px; line-height: 1.3; }
-        .opynio-mini-rating-count strong { color: var(--text-color); }
-        .opynio-mini-logo { padding-top: 12px; border-top: 2px solid rgba(0, 182, 122, 0.2); margin-top: 4px; }
-        .opynio-mini-logo-text { font-size: 1.25rem; font-weight: 900; color: var(--opynio-green) !important; color: #00b67a !important; }
-
-        .opynio-mini-cards-area { flex: 1; min-width: 0; position: relative; padding: 0 44px; display: flex; align-items: center; }
-        .opynio-mini-cards-container { flex: 1; min-width: 0; position: relative; overflow: hidden; padding: 4px 0; }
-        .opynio-mini-cards-track { display: flex; gap: 14px; transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-        .opynio-mini-review-card {
-            min-width: 180px; max-width: 180px; width: 180px;
-            flex-shrink: 0;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 10px; padding: 18px 14px;
-            border-radius: 14px; background: var(--card-bg);
-            border: 2px solid var(--border-color); box-shadow: var(--shadow);
-            text-align: center;
-            text-decoration: none; color: inherit; cursor: pointer;
-            outline: none;
-            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .opynio-mini-entered .opynio-mini-review-card { animation: opynio-mini-card-in 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-        @keyframes opynio-mini-card-in {
-            from { opacity: 0; transform: translateY(14px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .opynio-mini-review-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--opynio-green) !important;
-            border-color: #00b67a !important;
-            box-shadow: 0 10px 26px rgba(0, 182, 122, 0.15);
-        }
-        .opynio-mini-review-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
-        .opynio-mini-review-card .opynio-avatar-placeholder { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
-        .opynio-mini-review-name { font-weight: 700; color: var(--text-color); font-size: 0.9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .opynio-mini-review-stars { font-size: 1rem; letter-spacing: 2px; color: var(--opynio-star); }
-
-        .opynio-mini-nav-arrow {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 36px; height: 36px; border-radius: 50%;
-            border: 2px solid var(--opynio-green) !important;
-            border-color: #00b67a !important;
-            background: var(--card-bg) !important;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; padding: 0 !important; margin: 0 !important;
-            outline: none !important; z-index: 10;
-            transition: background 0.3s ease, transform 0.3s ease;
-        }
-        .opynio-theme-dark .opynio-mini-nav-arrow { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
-        .opynio-mini-nav-arrow:hover {
-            background: var(--opynio-green) !important;
-            background-color: #00b67a !important;
-            transform: translateY(-50%) scale(1.1);
-        }
-        .opynio-mini-nav-arrow:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
-        .opynio-mini-nav-arrow svg {
-            width: 18px; height: 18px;
-            fill: var(--opynio-green) !important;
-            fill: #00b67a !important;
-            transition: fill 0.3s ease; pointer-events: none;
-        }
-        .opynio-mini-nav-arrow:hover svg { fill: white !important; }
-        .opynio-mini-nav-next { right: 0; }
-        .opynio-mini-nav-prev {
-            left: 0;
-            opacity: 0;
-            transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
-        }
-        .opynio-mini-cards-area:hover .opynio-mini-nav-prev { opacity: 1; }
-        @media (max-width: 768px) {
-            .opynio-mini-widget { padding: 20px; }
-            .opynio-mini-wrapper { flex-direction: column; gap: 18px; }
-            .opynio-mini-rating-panel { min-width: 100%; padding: 22px 16px; }
-            .opynio-mini-cards-area { padding: 0 38px; }
-            .opynio-mini-review-card { min-width: 170px; max-width: 170px; width: 170px; }
-            .opynio-mini-nav-arrow { width: 32px; height: 32px; }
-            .opynio-mini-nav-prev { opacity: 1; }
-        }
-
-        /* Stars Carousel — cuadro blanco + panel verde "EXCELENTE" izquierda +
-           3 cards (avatar+nombre+estrellas) en bucle infinito + botón footer centrado */
+        /* Stars Carousel — cuadro blanco + panel verde + 3 cards + botón footer.
+           container-type: el widget responde a SU ancho, no al viewport. */
         .opynio-stars-carousel-widget {
             background: var(--card-bg);
             border-radius: 20px;
@@ -398,6 +288,7 @@
             position: relative;
             display: flex;
             flex-direction: column;
+            container-type: inline-size;
         }
         .opynio-stars-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
         .opynio-stars-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
@@ -532,20 +423,23 @@
             transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
         }
         .opynio-stars-carousel-cards-area:hover .opynio-stars-carousel-nav-prev { opacity: 1; }
-        @media (max-width: 900px) {
-            .opynio-stars-carousel-widget { padding: 28px 22px; }
-            .opynio-stars-carousel-wrapper { flex-direction: column; gap: 22px; }
-            .opynio-stars-carousel-cta { min-width: 100%; }
-            .opynio-stars-carousel-cards-area { padding: 0 46px; }
+        @container (max-width: 760px) {
+            .opynio-stars-carousel-widget { padding: 22px 18px; }
+            .opynio-stars-carousel-wrapper { flex-direction: column; gap: 18px; }
+            .opynio-stars-carousel-cta-link { width: 100%; }
+            .opynio-stars-carousel-cta { min-width: 100%; padding: 20px 16px; }
+            .opynio-stars-carousel-right { width: 100%; }
+            .opynio-stars-carousel-cards-area { padding: 0 42px; width: 100%; }
+            .opynio-stars-carousel-cards-container { width: 100%; max-width: 100%; }
+            .opynio-stars-carousel-track { justify-content: center; }
             .opynio-stars-carousel-nav-prev { opacity: 1; }
         }
-        @media (max-width: 480px) {
-            .opynio-stars-carousel-widget { padding: 22px 14px; }
-            .opynio-stars-carousel-cta { padding: 22px 16px; }
-            .opynio-stars-carousel-score { font-size: 2.8rem; }
-            .opynio-stars-carousel-card { min-width: 160px; max-width: 160px; width: 160px; padding: 18px 12px 14px; }
-            .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 48px !important; height: 48px !important; font-size: 1.2rem !important; }
-            .opynio-stars-carousel-nav { width: 36px; height: 36px; }
+        @container (max-width: 480px) {
+            .opynio-stars-carousel-widget { padding: 18px 12px; }
+            .opynio-stars-carousel-score { font-size: 2.2rem; }
+            .opynio-stars-carousel-card { min-width: 150px; max-width: 150px; width: 150px; padding: 16px 12px; }
+            .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
+            .opynio-stars-carousel-nav { width: 32px; height: 32px; }
         }
 
     `;
@@ -808,106 +702,6 @@
             start();
         },
 
-        // Mini-carousel: compact version of horizontal-carousel. White box + green
-        // rating panel on the left + cards track (avatar + name + stars only).
-        // Up to 8 top reviews slide in infinite cyclic carousel. JSON-LD AggregateRating
-        // with itemReviewed is emitted ALWAYS (humans + bots) so the rich snippet works
-        // regardless of UA. For bots we additionally skip the per-review HTML to avoid
-        // duplicate-content indexation across client pages.
-        'mini-carousel': function(el, business, reviews, s) {
-            var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
-            var rating = validRating.toFixed(1);
-            var count = business.review_count || 0;
-            var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
-            var businessUrl = getBusinessUrl(business);
-            var bizName = (business.name || '').replace(/"/g, '\\"');
-            var jsonLd = '<script type="application/ld+json">{"@context":"https://schema.org","@type":"AggregateRating","itemReviewed":{"@type":"LocalBusiness","name":"' + bizName + '","url":"' + businessUrl + '"},"ratingValue":"' + rating + '","reviewCount":"' + count + '","bestRating":"5","worstRating":"1"}<\/script>';
-
-            // Bot path — minimal indexable HTML, no per-review content. JSON-LD always.
-            if (IS_BOT) {
-                el.innerHTML = '<a href="' + businessUrl + '" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(validRating) + '</div><div class="opynio-badge-text">' + rating + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + count + ' ' + s.reviews + '</div></div></div></div></a>' + jsonLd;
-                return;
-            }
-
-            // Up to 8 top reviews: prefer 5★, then highest-rated.
-            var topReviews = reviews.filter(function(r) { return Number(r.rating) === 5; }).slice(0, 8);
-            if (topReviews.length < 8) {
-                var fillers = reviews
-                    .filter(function(r) { return Number(r.rating) !== 5; })
-                    .sort(function(a, b) { return (Number(b.rating) || 0) - (Number(a.rating) || 0); })
-                    .slice(0, 8 - topReviews.length);
-                topReviews = topReviews.concat(fillers);
-            }
-
-            var ratingPanelHTML = '<div class="opynio-mini-rating-wrapper"><a href="' + businessUrl + '" target="_blank" style="text-decoration:none;color:inherit;"><div class="opynio-mini-rating-panel"><div class="opynio-mini-rating-badge">' + ratingText + '</div><div class="opynio-mini-stars-display opynio-stars">' + generateStars(validRating) + '</div><p class="opynio-mini-rating-count">' + s.basedOnAlt.replace('{n}', count) + '</p><div class="opynio-mini-logo"><div class="opynio-mini-logo-text">Opynio</div></div></div></a></div>';
-
-            if (topReviews.length === 0) {
-                el.innerHTML = '<div class="opynio-mini-widget"><div class="opynio-mini-wrapper">' + ratingPanelHTML + '</div></div>' + jsonLd;
-                return;
-            }
-
-            function cardHTML(r, i) {
-                var name = r.original_author_name || s.anonymous;
-                var initial = name.charAt(0).toUpperCase();
-                var delay = (i % topReviews.length) * 90;
-                return '<a href="' + businessUrl + '" target="_blank" class="opynio-mini-review-card" style="animation-delay:' + delay + 'ms">'
-                     +   '<div class="opynio-avatar-placeholder">' + initial + '</div>'
-                     +   '<div class="opynio-mini-review-name">' + name + '</div>'
-                     +   '<div class="opynio-mini-review-stars opynio-stars">' + generateStars(r.rating) + '</div>'
-                     + '</a>';
-            }
-
-            var cardsHTML = topReviews.map(cardHTML).join('');
-
-            el.innerHTML = '<div class="opynio-mini-widget"><div class="opynio-mini-wrapper">'
-                         + ratingPanelHTML
-                         + '<div class="opynio-mini-cards-area">'
-                         +   '<button type="button" class="opynio-mini-nav-arrow opynio-mini-nav-prev" aria-label="' + (s.previous || 'Anterior') + '"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
-                         +   '<div class="opynio-mini-cards-container" role="region" aria-label="' + (s.reviews || 'Reseñas') + '" aria-live="polite" aria-roledescription="carrusel">'
-                         +     '<div class="opynio-mini-cards-track" id="mini-track-' + business.id + '">' + cardsHTML + '</div>'
-                         +   '</div>'
-                         +   '<button type="button" class="opynio-mini-nav-arrow opynio-mini-nav-next" aria-label="' + (s.next || 'Siguiente') + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>'
-                         + '</div>'
-                         + '</div></div>'
-                         + jsonLd;
-
-            var widget = el.querySelector('.opynio-mini-widget');
-            var track = el.querySelector('#mini-track-' + business.id);
-            var nextBtn = el.querySelector('.opynio-mini-nav-next');
-            var prevBtn = el.querySelector('.opynio-mini-nav-prev');
-            var cards = el.querySelectorAll('.opynio-mini-review-card');
-            if (!widget || !track || cards.length === 0) return;
-
-            // Trigger stagger entrance after layout settles.
-            requestAnimationFrame(function() { widget.classList.add('opynio-mini-entered'); });
-
-            // Clone all cards for infinite scroll (cards still inside overflow:hidden track).
-            cards.forEach(function(c) { track.appendChild(c.cloneNode(true)); });
-
-            var idx = 0, interval, paused = false;
-            function scroll(dir) {
-                if (!cards[0]) return;
-                var w = cards[0].offsetWidth + 14;
-                idx += dir;
-                track.style.transition = 'transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94)';
-                track.style.transform = 'translateX(-' + (idx * w) + 'px)';
-                if (idx >= cards.length) {
-                    setTimeout(function() { track.style.transition = 'none'; idx = 0; track.style.transform = 'translateX(0)'; }, 500);
-                } else if (idx < 0) {
-                    idx = cards.length - 1;
-                    track.style.transition = 'none';
-                    track.style.transform = 'translateX(-' + (idx * w) + 'px)';
-                }
-            }
-            function start() { clearInterval(interval); interval = setInterval(function() { if (!paused) scroll(1); }, 4000); }
-
-            widget.addEventListener('mouseenter', function() { paused = true; });
-            widget.addEventListener('mouseleave', function() { paused = false; });
-            nextBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(1); start(); };
-            prevBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(-1); start(); };
-            start();
-        },
-
         // Stars Carousel: large widget with "See more" CTA on the left and a track of
         // cards on the right (avatar + name + stars). JSON-LD AggregateRating with
         // itemReviewed is emitted ALWAYS so the rich snippet works for humans and bots.
@@ -1041,7 +835,7 @@
             }
 
             // Widgets that need reviews — these handle the empty case themselves (SEO-safe fallback).
-            var SELF_HANDLED_EMPTY = ['mini-carousel', 'stars-carousel'];
+            var SELF_HANDLED_EMPTY = ['stars-carousel'];
             if (reviews.length === 0 && SELF_HANDLED_EMPTY.indexOf(type) === -1) {
                 el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
                 return;

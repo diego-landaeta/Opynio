@@ -1004,7 +1004,6 @@ export default {
       'grid': 'Griglia',
       'badge': 'Badge',
       'wall': 'Muro di Recensioni',
-      'mini-carousel': 'Mini Carosello',
       'stars-carousel': 'Carosello di Stelle'
     },
     widgetDescriptions: {
@@ -1016,7 +1015,6 @@ export default {
       'grid': 'Mostra più recensioni in un formato a griglia pulito e ordinato.',
       'badge': 'Un semplice badge per mostrare rapidamente il tuo punteggio medio.',
       'wall': 'Un muro di recensioni dinamico in stile "masonry" che mostra molte opinioni contemporaneamente.',
-      'mini-carousel': 'Un carosello minimalista che ruota tra le tue 3 migliori recensioni mostrando solo il nome dell\'autore e le stelle.',
       'stars-carousel': 'Carosello grande con il tuo punteggio complessivo e un pulsante "Vedi di più" a sinistra, e carte animate a destra con autore + stelle.'
     },
     billingAndPlanTitle: 'Fatturazione e Piano',
