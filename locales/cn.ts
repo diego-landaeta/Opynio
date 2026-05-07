@@ -976,7 +976,9 @@ export default {
       'floating': '浮动',
       'grid': '网格',
       'badge': '徽章',
-      'wall': '评论墙'
+      'wall': '评论墙',
+      'mini-carousel': '迷你轮播',
+      'stars-carousel': '星级轮播'
     },
     widgetDescriptions: {
       'horizontal-carousel': '交互式轮播，展示您最好的评论和整体评分。',
@@ -986,7 +988,9 @@ export default {
       'floating': '停留在屏幕角落的低调徽章。',
       'grid': '以清晰有序的网格格式显示多条评论。',
       'badge': '快速显示平均评分的简单徽章。',
-      'wall': '动态"砌体"风格的评论墙，一次显示许多意见。'
+      'wall': '动态"砌体"风格的评论墙，一次显示许多意见。',
+      'mini-carousel': '极简轮播，在您的 3 条最佳评论之间循环切换，仅显示作者姓名和星级。',
+      'stars-carousel': '大型轮播：左侧显示综合评分和"查看更多"按钮，右侧动态卡片显示作者和星级。'
     },
     billingAndPlanTitle: '账单和方案',
     yourSubscription: '您的订阅',

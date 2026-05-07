@@ -9,23 +9,45 @@
         .container { max-width: 1200px; width: 100%; }
         h1 { color: #333; text-align: center; margin-bottom: 2rem; }
         p { text-align: center; color: #555; max-width: 600px; margin: 0 auto 2rem auto; }
+        h1.with-margin { margin-top: 4rem; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Ejemplo de Widget de Carrusel Horizontal</h1>
         <p>Este es un ejemplo de cómo se vería el widget en una página web externa. El código se carga desde un único archivo <strong>widget.js</strong>.</p>
-        
+
         <!-- Opynio Widget Start -->
-        <!-- Simplemente copia y pega este código en tu sitio web. -->
-        <!-- Asegúrate de cambiar 'data-business-id' por el ID de tu empresa. -->
-        <div class="opynio-widget" 
-             data-business-id="b56d8d2a-c4e6-4ada-aa71-22e7348964bd" 
-             data-widget-type="horizontal-carousel" 
+        <div class="opynio-widget"
+             data-business-id="b56d8d2a-c4e6-4ada-aa71-22e7348964bd"
+             data-type="horizontal-carousel"
              data-theme="light">
         </div>
-        <script src="/widget.js" defer></script>
         <!-- Opynio Widget End -->
+
+        <h1 class="with-margin">Ejemplo de Mini Carrusel</h1>
+        <p>Carrusel minimalista que rota entre 3 reseñas mostrando solo el nombre del autor y las estrellas.</p>
+
+        <!-- Opynio Mini Carousel Start -->
+        <div class="opynio-widget"
+             data-business-id="b56d8d2a-c4e6-4ada-aa71-22e7348964bd"
+             data-type="mini-carousel"
+             data-theme="light">
+        </div>
+        <!-- Opynio Mini Carousel End -->
+
+        <h1 class="with-margin">Ejemplo de Stars Carousel</h1>
+        <p>Carrusel grande: panel verde (score + estrellas + "EXCELENTE") + 3 cards rotando + botón "Ver reseñas completas".</p>
+
+        <!-- Opynio Stars Carousel Start -->
+        <div class="opynio-widget"
+             data-business-id="b56d8d2a-c4e6-4ada-aa71-22e7348964bd"
+             data-type="stars-carousel"
+             data-theme="light">
+        </div>
+        <!-- Opynio Stars Carousel End -->
+
+        <script src="/widget.js?v=stars-cta-clickable" defer></script>
 
     </div>
 </body>

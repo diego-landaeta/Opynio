@@ -18,6 +18,8 @@ import { FloatingPreview } from './widgets/FloatingWidget';
 import { GridPreview } from './widgets/GridWidget';
 import { BadgePreview } from './widgets/BadgeWidget';
 import { WallPreview } from './widgets/WallWidget';
+import { MiniCarouselPreview } from './widgets/MiniCarouselWidget';
+import { StarsCarouselPreview } from './widgets/StarsCarouselWidget';
 
 const PLAN_HIERARCHY: Record<Plan, number> = {
     free: 0,
@@ -37,6 +39,8 @@ const WIDGETS: WidgetConfig[] = [
     { name: 'grid', description: 'businessDashboard.widgetDescriptions.grid', component: GridPreview, type: 'grid' },
     { name: 'badge', description: 'businessDashboard.widgetDescriptions.badge', component: BadgePreview, type: 'badge' },
     { name: 'wall', description: 'businessDashboard.widgetDescriptions.wall', component: WallPreview, type: 'wall' },
+    { name: 'mini-carousel', description: 'businessDashboard.widgetDescriptions.mini-carousel', component: MiniCarouselPreview, type: 'mini-carousel' },
+    { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel' },
 ];
 
 const FeatureLock: React.FC<{ children: React.ReactNode }> = ({ children }) => {

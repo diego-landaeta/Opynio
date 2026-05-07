@@ -1025,7 +1025,9 @@ export default {
       'floating': 'Flotante',
       'grid': 'Cuadrícula',
       'badge': 'Insignia',
-      'wall': 'Muro de Reseñas'
+      'wall': 'Muro de Reseñas',
+      'mini-carousel': 'Mini Carrusel',
+      'stars-carousel': 'Carrusel de Estrellas'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Un carrusel interactivo que muestra tus mejores reseñas junto con tu puntuación general.',
@@ -1035,7 +1037,9 @@ export default {
       'floating': 'Una insignia discreta que permanece en una esquina de la pantalla.',
       'grid': 'Muestra múltiples reseñas en un formato de cuadrícula limpio y ordenado.',
       'badge': 'Una insignia simple para mostrar rápidamente tu puntuación media.',
-      'wall': 'Un muro de reseñas dinámico estilo "masonry" que muestra muchas opiniones a la vez.'
+      'wall': 'Un muro de reseñas dinámico estilo "masonry" que muestra muchas opiniones a la vez.',
+      'mini-carousel': 'Carrusel minimalista que rota entre tus 3 mejores reseñas mostrando solo el nombre del autor y las estrellas.',
+      'stars-carousel': 'Carrusel grande con tu nota global y un botón "Ver más" a la izquierda, y cards animadas con autor + estrellas a la derecha.'
     },
     billingAndPlanTitle: 'Facturación y Plan',
     yourSubscription: 'Tu Suscripción',

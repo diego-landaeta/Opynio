@@ -11,6 +11,8 @@ import { FloatingPreview } from './FloatingWidget';
 import { GridPreview } from './GridWidget';
 import { BadgePreview } from './BadgeWidget';
 import { WallPreview } from './WallWidget';
+import { MiniCarouselPreview } from './MiniCarouselWidget';
+import { StarsCarouselPreview } from './StarsCarouselWidget';
 
 export interface WidgetConfig {
     name: string;
@@ -28,6 +30,8 @@ export const WIDGETS: WidgetConfig[] = [
     { name: 'grid', description: 'businessDashboard.widgetDescriptions.grid', component: GridPreview, type: 'grid' },
     { name: 'badge', description: 'businessDashboard.widgetDescriptions.badge', component: BadgePreview, type: 'badge' },
     { name: 'wall', description: 'businessDashboard.widgetDescriptions.wall', component: WallPreview, type: 'wall' },
+    { name: 'mini-carousel', description: 'businessDashboard.widgetDescriptions.mini-carousel', component: MiniCarouselPreview, type: 'mini-carousel' },
+    { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel' },
 ];
 
 export const WIDGET_CSS = `
@@ -99,7 +103,6 @@ export const WIDGET_CSS = `
     .opynio-theme-dark .opynio-opynio-text { color: #6ee7b7; }
     .opynio-platform-badge { flex-shrink: 0; width: 24px; height: 24px; }
     .opynio-platform-badge svg { width: 100%; height: 100%; }
-    .opynio-verified-check { background: #4285f4; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; }
     a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
     
     /* Horizontal Carousel - ACTUALIZADO */
@@ -485,6 +488,358 @@ export const WIDGET_CSS = `
     .opynio-widget.opynio-theme-dark .opynio-platform-badge svg circle {
         fill: #00b67a !important;
     }
+
+    /* Mini Carousel — versión compacta del horizontal-carousel principal:
+       cuadro blanco + panel verde "EXCELENTE" a la izquierda + 3 cards
+       (avatar + nombre + estrellas amarillas) deslizándose en carrusel infinito. */
+    .opynio-mini-widget {
+        background: var(--card-bg);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        padding: 28px;
+        max-width: 800px;
+        margin: 0 auto;
+        position: relative;
+    }
+    .opynio-mini-wrapper { display: flex; gap: 24px; align-items: stretch; }
+
+    /* Panel rating — mismo gradiente y badge que el principal, escalado */
+    .opynio-mini-rating-wrapper { flex-shrink: 0; }
+    .opynio-mini-rating-panel {
+        min-width: 200px; height: 100%;
+        text-align: center;
+        padding: 24px 18px;
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        display: flex; flex-direction: column; justify-content: center;
+    }
+    .opynio-theme-light .opynio-mini-rating-panel { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .opynio-theme-dark  .opynio-mini-rating-panel { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
+    .opynio-mini-rating-badge {
+        display: inline-block;
+        background: var(--opynio-green) !important;
+        background-color: #00b67a !important;
+        color: white !important;
+        padding: 7px 18px;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 12px;
+    }
+    .opynio-mini-stars-display { font-size: 1.5rem; color: var(--opynio-star); letter-spacing: 5px; margin-bottom: 10px; text-shadow: 0 2px 6px rgba(255, 193, 7, 0.3); }
+    .opynio-mini-stars-display .empty { color: var(--border-color); text-shadow: none; }
+    .opynio-mini-rating-count { font-size: 0.85rem; color: var(--subtext-color); font-weight: 500; margin-bottom: 12px; line-height: 1.3; }
+    .opynio-mini-rating-count strong { color: var(--text-color); }
+    .opynio-mini-logo { padding-top: 12px; border-top: 2px solid rgba(0, 182, 122, 0.2); margin-top: 4px; }
+    .opynio-mini-logo-text { font-size: 1.25rem; font-weight: 900; color: var(--opynio-green) !important; color: #00b67a !important; }
+
+    /* Cards container — 3 cards visibles, scroll cíclico con clones */
+    .opynio-mini-cards-area { flex: 1; min-width: 0; position: relative; padding: 0 44px; display: flex; align-items: center; }
+    .opynio-mini-cards-container { flex: 1; min-width: 0; position: relative; overflow: hidden; padding: 4px 0; }
+    .opynio-mini-cards-track { display: flex; gap: 14px; transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+    .opynio-mini-review-card {
+        min-width: 180px; max-width: 180px; width: 180px;
+        flex-shrink: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 10px;
+        padding: 18px 14px;
+        border-radius: 14px;
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: var(--shadow);
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        outline: none;
+    }
+    .opynio-mini-entered .opynio-mini-review-card { animation: opynio-mini-card-in 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+    @keyframes opynio-mini-card-in {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .opynio-mini-review-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--opynio-green) !important;
+        border-color: #00b67a !important;
+        box-shadow: 0 10px 26px rgba(0, 182, 122, 0.15);
+    }
+    .opynio-mini-review-card:focus-visible {
+        outline: 3px solid #00b67a;
+        outline-offset: 3px;
+    }
+    .opynio-mini-review-avatar { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
+    .opynio-mini-review-name {
+        font-weight: 700;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .opynio-mini-review-stars { font-size: 1rem; letter-spacing: 2px; }
+    .opynio-mini-review-stars .opynio-stars span { color: var(--opynio-star); }
+    .opynio-mini-review-stars .opynio-stars .empty { color: var(--border-color); }
+
+    /* Flechas — mismo patrón que el horizontal pero más pequeñas */
+    .opynio-mini-nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        border: 2px solid var(--opynio-green) !important;
+        border-color: #00b67a !important;
+        background: var(--card-bg) !important;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        padding: 0 !important;
+        margin: 0 !important;
+        outline: none !important;
+        z-index: 10;
+        transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .opynio-theme-dark .opynio-mini-nav-arrow { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
+    .opynio-mini-nav-arrow:hover {
+        background: var(--opynio-green) !important;
+        background-color: #00b67a !important;
+        transform: translateY(-50%) scale(1.1);
+    }
+    .opynio-mini-nav-arrow:focus-visible {
+        outline: 3px solid #00b67a;
+        outline-offset: 2px;
+    }
+    .opynio-mini-nav-arrow svg {
+        width: 18px; height: 18px;
+        fill: var(--opynio-green) !important;
+        fill: #00b67a !important;
+        transition: fill 0.3s ease;
+        pointer-events: none;
+    }
+    .opynio-mini-nav-arrow:hover svg { fill: white !important; }
+    .opynio-mini-nav-next { right: 0; }
+    .opynio-mini-nav-prev {
+        left: 0;
+        opacity: 0;
+        transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
+    }
+    .opynio-mini-cards-area:hover .opynio-mini-nav-prev { opacity: 1; }
+
+    @media (max-width: 768px) {
+        .opynio-mini-widget { padding: 20px; }
+        .opynio-mini-wrapper { flex-direction: column; gap: 18px; }
+        .opynio-mini-rating-panel { min-width: 100%; padding: 22px 16px; }
+        .opynio-mini-cards-area { padding: 0 38px; }
+        .opynio-mini-review-card { min-width: 170px; max-width: 170px; width: 170px; }
+        .opynio-mini-nav-arrow { width: 32px; height: 32px; }
+        .opynio-mini-nav-prev { opacity: 1; }
+    }
+
+    /* Stars Carousel — cuadro blanco + panel verde "EXCELENTE" izquierda +
+       3 cards (avatar+nombre+estrellas) en bucle infinito + botón footer centrado */
+    .opynio-stars-carousel-widget {
+        background: var(--card-bg);
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        padding: 24px;
+        max-width: 880px;
+        margin: 0 auto;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+    .opynio-stars-carousel-wrapper { display: flex; gap: 22px; align-items: stretch; justify-content: center; }
+    /* Columna derecha: cards arriba + botón "Ver reseñas completas" centrado debajo de las cards */
+    .opynio-stars-carousel-right { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; }
+
+    /* Panel CTA "Ver más" a la izquierda */
+    .opynio-stars-carousel-cta-link { text-decoration: none; color: inherit; display: flex; flex-shrink: 0; }
+    .opynio-stars-carousel-cta {
+        flex: 1;
+        min-width: 210px;
+        text-align: center;
+        padding: 22px 18px;
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        gap: 8px;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .opynio-stars-carousel-cta-link:hover .opynio-stars-carousel-cta {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 182, 122, 0.18);
+    }
+    .opynio-theme-light .opynio-stars-carousel-cta { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .opynio-theme-dark  .opynio-stars-carousel-cta { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
+    .opynio-stars-carousel-score {
+        font-size: 2.6rem; font-weight: 800;
+        color: var(--text-color); line-height: 1;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+    }
+    .opynio-stars-carousel-score-stars { font-size: 1.15rem; letter-spacing: 3px; color: var(--opynio-star); }
+    .opynio-stars-carousel-score-stars .empty { color: var(--border-color); }
+    .opynio-stars-carousel-count { font-size: 0.82rem; color: var(--subtext-color); font-weight: 500; }
+    .opynio-stars-carousel-count strong { color: var(--text-color); font-weight: 700; }
+    /* Label del rating (EXCELENTE/MUY BUENO/BUENO) — tipográfico con dos líneas verdes laterales */
+    .opynio-stars-carousel-rating-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--opynio-green-dark) !important;
+        color: #008f5f !important;
+        font-weight: 900;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 2.5px;
+        padding: 4px 0;
+        margin-top: 4px;
+    }
+    .opynio-stars-carousel-rating-label::before,
+    .opynio-stars-carousel-rating-label::after {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 2px;
+        background: var(--opynio-green) !important;
+        background-color: #00b67a !important;
+        border-radius: 1px;
+    }
+
+    /* Botón inferior "Ver reseñas completas" — CTA principal verde sólido,
+       separado del wrapper con un divisor sutil */
+    .opynio-stars-carousel-footer {
+        display: flex; justify-content: center;
+    }
+    .opynio-stars-carousel-footer-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 28px;
+        border-radius: 50px;
+        background: var(--opynio-green) !important;
+        background-color: #00b67a !important;
+        color: white !important;
+        border: none;
+        font-weight: 700; font-size: 0.92rem;
+        text-decoration: none;
+        box-shadow: 0 6px 16px rgba(0, 182, 122, 0.3);
+        transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    }
+    .opynio-stars-carousel-footer-btn:hover {
+        background: var(--opynio-green-dark) !important;
+        background-color: #008f5f !important;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(0, 182, 122, 0.4);
+    }
+    .opynio-stars-carousel-footer-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+    .opynio-stars-carousel-footer-btn svg { width: 14px; height: 14px; fill: white; transition: transform 0.2s ease; }
+    .opynio-stars-carousel-footer-btn:hover svg { transform: translateX(2px); }
+
+    /* Carousel de cards (solo estrellas) */
+    /* cards-area = ancho exacto para 3 cards + padding lateral para las flechas */
+    .opynio-stars-carousel-cards-area { flex: 0 1 auto; position: relative; padding: 0 42px; display: flex; align-items: center; }
+    /* cards-container = exactamente 3 cards (3 * 165 + 2 * 14 = 523px). El clone queda fuera del overflow:hidden. */
+    .opynio-stars-carousel-cards-container { width: 523px; max-width: 100%; position: relative; overflow: hidden; padding: 4px 0; display: flex; align-items: center; }
+    .opynio-stars-carousel-track { display: flex; gap: 14px; transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+    .opynio-stars-carousel-card {
+        min-width: 165px; max-width: 165px; width: 165px;
+        flex-shrink: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 10px;
+        padding: 18px 14px;
+        border-radius: 14px;
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: var(--shadow);
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        outline: none;
+        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .opynio-stars-carousel-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--opynio-green) !important;
+        border-color: #00b67a !important;
+        box-shadow: 0 10px 26px rgba(0, 182, 122, 0.15);
+    }
+    .opynio-stars-carousel-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+    .opynio-stars-carousel-card-avatar { width: 44px !important; height: 44px !important; font-size: 1.1rem !important; }
+    .opynio-stars-carousel-card-name {
+        font-weight: 700;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .opynio-stars-carousel-card-stars {
+        font-size: 1rem;
+        letter-spacing: 2px;
+        color: var(--opynio-star);
+    }
+    .opynio-stars-carousel-card-stars .empty { color: var(--border-color); }
+
+    /* Flechas */
+    .opynio-stars-carousel-nav {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        border: 2px solid var(--opynio-green) !important;
+        border-color: #00b67a !important;
+        background: var(--card-bg) !important;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        padding: 0 !important;
+        margin: 0 !important;
+        outline: none !important;
+        z-index: 10;
+        transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .opynio-theme-dark .opynio-stars-carousel-nav { background: #374151 !important; border-color: var(--opynio-green-light) !important; }
+    .opynio-stars-carousel-nav:hover {
+        background: var(--opynio-green) !important;
+        background-color: #00b67a !important;
+        transform: translateY(-50%) scale(1.1);
+    }
+    .opynio-stars-carousel-nav svg {
+        width: 20px; height: 20px;
+        fill: var(--opynio-green) !important;
+        fill: #00b67a !important;
+        transition: fill 0.3s ease;
+        pointer-events: none;
+    }
+    .opynio-stars-carousel-nav:hover svg { fill: white !important; }
+    .opynio-stars-carousel-nav:focus-visible { outline: 3px solid #00b67a; outline-offset: 2px; }
+    .opynio-stars-carousel-nav-next { right: 0; }
+    .opynio-stars-carousel-nav-prev {
+        left: 0;
+        opacity: 0;
+        transition: opacity 0.3s ease, background 0.3s ease, transform 0.3s ease;
+    }
+    .opynio-stars-carousel-cards-area:hover .opynio-stars-carousel-nav-prev { opacity: 1; }
+
+    @media (max-width: 900px) {
+        .opynio-stars-carousel-widget { padding: 28px 22px; }
+        .opynio-stars-carousel-wrapper { flex-direction: column; gap: 22px; }
+        .opynio-stars-carousel-cta { min-width: 100%; }
+        .opynio-stars-carousel-cards-area { padding: 0 46px; }
+        .opynio-stars-carousel-nav-prev { opacity: 1; }
+    }
+    @media (max-width: 480px) {
+        .opynio-stars-carousel-widget { padding: 22px 14px; }
+        .opynio-stars-carousel-cta { padding: 22px 16px; }
+        .opynio-stars-carousel-score { font-size: 2.8rem; }
+        .opynio-stars-carousel-card { min-width: 160px; max-width: 160px; width: 160px; padding: 18px 12px 14px; }
+        .opynio-stars-carousel-card .opynio-avatar-placeholder { width: 48px !important; height: 48px !important; font-size: 1.2rem !important; }
+        .opynio-stars-carousel-nav { width: 36px; height: 36px; }
+    }
+
 `;
 
 export interface PreviewStrings {
@@ -500,17 +855,18 @@ export interface PreviewStrings {
     reviewsFor: string;
     googleReview: string;
     opynioReview: string;
+    seeAllReviews: string;
 }
 
 const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
-    es: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', writeReview: 'Escribe tu reseña', reviewsFor: 'Opiniones para', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio' },
-    en: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', writeReview: 'Write a review', reviewsFor: 'Reviews for', googleReview: 'Google Review', opynioReview: 'Opynio Review' },
-    fr: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', writeReview: 'Écrire un avis', reviewsFor: 'Avis pour', googleReview: 'Avis Google', opynioReview: 'Avis Opynio' },
-    de: { ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', writeReview: 'Bewertung schreiben', reviewsFor: 'Bewertungen für', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung' },
-    it: { ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', writeReview: 'Scrivi una recensione', reviewsFor: 'Recensioni per', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio' },
-    pt: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio' },
-    ca: { ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio' },
-    zh: { ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论' },
+    es: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', writeReview: 'Escribe tu reseña', reviewsFor: 'Opiniones para', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', seeAllReviews: 'Ver reseñas completas' },
+    en: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', writeReview: 'Write a review', reviewsFor: 'Reviews for', googleReview: 'Google Review', opynioReview: 'Opynio Review', seeAllReviews: 'See all reviews' },
+    fr: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', writeReview: 'Écrire un avis', reviewsFor: 'Avis pour', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', seeAllReviews: 'Voir tous les avis' },
+    de: { ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', writeReview: 'Bewertung schreiben', reviewsFor: 'Bewertungen für', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', seeAllReviews: 'Alle Bewertungen ansehen' },
+    it: { ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', writeReview: 'Scrivi una recensione', reviewsFor: 'Recensioni per', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', seeAllReviews: 'Vedi tutte le recensioni' },
+    pt: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', seeAllReviews: 'Ver todas as avaliações' },
+    ca: { ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio', seeAllReviews: 'Veure totes les ressenyes' },
+    zh: { ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', seeAllReviews: '查看所有评论' },
 };
 
 const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh' };

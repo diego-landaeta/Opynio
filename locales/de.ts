@@ -997,7 +997,9 @@ export default {
       'floating': 'Schwebend',
       'grid': 'Raster',
       'badge': 'Abzeichen',
-      'wall': 'Bewertungswand'
+      'wall': 'Bewertungswand',
+      'mini-carousel': 'Mini-Karussell',
+      'stars-carousel': 'Sterne-Karussell'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Ein interaktives Karussell, das Ihre besten Bewertungen zusammen mit Ihrer Gesamtbewertung anzeigt.',
@@ -1007,7 +1009,9 @@ export default {
       'floating': 'Ein dezentes Abzeichen, das in einer Ecke des Bildschirms bleibt.',
       'grid': 'Zeigt mehrere Bewertungen in einem sauberen und geordneten Rasterformat an.',
       'badge': 'Ein einfaches Abzeichen, um schnell Ihre Durchschnittsbewertung anzuzeigen.',
-      'wall': 'Eine dynamische "Masonry"-Bewertungswand, die viele Meinungen auf einmal anzeigt.'
+      'wall': 'Eine dynamische "Masonry"-Bewertungswand, die viele Meinungen auf einmal anzeigt.',
+      'mini-carousel': 'Ein minimalistisches Karussell, das Ihre 3 besten Bewertungen rotiert und nur den Autorennamen und die Sterne anzeigt.',
+      'stars-carousel': 'Großes Karussell mit Ihrer Gesamtbewertung und einer "Mehr sehen"-Schaltfläche links, und animierten Karten rechts, die Autor + Sterne anzeigen.'
     },
     billingAndPlanTitle: 'Abrechnung & Plan',
     yourSubscription: 'Ihr Abonnement',
