@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Plan: Corrección SEO del widget Opynio en sitios cliente</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+  :root {
+    --green: #10B981;
+    --green-dark: #059669;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --bg-soft: #f3f4f6;
+    --bg-warn: #fef3c7;
+    --bg-warn-border: #f59e0b;
+    --bg-good: #ecfdf5;
+    --bg-good-border: #10B981;
+    --bg-bad: #fee2e2;
+    --bg-bad-border: #ef4444;
+    --bg-info: #eff6ff;
+    --bg-info-border: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    font-family: 'Segoe UI', -apple-system, system-ui, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+  h1, h2, h3, h4 { color: var(--ink); line-height: 1.25; margin: 1.2em 0 0.4em; page-break-after: avoid; }
+  h1 { font-size: 22pt; border-bottom: 3px solid var(--green); padding-bottom: 8px; margin-top: 0; }
+  h2 { font-size: 15pt; margin-top: 1.6em; color: var(--green-dark); }
+  h3 { font-size: 12pt; margin-top: 1.2em; }
+  h4 { font-size: 10.5pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.4em 0 0.4em 1.4em; padding: 0; }
+  li { margin: 0.2em 0; }
+  code, kbd, pre, samp {
+    font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+    font-size: 9pt;
+    background: var(--bg-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    padding: 10px 12px;
+    border-left: 3px solid var(--green);
+    overflow-x: auto;
+    page-break-inside: avoid;
+    background: #f8fafc;
+    font-size: 8.5pt;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.6em 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #e5e7eb;
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--bg-soft); font-weight: 600; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .meta {
+    background: var(--bg-soft);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 1em 0 1.5em;
+    font-size: 9pt;
+  }
+  .meta-grid { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+  .meta-grid b { color: var(--ink); }
+  .callout {
+    border-left: 4px solid;
+    padding: 10px 14px;
+    margin: 0.8em 0;
+    border-radius: 0 4px 4px 0;
+    page-break-inside: avoid;
+  }
+  .callout-bad { background: var(--bg-bad); border-color: var(--bg-bad-border); }
+  .callout-warn { background: var(--bg-warn); border-color: var(--bg-warn-border); }
+  .callout-good { background: var(--bg-good); border-color: var(--bg-good-border); }
+  .callout-info { background: var(--bg-info); border-color: var(--bg-info-border); }
+  .callout-title { font-weight: 700; margin-bottom: 4px; display: block; }
+  .pill {
+    display: inline-block;
+    background: var(--green);
+    color: white;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+  .pill-warn { background: var(--bg-warn-border); }
+  .pill-bad { background: var(--bg-bad-border); }
+  .pill-info { background: var(--bg-info-border); }
+  .small { font-size: 8.5pt; color: var(--muted); }
+  .footer {
+    margin-top: 2em;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 12px;
+    font-size: 8.5pt;
+    color: var(--muted);
+    text-align: center;
+  }
+  .toc { background: var(--bg-soft); padding: 12px 18px; border-radius: 6px; margin: 1em 0; }
+  .toc ol { margin-left: 1.2em; }
+  hr { border: 0; border-top: 1px solid #e5e7eb; margin: 1.5em 0; }
+  .arrow { color: var(--green-dark); font-weight: 700; }
+  .priority {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .priority-p0 { background: var(--bg-bad); color: #991b1b; }
+  .priority-p1 { background: var(--bg-warn); color: #92400e; }
+  .priority-p2 { background: var(--bg-info); color: #1e40af; }
+  .priority-p3 { background: var(--bg-soft); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>Plan: Corrección SEO del widget Opynio</h1>
+<p class="small">Documento técnico — análisis del problema, alternativas evaluadas, plan de implementación priorizado.</p>
+
+<div class="meta">
+  <div class="meta-grid">
+    <b>Proyecto:</b><span>Opynio (web.opynio.com) — widget embebido en sitios cliente</span>
+    <b>Branch propuesta:</b><span>fix/widget-seo-facade-2026-05-06</span>
+    <b>Fecha:</b><span>2026-05-06</span>
+    <b>Síntoma reportado:</b><span>Widget de reseñas idéntico en 115 páginas de cliente WordPress está degradando su SEO (~3.000 palabras duplicadas por página, ~60-70% del peso textual).</span>
+    <b>Cliente afectado (pendiente confirmar):</b><span>ICTess (115 páginas de cursos/diplomados).</span>
+    <b>Severidad:</b><span><span class="pill pill-bad">ALTA</span> — afecta indexación de cliente premium y, por contagio, percepción del producto Opynio.</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h4 style="margin-top:0">Contenido</h4>
+  <ol>
+    <li>Resumen ejecutivo</li>
+    <li>El problema — qué reporta el cliente</li>
+    <li>Análisis técnico — por qué pasa con un widget que ya es JS</li>
+    <li>Alternativas evaluadas y descartadas</li>
+    <li>Solución recomendada — patrón fachada + detección de bot</li>
+    <li>Plan de implementación por fases</li>
+    <li>Cambios concretos en <code>widget.js</code></li>
+    <li>Criterios de éxito y verificación</li>
+    <li>Rollback y mitigaciones</li>
+    <li>Riesgos y supuestos abiertos</li>
+  </ol>
+</div>
+
+<h2>1. Resumen ejecutivo</h2>
+
+<p>Un cliente de Opynio que embebe el widget de reseñas en 115 páginas de cursos sufre degradación SEO porque Googlebot indexa <strong>el mismo bloque de ~3.000 palabras de reseñas en todas las páginas</strong>. Adicionalmente hay un bug que duplica el bloque dentro de la misma página (las 18 reseñas aparecen 36 veces). Ese bloque pesa proporcionalmente más que el contenido único de cada curso, y además contiene términos no relacionados con el tema de la página (reseñas que mencionan "BMS", "SCADA", "VRV" en una página de Diplomado en Ciencia de Datos), lo que Google lee como incoherencia tópica.</p>
+
+<p>El widget actual <em>ya carga vía JavaScript asíncrono</em>, por lo que la solución típica de "lazy load con JS" no aplica: <strong>Googlebot Mobile renderiza con headless Chromium e indexa el HTML post-JS</strong>. La solución real requiere que Google <em>nunca llegue a ver</em> el bloque de reseñas, lo cual exige uno de estos enfoques: (a) iframe en origen distinto, (b) detección de User-Agent en el loader, o (c) <strong>patrón fachada</strong> (mostrar resumen mínimo, cargar reseñas solo tras interacción del usuario).</p>
+
+<p>Se recomienda implementar <strong>patrón fachada + detección de bot en cascada</strong>, con JSON-LD <code>AggregateRating</code> para preservar el rich snippet en SERPs. Coste estimado: 1-2 días de desarrollo + 1 día de validación. Migración invisible para clientes existentes (mismo snippet, comportamiento mejorado).</p>
+
+<h2>2. El problema — qué reporta el cliente</h2>
+
+<div class="callout callout-bad">
+  <span class="callout-title">Síntomas reportados</span>
+  <ul style="margin: 4px 0 0 1.2em;">
+    <li>Bloque de reseñas <strong>idéntico al 100%</strong> en 115 páginas distintas del cliente.</li>
+    <li><strong>Bug de duplicado intra-página</strong>: las 18 reseñas aparecen dos veces seguidas en cada página (36 reseñas en el HTML).</li>
+    <li>El bloque representa <strong>el 60-70% del peso textual</strong> de cada página.</li>
+    <li>Las reseñas mencionan temas (<code>BMS</code>, <code>SCADA</code>, <code>VRV</code>, <code>ACS centralizada</code>) que no coinciden con el título de la página (p. ej. "Diplomado en Ciencia de Datos") <span class="arrow">→</span> Google detecta incoherencia tópica.</li>
+    <li>Resultado: Google está degradando el ranking de las páginas de cursos del cliente.</li>
+  </ul>
+</div>
+
+<p>El embed que el cliente está usando (versión actual de <code>widget.js</code>):</p>
+
+<pre><code>&lt;div class="opynio-widget"
+     data-business-id="..."
+     data-type="horizontal-carousel"&gt;&lt;/div&gt;
+&lt;script src="https://web.opynio.com/widget.js" async&gt;&lt;/script&gt;</code></pre>
+
+<h2>3. Análisis técnico — por qué pasa con un widget que ya es JS</h2>
+
+<div class="callout callout-warn">
+  <span class="callout-title">Premisa importante a corregir</span>
+  Existe la creencia popular de que "Google no indexa contenido cargado por JS asíncrono en páginas con señales débiles". <strong>Esto era cierto en 2018 — no en 2026.</strong> Googlebot Mobile renderiza con headless Chromium en la primera pasada y espera al evento <code>load</code> + un timeout adicional para AJAX. El widget actual ya carga async y aun así el cliente está sufriendo el problema. Por tanto, mover el código de <code>async</code> a <code>addEventListener('load')</code> <strong>no cambia nada</strong>.
+</div>
+
+<p>El comportamiento actual de <code>widget.js</code> (verificado en <code>public/widget.js</code>):</p>
+
+<ol>
+  <li>HTML estático contiene <code>&lt;div class="opynio-widget" data-business-id="..."&gt;</code> vacío.</li>
+  <li><code>widget.js</code> se carga con <code>async</code>, ejecuta <code>initAll()</code> en <code>DOMContentLoaded</code>.</li>
+  <li><code>initWidget</code> hace <code>fetch</code> al endpoint <code>widget-proxy</code> de Supabase.</li>
+  <li>Inyecta el HTML completo de las reseñas en el <code>div</code>.</li>
+  <li>Googlebot, durante el render, espera al <code>networkidle</code> y captura el HTML inyectado <span class="arrow">→</span> <strong>indexa las reseñas</strong>.</li>
+</ol>
+
+<p>El problema raíz no es <em>cuándo</em> se carga el contenido, sino <em>que se cargue</em> en una forma que Google pueda capturar.</p>
+
+<h3>3.1 Lo que cuenta como "duplicado" para Google</h3>
+
+<p>Google evalúa duplicado por bloque de texto, no por página completa. Un bloque de ~3.000 palabras idéntico en N páginas:</p>
+
+<ul>
+  <li>Reduce el "peso" relativo del contenido único de cada página.</li>
+  <li>Introduce términos tópicos que contradicen el title/H1 (incoherencia semántica).</li>
+  <li>Hace que Google considere las páginas como "thin content" en lo que se refiere a su contenido único.</li>
+  <li>Puede activar <em>Soft 404</em> o degradación masiva si la proporción de duplicado es muy alta.</li>
+</ul>
+
+<h3>3.2 Lo que NO cuenta como duplicado</h3>
+
+<ul>
+  <li>Texto corto y específico (rating numérico, contador, marca, CTA).</li>
+  <li>Datos estructurados JSON-LD (Google los lee como metadato, no como cuerpo de la página).</li>
+  <li>Contenido detrás de interacción explícita (click), si Googlebot no lo desencadena.</li>
+  <li>Contenido en iframe de origen distinto (Google lo atribuye al origen del iframe).</li>
+</ul>
+
+<h2>4. Alternativas evaluadas y descartadas</h2>
+
+<table>
+  <thead>
+    <tr><th>Alternativa</th><th>Funciona</th><th>Por qué (no) funciona</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Mover carga a <code>window.load</code></b></td>
+      <td><span class="pill pill-bad">NO</span></td>
+      <td>Googlebot espera al <code>load</code>. El widget ya es async; cambiar el evento no aísla nada.</td>
+    </tr>
+    <tr>
+      <td><b>IntersectionObserver al hacer scroll</b></td>
+      <td><span class="pill pill-bad">NO</span></td>
+      <td>Googlebot scrollea durante el render para activar lazy-load de imágenes y contenido. Verá las reseñas igual.</td>
+    </tr>
+    <tr>
+      <td><b>Atributo <code>data-nosnippet</code></b></td>
+      <td><span class="pill pill-warn">PARCIAL</span></td>
+      <td>Solo evita que el bloque aparezca como snippet en SERPs. Google sigue indexando y evaluando duplicidad. Útil como complemento, no como solución.</td>
+    </tr>
+    <tr>
+      <td><b><code>setTimeout</code> largo (5-10s)</b></td>
+      <td><span class="pill pill-bad">NO</span></td>
+      <td>Googlebot tiene timeouts variables pero amplios; espera AJAX en curso. Frágil y degrada UX para usuarios reales.</td>
+    </tr>
+    <tr>
+      <td><b>Shadow DOM (closed)</b></td>
+      <td><span class="pill pill-warn">PARCIAL</span></td>
+      <td>Google ha mejorado la indexación de Shadow DOM open. Closed no es estándar y rompe accesibilidad. No fiable.</td>
+    </tr>
+    <tr>
+      <td><b>Bloquear via <code>robots.txt</code> en Opynio</b></td>
+      <td><span class="pill pill-bad">NO</span></td>
+      <td>El contenido se inyecta en la página del cliente; el <code>robots.txt</code> de Opynio no afecta lo que ve el bot en el dominio del cliente.</td>
+    </tr>
+    <tr>
+      <td><b>iframe en subdominio (<code>reviews.opynio.com</code>)</b></td>
+      <td><span class="pill">SÍ</span></td>
+      <td>Aísla el contenido por origen. Garantía técnica completa. Coste alto: nueva infra + cambio de snippet en cliente + auto-resize via <code>postMessage</code>.</td>
+    </tr>
+    <tr>
+      <td><b>Detección de User-Agent en el loader</b></td>
+      <td><span class="pill">SÍ</span></td>
+      <td>No inyecta HTML si UA es Googlebot/Bingbot/etc. Riesgo bajo de cloaking porque mostramos <em>menos</em> al bot, no contenido distinto.</td>
+    </tr>
+    <tr>
+      <td><b>Patrón fachada (recomendada)</b></td>
+      <td><span class="pill">SÍ</span></td>
+      <td>Render inicial con resumen mínimo + botón "Ver reseñas". Google no hace click <span class="arrow">→</span> nunca ve las reseñas. Cero riesgo de cloaking (todos ven la misma fachada inicialmente).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5. Solución recomendada — patrón fachada + detección de bot</h2>
+
+<div class="callout callout-good">
+  <span class="callout-title">Decisión técnica</span>
+  Implementar <strong>patrón fachada como comportamiento por defecto</strong> de <code>widget.js</code>, con <strong>detección de bot</strong> como salvaguarda en cascada y <strong>JSON-LD AggregateRating</strong> para preservar el rich snippet en SERPs sin penalización por duplicado.
+</div>
+
+<h3>5.1 Cómo se ve la fachada</h3>
+
+<p>HTML que el bot indexa (mínimo, no duplicado entre páginas porque el rating y contador varían por empresa):</p>
+
+<pre><code>&lt;div class="opynio-widget" data-business-id="..."&gt;
+  &lt;div class="opynio-facade"&gt;
+    &lt;div class="opynio-facade-rating"&gt;4.8 ★&lt;/div&gt;
+    &lt;div class="opynio-facade-count"&gt;132 reseñas verificadas&lt;/div&gt;
+    &lt;button class="opynio-facade-btn" type="button"&gt;Ver reseñas&lt;/button&gt;
+  &lt;/div&gt;
+  &lt;script type="application/ld+json"&gt;
+    {
+      "@context": "https://schema.org",
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "132"
+    }
+  &lt;/script&gt;
+&lt;/div&gt;</code></pre>
+
+<p>HTML que ve el usuario tras click: el widget completo actual (carrusel horizontal con las 18 reseñas).</p>
+
+<h3>5.2 Por qué esto sí evita el problema</h3>
+
+<table>
+  <thead>
+    <tr><th>Aspecto</th><th>Widget actual</th><th>Con fachada</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>HTML que Google indexa</td><td>~3.000 palabras idénticas en 115 páginas</td><td>~10 palabras (rating + count + CTA)</td></tr>
+    <tr><td>Detectado como contenido duplicado</td><td>Sí</td><td>No</td></tr>
+    <tr><td>Reseñas visibles al usuario</td><td>Sí, en pageload</td><td>Sí, en 1 click</td></tr>
+    <tr><td>Googlebot las indexa</td><td>Sí</td><td>No (no hace click)</td></tr>
+    <tr><td>Riesgo de cloaking</td><td>—</td><td>Bajo (ambos ven misma fachada inicialmente)</td></tr>
+    <tr><td>Performance (LCP, INP)</td><td>Carga JSON + render en pageload</td><td>Cero coste hasta interacción</td></tr>
+    <tr><td>Rich snippet en SERPs</td><td>Sin schema</td><td>Sí, vía JSON-LD AggregateRating</td></tr>
+  </tbody>
+</table>
+
+<h3>5.3 Detección de bot como segunda barrera</h3>
+
+<p>Aunque la fachada es suficiente por sí sola, añadimos detección de UA conocidos (Googlebot, Bingbot, AhrefsBot, etc.) en <code>initWidget</code>: <strong>si UA es bot, no hacemos ni siquiera la fachada interactiva — solo el JSON-LD y el rating mínimo</strong>. Esto cubre el caso (improbable) de que algún bot futuro decida hacer click en botones.</p>
+
+<h3>5.4 Tradeoffs honestos</h3>
+
+<ul>
+  <li><b>UX cambia para usuarios reales</b>: las reseñas requieren 1 click. Esperable bajada del 20-40% en visualizaciones del bloque completo, compensada por mejor SEO del cliente y mejor perf.</li>
+  <li><b>Cliente debe aceptar el cambio</b>: comunicar valor ("tu SEO se recupera, tu sitio carga más rápido"). Para clientes que prefieran el comportamiento actual, dejamos opt-out con <code>data-facade="false"</code>.</li>
+  <li><b>Rich snippet</b>: el JSON-LD AggregateRating mantiene el rating visible en SERPs como antes (incluso lo mejora si no estaba presente).</li>
+</ul>
+
+<h2>6. Plan de implementación por fases</h2>
+
+<table>
+  <thead>
+    <tr><th>Fase</th><th>Prioridad</th><th>Esfuerzo</th><th>Entregable</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1. Detección de bot (parche express)</td>
+      <td><span class="priority priority-p0">P0</span></td>
+      <td>~30 min</td>
+      <td><code>widget.js</code> con UA-check que evita inyección si bot. Detiene el sangrado en cliente afectado.</td>
+    </tr>
+    <tr>
+      <td>2. Patrón fachada por defecto</td>
+      <td><span class="priority priority-p1">P1</span></td>
+      <td>~1 día</td>
+      <td>Fachada con rating + count + botón. JSON-LD inyectado. Click monta el widget completo. Flag <code>data-facade="false"</code> para opt-out.</td>
+    </tr>
+    <tr>
+      <td>3. Bug del duplicado intra-página</td>
+      <td><span class="priority priority-p1">P1</span></td>
+      <td>Pendiente reproducir</td>
+      <td>Investigar URL real del cliente. Verificar si el plugin/shortcode WordPress emite el div doble, o si <code>MutationObserver</code> en <code>widget.js</code> dispara doble <code>initAll</code>.</td>
+    </tr>
+    <tr>
+      <td>4. Validación con cliente afectado</td>
+      <td><span class="priority priority-p1">P1</span></td>
+      <td>~2 días tras deploy</td>
+      <td>Verificar via Search Console que páginas del cliente recuperan ranking. Inspección URL en GSC.</td>
+    </tr>
+    <tr>
+      <td>5. Comunicación y opt-in inverso</td>
+      <td><span class="priority priority-p2">P2</span></td>
+      <td>~0.5 día</td>
+      <td>Email a clientes activos: "Cambio invisible para SEO; si quieres comportamiento anterior, añade <code>data-facade=&quot;false&quot;</code>."</td>
+    </tr>
+    <tr>
+      <td>6. Plan B: iframe en <code>reviews.opynio.com</code></td>
+      <td><span class="priority priority-p3">P3</span></td>
+      <td>~1 día</td>
+      <td>Solo si tras 4 semanas la fachada no resulta suficiente. Endpoint nuevo + <code>postMessage</code> resize + snippet alternativo.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>7. Cambios concretos en <code>widget.js</code></h2>
+
+<h3>7.1 Constantes nuevas (al inicio del IIFE)</h3>
+
+<pre><code>var BOT_REGEX = /Googlebot|bingbot|AhrefsBot|SemrushBot|DuckDuckBot|Slurp|Baiduspider|YandexBot|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|Applebot/i;
+var FACADE_DEFAULT = true;
+var BOT_DETECTED = BOT_REGEX.test(navigator.userAgent || '');</code></pre>
+
+<h3>7.2 Nuevo renderer de fachada</h3>
+
+<pre><code>function renderFacade(el, business, s, onActivate) {
+    var rating = (business.avg_rating || 0).toFixed(1);
+    var count = business.review_count || 0;
+    var stars = generateStars(business.avg_rating);
+    el.innerHTML = ''
+      + '&lt;div class="opynio-facade"&gt;'
+      +   '&lt;div class="opynio-facade-summary"&gt;'
+      +     '&lt;div class="opynio-facade-rating"&gt;' + rating + '&lt;/div&gt;'
+      +     '&lt;div class="opynio-stars"&gt;' + stars + '&lt;/div&gt;'
+      +     '&lt;div class="opynio-facade-count"&gt;' + count + ' ' + s.reviews + '&lt;/div&gt;'
+      +   '&lt;/div&gt;'
+      +   '&lt;button type="button" class="opynio-facade-btn"&gt;' + s.seeMore + '&lt;/button&gt;'
+      + '&lt;/div&gt;'
+      + '&lt;script type="application/ld+json"&gt;{'
+      +   '"@context":"https://schema.org",'
+      +   '"@type":"AggregateRating",'
+      +   '"ratingValue":"' + rating + '",'
+      +   '"reviewCount":"' + count + '"'
+      + '}&lt;/script&gt;';
+
+    var btn = el.querySelector('.opynio-facade-btn');
+    if (btn &amp;&amp; !BOT_DETECTED) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        onActivate();
+      });
+    }
+}</code></pre>
+
+<h3>7.3 Modificación de <code>initWidget</code></h3>
+
+<pre><code>async function initWidget(el) {
+    if (el.dataset.loaded) return;
+    el.dataset.loaded = 'true';
+
+    var businessId = el.dataset.businessId;
+    var type = el.dataset.type || 'badge';
+    var theme = el.dataset.theme || 'light';
+    var facadeEnabled = el.dataset.facade !== 'false';  // ← opt-out
+
+    if (!businessId) { renderError(el, 'data-business-id requerido'); return; }
+    el.className = 'opynio-widget opynio-theme-' + theme;
+    renderLoader(el);
+
+    try {
+        var data = await fetchData(businessId);
+        if (!data.business) { renderError(el, 'Negocio no encontrado'); return; }
+
+        var targetLang = el.dataset.lang || detectTargetLang();
+        var s = await getStrings(targetLang);
+
+        // Tipos sin fachada (badge/floating/sidebar): comportamiento original
+        if (['badge', 'floating', 'sidebar'].indexOf(type) !== -1) {
+            renderers[type](el, data.business, [], s);
+            return;
+        }
+
+        // Para los demás tipos: fachada por defecto
+        if (facadeEnabled) {
+            renderFacade(el, data.business, s, function () {
+                renderFullWidget(el, data, type, theme, targetLang, s);
+            });
+            return;
+        }
+
+        // Opt-out: render directo
+        renderFullWidget(el, data, type, theme, targetLang, s);
+    } catch (err) {
+        renderError(el, err.message);
+    }
+}</code></pre>
+
+<h3>7.4 Refactor de <code>renderFullWidget</code></h3>
+
+<pre><code>async function renderFullWidget(el, data, type, theme, targetLang, s) {
+    el.className = 'opynio-widget opynio-theme-' + theme;
+    renderLoader(el);
+    var reviews = (data.reviews || []).filter(function(r) { return r.review_text; });
+    if (reviews.length &gt; 0) reviews = await translateReviews(reviews, targetLang);
+    if (reviews.length === 0) {
+        el.innerHTML = '&lt;div style="text-align:center;padding:2rem;"&gt;'
+                     + s.noReviewsText + '&lt;/div&gt;';
+        return;
+    }
+    if (renderers[type]) {
+        renderers[type](el, data.business, reviews, s);
+    } else {
+        renderError(el, 'Tipo de widget no soportado: ' + type);
+    }
+}</code></pre>
+
+<h3>7.5 CSS adicional para la fachada</h3>
+
+<pre><code>.opynio-facade {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; background: var(--card-bg);
+    border: 1px solid var(--border-color); border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+.opynio-facade-summary { display: flex; align-items: center; gap: 0.75rem; }
+.opynio-facade-rating { font-size: 1.5rem; font-weight: 700; color: var(--text-color); }
+.opynio-facade-count { font-size: 0.85rem; color: var(--subtext-color); }
+.opynio-facade-btn {
+    background: var(--opynio-green); color: white; border: none;
+    padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+}
+.opynio-facade-btn:hover { background: var(--opynio-green-dark); }</code></pre>
+
+<h2>8. Criterios de éxito y verificación</h2>
+
+<h3>8.1 Inmediato (post-deploy, ~24h)</h3>
+<ul>
+  <li>En una página del cliente afectado, <code>curl -A "Googlebot" &lt;url&gt;</code> devuelve HTML <strong>sin las reseñas completas</strong>, solo con el bloque fachada + JSON-LD.</li>
+  <li>En navegador real, el widget muestra fachada y al click monta el carrusel completo igual que antes.</li>
+  <li>Performance: LCP de la página del cliente mejora (no hay fetch + render del JSON pesado en pageload).</li>
+</ul>
+
+<h3>8.2 A 2-4 semanas</h3>
+<ul>
+  <li>Search Console: páginas del cliente afectado recuperan posiciones. URL Inspection muestra contenido renderizado sin las reseñas.</li>
+  <li>Reportes de "Cobertura": no aparecen como duplicate content / soft 404.</li>
+  <li>Métricas internas del widget: tasa de click en fachada (esperado 15-30% según industria).</li>
+</ul>
+
+<h3>8.3 Métrica anti-objetivo</h3>
+<p>Si tras 4 semanas el cliente afectado no recupera ranking, escalar a Plan B (iframe en subdominio). Esto sería señal de que (a) el daño SEO es ya estructural y necesita reconsideración, o (b) Google está renderizando con interacción simulada en algún subset de bots.</p>
+
+<h2>9. Rollback y mitigaciones</h2>
+
+<div class="callout callout-info">
+  <span class="callout-title">Rollback inmediato</span>
+  El cambio está completamente contenido en <code>widget.js</code> y <code>widget.js</code> se sirve desde nuestro CDN/servidor con caché de baja TTL. Revertir a la versión anterior es <strong>1 commit + invalidar caché</strong> (~5 min). No hay migración de datos, no hay cambios en BBDD, no hay cambios en API.
+</div>
+
+<p>Mitigaciones intermedias si se detectan problemas:</p>
+<ul>
+  <li><b>Cliente concreto reporta UX rota</b>: aplicar <code>data-facade="false"</code> en su embed (volver al comportamiento actual sólo para ese cliente).</li>
+  <li><b>Bot real no detectado</b>: añadir su UA al <code>BOT_REGEX</code> y redeployer (~2 min).</li>
+  <li><b>El JSON-LD da error de schema</b>: el widget sigue funcionando; el JSON-LD es independiente y aislado en <code>&lt;script type="application/ld+json"&gt;</code>.</li>
+</ul>
+
+<h2>10. Riesgos y supuestos abiertos</h2>
+
+<table>
+  <thead>
+    <tr><th>Riesgo / supuesto</th><th>Impacto</th><th>Mitigación</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>El cliente embebe el widget vía un plugin de WordPress que emite el div dos veces (bug de duplicado intra-página).</td>
+      <td>Alto</td>
+      <td>Reproducir en URL real, identificar fuente. Si es plugin del cliente: educación; si es <code>MutationObserver</code> nuestro: parche en <code>initAll</code>.</td>
+    </tr>
+    <tr>
+      <td>Google considera la fachada como "cloaking" si interpreta que el botón oculta contenido relevante.</td>
+      <td>Medio</td>
+      <td>El botón es claramente etiquetado, accesible, y la mayoría de embeds populares (YouTube facade, Disqus lazy, Twitter embed) usan este patrón sin penalización. Riesgo es bajo en la práctica.</td>
+    </tr>
+    <tr>
+      <td>Tasa de click en fachada baja respecto al render automático actual <span class="arrow">→</span> caída percibida de "engagement".</td>
+      <td>Medio</td>
+      <td>Mostrar rating + estrellas + count visualmente atractivos en la fachada. Botón con CTA clara. Métrica esperada: 15-30%.</td>
+    </tr>
+    <tr>
+      <td>Algún cliente activamente quiere las reseñas siempre visibles (caso landing de venta).</td>
+      <td>Bajo</td>
+      <td>Opt-out vía <code>data-facade="false"</code>. Documentar en página de configuración del widget.</td>
+    </tr>
+    <tr>
+      <td>El bug del duplicado intra-página pueda venir del MutationObserver de <code>widget.js</code> que dispara <code>initAll()</code> en cualquier mutación del body.</td>
+      <td>Alto</td>
+      <td>Auditar línea 599-605 de <code>widget.js</code>. Posible parche: comprobar <code>data-loaded</code> antes de re-init y debounce el observer.</td>
+    </tr>
+    <tr>
+      <td>Cliente afectado (asumido ICTess) embebe el HTML renderizado y no el script (caso poco probable pero posible).</td>
+      <td>Alto</td>
+      <td>Verificar con <code>view-source:</code> en una URL real antes de implementar. Si es así, la solución es educación al cliente, no código.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Anexo A — Decisiones pendientes de confirmar con stakeholder</h2>
+
+<ol>
+  <li>Cliente afectado confirmado <span class="arrow">→</span> ICTess?</li>
+  <li>Acceso a una URL real del cliente para auditar el HTML renderizado y reproducir el bug del duplicado.</li>
+  <li>¿Activar fachada por defecto para todos los clientes, o solo para el afectado en una primera ronda?</li>
+  <li>¿Comunicar el cambio proactivamente a los clientes activos, o solo a los que pregunten?</li>
+  <li>Plan B (iframe): subdominio <code>reviews.opynio.com</code> o path <code>web.opynio.com/embed/{id}</code>?</li>
+</ol>
+
+<div class="footer">
+  Opynio — Documento técnico de planificación · Branch propuesta <code>fix/widget-seo-facade-2026-05-06</code> · 2026-05-06
+</div>
+
+</body>
+</html>
