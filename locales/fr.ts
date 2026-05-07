@@ -990,7 +990,7 @@ export default {
     getCodeSubtitle: 'Copiez et collez ce code sur votre site web à l\'endroit où vous souhaitez que le widget apparaisse.',
     downloadCodeButton: 'Télécharger le Code',
     widgetNames: {
-      'horizontal-carousel': 'Carrousel Horizontal',
+      'stars-carousel': 'Carrousel Horizontal',
       'showcase': 'Vitrine',
       'large-carousel': 'Grand Carrousel',
       'sidebar': 'Barre Latérale',
@@ -998,10 +998,10 @@ export default {
       'grid': 'Grille',
       'badge': 'Badge',
       'wall': 'Mur d\'Avis',
-      'stars-carousel': 'Carrousel d\'Étoiles'
+      'horizontal-carousel': 'Carrousel d\'Étoiles'
     },
     widgetDescriptions: {
-      'horizontal-carousel': 'Un carrousel interactif qui affiche vos meilleurs avis ainsi que votre note globale.',
+      'stars-carousel': 'Un carrousel interactif qui affiche vos meilleurs avis ainsi que votre note globale.',
       'showcase': 'Un widget complet idéal pour une page dédiée à vos avis.',
       'large-carousel': 'Affiche un avis en vedette à la fois dans un format grand et attrayant.',
       'sidebar': 'Un widget compact et vertical, parfait pour les barres latérales.',
@@ -1009,7 +1009,7 @@ export default {
       'grid': 'Affiche plusieurs avis dans un format de grille propre et ordonné.',
       'badge': 'Un badge simple pour afficher rapidement votre note moyenne.',
       'wall': 'Un mur d\'avis dynamique de style "masonry" qui affiche de nombreuses opinions à la fois.',
-      'stars-carousel': 'Grand carrousel avec votre note globale et un bouton "Voir plus" à gauche, et des cartes animées affichant l\'auteur + étoiles à droite.'
+      'horizontal-carousel': 'Grand carrousel avec votre note globale et un bouton "Voir plus" à gauche, et des cartes animées affichant l\'auteur + étoiles à droite.'
     },
     billingAndPlanTitle: 'Facturation et Plan',
     yourSubscription: 'Votre Abonnement',

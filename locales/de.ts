@@ -990,7 +990,7 @@ export default {
     getCodeSubtitle: 'Kopieren Sie diesen Code und fügen Sie ihn an der Stelle Ihrer Website ein, an der das Widget erscheinen soll.',
     downloadCodeButton: 'Code herunterladen',
     widgetNames: {
-      'horizontal-carousel': 'Horizontales Karussell',
+      'stars-carousel': 'Horizontales Karussell',
       'showcase': 'Schaufenster',
       'large-carousel': 'Großes Karussell',
       'sidebar': 'Seitenleiste',
@@ -998,10 +998,10 @@ export default {
       'grid': 'Raster',
       'badge': 'Abzeichen',
       'wall': 'Bewertungswand',
-      'stars-carousel': 'Sterne-Karussell'
+      'horizontal-carousel': 'Sterne-Karussell'
     },
     widgetDescriptions: {
-      'horizontal-carousel': 'Ein interaktives Karussell, das Ihre besten Bewertungen zusammen mit Ihrer Gesamtbewertung anzeigt.',
+      'stars-carousel': 'Ein interaktives Karussell, das Ihre besten Bewertungen zusammen mit Ihrer Gesamtbewertung anzeigt.',
       'showcase': 'Ein komplettes Widget, ideal für eine spezielle Seite für Ihre Bewertungen.',
       'large-carousel': 'Zeigt jeweils eine hervorgehobene Bewertung in einem großen, ansprechenden Format an.',
       'sidebar': 'Ein kompaktes, vertikales Widget, perfekt für Seitenleisten.',
@@ -1009,7 +1009,7 @@ export default {
       'grid': 'Zeigt mehrere Bewertungen in einem sauberen und geordneten Rasterformat an.',
       'badge': 'Ein einfaches Abzeichen, um schnell Ihre Durchschnittsbewertung anzuzeigen.',
       'wall': 'Eine dynamische "Masonry"-Bewertungswand, die viele Meinungen auf einmal anzeigt.',
-      'stars-carousel': 'Großes Karussell mit Ihrer Gesamtbewertung und einer "Mehr sehen"-Schaltfläche links, und animierten Karten rechts, die Autor + Sterne anzeigen.'
+      'horizontal-carousel': 'Großes Karussell mit Ihrer Gesamtbewertung und einer "Mehr sehen"-Schaltfläche links, und animierten Karten rechts, die Autor + Sterne anzeigen.'
     },
     billingAndPlanTitle: 'Abrechnung & Plan',
     yourSubscription: 'Ihr Abonnement',

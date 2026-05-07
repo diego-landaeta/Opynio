@@ -1007,7 +1007,7 @@ export default {
     getCodeSubtitle: 'Copy and paste this code into your website where you want the widget to appear.',
     downloadCodeButton: 'Download Code',
     widgetNames: {
-      'horizontal-carousel': 'Horizontal Carousel',
+      'stars-carousel': 'Horizontal Carousel',
       'showcase': 'Showcase',
       'large-carousel': 'Large Carousel',
       'sidebar': 'Sidebar',
@@ -1015,10 +1015,10 @@ export default {
       'grid': 'Grid',
       'badge': 'Badge',
       'wall': 'Review Wall',
-      'stars-carousel': 'Stars Carousel'
+      'horizontal-carousel': 'Stars Carousel'
     },
     widgetDescriptions: {
-      'horizontal-carousel': 'An interactive carousel that displays your best reviews alongside your overall score.',
+      'stars-carousel': 'An interactive carousel that displays your best reviews alongside your overall score.',
       'showcase': 'A complete widget ideal for a dedicated page for your reviews.',
       'large-carousel': 'Displays one featured review at a time in a large, attractive format.',
       'sidebar': 'A compact, vertical widget, perfect for sidebars.',
@@ -1026,7 +1026,7 @@ export default {
       'grid': 'Displays multiple reviews in a clean and orderly grid format.',
       'badge': 'A simple badge to quickly show your average score.',
       'wall': 'A dynamic "masonry" style review wall that displays many opinions at once.',
-      'stars-carousel': 'Large carousel with your overall score and a "See more" button on the left, and animated cards on the right showing author + stars.'
+      'horizontal-carousel': 'Large carousel with your overall score and a "See more" button on the left, and animated cards on the right showing author + stars.'
     },
     billingAndPlanTitle: 'Billing & Plan',
     yourSubscription: 'Your Subscription',

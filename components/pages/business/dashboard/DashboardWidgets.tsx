@@ -32,8 +32,8 @@ const PLAN_HIERARCHY: Record<Plan, number> = {
 type WidgetCardConfig = WidgetConfig & { icon: string };
 
 const WIDGETS: WidgetCardConfig[] = [
-    { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel', icon: 'fa-star' },
-    { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel', icon: 'fa-arrows-left-right' },
+    { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel', icon: 'fa-star' },
+    { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel', icon: 'fa-arrows-left-right' },
     { name: 'showcase', description: 'businessDashboard.widgetDescriptions.showcase', component: ShowcasePreview, type: 'showcase', icon: 'fa-store' },
     { name: 'large-carousel', description: 'businessDashboard.widgetDescriptions.large-carousel', component: LargeCarouselPreview, type: 'large-carousel', icon: 'fa-images' },
     { name: 'wall', description: 'businessDashboard.widgetDescriptions.wall', component: WallPreview, type: 'wall', icon: 'fa-grip' },

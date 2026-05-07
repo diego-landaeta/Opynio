@@ -996,7 +996,7 @@ export default {
     getCodeSubtitle: 'Copia i enganxa aquest codi a la teva web on vulguis que aparegui el giny.',
     downloadCodeButton: 'Descarregar Codi',
     widgetNames: {
-      'horizontal-carousel': 'Carrusel Horitzontal',
+      'stars-carousel': 'Carrusel Horitzontal',
       'showcase': 'Expositor',
       'large-carousel': 'Carrusel Gran',
       'sidebar': 'Barra Lateral',
@@ -1004,10 +1004,10 @@ export default {
       'grid': 'Graella',
       'badge': 'Insígnia',
       'wall': 'Mur de Ressenyes',
-      'stars-carousel': 'Carrusel d\'Estrelles'
+      'horizontal-carousel': 'Carrusel d\'Estrelles'
     },
     widgetDescriptions: {
-      'horizontal-carousel': 'Un carrusel interactiu que mostra les teves millors ressenyes juntament amb la teva puntuació general.',
+      'stars-carousel': 'Un carrusel interactiu que mostra les teves millors ressenyes juntament amb la teva puntuació general.',
       'showcase': 'Un giny complet ideal per a una pàgina dedicada a les teves ressenyes.',
       'large-carousel': 'Mostra una ressenya destacada a la vegada en un format gran i atractiu.',
       'sidebar': 'Un giny compacte i vertical, perfecte per a barres laterals.',
@@ -1015,7 +1015,7 @@ export default {
       'grid': 'Mostra diverses ressenyes en un format de graella net i ordenat.',
       'badge': 'Una insígnia simple per mostrar ràpidament la teva puntuació mitjana.',
       'wall': 'Un mur de ressenyes dinàmic estil "masonry" que mostra moltes opinions a la vegada.',
-      'stars-carousel': 'Carrusel gran amb la teva nota global i un botó "Veure més" a l\'esquerra, i targetes animades a la dreta amb autor + estrelles.'
+      'horizontal-carousel': 'Carrusel gran amb la teva nota global i un botó "Veure més" a l\'esquerra, i targetes animades a la dreta amb autor + estrelles.'
     },
     billingAndPlanTitle: 'Facturació i Pla',
     yourSubscription: 'La Teva Subscripció',
