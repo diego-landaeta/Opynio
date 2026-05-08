@@ -110,7 +110,7 @@ Documentación completa de arquitectura, funcionalidades y guías de desarrollo 
 
 ### DevOps
 - **Git + GitHub** - Control de versiones
-- **Vercel/Netlify** - Hosting frontend
+- **Netlify / Cloudflare Pages** - Hosting frontend
 - **Supabase Cloud** - Hosting backend
 
 ---
@@ -354,12 +354,11 @@ function MyComponent() {
 
 ## 🚀 Despliegue
 
-### Frontend (Vercel)
+### Frontend (Netlify / Cloudflare Pages)
 
 1. **Conectar Repositorio**:
-   ```bash
-   vercel --prod
-   ```
+   - En Netlify: New site from Git → escoge el repo → build command `npm run build`, publish directory `dist`
+   - En Cloudflare Pages: Create a project → Connect to Git → mismas opciones
 
 2. **Variables de Entorno**:
    ```bash
