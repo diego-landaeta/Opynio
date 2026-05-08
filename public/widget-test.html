@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opynio Widget — Lazy Loading Test Suite</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: #f5f7fa; color: #1f2937; }
+    .layout { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* Sticky diagnostic panel */
+    aside.panel {
+        position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        background: #0f172a; color: #e2e8f0; padding: 20px; border-right: 1px solid #1e293b;
+    }
+    aside.panel h1 { font-size: 1.1rem; margin: 0 0 4px; color: #f1f5f9; }
+    aside.panel .ver { font-size: 0.75rem; color: #94a3b8; margin-bottom: 16px; }
+    aside.panel .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    aside.panel button {
+        background: #1e40af; color: white; border: none; padding: 6px 10px;
+        border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+    }
+    aside.panel button:hover { background: #2563eb; }
+    aside.panel button.danger { background: #b91c1c; }
+    aside.panel button.danger:hover { background: #dc2626; }
+    aside.panel .summary { background: #1e293b; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; }
+    aside.panel .summary strong { color: #fbbf24; }
+
+    .checks { display: flex; flex-direction: column; gap: 6px; }
+    .check { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 8px 10px; background: #1e293b; border-radius: 6px; font-size: 0.78rem; line-height: 1.4; }
+    .check .icon { font-size: 1rem; line-height: 1; padding-top: 1px; }
+    .check.pass { border-left: 3px solid #22c55e; }
+    .check.fail { border-left: 3px solid #ef4444; }
+    .check.pending { border-left: 3px solid #64748b; opacity: 0.7; }
+    .check.warn { border-left: 3px solid #f59e0b; }
+    .check .name { color: #f1f5f9; font-weight: 600; }
+    .check .detail { color: #94a3b8; font-size: 0.72rem; margin-top: 2px; word-break: break-word; }
+
+    /* Stage area with widgets */
+    main.stage { padding: 0; }
+    .hero {
+        height: 100vh; background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px;
+    }
+    .hero h2 { font-size: 1.8rem; margin: 0 0 12px; }
+    .hero p { color: #475569; max-width: 600px; text-align: center; line-height: 1.6; }
+
+    .scroll-marker { background: #fef3c7; padding: 20px; text-align: center; font-weight: 600; color: #92400e; }
+    .filler { height: 60vh; background: #fff; padding: 40px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-style: italic; }
+    .widget-section { padding: 60px 40px; }
+    .widget-section h3 { margin-top: 0; color: #1e293b; }
+    .widget-section .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+    <aside class="panel">
+        <h1>Opynio Widget Test</h1>
+        <div class="ver">Lazy loading invariants — v6.1</div>
+
+        <div class="controls">
+            <button id="btn-reload">Recargar</button>
+            <button id="btn-bot" class="danger">Recargar como Googlebot</button>
+            <button id="btn-hide">Ocultar pestaña (5s)</button>
+        </div>
+
+        <div class="summary" id="summary">Ejecutando…</div>
+        <div class="checks" id="checks"></div>
+    </aside>
+
+    <main class="stage">
+
+        <section class="hero">
+            <h2>Página simulada del cliente</h2>
+            <p>Esta es una página típica del host. Ningún widget below-the-fold debería cargar hasta que hagas scroll. El panel a la izquierda valida cada invariante en vivo.</p>
+        </section>
+
+        <div class="scroll-marker">↓ A partir de aquí estás scrolleando ↓</div>
+
+        <section class="widget-section">
+            <h3>Floating widget (position: fixed)</h3>
+            <div class="meta">Above-the-fold visualmente. Debe diferirse vía rIC pero no necesita IO.</div>
+            <div class="opynio-widget" data-business-id="00000000-0000-0000-0000-000000000001" data-type="floating" data-theme="light"></div>
+        </section>
+
+        <div class="filler">— Scroll para revelar el siguiente —</div>
+
+        <section class="widget-section">
+            <h3>Stars Carousel (mid-fold)</h3>
+            <div class="meta">Debe entrar al observer y cargar al acercarse al viewport con rootMargin 200px.</div>
+            <div class="opynio-widget" data-business-id="00000000-0000-0000-0000-000000000002" data-type="stars-carousel" data-theme="light"></div>
+        </section>
+
+        <div class="filler">— Scroll para revelar el siguiente —</div>
+
+        <section class="widget-section">
+            <h3>Horizontal Carousel</h3>
+            <div class="meta">Carrusel grande con setInterval. El timer debe pausarse cuando salga de viewport.</div>
+            <div class="opynio-widget" data-business-id="00000000-0000-0000-0000-000000000003" data-type="horizontal-carousel" data-theme="light"></div>
+        </section>
+
+        <div class="filler">— Scroll para revelar el siguiente —</div>
+
+        <section class="widget-section">
+            <h3>Grid (below-fold profundo)</h3>
+            <div class="meta">No debe disparar fetch hasta acercarse al viewport.</div>
+            <div class="opynio-widget" data-business-id="00000000-0000-0000-0000-000000000004" data-type="grid" data-theme="light"></div>
+        </section>
+
+        <div class="filler">— Scroll para revelar el siguiente —</div>
+
+        <section class="widget-section">
+            <h3>Wall</h3>
+            <div class="meta">El widget más alto. min-height debe estar reservado antes de hidratar.</div>
+            <div class="opynio-widget" data-business-id="00000000-0000-0000-0000-000000000005" data-type="wall" data-theme="light"></div>
+        </section>
+
+        <div style="height:80vh; padding: 40px; color: #94a3b8; font-style: italic; text-align: center;">— Fin del host —</div>
+
+    </main>
+</div>
+
+<script>
+// ---------------------------------------------------------------
+// 1. Bot UA simulation: must run BEFORE widget.js loads.
+// ---------------------------------------------------------------
+var SIMULATE_BOT = new URLSearchParams(location.search).get('bot') === '1';
+if (SIMULATE_BOT) {
+    try {
+        Object.defineProperty(navigator, 'userAgent', {
+            get: function() { return 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'; },
+            configurable: true
+        });
+    } catch (e) { console.warn('UA spoof failed:', e); }
+}
+
+// ---------------------------------------------------------------
+// 2. Mock fetch: intercept calls to the widget-proxy and Google
+//    Translate so the test runs offline and deterministic.
+// ---------------------------------------------------------------
+var fetchLog = []; // every fetch the widget triggers, with timestamps
+var mockBusiness = {
+    id: 'mock', name: 'Negocio Demo',
+    avg_rating: 4.7, review_count: 312
+};
+var mockReviews = [];
+for (var i = 1; i <= 9; i++) {
+    mockReviews.push({
+        id: 'r' + i,
+        original_author_name: 'Cliente ' + i,
+        rating: 4 + (i % 2),
+        title: 'Excelente servicio ' + i,
+        review_text: 'Quedé muy contento con el servicio número ' + i + '. Volveré sin duda.',
+        source: i % 2 === 0 ? 'google' : 'opynio'
+    });
+}
+
+var origFetch = window.fetch.bind(window);
+window.fetch = function(url, opts) {
+    var u = (typeof url === 'string') ? url : (url && url.url) || '';
+    fetchLog.push({ url: u, t: performance.now(), opts: opts });
+
+    // Mock the Supabase widget-proxy
+    if (u.indexOf('widget-proxy') !== -1) {
+        return Promise.resolve(new Response(
+            JSON.stringify({ business: mockBusiness, reviews: mockReviews }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+        ));
+    }
+    // Mock Google Translate (no-op: return original text wrapped in their format)
+    if (u.indexOf('translate.googleapis.com') !== -1) {
+        var q = decodeURIComponent((u.match(/[&?]q=([^&]*)/) || [])[1] || '');
+        return Promise.resolve(new Response(
+            JSON.stringify([[[q, q, null, null, 0]]]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+        ));
+    }
+    return origFetch(url, opts);
+};
+
+// ---------------------------------------------------------------
+// 3. Diagnostic checks
+// ---------------------------------------------------------------
+var checksDef = [
+    {
+        id: 'above-fold-loaded',
+        name: 'Widget above-fold se hidrata en < 3s',
+        detail: 'Stars-carousel inicial debe alcanzar data-loaded=true tras scroll ligero o desde el inicio si el viewport es alto.'
+    },
+    {
+        id: 'below-fold-deferred',
+        name: 'Widgets below-fold NO disparan fetch antes de scroll',
+        detail: 'Grid + Wall (al final) no deben llamar a widget-proxy hasta hacer scroll cerca de ellos.'
+    },
+    {
+        id: 'space-reserved',
+        name: 'min-height reservado en cada widget',
+        detail: 'Excepto floating (position:fixed), todos deben tener min-height aplicado vía dataset.reserved.'
+    },
+    {
+        id: 'no-eager-init',
+        name: 'No hay data-loaded en widgets fuera del primer viewport',
+        detail: 'Tras DOMContentLoaded, solo widgets visibles o cercanos pueden estar loaded.'
+    },
+    {
+        id: 'rel-attrs',
+        name: 'Anchors target=_blank tienen rel correcto (noopener nofollow)',
+        detail: 'Hallazgo SEO/seguridad. Hoy probablemente falla — flag para PR siguiente.'
+    },
+    {
+        id: 'no-page-errors',
+        name: 'Cero errores JS no capturados',
+        detail: 'Cualquier error rompe la confianza del host.'
+    },
+    {
+        id: 'cls-low',
+        name: 'CLS aportado por widgets ≤ 0.1',
+        detail: 'Medido vía PerformanceObserver layout-shift, sumando solo shifts cuyo source contiene un .opynio-widget.'
+    },
+    {
+        id: 'visibility-pause',
+        name: 'Intervals pausan con document.hidden',
+        detail: 'Pulsa "Ocultar pestaña" — los timers de carruseles deben dejar de avanzar idx.'
+    },
+    {
+        id: 'bot-bypass',
+        name: 'Modo bot: todos los widgets renderizan inmediato',
+        detail: 'Solo aplica en ?bot=1. Sin observer, todos cargan en <1s.'
+    },
+    {
+        id: 'json-ld-warn',
+        name: 'JSON-LD AggregateRating en stars-carousel (riesgo self-serving)',
+        detail: 'Hallazgo SEO. Google ignora rich result self-serving en LocalBusiness — dejarlo en web.opynio.com, no en host.'
+    },
+];
+
+var checksEl = document.getElementById('checks');
+var checks = {};
+checksDef.forEach(function(c) {
+    var el = document.createElement('div');
+    el.className = 'check pending';
+    el.id = 'check-' + c.id;
+    el.innerHTML = '<div class="icon">⏳</div><div><div class="name">' + c.name + '</div><div class="detail">' + c.detail + '</div></div>';
+    checksEl.appendChild(el);
+    checks[c.id] = { def: c, el: el, status: 'pending' };
+});
+
+function setCheck(id, status, extraDetail) {
+    var c = checks[id]; if (!c) return;
+    c.status = status; c.el.classList.remove('pass', 'fail', 'pending', 'warn'); c.el.classList.add(status);
+    var icon = status === 'pass' ? '✅' : status === 'fail' ? '❌' : status === 'warn' ? '⚠️' : '⏳';
+    c.el.querySelector('.icon').textContent = icon;
+    if (extraDetail) c.el.querySelector('.detail').textContent = extraDetail;
+    refreshSummary();
+}
+
+function refreshSummary() {
+    var s = { pass: 0, fail: 0, pending: 0, warn: 0 };
+    Object.keys(checks).forEach(function(k) { s[checks[k].status]++; });
+    document.getElementById('summary').innerHTML =
+        '<strong>' + s.pass + '</strong> pass · ' +
+        '<strong>' + s.fail + '</strong> fail · ' +
+        '<strong>' + s.warn + '</strong> warn · ' +
+        '<strong>' + s.pending + '</strong> pending' +
+        (SIMULATE_BOT ? '<br><span style="color:#fbbf24">[Modo bot activo]</span>' : '');
+}
+
+// ---------------------------------------------------------------
+// 4. CLS observer
+// ---------------------------------------------------------------
+var clsValue = 0;
+if (typeof PerformanceObserver === 'function') {
+    try {
+        var clsObs = new PerformanceObserver(function(list) {
+            list.getEntries().forEach(function(entry) {
+                if (entry.hadRecentInput) return;
+                var fromWidget = (entry.sources || []).some(function(s) {
+                    return s.node && s.node.closest && s.node.closest('.opynio-widget, [class*="opynio"]');
+                });
+                if (fromWidget) clsValue += entry.value;
+            });
+        });
+        clsObs.observe({ type: 'layout-shift', buffered: true });
+    } catch (e) { /* unsupported */ }
+}
+
+// ---------------------------------------------------------------
+// 5. JS errors
+// ---------------------------------------------------------------
+var pageErrors = 0;
+window.addEventListener('error', function() { pageErrors++; });
+window.addEventListener('unhandledrejection', function() { pageErrors++; });
+
+// ---------------------------------------------------------------
+// 6. Run all checks at relevant moments
+// ---------------------------------------------------------------
+function runChecks() {
+    var widgets = document.querySelectorAll('.opynio-widget[data-business-id]');
+
+    // space-reserved
+    var missingReserve = [];
+    widgets.forEach(function(w) {
+        if (w.dataset.type === 'floating') return;
+        if (!w.dataset.reserved) missingReserve.push(w.dataset.type);
+    });
+    setCheck('space-reserved',
+        missingReserve.length ? 'fail' : 'pass',
+        missingReserve.length ? 'Faltan: ' + missingReserve.join(', ') : 'OK en ' + (widgets.length - 1) + ' widgets no-floating');
+
+    // no-eager-init: check that not ALL widgets are loaded
+    var loaded = Array.from(widgets).filter(function(w) { return w.dataset.loaded; });
+    if (SIMULATE_BOT) {
+        setCheck('no-eager-init', 'pass', 'Modo bot: eager esperado; ' + loaded.length + '/' + widgets.length + ' loaded');
+    } else {
+        var allLoadedTooEarly = loaded.length === widgets.length && performance.now() < 2000;
+        setCheck('no-eager-init',
+            allLoadedTooEarly ? 'fail' : (loaded.length < widgets.length ? 'pass' : 'warn'),
+            loaded.length + '/' + widgets.length + ' loaded a los ' + Math.round(performance.now()) + 'ms');
+    }
+
+    // below-fold deferred
+    if (SIMULATE_BOT) {
+        setCheck('below-fold-deferred', 'pass', 'Modo bot: bypass esperado');
+    } else {
+        var lastWidget = widgets[widgets.length - 1];
+        var rect = lastWidget.getBoundingClientRect();
+        var farBelow = rect.top > window.innerHeight + 200;
+        var fetchedFromIt = fetchLog.some(function(f) {
+            return f.url.indexOf('widget-proxy') !== -1 && lastWidget.dataset.loaded;
+        });
+        if (farBelow && !lastWidget.dataset.loaded && !lastWidget.dataset.scheduledFetched) {
+            setCheck('below-fold-deferred', 'pass', 'Wall sigue sin cargar (correcto, está far below)');
+        } else if (!farBelow) {
+            setCheck('below-fold-deferred', 'warn', 'No hay widget far-below — haz scroll arriba');
+        }
+    }
+
+    // above-fold loaded
+    var firstWidget = widgets[0];
+    if (firstWidget && firstWidget.dataset.loaded) {
+        setCheck('above-fold-loaded', 'pass', 'Primer widget loaded (' + firstWidget.dataset.type + ')');
+    }
+
+    // rel attrs
+    var allAnchors = document.querySelectorAll('.opynio-widget a[target="_blank"]');
+    var badAnchors = Array.from(allAnchors).filter(function(a) {
+        var rel = (a.getAttribute('rel') || '').toLowerCase();
+        return !(rel.indexOf('noopener') !== -1 && rel.indexOf('nofollow') !== -1);
+    });
+    if (allAnchors.length) {
+        setCheck('rel-attrs',
+            badAnchors.length ? 'fail' : 'pass',
+            badAnchors.length + '/' + allAnchors.length + ' anchors sin rel="noopener nofollow"');
+    }
+
+    // page errors
+    setCheck('no-page-errors', pageErrors === 0 ? 'pass' : 'fail', pageErrors + ' errores JS');
+
+    // CLS
+    setCheck('cls-low', clsValue <= 0.1 ? 'pass' : 'fail', 'CLS aportado: ' + clsValue.toFixed(4));
+
+    // JSON-LD warn (always warn in host context)
+    var jsonLd = document.querySelector('script[type="application/ld+json"]');
+    if (jsonLd && jsonLd.textContent.indexOf('AggregateRating') !== -1) {
+        setCheck('json-ld-warn', 'warn', 'JSON-LD AggregateRating presente en host — riesgo self-serving');
+    } else {
+        setCheck('json-ld-warn', 'pass', 'Sin JSON-LD AggregateRating en host');
+    }
+
+    // bot-bypass
+    if (SIMULATE_BOT) {
+        setTimeout(function() {
+            var allLoaded = Array.from(widgets).every(function(w) { return w.dataset.loaded; });
+            setCheck('bot-bypass', allLoaded ? 'pass' : 'fail', allLoaded ? 'Todos hidratados' : 'Solo ' + Array.from(widgets).filter(function(w){return w.dataset.loaded;}).length);
+        }, 1500);
+    } else {
+        setCheck('bot-bypass', 'pending', 'Pulsa "Recargar como Googlebot" para validar');
+    }
+}
+
+// ---------------------------------------------------------------
+// 7. Visibility-pause check (manual button)
+// ---------------------------------------------------------------
+document.getElementById('btn-hide').addEventListener('click', function() {
+    var carousel = document.querySelector('.opynio-widget[data-type="horizontal-carousel"] .opynio-cards-track, .opynio-widget[data-type="stars-carousel"] .opynio-stars-carousel-track');
+    if (!carousel) { setCheck('visibility-pause', 'fail', 'No hay carrusel visible'); return; }
+    var t1 = carousel.style.transform;
+
+    // Save the original descriptor so we can restore it precisely.
+    var origDesc = Object.getOwnPropertyDescriptor(document, 'hidden')
+                || Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+
+    Object.defineProperty(document, 'hidden', { get: function() { return true; }, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    setTimeout(function() {
+        var t2 = carousel.style.transform;
+        // Restore: remove our shadow override so the native getter resurfaces.
+        try { delete document.hidden; } catch (e) {}
+        // Belt-and-suspenders: if delete failed (some browsers block it on document),
+        // re-install the original descriptor explicitly.
+        if (document.hidden !== false && origDesc) {
+            try { Object.defineProperty(document, 'hidden', origDesc); } catch (e) {}
+        }
+        document.dispatchEvent(new Event('visibilitychange'));
+        setCheck('visibility-pause',
+            t1 === t2 ? 'pass' : 'fail',
+            t1 === t2 ? 'Track NO avanzó durante hidden' : 'Track avanzó durante hidden (mal)');
+    }, 5000);
+});
+
+document.getElementById('btn-reload').addEventListener('click', function() { location.href = location.pathname; });
+document.getElementById('btn-bot').addEventListener('click', function() { location.href = location.pathname + '?bot=1'; });
+
+// Check on key milestones — rAF-throttled so a fast scroll doesn't run
+// querySelectorAll + getBoundingClientRect 60×/s and distort the CLS metric.
+var checkScheduled = false;
+function scheduleChecks() {
+    if (checkScheduled) return;
+    checkScheduled = true;
+    requestAnimationFrame(function() { checkScheduled = false; runChecks(); });
+}
+window.addEventListener('load', function() { setTimeout(runChecks, 100); });
+window.addEventListener('scroll', scheduleChecks, { passive: true });
+// Periodic safety net: every 2s while not all checks are pass.
+var periodic = setInterval(function() {
+    runChecks();
+    var allPass = Object.keys(checks).every(function(k) { return checks[k].status === 'pass' || checks[k].status === 'warn'; });
+    if (allPass) clearInterval(periodic);
+}, 2000);
+</script>
+
+<!-- Load the actual widget script LAST so our fetch override and bot UA are in effect. -->
+<script src="/widget.js" async></script>
+
+</body>
+</html>
