@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.4.1
+ * Opynio Widget Loader v6.4.2
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -273,30 +273,23 @@
         .opynio-sidebar-cta { display: block; background: var(--opynio-green); color: #fff; font-weight: 600; padding: 0.75rem; border-radius: 8px; margin-top: 1rem; text-decoration: none; transition: background-color 0.2s; }
         .opynio-sidebar-cta:hover { background-color: var(--opynio-green-dark); }
 
-        /* Floating — supports data-position: bottom-left (default), bottom-right, top-left, top-right */
-        .opynio-floating { position: fixed; z-index: 1000; }
+        /* Floating — supports data-position: bottom-left (default), bottom-right, top-left, top-right.
+           Auto-hides on scroll-down, reappears on scroll-up. The hidden translation is per-position
+           so the pill always exits toward its anchored edge (top-anchored slides up, bottom slides down). */
+        .opynio-floating { position: fixed; z-index: 1000; transition: transform 0.3s ease, opacity 0.3s ease; }
         .opynio-floating-pos-bl { bottom: 20px; left: 20px; }
         .opynio-floating-pos-br { bottom: 20px; right: 20px; }
         .opynio-floating-pos-tl { top: 20px; left: 20px; }
         .opynio-floating-pos-tr { top: 20px; right: 20px; }
-        .opynio-floating-wrap { position: relative; display: inline-flex; }
+        .opynio-floating-pos-bl.opynio-floating-hidden,
+        .opynio-floating-pos-br.opynio-floating-hidden { transform: translateY(150%); opacity: 0; pointer-events: none; }
+        .opynio-floating-pos-tl.opynio-floating-hidden,
+        .opynio-floating-pos-tr.opynio-floating-hidden { transform: translateY(-150%); opacity: 0; pointer-events: none; }
         .opynio-floating-trigger { background: var(--card-bg); padding: 0.75rem 1rem; border-radius: 50px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: transform 0.2s; text-decoration: none; color: inherit; }
         .opynio-floating-trigger:hover { transform: scale(1.05); }
         .opynio-floating-logo { font-size: 0.9rem; font-weight: bold; color: var(--opynio-green) !important; }
         .opynio-floating-avg { font-weight: bold; color: var(--text-color); }
         .opynio-floating .opynio-stars { font-size: 0.8rem; }
-        .opynio-floating-close {
-            position: absolute; top: -6px; right: -6px;
-            width: 22px; height: 22px; border-radius: 50%;
-            background: var(--card-bg); border: 1px solid var(--border-color);
-            color: var(--subtext-color); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; line-height: 1; padding: 0;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            transition: background 0.2s, color 0.2s, transform 0.2s;
-        }
-        .opynio-floating-close:hover { background: #ef4444; color: white; transform: scale(1.1); }
-        .opynio-floating-close:focus-visible { outline: 2px solid var(--opynio-green); outline-offset: 2px; }
 
         /* Grid */
         .opynio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
@@ -730,42 +723,6 @@
         return text;
     }
 
-    // ---------------------------------------------------------------
-    // Floating widget dismissal (v6.3.0)
-    // Stored per business-id with a 7-day TTL so the host doesn't see the
-    // floating again for a week after the user closes it.
-    // ---------------------------------------------------------------
-    var FLOATING_DISMISS_KEY = 'opynio_floating_dismissed_v1';
-    var FLOATING_DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
-
-    function isFloatingDismissed(businessId) {
-        if (!businessId) return false;
-        try {
-            if (typeof localStorage === 'undefined') return false;
-            var raw = localStorage.getItem(FLOATING_DISMISS_KEY);
-            if (!raw) return false;
-            var data = JSON.parse(raw) || {};
-            var ts = data[businessId];
-            if (!ts) return false;
-            if (Date.now() - ts > FLOATING_DISMISS_TTL) {
-                delete data[businessId];
-                localStorage.setItem(FLOATING_DISMISS_KEY, JSON.stringify(data));
-                return false;
-            }
-            return true;
-        } catch (e) { return false; }
-    }
-
-    function setFloatingDismissed(businessId) {
-        if (!businessId) return;
-        try {
-            if (typeof localStorage === 'undefined') return;
-            var raw = localStorage.getItem(FLOATING_DISMISS_KEY);
-            var data = raw ? (JSON.parse(raw) || {}) : {};
-            data[businessId] = Date.now();
-            localStorage.setItem(FLOATING_DISMISS_KEY, JSON.stringify(data));
-        } catch (e) {}
-    }
 
     async function translateReviews(reviews, targetLang) {
         var promises = reviews.map(function(review) {
@@ -828,28 +785,43 @@
             var posMap = { 'bottom-left': 'bl', 'bottom-right': 'br', 'top-left': 'tl', 'top-right': 'tr' };
             var posKey = (el.dataset.position || 'bottom-left').toLowerCase();
             var posClass = 'opynio-floating-pos-' + (posMap[posKey] || 'bl');
-            var closeLabel = (s.close || 'Cerrar');
             root.innerHTML =
                 '<div class="opynio-floating ' + posClass + '">' +
-                  '<div class="opynio-floating-wrap">' +
-                    '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-floating-trigger" aria-label="Opynio">' +
-                      '<span class="opynio-floating-logo">Opynio</span>' +
-                      '<span class="opynio-floating-avg">' + (business.avg_rating || 0).toFixed(1) + '</span>' +
-                      '<div class="opynio-stars">' + generateStars(business.avg_rating) + '</div>' +
-                      '<span class="opynio-floating-count">(' + (business.review_count || 0) + ')</span>' +
-                    '</a>' +
-                    '<button type="button" class="opynio-floating-close" aria-label="' + closeLabel + '" title="' + closeLabel + '">×</button>' +
-                  '</div>' +
+                  '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-floating-trigger" aria-label="Opynio">' +
+                    '<span class="opynio-floating-logo">Opynio</span>' +
+                    '<span class="opynio-floating-avg">' + (business.avg_rating || 0).toFixed(1) + '</span>' +
+                    '<div class="opynio-stars">' + generateStars(business.avg_rating) + '</div>' +
+                    '<span class="opynio-floating-count">(' + (business.review_count || 0) + ')</span>' +
+                  '</a>' +
                 '</div>';
-            var btn = root.querySelector('.opynio-floating-close');
-            if (btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    setFloatingDismissed(business.id || el.dataset.businessId);
-                    root.innerHTML = '';
-                    if (el.__opynioTicker && el.__opynioTicker.stop) { el.__opynioTicker.stop(); el.__opynioTicker = null; }
-                });
+
+            // Auto-hide on scroll-down, show on scroll-up.
+            // rAF-throttled so we only do work once per frame even if the host
+            // scroll fires storms of events. Threshold of 8px deadband so tiny
+            // scroll jitters don't flicker the pill.
+            var floating = root.querySelector('.opynio-floating');
+            if (!floating) return;
+            var lastY = window.scrollY || window.pageYOffset || 0;
+            var ticking = false;
+            var DEADBAND = 8;
+            function evaluate() {
+                ticking = false;
+                var y = window.scrollY || window.pageYOffset || 0;
+                var delta = y - lastY;
+                if (Math.abs(delta) < DEADBAND) return;
+                if (delta > 0 && y > 200) {
+                    floating.classList.add('opynio-floating-hidden');
+                } else if (delta < 0) {
+                    floating.classList.remove('opynio-floating-hidden');
+                }
+                lastY = y;
             }
+            window.addEventListener('scroll', function() {
+                if (!ticking) {
+                    ticking = true;
+                    requestAnimationFrame(evaluate);
+                }
+            }, { passive: true });
         },
 
         'sidebar': function(root, el, business, reviews, s) {
@@ -1213,13 +1185,6 @@
     function scheduleWidget(el) {
         if (el.dataset.loaded || el.dataset.scheduled) return;
         if (!el.dataset.businessId) { renderError(el, 'data-business-id requerido'); return; }
-
-        // Floating dismissed by user within the last 7 days → don't render at all.
-        if ((el.dataset.type === 'floating') && !IS_BOT && isFloatingDismissed(el.dataset.businessId)) {
-            el.dataset.scheduled = '1';
-            el.dataset.loaded = 'true';
-            return;
-        }
 
         reserveSpace(el);
         el.dataset.scheduled = '1';
