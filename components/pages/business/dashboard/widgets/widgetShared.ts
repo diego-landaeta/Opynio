@@ -765,9 +765,13 @@ export function useTranslatedReviews<T extends Record<string, any>>(
     return translated;
 }
 
+// Bump this whenever public/widget.js bumps its version header so the embed
+// snippet that customers copy reflects what they're actually loading.
+const EMBED_VERSION = 'v6.4.1';
+
 export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';
-    return `<!-- Opynio Widget v6.0 - ${widgetType} -->
+    return `<!-- Opynio Widget ${EMBED_VERSION} - ${widgetType} -->
 <script src="https://web.opynio.com/widget.js" async></script>
 <div class="opynio-widget" data-business-id="${businessId}" data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
 };
