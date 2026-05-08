@@ -1647,7 +1647,7 @@ export default {
     previewVerified: 'Opynio认证',
   },
   forBusinessesPage: {
-    metaTitle: 'Opynio企业版 2025 - 管理您的在线声誉',
+    metaTitle: 'Opynio企业版 2026 - 管理您的在线声誉',
     metaDescription: '✓ 企业评论管理平台。回复评论、网站小部件、AI分析等功能。',
     // H1
     title: '用Opynio管理您的在线声誉',
@@ -1735,7 +1735,7 @@ export default {
     ctaButton: '免费创建账户',
   },
   faqPage: {
-    metaTitle: '2025年Opynio常见问题 | FAQ',
+    metaTitle: '2026年Opynio常见问题 | FAQ',
     metaDescription: '✓ 关于Opynio最常见问题的解答。了解评论、计划、小部件等更多信息。',
     // H1
     title: '常见问题',
@@ -1785,7 +1785,7 @@ export default {
     questionsCount: '个问题',
   },
   aboutPage: {
-    metaTitle: '关于Opynio 2025 - 我们的历史和使命',
+    metaTitle: '关于Opynio 2026 - 我们的历史和使命',
     metaDescription: '✓ 了解Opynio的历史、我们民主化评论的使命以及平台背后的团队。',
     // H1
     title: '关于Opynio',
@@ -1831,7 +1831,7 @@ export default {
     contactButton: '发送消息',
   },
   caseStudiesPage: {
-    metaTitle: '成功案例 2025 - 信任Opynio的企业',
+    metaTitle: '成功案例 2026 - 信任Opynio的企业',
     metaDescription: '✓ 了解ISEIE、Psiko Aprende和El Gran Catering等企业如何通过Opynio改善在线声誉。',
     // H1
     title: '成功案例',

@@ -1614,7 +1614,7 @@ export default {
     previewVerified: 'Verificat per Opynio',
   },
   forBusinessesPage: {
-    metaTitle: 'Opynio per a Empreses 2025 - Gestiona la Teva Reputació Online',
+    metaTitle: 'Opynio per a Empreses 2026 - Gestiona la Teva Reputació Online',
     metaDescription: '✓ Plataforma de gestió de ressenyes per a empreses. Respon a opinions, widgets per web, anàlisi amb IA i més.',
     // H1
     title: 'Gestiona la Teva Reputació Online amb Opynio',
@@ -1657,7 +1657,7 @@ export default {
     faq2A: 'Sí, amb un clic pots sincronitzar totes les teves ressenyes de Google Business Profile.',
   },
   howItWorksPage: {
-    metaTitle: 'Com Funciona Opynio 2025 - Guia Pas a Pas',
+    metaTitle: 'Com Funciona Opynio 2026 - Guia Pas a Pas',
     metaDescription: '✓ Aprèn com funciona Opynio. Recull, gestiona i mostra ressenyes de clients en 3 passos simples.',
     // H1
     title: 'Com Funciona Opynio',
@@ -1702,7 +1702,7 @@ export default {
     ctaButton: 'Crear Compte Gratuït',
   },
   faqPage: {
-    metaTitle: 'Preguntes Freqüents sobre Opynio 2025 | FAQ',
+    metaTitle: 'Preguntes Freqüents sobre Opynio 2026 | FAQ',
     metaDescription: '✓ Respostes a les preguntes més freqüents sobre Opynio. Descobreix ressenyes, plans, widgets i més.',
     // H1
     title: 'Preguntes Freqüents',
@@ -1752,7 +1752,7 @@ export default {
     questionsCount: 'preguntes',
   },
   aboutPage: {
-    metaTitle: 'Sobre Opynio 2025 - La Nostra Història i Missió',
+    metaTitle: 'Sobre Opynio 2026 - La Nostra Història i Missió',
     metaDescription: '✓ Coneix la història d\'Opynio, la nostra missió de democratitzar les ressenyes i l\'equip darrere de la plataforma.',
     // H1
     title: 'Sobre Opynio',
@@ -1798,7 +1798,7 @@ export default {
     contactButton: 'Enviar Missatge',
   },
   caseStudiesPage: {
-    metaTitle: 'Casos d\'Èxit 2025 - Empreses que Confien en Opynio',
+    metaTitle: 'Casos d\'Èxit 2026 - Empreses que Confien en Opynio',
     metaDescription: '✓ Descobreix com empreses com ISEIE, Psiko Aprende i El Gran Catering han millorat la seva reputació online amb Opynio.',
     // H1
     title: 'Casos d\'Èxit',

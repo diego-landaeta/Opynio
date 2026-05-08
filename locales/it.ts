@@ -1606,7 +1606,7 @@ export default {
     previewVerified: 'Verificato da Opynio',
   },
   forBusinessesPage: {
-    metaTitle: 'Opynio per Aziende 2025 - Gestisci la Tua Reputazione Online',
+    metaTitle: 'Opynio per Aziende 2026 - Gestisci la Tua Reputazione Online',
     metaDescription: '✓ Piattaforma di gestione recensioni per aziende. Rispondi alle recensioni, widget per sito web, analisi IA e altro.',
     // H1
     title: 'Gestisci la Tua Reputazione Online con Opynio',
@@ -1649,7 +1649,7 @@ export default {
     faq2A: 'Sì, con un clic puoi sincronizzare tutte le tue recensioni Google Business Profile.',
   },
   howItWorksPage: {
-    metaTitle: 'Come Funziona Opynio 2025 - Guida Passo Dopo Passo',
+    metaTitle: 'Come Funziona Opynio 2026 - Guida Passo Dopo Passo',
     metaDescription: '✓ Scopri come funziona Opynio. Raccogli, gestisci e mostra le recensioni dei clienti in 3 semplici passaggi.',
     // H1
     title: 'Come Funziona Opynio',
@@ -1694,7 +1694,7 @@ export default {
     ctaButton: 'Crea Account Gratuito',
   },
   faqPage: {
-    metaTitle: 'Domande Frequenti su Opynio 2025 | FAQ',
+    metaTitle: 'Domande Frequenti su Opynio 2026 | FAQ',
     metaDescription: '✓ Risposte alle domande più frequenti su Opynio. Scopri recensioni, piani, widget e altro.',
     // H1
     title: 'Domande Frequenti',
@@ -1744,7 +1744,7 @@ export default {
     questionsCount: 'domande',
   },
   aboutPage: {
-    metaTitle: 'Chi Siamo Opynio 2025 - La Nostra Storia e Missione',
+    metaTitle: 'Chi Siamo Opynio 2026 - La Nostra Storia e Missione',
     metaDescription: '✓ Scopri la storia di Opynio, la nostra missione di democratizzare le recensioni e il team dietro la piattaforma.',
     // H1
     title: 'Chi Siamo',
@@ -1790,7 +1790,7 @@ export default {
     contactButton: 'Invia Messaggio',
   },
   caseStudiesPage: {
-    metaTitle: 'Casi di Successo 2025 - Aziende che si Fidano di Opynio',
+    metaTitle: 'Casi di Successo 2026 - Aziende che si Fidano di Opynio',
     metaDescription: '✓ Scopri come aziende come ISEIE, Psiko Aprende ed El Gran Catering hanno migliorato la loro reputazione online con Opynio.',
     // H1
     title: 'Casi di Successo',

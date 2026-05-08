@@ -1600,7 +1600,7 @@ export default {
     previewVerified: 'Verifiziert von Opynio',
   },
   forBusinessesPage: {
-    metaTitle: 'Opynio für Unternehmen 2025 - Verwalten Sie Ihre Online-Reputation',
+    metaTitle: 'Opynio für Unternehmen 2026 - Verwalten Sie Ihre Online-Reputation',
     metaDescription: '✓ Bewertungsmanagement-Plattform für Unternehmen. Bewertungen beantworten, Website-Widgets, KI-Analysen und mehr.',
     // H1
     title: 'Verwalten Sie Ihre Online-Reputation mit Opynio',
@@ -1643,7 +1643,7 @@ export default {
     faq2A: 'Ja, mit einem Klick können Sie alle Ihre Google Business Profile Bewertungen synchronisieren.',
   },
   howItWorksPage: {
-    metaTitle: 'Wie Opynio funktioniert 2025 - Schritt-für-Schritt-Anleitung',
+    metaTitle: 'Wie Opynio funktioniert 2026 - Schritt-für-Schritt-Anleitung',
     metaDescription: '✓ Erfahren Sie, wie Opynio funktioniert. Sammeln, verwalten und zeigen Sie Kundenbewertungen in 3 einfachen Schritten.',
     // H1
     title: 'Wie Opynio funktioniert',
@@ -1688,7 +1688,7 @@ export default {
     ctaButton: 'Kostenloses Konto erstellen',
   },
   faqPage: {
-    metaTitle: 'Häufig gestellte Fragen zu Opynio 2025 | FAQ',
+    metaTitle: 'Häufig gestellte Fragen zu Opynio 2026 | FAQ',
     metaDescription: '✓ Antworten auf die häufigsten Fragen zu Opynio. Erfahren Sie mehr über Bewertungen, Pläne, Widgets und mehr.',
     // H1
     title: 'Häufig gestellte Fragen',
@@ -1738,7 +1738,7 @@ export default {
     questionsCount: 'Fragen',
   },
   aboutPage: {
-    metaTitle: 'Über Opynio 2025 - Unsere Geschichte und Mission',
+    metaTitle: 'Über Opynio 2026 - Unsere Geschichte und Mission',
     metaDescription: '✓ Erfahren Sie mehr über die Geschichte von Opynio, unsere Mission zur Demokratisierung von Bewertungen und das Team hinter der Plattform.',
     // H1
     title: 'Über Opynio',
@@ -1784,7 +1784,7 @@ export default {
     contactButton: 'Nachricht senden',
   },
   caseStudiesPage: {
-    metaTitle: 'Erfolgsgeschichten 2025 - Unternehmen, die Opynio vertrauen',
+    metaTitle: 'Erfolgsgeschichten 2026 - Unternehmen, die Opynio vertrauen',
     metaDescription: '✓ Entdecken Sie, wie Unternehmen wie ISEIE, Psiko Aprende und El Gran Catering ihre Online-Reputation mit Opynio verbessert haben.',
     // H1
     title: 'Erfolgsgeschichten',

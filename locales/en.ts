@@ -1659,7 +1659,7 @@ export default {
     previewVerified: 'Verified by Opynio',
   },
   forBusinessesPage: {
-    metaTitle: 'Opynio for Businesses 2025 - Manage Your Online Reputation',
+    metaTitle: 'Opynio for Businesses 2026 - Manage Your Online Reputation',
     metaDescription: '✓ Review management platform for businesses. Respond to reviews, website widgets, AI analytics and more.',
     title: 'Manage Your Online Reputation with Opynio',
     subtitle: 'The all-in-one platform to collect, manage and display customer reviews.',
@@ -1700,7 +1700,7 @@ export default {
     faq2A: 'Yes, with one click you can sync all your Google Business Profile reviews.',
   },
   howItWorksPage: {
-    metaTitle: 'How Opynio Works 2025 - Step by Step Guide',
+    metaTitle: 'How Opynio Works 2026 - Step by Step Guide',
     metaDescription: '✓ Learn how Opynio works. Collect, manage and display customer reviews in 3 simple steps.',
     title: 'How Opynio Works',
     subtitle: 'Discover how easy it is to manage your business online reputation.',
@@ -1743,7 +1743,7 @@ export default {
     ctaButton: 'Create Free Account',
   },
   faqPage: {
-    metaTitle: 'Frequently Asked Questions about Opynio 2025 | FAQ',
+    metaTitle: 'Frequently Asked Questions about Opynio 2026 | FAQ',
     metaDescription: '✓ Answers to the most frequently asked questions about Opynio. Learn about reviews, plans, widgets and more.',
     title: 'Frequently Asked Questions',
     subtitle: 'Find answers to the most common questions about Opynio.',
@@ -1791,7 +1791,7 @@ export default {
     questionsCount: 'questions',
   },
   aboutPage: {
-    metaTitle: 'About Opynio 2025 - Our Story and Mission',
+    metaTitle: 'About Opynio 2026 - Our Story and Mission',
     metaDescription: '✓ Learn about Opynio history, our mission to democratize reviews and the team behind the platform.',
     title: 'About Opynio',
     subtitle: 'Democratizing reviews for a more transparent world.',
@@ -1825,7 +1825,7 @@ export default {
     ctaButton: 'Create Account',
   },
   caseStudiesPage: {
-    metaTitle: 'Success Stories 2025 - Companies That Trust Opynio',
+    metaTitle: 'Success Stories 2026 - Companies That Trust Opynio',
     metaDescription: '✓ Discover how companies like ISEIE, Psiko Aprende and El Gran Catering improved their online reputation with Opynio.',
     title: 'Success Stories',
     subtitle: 'Discover how real businesses are transforming their online reputation with Opynio.',
