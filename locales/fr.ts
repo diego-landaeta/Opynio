@@ -1543,7 +1543,7 @@ export default {
     removeUser: 'Retirer du Plan',
   },
   widgetsPage: {
-    metaTitle: 'Widgets d\'Avis pour Votre Site 2025 | Opynio',
+    metaTitle: 'Widgets d\'Avis pour Votre Site 2026 | Opynio',
     metaDescription: '✓ Intégrez des widgets d\'avis sur votre site. Montrez des opinions vérifiées et augmentez la confiance de vos visiteurs avec Opynio.',
     // H1
     title: 'Widgets d\'Avis pour Votre Site',

@@ -1590,7 +1590,7 @@ export default {
     appealSentSuccess: '申诉已发送。我们的审核团队将审查它。',
   },
   widgetsPage: {
-    metaTitle: '2025年网站评论小部件 | Opynio',
+    metaTitle: '2026年网站评论小部件 | Opynio',
     metaDescription: '✓ 将评论小部件集成到您的网站。展示验证评论，通过Opynio增强访客信任。',
     // H1
     title: '网站评论小部件',

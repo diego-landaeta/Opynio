@@ -1543,7 +1543,7 @@ export default {
     removeUser: 'Aus dem Plan entfernen',
   },
   widgetsPage: {
-    metaTitle: 'Bewertungs-Widgets für Ihre Website 2025 | Opynio',
+    metaTitle: 'Bewertungs-Widgets für Ihre Website 2026 | Opynio',
     metaDescription: '✓ Integrieren Sie Bewertungs-Widgets auf Ihrer Website. Zeigen Sie verifizierte Meinungen und stärken Sie das Vertrauen Ihrer Besucher mit Opynio.',
     // H1
     title: 'Bewertungs-Widgets für Ihre Website',

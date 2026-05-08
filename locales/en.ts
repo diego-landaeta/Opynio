@@ -1604,7 +1604,7 @@ export default {
     appealSentSuccess: 'Appeal sent. Our moderation team will review it.',
   },
   widgetsPage: {
-    metaTitle: 'Review Widgets for Your Website 2025 | Opynio',
+    metaTitle: 'Review Widgets for Your Website 2026 | Opynio',
     metaDescription: '✓ Integrate review widgets on your website. Display verified opinions and increase visitor trust with Opynio.',
     title: 'Review Widgets for Your Website',
     subtitle: 'Display your customer reviews directly on your website and increase visitor trust.',

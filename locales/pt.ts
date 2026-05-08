@@ -1540,7 +1540,7 @@ export default {
     removeUser: 'Remover do Plano',
   },
   widgetsPage: {
-    metaTitle: 'Widgets de Avaliações para o Seu Site 2025 | Opynio',
+    metaTitle: 'Widgets de Avaliações para o Seu Site 2026 | Opynio',
     metaDescription: '✓ Integre widgets de avaliações no seu site. Mostre opiniões verificadas e aumente a confiança dos seus visitantes com Opynio.',
     // H1
     title: 'Widgets de Avaliações para o Seu Site',

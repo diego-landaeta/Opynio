@@ -1557,7 +1557,7 @@ export default {
     removeUser: 'Treure del Pla',
   },
   widgetsPage: {
-    metaTitle: 'Widgets de Ressenyes per al Teu Lloc Web 2025 | Opynio',
+    metaTitle: 'Widgets de Ressenyes per al Teu Lloc Web 2026 | Opynio',
     metaDescription: '✓ Integra widgets de ressenyes al teu lloc. Mostra opinions verificades i augmenta la confiança dels teus visitants amb Opynio.',
     // H1
     title: 'Widgets de Ressenyes per al Teu Lloc Web',

@@ -1724,7 +1724,7 @@ export default {
   },
   // ========== NUEVAS PÁGINAS AUXILIARES ==========
   widgetsPage: {
-    metaTitle: 'Widgets de Reseñas para tu Web 2025 | Opynio',
+    metaTitle: 'Widgets de Reseñas para tu Web 2026 | Opynio',
     metaDescription: '✓ Integra widgets de reseñas en tu web. Muestra opiniones verificadas y aumenta la confianza de tus visitantes con Opynio.',
     // H1
     title: 'Widgets de Reseñas para tu Web',

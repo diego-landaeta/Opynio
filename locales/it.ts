@@ -1549,7 +1549,7 @@ export default {
     removeUser: 'Rimuovi dal Piano',
   },
   widgetsPage: {
-    metaTitle: 'Widget Recensioni per il Tuo Sito 2025 | Opynio',
+    metaTitle: 'Widget Recensioni per il Tuo Sito 2026 | Opynio',
     metaDescription: '✓ Integra widget di recensioni nel tuo sito. Mostra recensioni verificate e aumenta la fiducia dei tuoi visitatori con Opynio.',
     // H1
     title: 'Widget di Recensioni per il Tuo Sito',
