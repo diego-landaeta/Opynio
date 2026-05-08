@@ -440,7 +440,13 @@ function runChecks() {
 // Visibility-pause auto-test. Runs once after carousels have started ticking.
 // Snapshots the carousel's transform, simulates document.hidden via property
 // override, waits past the carousel's tick interval, restores, and compares.
+//
+// visTestRunning blocks re-entry: the auto-run scheduler and the manual button
+// could otherwise overlap during the 6s wait, causing two simultaneous overrides
+// of document.hidden whose teardowns clash.
+var visTestRunning = false;
 function runVisibilityPauseTest() {
+    if (visTestRunning) return;
     if (SIMULATE_BOT) {
         // Bot path renders simple anchors without carousels — nothing to pause.
         setCheck('visibility-pause', 'pass', 'N/A en modo bot (sin carruseles)');
@@ -456,6 +462,7 @@ function runVisibilityPauseTest() {
         return;
     }
 
+    visTestRunning = true;
     var t1 = carousel.style.transform;
     var origDesc = Object.getOwnPropertyDescriptor(document, 'hidden')
                 || Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
@@ -473,6 +480,7 @@ function runVisibilityPauseTest() {
         setCheck('visibility-pause',
             t1 === t2 ? 'pass' : 'fail',
             t1 === t2 ? 'Track NO avanzó durante hidden (correcto)' : 'Track avanzó durante hidden — leak');
+        visTestRunning = false;
     }, 6000);
 }
 

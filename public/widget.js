@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.4.0
+ * Opynio Widget Loader v6.4.1
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -514,7 +514,10 @@
     //     selector can pierce in to outweigh us. Cleaner cascade.
     var WIDGET_CSS_SHADOW = WIDGET_CSS
         .replace(/:root\s*\{/g, ':host {')
-        .replace(/\s*!important/g, '');
+        // Strip !important only when followed by a declaration terminator (; or }),
+        // so a literal "!important" inside a string value (e.g. content: "...")
+        // would survive untouched. None today, but defensive.
+        .replace(/\s*!important(?=\s*[;}])/g, '');
 
     // Constructable Stylesheets are shared across shadow roots — one stylesheet
     // object reused by every widget instead of N copies parsed N times.
@@ -537,9 +540,18 @@
     // Attach an open shadow root with a wrapper div that carries the same
     // .opynio-widget + theme classes, so the existing CSS selectors keep
     // working unchanged inside the shadow scope.
+    //
+    // Returns null when attachShadow throws — happens for elements that don't
+    // support shadow (<input>, <img>, etc.) or when the host already has a
+    // closed shadow root. Caller must fall back to light DOM in that case.
     function attachWidgetShell(el, theme) {
         if (el.__opynioRoot) return el.__opynioRoot;
-        var shadow = el.attachShadow({ mode: 'open' });
+        var shadow;
+        try {
+            shadow = el.attachShadow({ mode: 'open' });
+        } catch (e) {
+            return null;
+        }
         var sheet = getSharedStylesheet();
         if (sheet && shadow.adoptedStyleSheets !== undefined) {
             shadow.adoptedStyleSheets = [sheet];
@@ -561,8 +573,16 @@
         el.innerHTML = '<div class="opynio-loader"><div class="opynio-spinner"></div></div>';
     }
 
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function renderError(el, msg) {
-        el.innerHTML = '<div style="color:#c00;padding:20px;border:1px solid #fdd;background:#ffeeee;border-radius:8px;"><strong>Error Opynio:</strong><br>' + msg + '</div>';
+        el.innerHTML = '<div style="color:#c00;padding:20px;border:1px solid #fdd;background:#ffeeee;border-radius:8px;"><strong>Error Opynio:</strong><br>' + escapeHtml(msg) + '</div>';
     }
 
     function generateStars(rating) {
@@ -574,7 +594,8 @@
     }
 
     function getBusinessUrl(business) {
-        return BASE_URL + '/es/empresa/' + encodeURIComponent(business.name.replace(/ /g, '_'));
+        var name = (business && business.name) ? business.name : 'business';
+        return BASE_URL + '/es/empresa/' + encodeURIComponent(name.replace(/ /g, '_'));
     }
 
     // Widget UI strings (static text translations)
@@ -648,21 +669,26 @@
     var translationCache = loadTranslationCache();
     var translationCacheDirty = false;
     var translationFlushHandle = null;
+    // Once localStorage rejects us (quota exceeded, security mode, etc.), stop
+    // trying to persist. The in-memory cache keeps working for the page session;
+    // without this flag every translated review would re-trigger the failure
+    // and spam the host's console.
+    var translationCacheBroken = false;
 
     function flushTranslationCache() {
-        if (!translationCacheDirty) return;
+        if (translationCacheBroken || !translationCacheDirty) return;
         try {
             if (typeof localStorage !== 'undefined') localStorage.setItem(TX_KEY, JSON.stringify(translationCache));
             translationCacheDirty = false;
         } catch (e) {
-            // QuotaExceeded or storage disabled — drop the cache to free space and
-            // continue in-memory only. Better to lose the cache than to throw.
-            try { if (typeof localStorage !== 'undefined') localStorage.removeItem(TX_KEY); } catch (e2) {}
+            translationCacheBroken = true;
             translationCacheDirty = false;
+            try { if (typeof localStorage !== 'undefined') localStorage.removeItem(TX_KEY); } catch (e2) {}
         }
     }
 
     function scheduleTranslationFlush() {
+        if (translationCacheBroken) return;
         translationCacheDirty = true;
         if (translationFlushHandle) return;
         translationFlushHandle = setTimeout(function() {
@@ -1059,12 +1085,12 @@
         // anchor without traversing shadow trees. Browsers without attachShadow
         // also fall back to light DOM. Everyone else gets shadow isolation.
         var useShadow = !IS_BOT && supportsShadow;
-        var root;
-        if (useShadow) {
-            root = attachWidgetShell(el, theme);
-        } else {
+        var root = useShadow ? attachWidgetShell(el, theme) : null;
+        // attachWidgetShell returns null if the host element refuses a shadow root
+        // (e.g. <input>, <img>, or already has a closed shadow). Degrade to light DOM.
+        if (!root) {
+            useShadow = false;
             el.className = 'opynio-widget opynio-theme-' + theme;
-            // Light DOM still needs the global CSS injected.
             injectStyles();
             root = el;
         }
