@@ -231,9 +231,9 @@ var checksDef = [
         detail: 'Solo aplica en ?bot=1. Sin observer, todos cargan en <1s.'
     },
     {
-        id: 'json-ld-warn',
-        name: 'JSON-LD AggregateRating en stars-carousel (riesgo self-serving)',
-        detail: 'Hallazgo SEO. Google ignora rich result self-serving en LocalBusiness — dejarlo en web.opynio.com, no en host.'
+        id: 'json-ld-clean',
+        name: 'NO se inyecta JSON-LD AggregateRating en el host',
+        detail: 'A partir de v6.2.0 el JSON-LD vive solo en web.opynio.com. Google ignora el self-serving en LocalBusiness/Organization.'
     },
 ];
 
@@ -344,16 +344,19 @@ function runChecks() {
         setCheck('above-fold-loaded', 'pass', 'Primer widget loaded (' + firstWidget.dataset.type + ')');
     }
 
-    // rel attrs
-    var allAnchors = document.querySelectorAll('.opynio-widget a[target="_blank"]');
+    // rel attrs: every .opynio-widget anchor must carry nofollow (and target=_blank
+    // ones must also carry noopener for tabnabbing safety).
+    var allAnchors = document.querySelectorAll('.opynio-widget a[href]');
     var badAnchors = Array.from(allAnchors).filter(function(a) {
         var rel = (a.getAttribute('rel') || '').toLowerCase();
-        return !(rel.indexOf('noopener') !== -1 && rel.indexOf('nofollow') !== -1);
+        if (rel.indexOf('nofollow') === -1) return true;
+        if (a.target === '_blank' && rel.indexOf('noopener') === -1) return true;
+        return false;
     });
     if (allAnchors.length) {
         setCheck('rel-attrs',
             badAnchors.length ? 'fail' : 'pass',
-            badAnchors.length + '/' + allAnchors.length + ' anchors sin rel="noopener nofollow"');
+            badAnchors.length + '/' + allAnchors.length + ' anchors sin rel adecuado');
     }
 
     // page errors
@@ -362,13 +365,12 @@ function runChecks() {
     // CLS
     setCheck('cls-low', clsValue <= 0.1 ? 'pass' : 'fail', 'CLS aportado: ' + clsValue.toFixed(4));
 
-    // JSON-LD warn (always warn in host context)
-    var jsonLd = document.querySelector('script[type="application/ld+json"]');
-    if (jsonLd && jsonLd.textContent.indexOf('AggregateRating') !== -1) {
-        setCheck('json-ld-warn', 'warn', 'JSON-LD AggregateRating presente en host — riesgo self-serving');
-    } else {
-        setCheck('json-ld-warn', 'pass', 'Sin JSON-LD AggregateRating en host');
-    }
+    // JSON-LD self-serving check: must NOT be present in host DOM (v6.2.0+).
+    var jsonLd = document.querySelector('.opynio-widget script[type="application/ld+json"]');
+    var hostJsonLd = jsonLd && jsonLd.textContent.indexOf('AggregateRating') !== -1;
+    setCheck('json-ld-clean',
+        hostJsonLd ? 'fail' : 'pass',
+        hostJsonLd ? 'JSON-LD AggregateRating detectado en widget — regresión SEO' : 'Sin JSON-LD AggregateRating en widgets del host');
 
     // bot-bypass
     if (SIMULATE_BOT) {
