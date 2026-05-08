@@ -23,11 +23,13 @@
         Header set Access-Control-Allow-Origin "*"
     </FilesMatch>
 
-    # Specific for widget.js - 1 day TTL so updates reach clients quickly
+    # widget.js es un archivo NO hasheado embebido en sitios cliente:
+    # max-age corto (5 min) para propagar cambios rápido, stale-while-revalidate
+    # de 1 día para no penalizar UX mientras el navegador revalida en background.
     <Files "widget.js">
         Header set Content-Type "application/javascript"
         Header set Access-Control-Allow-Origin "*"
-        Header set Cache-Control "public, max-age=86400, stale-while-revalidate=3600"
+        Header set Cache-Control "public, max-age=300, stale-while-revalidate=86400"
     </Files>
 </IfModule>
 
