@@ -122,6 +122,14 @@
 <li><strong>Test page con flag <code>visTestRunning</code></strong>: cierra la race entre auto-run a 4s y clic manual del botón "Ocultar pestaña".</li>
 </ul>
 
+<h3>Higiene de deploy (post-v6.4.1)</h3>
+<ul>
+<li><strong>Comentario del embed actualizado</strong>: <code>getWidgetScript()</code> ya no escupe <code>&lt;!-- Opynio Widget v6.0 --&gt;</code> cuando el cliente copia el snippet. Ahora refleja la versión real (<code>v6.4.1</code>) extraída a una constante <code>EMBED_VERSION</code> para futuros bumps.</li>
+<li><strong>Cache-bust en la URL del script</strong>: el snippet ahora dice <code>src="https://web.opynio.com/widget.js?v=v6.4.1"</code>. El query string fuerza al navegador a tratar la URL como un recurso nuevo y bypassear cualquier cache previa de la URL sin query — sin esto, los visitantes con widget.js v6.0 cacheado lo seguirían usando hasta un año.</li>
+<li><strong>Cache-Control de widget.js bajado</strong>: en <code>public/_headers</code> y <code>public/.htaccess</code>, de <code>max-age=31536000</code> (1 año) a <code>max-age=300, stale-while-revalidate=86400</code> (5 min + SWR 1 día). Las próximas updates llegan rápido sin penalizar UX.</li>
+<li><strong>Limpieza de config muerta</strong>: <code>vercel.json</code> eliminado (el host es Apache/VPS, no Vercel). Doc <code>03-PLATFORM-DOCUMENTATION.md</code> actualizada para reflejarlo.</li>
+</ul>
+
 <p style="background:#d1fae5;padding:6px 10px;border-radius:4px;margin-top:8px"><strong>Veredicto post v6.4.1:</strong> el widget cumple la regla maestra <em>"neutral o positivo, nunca negativo"</em> en CWV, indexación, structured data, autoridad de enlace e <strong>aislamiento CSS</strong>. Es la primera versión en la que ningún tema del host (WordPress, Shopify, etc.) puede romper el render del widget. No quedan pendientes SEO bloqueantes ni higiene relevante.</p>
 
 <h2>Decisiones clave</h2>
