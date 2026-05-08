@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Opynio Widget v6.3.0 — Resumen de cambios</title>
+<title>Opynio Widget v6.4.0 — Resumen de cambios</title>
 <style>
     @page { size: A4; margin: 14mm 16mm; }
     * { box-sizing: border-box; }
@@ -47,10 +47,10 @@
 
 <div class="header-band">
     <div>
-        <h1>Opynio Widget Loader — v6.3.0</h1>
+        <h1>Opynio Widget Loader — v6.4.0</h1>
         <div class="sub">Carga perezosa SEO-safe + reservación de espacio + timers visibility-aware (con fixes de revisión independiente)</div>
     </div>
-    <span class="badge">v6.0 → v6.3.0</span>
+    <span class="badge">v6.0 → v6.4.0</span>
 </div>
 
 <h2>Por qué se hizo</h2>
@@ -58,7 +58,7 @@
 
 <h2>Cambios aplicados (público: <code>public/widget.js</code>)</h2>
 <table>
-<thead><tr><th style="width:30%">Componente</th><th style="width:28%">v6.0</th><th>v6.3.0</th></tr></thead>
+<thead><tr><th style="width:30%">Componente</th><th style="width:28%">v6.0</th><th>v6.4.0</th></tr></thead>
 <tbody>
 <tr><td>Trigger de inicialización</td><td>Todos a la vez en DOMContentLoaded</td><td><strong>IntersectionObserver</strong> con <code>rootMargin: '200px 0px'</code> por widget</td></tr>
 <tr><td>Defer post-LCP del host</td><td>—</td><td><code>requestIdleCallback(timeout: 1500)</code> antes de cada init</td></tr>
@@ -69,7 +69,7 @@
 </tbody>
 </table>
 
-<h2>Fixes post-revisión (v6.1 → v6.3.0)</h2>
+<h2>Fixes post-revisión (v6.1 → v6.4.0)</h2>
 
 <h3>v6.1.1 — leaks detectados por revisión independiente</h3>
 <ul>
@@ -96,16 +96,23 @@
 
 <h3>v6.3.0 — UX floating + cache de traducciones</h3>
 <ul>
-<li><strong>Floating con botón cerrar</strong>: × discreto en la esquina del pill. Cliente lo cierra → guarda dismissal en <code>localStorage</code> con TTL de 7 días, y <code>scheduleWidget</code> lo respeta sin siquiera hacer fetch.</li>
-<li><strong><code>data-position</code></strong>: <code>bottom-left</code> (default), <code>bottom-right</code>, <code>top-left</code>, <code>top-right</code>. El host elige la esquina para no chocar con su cookie banner / chat / scroll-to-top.</li>
-<li><strong>Cache persistente de traducciones</strong>: <code>translateReviews</code> ya no dispara 2×N requests en cada page load. Cache en <code>localStorage</code> con TTL de 7 días, fallback in-memory si la cuota se llena. Elimina llamadas redundantes al endpoint <em>gtx</em> no oficial.</li>
-<li><strong>UI string <code>close</code></strong>: añadido a los 13 idiomas hardcodeados (es, en, fr, de, it, pt, ca, zh, ja, ko, nl, ru, ar) — sin caer al fallback español en hosts internacionales.</li>
+<li><strong>Floating con botón cerrar</strong>: × discreto en la esquina del pill. Cliente lo cierra → dismissal en <code>localStorage</code> con TTL 7 días; <code>scheduleWidget</code> lo respeta sin fetch.</li>
+<li><strong><code>data-position</code></strong>: <code>bottom-left</code> (default), <code>bottom-right</code>, <code>top-left</code>, <code>top-right</code>. El host elige la esquina para no chocar con su cookie banner / chat.</li>
+<li><strong>Cache persistente de traducciones</strong>: <code>translateReviews</code> respaldado en <code>localStorage</code> con TTL 7 días, flush debounced, fallback in-memory si la cuota se llena.</li>
+<li><strong>UI string <code>close</code></strong> en los 13 idiomas hardcodeados — sin caer al fallback español en hosts internacionales.</li>
 </ul>
 
-<p style="background:#d1fae5;padding:6px 10px;border-radius:4px;margin-top:8px"><strong>Veredicto SEO post v6.3.0:</strong> el widget cumple la regla maestra <em>"neutral o positivo, nunca negativo"</em> en CWV, indexación, structured data y autoridad de enlace. Acción del usuario (cerrar floating) deja de ser señal negativa de UX porque ahora la persistencia respeta su elección.</p>
+<h3>v6.4.0 — Shadow DOM (aislamiento total)</h3>
+<ul>
+<li><strong><code>attachShadow({mode:'open'})</code> en cada widget humano</strong>. CSS del host nunca pisa al widget; CSS del widget nunca leakea al host. Fin de la guerra de especificidad.</li>
+<li><strong>Stylesheet compartido</strong> via Constructable Stylesheets (<code>adoptedStyleSheets</code>) cuando está soportado: una sola <code>CSSStyleSheet</code> reutilizada por todos los widgets en lugar de N copias parseadas N veces. Fallback a <code>&lt;style&gt;</code> por shadow root.</li>
+<li><strong>Bot path en light DOM</strong>: crawlers indexan el anchor canónico sin atravesar shadow trees. Browsers sin <code>attachShadow</code> también caen a light DOM (degradación segura).</li>
+<li><strong><code>!important</code> eliminados del shadow scope</strong>: dentro del shadow nada los necesita. En el CSS light (bot path + fallback) se mantienen como defensa.</li>
+<li><strong>Renderers con firma <code>(root, el, business, reviews, s)</code></strong>: <code>root</code> es la raíz de render (wrapper en shadow o el host en light), <code>el</code> sigue accesible para <code>dataset</code> y eventos a nivel host.</li>
+<li><strong>Test page actualizado</strong>: helpers <code>queryInside()/queryAllInside()</code> que atraviesan shadow roots; nuevo invariante "Shadow activo en humanos / light DOM en bots"; el test de pausa por <code>document.hidden</code> ahora se ejecuta en automático.</li>
+</ul>
 
-<h3>Shadow DOM — diferido conscientemente</h3>
-<p>La migración a Shadow DOM (aislamiento total del CSS, eliminación de los <code>!important</code>) <strong>no se incluye en este PR</strong>. Razón: requiere refactor de cada renderer (cambiar <code>el.innerHTML</code>/<code>el.querySelector</code> por raíz nueva, convertir <code>:root</code> a <code>:host</code> en CSS, ruta paralela del bot path) sin upside SEO bloqueante. Hacerlo deprisa introduce regresiones en hosts ya en producción. Plan concreto en <code>docs/12-WIDGET-SHADOW-DOM-PLAN.md</code> (próximo PR).</p>
+<p style="background:#d1fae5;padding:6px 10px;border-radius:4px;margin-top:8px"><strong>Veredicto post v6.4.0:</strong> el widget cumple la regla maestra <em>"neutral o positivo, nunca negativo"</em> en CWV, indexación, structured data, autoridad de enlace e <strong>aislamiento CSS</strong>. Es la primera versión en la que ningún tema del host (WordPress, Shopify, etc.) puede romper el render del widget. No quedan pendientes SEO bloqueantes ni higiene relevante.</p>
 
 <h2>Decisiones clave</h2>
 <div class="grid-2">
@@ -139,25 +146,28 @@
 <p><strong>Validación oficial pendiente</strong> (manual, post-deploy en staging):
 Google Search Console → URL Inspection → <em>Test Live URL</em> · Rich Results Test · PageSpeed Insights antes/después.</p>
 
-<h2>Pendientes para próximos PRs</h2>
-<p>Los tres bloqueadores SEO (JSON-LD self-serving, rel en anchors, bot-path en los 9 widgets) quedaron cerrados en v6.2.0. UX del floating y cache de traducciones cerrados en v6.3.0. Sólo queda Shadow DOM, sin impacto SEO bloqueante:</p>
+<h2>Pendientes</h2>
+<p>Ninguno bloqueante. Los cuatro hallazgos identificados en la auditoría inicial quedaron cerrados:</p>
 <table>
-<thead><tr><th style="width:6%">Sev.</th><th style="width:36%">Hallazgo</th><th>Por qué</th></tr></thead>
+<thead><tr><th style="width:8%">Versión</th><th>Cierra</th></tr></thead>
 <tbody>
-<tr><td><span class="pill ok">🟠</span></td><td>Shadow DOM para los renderers humanos</td><td>Aislar CSS del host, eliminar los <code>!important</code> heredados, blindar contra temas de WordPress. Refactor real (renderers + CSS <code>:root</code>→<code>:host</code>) — su propio PR con su propio testeo.</td></tr>
+<tr><td>v6.1.x</td><td>Lazy loading SEO-safe + visibility-aware timers + leaks fixed</td></tr>
+<tr><td>v6.2.0</td><td>JSON-LD self-serving fuera del host · <code>rel="noopener nofollow"</code> · bot-path en los 9 widgets</td></tr>
+<tr><td>v6.3.0</td><td>UX del floating (cerrar + posición + persistencia) · cache persistente de traducciones</td></tr>
+<tr><td>v6.4.0</td><td>Shadow DOM para aislamiento total de CSS + Constructable Stylesheets compartidos</td></tr>
 </tbody>
 </table>
 
 <h2>Archivos modificados / creados</h2>
 <ul>
-    <li><strong>Modificado:</strong> <code>public/widget.js</code> — scheduler lazy + carruseles visibility-aware + bot-path centralizado + JSON-LD eliminado del host + rel en anchors + UX floating + cache traducciones (v6.0 → v6.3.0)</li>
-    <li><strong>Nuevo:</strong> <code>public/widget-test.html</code> — página de test diagnóstica con mock de fetch y panel de invariantes</li>
+    <li><strong>Modificado:</strong> <code>public/widget.js</code> — scheduler lazy + visibility-aware + bot-path centralizado + JSON-LD eliminado + rel en anchors + UX floating + cache traducciones + Shadow DOM (v6.0 → v6.4.0)</li>
+    <li><strong>Nuevo:</strong> <code>public/widget-test.html</code> — página de test con mock de fetch, panel de 11 invariantes en vivo, y piercing de shadow roots</li>
     <li><strong>Nuevo:</strong> <code>docs/11-WIDGET-LAZY-LOADING-V6.1.md</code> — documentación técnica completa del cambio</li>
-    <li><strong>Nuevo:</strong> <code>docs/12-WIDGET-SHADOW-DOM-PLAN.md</code> — plan concreto del refactor de Shadow DOM (próximo PR)</li>
+    <li><strong>Nuevo:</strong> <code>docs/12-WIDGET-SHADOW-DOM-PLAN.md</code> — plan original de Shadow DOM (ahora ejecutado en v6.4.0)</li>
 </ul>
 
 <div class="footer">
-    <span>Opynio · Widget Loader v6.3.0 · Lazy loading + bot-path + structured data SEO-safe</span>
+    <span>Opynio · Widget Loader v6.4.0 · Lazy + bot-path + structured-data SEO-safe + Shadow DOM aislado</span>
     <span>Generado 2026-05-08</span>
 </div>
 

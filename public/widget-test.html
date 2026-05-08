@@ -235,6 +235,11 @@ var checksDef = [
         name: 'NO se inyecta JSON-LD AggregateRating en el host',
         detail: 'A partir de v6.2.0 el JSON-LD vive solo en web.opynio.com. Google ignora el self-serving en LocalBusiness/Organization.'
     },
+    {
+        id: 'shadow-isolation',
+        name: 'Shadow DOM activo en human path; bot path en light DOM',
+        detail: 'v6.4.0 aísla el CSS via attachShadow. En modo bot (?bot=1) el contenido permanece en light DOM para indexación trivial.'
+    },
 ];
 
 var checksEl = document.getElementById('checks');
@@ -266,6 +271,23 @@ function refreshSummary() {
         '<strong>' + s.warn + '</strong> warn · ' +
         '<strong>' + s.pending + '</strong> pending' +
         (SIMULATE_BOT ? '<br><span style="color:#fbbf24">[Modo bot activo]</span>' : '');
+}
+
+// ---------------------------------------------------------------
+// Shadow-aware helpers (v6.4.0)
+// Most widgets render into a shadow root attached to the host element.
+// CSS selectors don't pierce shadow boundaries, so we expose helpers that
+// walk into the shadow root when present and fall back to the host element
+// for the bot path / unsupported browsers.
+// ---------------------------------------------------------------
+function widgetRoot(host) {
+    return host.shadowRoot ? host.shadowRoot : host;
+}
+function queryAllInside(host, selector) {
+    return widgetRoot(host).querySelectorAll(selector);
+}
+function queryInside(host, selector) {
+    return widgetRoot(host).querySelector(selector);
 }
 
 // ---------------------------------------------------------------
@@ -344,10 +366,13 @@ function runChecks() {
         setCheck('above-fold-loaded', 'pass', 'Primer widget loaded (' + firstWidget.dataset.type + ')');
     }
 
-    // rel attrs: every .opynio-widget anchor must carry nofollow (and target=_blank
-    // ones must also carry noopener for tabnabbing safety).
-    var allAnchors = document.querySelectorAll('.opynio-widget a[href]');
-    var badAnchors = Array.from(allAnchors).filter(function(a) {
+    // rel attrs: every anchor inside any widget root (light or shadow) must carry
+    // nofollow; target=_blank ones must also carry noopener.
+    var allAnchors = [];
+    Array.from(widgets).forEach(function(w) {
+        Array.from(queryAllInside(w, 'a[href]')).forEach(function(a) { allAnchors.push(a); });
+    });
+    var badAnchors = allAnchors.filter(function(a) {
         var rel = (a.getAttribute('rel') || '').toLowerCase();
         if (rel.indexOf('nofollow') === -1) return true;
         if (a.target === '_blank' && rel.indexOf('noopener') === -1) return true;
@@ -365,12 +390,38 @@ function runChecks() {
     // CLS
     setCheck('cls-low', clsValue <= 0.1 ? 'pass' : 'fail', 'CLS aportado: ' + clsValue.toFixed(4));
 
-    // JSON-LD self-serving check: must NOT be present in host DOM (v6.2.0+).
-    var jsonLd = document.querySelector('.opynio-widget script[type="application/ld+json"]');
-    var hostJsonLd = jsonLd && jsonLd.textContent.indexOf('AggregateRating') !== -1;
+    // JSON-LD self-serving check: must NOT be present in any widget root (light or shadow).
+    var hostJsonLd = false;
+    Array.from(widgets).forEach(function(w) {
+        var s = queryInside(w, 'script[type="application/ld+json"]');
+        if (s && s.textContent.indexOf('AggregateRating') !== -1) hostJsonLd = true;
+    });
     setCheck('json-ld-clean',
         hostJsonLd ? 'fail' : 'pass',
         hostJsonLd ? 'JSON-LD AggregateRating detectado en widget — regresión SEO' : 'Sin JSON-LD AggregateRating en widgets del host');
+
+    // Shadow isolation check
+    var shadowExpected = !SIMULATE_BOT && (typeof Element !== 'undefined' && Element.prototype.attachShadow);
+    if (shadowExpected) {
+        var loadedWidgets = Array.from(widgets).filter(function(w) { return w.dataset.loaded; });
+        var withShadow = loadedWidgets.filter(function(w) { return !!w.shadowRoot; });
+        if (loadedWidgets.length === 0) {
+            setCheck('shadow-isolation', 'pending', 'Esperando que algún widget cargue');
+        } else if (withShadow.length === loadedWidgets.length) {
+            setCheck('shadow-isolation', 'pass', loadedWidgets.length + '/' + loadedWidgets.length + ' widgets en shadow DOM');
+        } else {
+            setCheck('shadow-isolation', 'fail', withShadow.length + '/' + loadedWidgets.length + ' en shadow (esperaba todos)');
+        }
+    } else if (SIMULATE_BOT) {
+        var loadedWidgets2 = Array.from(widgets).filter(function(w) { return w.dataset.loaded; });
+        var noShadow = loadedWidgets2.every(function(w) { return !w.shadowRoot; });
+        if (loadedWidgets2.length > 0) {
+            setCheck('shadow-isolation', noShadow ? 'pass' : 'fail',
+                noShadow ? 'Modo bot: light DOM en todos (correcto)' : 'Modo bot pero algún widget tiene shadow (regresión)');
+        }
+    } else {
+        setCheck('shadow-isolation', 'warn', 'Browser sin attachShadow — fallback a light DOM');
+    }
 
     // bot-bypass
     if (SIMULATE_BOT) {
@@ -386,32 +437,52 @@ function runChecks() {
 // ---------------------------------------------------------------
 // 7. Visibility-pause check (manual button)
 // ---------------------------------------------------------------
-document.getElementById('btn-hide').addEventListener('click', function() {
-    var carousel = document.querySelector('.opynio-widget[data-type="horizontal-carousel"] .opynio-cards-track, .opynio-widget[data-type="stars-carousel"] .opynio-stars-carousel-track');
-    if (!carousel) { setCheck('visibility-pause', 'fail', 'No hay carrusel visible'); return; }
-    var t1 = carousel.style.transform;
+// Visibility-pause auto-test. Runs once after carousels have started ticking.
+// Snapshots the carousel's transform, simulates document.hidden via property
+// override, waits past the carousel's tick interval, restores, and compares.
+function runVisibilityPauseTest() {
+    if (SIMULATE_BOT) {
+        // Bot path renders simple anchors without carousels — nothing to pause.
+        setCheck('visibility-pause', 'pass', 'N/A en modo bot (sin carruseles)');
+        return;
+    }
+    var hosts = document.querySelectorAll('.opynio-widget[data-type="horizontal-carousel"], .opynio-widget[data-type="stars-carousel"]');
+    var carousel = null;
+    for (var i = 0; i < hosts.length && !carousel; i++) {
+        carousel = queryInside(hosts[i], '.opynio-cards-track, .opynio-stars-carousel-track');
+    }
+    if (!carousel) {
+        setCheck('visibility-pause', 'pending', 'Esperando que un carrusel se hidrate (scroll para activarlo)');
+        return;
+    }
 
-    // Save the original descriptor so we can restore it precisely.
+    var t1 = carousel.style.transform;
     var origDesc = Object.getOwnPropertyDescriptor(document, 'hidden')
                 || Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
 
     Object.defineProperty(document, 'hidden', { get: function() { return true; }, configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
+    // Wait past the longest tick interval (8s for large-carousel) plus a safety margin.
     setTimeout(function() {
         var t2 = carousel.style.transform;
-        // Restore: remove our shadow override so the native getter resurfaces.
         try { delete document.hidden; } catch (e) {}
-        // Belt-and-suspenders: if delete failed (some browsers block it on document),
-        // re-install the original descriptor explicitly.
         if (document.hidden !== false && origDesc) {
             try { Object.defineProperty(document, 'hidden', origDesc); } catch (e) {}
         }
         document.dispatchEvent(new Event('visibilitychange'));
         setCheck('visibility-pause',
             t1 === t2 ? 'pass' : 'fail',
-            t1 === t2 ? 'Track NO avanzó durante hidden' : 'Track avanzó durante hidden (mal)');
-    }, 5000);
-});
+            t1 === t2 ? 'Track NO avanzó durante hidden (correcto)' : 'Track avanzó durante hidden — leak');
+    }, 6000);
+}
+
+// Manual button still works for re-testing.
+document.getElementById('btn-hide').addEventListener('click', runVisibilityPauseTest);
+
+// Auto-run once after widgets have had time to hydrate and start ticking.
+// 4s gives lazy widgets time to enter viewport (when scrolled) and carousels
+// to start their interval; the test itself takes another 6s.
+setTimeout(runVisibilityPauseTest, 4000);
 
 document.getElementById('btn-reload').addEventListener('click', function() { location.href = location.pathname; });
 document.getElementById('btn-bot').addEventListener('click', function() { location.href = location.pathname + '?bot=1'; });

@@ -1,10 +1,19 @@
 /**
- * Opynio Widget Loader v6.3.0
+ * Opynio Widget Loader v6.4.0
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
  *
- * SEO posture (v6.2.0):
+ * Isolation (v6.4.0):
+ *  - Human path renders inside a Shadow DOM attached to each widget element.
+ *    CSS is fully isolated from the host: the host's themes (WordPress, Shopify,
+ *    etc.) cannot pierce the widget, and the widget cannot leak styles to the
+ *    host. The !important arms race is over.
+ *  - Bot path stays in light DOM (no shadow) so crawlers index the canonical
+ *    anchor trivially. Browsers without attachShadow also fall back to light
+ *    DOM, keeping backwards compatibility.
+ *
+ * SEO posture (v6.2.0+):
  *  - Bots get a centralized minimal HTML for ALL widget types — never the
  *    full review content — to avoid duplicate-content indexation across hosts.
  *  - No JSON-LD AggregateRating is emitted in the host DOM. Google ignores
@@ -485,13 +494,66 @@
 
     `;
 
-    // Inject styles
+    // Inject styles into the host's <head>. Only used for the bot path and as a
+    // fallback for browsers without attachShadow — the human path lives inside a
+    // Shadow DOM with its own scoped style copy (see attachWidgetShell).
     function injectStyles() {
         if (document.getElementById('opynio-widget-styles')) return;
         var style = document.createElement('style');
         style.id = 'opynio-widget-styles';
         style.textContent = WIDGET_CSS;
         document.head.appendChild(style);
+    }
+
+    // ---------------------------------------------------------------
+    // Shadow DOM isolation (v6.4.0)
+    // ---------------------------------------------------------------
+    // CSS for shadow scope:
+    //   - :root → :host  (CSS variables declared on the host element)
+    //   - !important stripped — pointless inside a shadow boundary, no host
+    //     selector can pierce in to outweigh us. Cleaner cascade.
+    var WIDGET_CSS_SHADOW = WIDGET_CSS
+        .replace(/:root\s*\{/g, ':host {')
+        .replace(/\s*!important/g, '');
+
+    // Constructable Stylesheets are shared across shadow roots — one stylesheet
+    // object reused by every widget instead of N copies parsed N times.
+    var sharedStylesheet = null;
+    function getSharedStylesheet() {
+        if (sharedStylesheet) return sharedStylesheet;
+        try {
+            if (typeof CSSStyleSheet === 'function' && CSSStyleSheet.prototype.replaceSync) {
+                sharedStylesheet = new CSSStyleSheet();
+                sharedStylesheet.replaceSync(WIDGET_CSS_SHADOW);
+                return sharedStylesheet;
+            }
+        } catch (e) { /* fall through */ }
+        return null;
+    }
+
+    var supportsShadow = typeof Element !== 'undefined'
+        && typeof Element.prototype.attachShadow === 'function';
+
+    // Attach an open shadow root with a wrapper div that carries the same
+    // .opynio-widget + theme classes, so the existing CSS selectors keep
+    // working unchanged inside the shadow scope.
+    function attachWidgetShell(el, theme) {
+        if (el.__opynioRoot) return el.__opynioRoot;
+        var shadow = el.attachShadow({ mode: 'open' });
+        var sheet = getSharedStylesheet();
+        if (sheet && shadow.adoptedStyleSheets !== undefined) {
+            shadow.adoptedStyleSheets = [sheet];
+        } else {
+            var styleEl = document.createElement('style');
+            styleEl.textContent = WIDGET_CSS_SHADOW;
+            shadow.appendChild(styleEl);
+        }
+        var wrapper = document.createElement('div');
+        wrapper.className = 'opynio-widget opynio-theme-' + (theme || 'light');
+        shadow.appendChild(wrapper);
+        el.__opynioShadow = shadow;
+        el.__opynioRoot = wrapper;
+        return wrapper;
     }
 
     // Helper functions
@@ -726,20 +788,22 @@
         el.innerHTML = '<a href="' + getBusinessUrl(business) + '" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + rating + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + count + ' ' + s.reviews + '</div></div></div></div></a>';
     }
 
-    // Widget Renderers
+    // Widget Renderers — signature: (root, el, business, reviews, s)
+    //   root: rendering target (shadow wrapper for humans, el itself for bot/light fallback)
+    //   el:   the original host element — kept for dataset reads and host-level events
     var renderers = {
-        'badge': function(el, business, reviews, s) {
-            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' ' + s.reviews + '</div></div></div></div></a>';
+        'badge': function(root, el, business, reviews, s) {
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' ' + s.reviews + '</div></div></div></div></a>';
         },
 
-        'floating': function(el, business, reviews, s) {
+        'floating': function(root, el, business, reviews, s) {
             // data-position: bottom-left (default), bottom-right, top-left, top-right.
             // Lets the host avoid collisions with cookie banners, chat widgets, etc.
             var posMap = { 'bottom-left': 'bl', 'bottom-right': 'br', 'top-left': 'tl', 'top-right': 'tr' };
             var posKey = (el.dataset.position || 'bottom-left').toLowerCase();
             var posClass = 'opynio-floating-pos-' + (posMap[posKey] || 'bl');
             var closeLabel = (s.close || 'Cerrar');
-            el.innerHTML =
+            root.innerHTML =
                 '<div class="opynio-floating ' + posClass + '">' +
                   '<div class="opynio-floating-wrap">' +
                     '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-floating-trigger" aria-label="Opynio">' +
@@ -751,56 +815,56 @@
                     '<button type="button" class="opynio-floating-close" aria-label="' + closeLabel + '" title="' + closeLabel + '">×</button>' +
                   '</div>' +
                 '</div>';
-            var btn = el.querySelector('.opynio-floating-close');
+            var btn = root.querySelector('.opynio-floating-close');
             if (btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault(); e.stopPropagation();
                     setFloatingDismissed(business.id || el.dataset.businessId);
-                    el.innerHTML = '';
+                    root.innerHTML = '';
                     if (el.__opynioTicker && el.__opynioTicker.stop) { el.__opynioTicker.stop(); el.__opynioTicker = null; }
                 });
             }
         },
 
-        'sidebar': function(el, business, reviews, s) {
-            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + BASE_URL + '/es/escribir?businessId=' + business.id + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
+        'sidebar': function(root, el, business, reviews, s) {
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + BASE_URL + '/es/escribir?businessId=' + business.id + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
         },
 
-        'grid': function(el, business, reviews, s) {
+        'grid': function(root, el, business, reviews, s) {
             var ITEMS = 6, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
                     return '<div class="opynio-grid-card"><div class="opynio-grid-header"><span class="opynio-grid-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-grid-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 100) + ((r.review_text || '').length > 100 ? '...' : '')) + '"</p></div>';
                 }).join('');
-                el.querySelector('.opynio-grid').innerHTML = html;
+                root.querySelector('.opynio-grid').innerHTML = html;
             }
-            el.innerHTML = '<div><div class="opynio-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            root.innerHTML = '<div><div class="opynio-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
-                el.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
-                el.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
+                root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
+                root.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
             }
         },
 
-        'wall': function(el, business, reviews, s) {
+        'wall': function(root, el, business, reviews, s) {
             var ITEMS = 9, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
                     return '<div class="opynio-wall-card"><div class="opynio-wall-header"><span class="opynio-wall-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-wall-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 180) + ((r.review_text || '').length > 180 ? '...' : '')) + '"</p></div>';
                 }).join('');
-                el.querySelector('.opynio-wall').innerHTML = html;
+                root.querySelector('.opynio-wall').innerHTML = html;
             }
-            el.innerHTML = '<div><div class="opynio-wall"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            root.innerHTML = '<div><div class="opynio-wall"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
-                el.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
-                el.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
+                root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
+                root.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
             }
         },
 
-        'showcase': function(el, business, reviews, s) {
+        'showcase': function(root, el, business, reviews, s) {
             var ITEMS = 3, page = 0, total = Math.ceil(reviews.length / ITEMS);
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
@@ -808,29 +872,32 @@
                     var badge = r.source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">' + s.googleReview + '</span></div>' : '<div class="opynio-opynio-badge"><span class="opynio-opynio-text">' + s.opynioReview + '</span></div>';
                     return '<div class="opynio-showcase-card"><div class="opynio-showcase-card-header"><span class="opynio-showcase-card-name">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-showcase-card-title">' + (r.title || '') + '</h4><p class="opynio-showcase-card-text">"' + (r.review_text || '') + '"</p>' + badge + '</div>';
                 }).join('');
-                el.querySelector('.opynio-showcase-grid').innerHTML = html;
+                root.querySelector('.opynio-showcase-grid').innerHTML = html;
             }
-            el.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div><h2 class="opynio-showcase-biz-name">' + business.name + '</h2><p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            root.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div><h2 class="opynio-showcase-biz-name">' + business.name + '</h2><p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
-                el.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
-                el.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
+                root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
+                root.querySelector('.prev').onclick = function(e) { e.preventDefault(); page = (page - 1 + total) % total; render(); };
             }
         },
 
-        'large-carousel': function(el, business, reviews, s) {
-            if (reviews.length === 0) { el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext-color);">' + s.noReviews + '</div>'; return; }
-            el.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-large-carousel"><div class="opynio-large-carousel-track">' + reviews.map(function(r) {
+        'large-carousel': function(root, el, business, reviews, s) {
+            if (reviews.length === 0) { root.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext-color);">' + s.noReviews + '</div>'; return; }
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-large-carousel"><div class="opynio-large-carousel-track">' + reviews.map(function(r) {
                 return '<div class="opynio-large-carousel-slide"><div class="opynio-large-carousel-quote-icon">"</div><h4 class="opynio-large-carousel-title">' + (r.title || '') + '</h4><div class="opynio-stars">' + generateStars(r.rating) + '</div><p>"' + (r.review_text || '') + '"</p><p class="author">— ' + (r.original_author_name || s.anonymous) + '</p></div>';
             }).join('') + '</div><div class="opynio-large-carousel-nav"><button class="opynio-large-carousel-btn prev">‹</button><button class="opynio-large-carousel-btn next">›</button></div></div></a>';
-            var track = el.querySelector('.opynio-large-carousel-track'), idx = 0;
+            var track = root.querySelector('.opynio-large-carousel-track'), idx = 0;
             function update() { track.style.transform = 'translateX(-' + (idx * 100) + '%)'; }
-            el.querySelector('.next').onclick = function(e) { e.preventDefault(); e.stopPropagation(); idx = (idx + 1) % reviews.length; update(); };
-            el.querySelector('.prev').onclick = function(e) { e.preventDefault(); e.stopPropagation(); idx = (idx - 1 + reviews.length) % reviews.length; update(); };
+            root.querySelector('.next').onclick = function(e) { e.preventDefault(); e.stopPropagation(); idx = (idx + 1) % reviews.length; update(); };
+            root.querySelector('.prev').onclick = function(e) { e.preventDefault(); e.stopPropagation(); idx = (idx - 1 + reviews.length) % reviews.length; update(); };
+            // Visibility observer attaches to the host element (el) — that's what
+            // moves in/out of viewport from the host's perspective; the shadow
+            // wrapper is a descendant that always tracks with it.
             visibilityAwareInterval(el, function() { idx = (idx + 1) % reviews.length; update(); }, 8000);
         },
 
-        'horizontal-carousel': function(el, business, reviews, s) {
+        'horizontal-carousel': function(root, el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
             var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var businessUrl = getBusinessUrl(business);
@@ -844,12 +911,12 @@
                 return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + seeMoreBtn + '</div>';
             }).join('');
 
-            el.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
+            root.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
 
-            var track = el.querySelector('#track-' + business.id);
-            var next = el.querySelector('.opynio-nav-next');
-            var prev = el.querySelector('.opynio-nav-prev');
-            var cards = el.querySelectorAll('.opynio-review-card');
+            var track = root.querySelector('#track-' + business.id);
+            var next = root.querySelector('.opynio-nav-next');
+            var prev = root.querySelector('.opynio-nav-prev');
+            var cards = root.querySelectorAll('.opynio-review-card');
             if (!track || cards.length === 0) return;
 
             // Clone cards for infinite scroll
@@ -889,7 +956,7 @@
         // structured data lives on web.opynio.com; the host gets a clean anchor.
         // Bots are handled centrally in initWidget via renderBotSafe(), so this
         // renderer only runs for humans.
-        'stars-carousel': function(el, business, reviews, s) {
+        'stars-carousel': function(root, el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
             var rating = validRating.toFixed(1);
             var count = business.review_count || 0;
@@ -910,7 +977,7 @@
             var footerHTML = '<div class="opynio-stars-carousel-footer"><a href="' + businessUrl + '" target="_blank" rel="noopener nofollow" class="opynio-stars-carousel-footer-btn">' + (s.seeAllReviews || 'Ver reseñas completas') + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></a></div>';
 
             if (picks.length === 0) {
-                el.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">' + ctaHTML + '<div class="opynio-stars-carousel-right">' + footerHTML + '</div></div></div>';
+                root.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">' + ctaHTML + '<div class="opynio-stars-carousel-right">' + footerHTML + '</div></div></div>';
                 return;
             }
 
@@ -925,7 +992,7 @@
                      + '</a>';
             }).join('');
 
-            el.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">'
+            root.innerHTML = '<div class="opynio-stars-carousel-widget"><div class="opynio-stars-carousel-wrapper">'
                          + ctaHTML
                          + '<div class="opynio-stars-carousel-right">'
                          +   '<div class="opynio-stars-carousel-cards-area">'
@@ -939,11 +1006,11 @@
                          + '</div>'
                          + '</div></div>';
 
-            var widget = el.querySelector('.opynio-stars-carousel-widget');
-            var track = el.querySelector('#stars-track-' + business.id);
-            var nextBtn = el.querySelector('.opynio-stars-carousel-nav-next');
-            var prevBtn = el.querySelector('.opynio-stars-carousel-nav-prev');
-            var cards = el.querySelectorAll('.opynio-stars-carousel-card');
+            var widget = root.querySelector('.opynio-stars-carousel-widget');
+            var track = root.querySelector('#stars-track-' + business.id);
+            var nextBtn = root.querySelector('.opynio-stars-carousel-nav-next');
+            var prevBtn = root.querySelector('.opynio-stars-carousel-nav-prev');
+            var cards = root.querySelectorAll('.opynio-stars-carousel-card');
             if (!widget || !track || cards.length === 0) return;
 
             // Clone all cards for infinite scroll (cards still inside overflow:hidden track).
@@ -988,12 +1055,24 @@
 
         if (!businessId) { renderError(el, 'data-business-id requerido'); return; }
 
-        el.className = 'opynio-widget opynio-theme-' + theme;
-        renderLoader(el);
+        // Bot path stays in light DOM (no shadow) so crawlers index the canonical
+        // anchor without traversing shadow trees. Browsers without attachShadow
+        // also fall back to light DOM. Everyone else gets shadow isolation.
+        var useShadow = !IS_BOT && supportsShadow;
+        var root;
+        if (useShadow) {
+            root = attachWidgetShell(el, theme);
+        } else {
+            el.className = 'opynio-widget opynio-theme-' + theme;
+            // Light DOM still needs the global CSS injected.
+            injectStyles();
+            root = el;
+        }
+        renderLoader(root);
 
         try {
             var data = await fetchData(businessId);
-            if (!data.business) { renderError(el, 'Negocio no encontrado'); return; }
+            if (!data.business) { renderError(root, 'Negocio no encontrado'); return; }
 
             var targetLang = el.dataset.lang || detectTargetLang();
             var s = await getStrings(targetLang);
@@ -1016,24 +1095,24 @@
 
             // Widgets that only need metrics
             if (['badge', 'floating', 'sidebar'].indexOf(type) !== -1) {
-                renderers[type](el, data.business, [], s);
+                renderers[type](root, el, data.business, [], s);
                 return;
             }
 
             // Widgets that need reviews — these handle the empty case themselves (SEO-safe fallback).
             var SELF_HANDLED_EMPTY = ['stars-carousel'];
             if (reviews.length === 0 && SELF_HANDLED_EMPTY.indexOf(type) === -1) {
-                el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
+                root.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
                 return;
             }
 
             if (renderers[type]) {
-                renderers[type](el, data.business, reviews, s);
+                renderers[type](root, el, data.business, reviews, s);
             } else {
-                renderError(el, 'Tipo de widget no soportado: ' + type);
+                renderError(root, 'Tipo de widget no soportado: ' + type);
             }
         } catch (err) {
-            renderError(el, err.message);
+            renderError(root, err.message);
         }
     }
 
