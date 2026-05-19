@@ -33,7 +33,9 @@
       "Bash(rm:*)",
       "Bash(git stash:*)",
       "Bash(ls:*)",
-      "Bash(node scripts/fetch-sitemap.js:*)"
+      "Bash(node scripts/fetch-sitemap.js:*)",
+      "PowerShell(code *)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\Microsoft VS Code\\\\bin\\\\code.cmd\" --uninstall-extension anthropic.claude-code)"
     ],
     "deny": [],
     "ask": []
