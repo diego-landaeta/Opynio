@@ -172,6 +172,76 @@ async function resolvePlanFromSubscription(subscription: Stripe.Subscription) {
 }
 
 // -----------------------------------------------------------------------------
+// Meta Conversions API (server-side Purchase event, dedup vía event_id con Pixel cliente)
+// -----------------------------------------------------------------------------
+
+const META_PIXEL_ID = "1280166973678477";
+
+async function sha256Hex(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value.trim().toLowerCase());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sendMetaPurchase(params: {
+  eventId: string;
+  email?: string | null;
+  userId: string;
+  value: number;
+  currency: string;
+  sourceUrl?: string;
+}) {
+  const token = Deno.env.get("META_CAPI_TOKEN");
+  if (!token) {
+    console.warn("[meta-capi] META_CAPI_TOKEN not set, skipping Purchase event");
+    return;
+  }
+  try {
+    const user_data: Record<string, unknown> = {
+      external_id: [await sha256Hex(params.userId)],
+    };
+    if (params.email) {
+      user_data.em = [await sha256Hex(params.email)];
+    }
+
+    const payload = {
+      data: [
+        {
+          event_name: "Purchase",
+          event_time: Math.floor(Date.now() / 1000),
+          event_id: params.eventId,
+          action_source: "website",
+          event_source_url: params.sourceUrl,
+          user_data,
+          custom_data: {
+            currency: params.currency.toUpperCase(),
+            value: params.value,
+          },
+        },
+      ],
+    };
+
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!res.ok) {
+      console.error("[meta-capi] Purchase failed", res.status, await res.text());
+    } else {
+      console.log(`[meta-capi] Purchase sent (event_id=${params.eventId}, value=${params.value} ${params.currency})`);
+    }
+  } catch (err) {
+    console.error("[meta-capi] Purchase exception", err);
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Main handler
 // -----------------------------------------------------------------------------
 
@@ -300,6 +370,18 @@ serve(async (req) => {
         console.log(
           `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}`
         );
+
+        // Meta CAPI - Purchase (server-side). event_id = session.id se comparte con el
+        // Pixel cliente en /pago-exitoso para que Meta deduplique cliente↔servidor.
+        const purchaseValue = (price.unit_amount ?? 0) / 100;
+        await sendMetaPurchase({
+          eventId: session.id,
+          email: session.customer_details?.email ?? session.customer_email ?? null,
+          userId,
+          value: purchaseValue,
+          currency: price.currency || "eur",
+          sourceUrl: session.success_url ?? undefined,
+        });
         break;
       }
 

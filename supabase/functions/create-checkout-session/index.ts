@@ -289,7 +289,8 @@ serve(async (req) => {
     }
 
     // 5) Stripe Checkout Session con idempotency_key estable por hora.
-    const successUrl = `${origin}/pago-exitoso`;
+    // success_url incluye {CHECKOUT_SESSION_ID} para usarlo como event_id en Meta CAPI Purchase (dedup cliente↔servidor)
+    const successUrl = `${origin}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/pago-cancelado`;
     const idemBucket = Math.floor(Date.now() / (60 * 60 * 1000)); // 1h bucket
     const idemKey = `checkout-${user.id}-${plan}-${billingCycle}-${businessId ?? "new"}-${idemBucket}`;

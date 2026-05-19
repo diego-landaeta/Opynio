@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { slugify } from '../utils/slugify';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

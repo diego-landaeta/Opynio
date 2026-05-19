@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBusinessesForOwner, getUserProfile } from '../../services/supabaseService';
+import { getBusinessesForOwner, getUserProfile, supabase } from '../../services/supabaseService';
 import Meta from '../Meta';
 import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { getPlanBenefits } from '../PlanActivatedModal';
 import type { Plan } from '../../types';
+import { trackMetaEvent } from '../../utils/metaPixel';
 
 // Confirmación de suscripción tras pago. Diseño tipo documento /
 // recibo enterprise: tipografía clara, secciones etiquetadas, sin
@@ -20,6 +21,7 @@ const PaymentSuccessPage: React.FC = () => {
     const { language } = useI18n();
     const { country } = useCountry();
     const t = useTranslation();
+    const location = useLocation();
 
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
     const pathLang = country ? getLanguageForCountryCode(country) : language;
@@ -51,6 +53,43 @@ const PaymentSuccessPage: React.FC = () => {
     const plan: Plan = (profile?.plan as Plan | undefined) ?? 'v2';
     const data = getPlanBenefits(plan, t);
     const planLabel = plan === 'v2' ? 'v.2' : plan.charAt(0).toUpperCase() + plan.slice(1);
+
+    // Meta Pixel Purchase event — event_id = stripe session_id se comparte con el
+    // server-side CAPI en stripe-webhook para que Meta deduplique cliente↔servidor.
+    useEffect(() => {
+        if (!user) return;
+        const params = new URLSearchParams(location.search);
+        const sessionId = params.get('session_id');
+        if (!sessionId) return;
+
+        let cancelled = false;
+        const fire = async () => {
+            let value = 0;
+            let currency = 'EUR';
+            try {
+                const { data } = await supabase
+                    .from('subscriptions')
+                    .select('prices(unit_amount, currency)')
+                    .eq('user_id', user.id)
+                    .order('created', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                const price = (data as any)?.prices;
+                if (price?.unit_amount) value = price.unit_amount / 100;
+                if (price?.currency) currency = String(price.currency).toUpperCase();
+            } catch (err) {
+                console.warn('[meta] could not load subscription price for Purchase event', err);
+            }
+            if (cancelled) return;
+            void trackMetaEvent('Purchase', {
+                eventId: sessionId,
+                userData: { email: user.email, external_id: user.id },
+                customData: { value, currency },
+            });
+        };
+        void fire();
+        return () => { cancelled = true; };
+    }, [user, location.search]);
 
     return (
         <>

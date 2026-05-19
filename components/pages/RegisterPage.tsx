@@ -6,6 +6,7 @@ import Modal from '../Modal';
 import Meta from '../Meta';
 import { COUNTRIES } from '../../constants';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { trackMetaEvent } from '../../utils/metaPixel';
 
 type RegisterType = 'user' | 'business';
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
@@ -134,6 +135,10 @@ const RegisterPage: React.FC = () => {
                 );
                 console.log('[signup] business signup completed (email confirmation pending)');
             }
+            void trackMetaEvent('CompleteRegistration', {
+                userData: { email: formData.email },
+                customData: { content_name: registerType === 'business' ? 'business' : 'user' },
+            });
             setSuccess(true);
         } catch (err: any) {
             if (err.message === 'Database error saving new user') {

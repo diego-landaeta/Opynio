@@ -59,6 +59,21 @@
     <!-- Leaflet Map Library - Lazy loaded -->
     <link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" as="style" onload="this.onload=null;this.rel='stylesheet'" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""></noscript>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1280166973678477');
+fbq('track', 'PageView');
+</script>
+<!-- End Meta Pixel Code -->
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -77,6 +92,8 @@
 
 </head>
 <body>
+    <!-- Meta Pixel <noscript> fallback -->
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1280166973678477&ev=PageView&noscript=1" alt="" /></noscript>
     <!-- SEO: Contenido visible para crawlers mientras JavaScript carga -->
     <link rel="stylesheet" href="/initial-loader.css">
     <noscript>
