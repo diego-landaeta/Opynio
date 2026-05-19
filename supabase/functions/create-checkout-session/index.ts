@@ -112,7 +112,7 @@ serve(async (req) => {
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${siteUrl}/pago-exitoso`,
+      success_url: `${siteUrl}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/pago-cancelado`,
       metadata: {
         business_id: businessId,

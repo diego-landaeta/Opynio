@@ -22,6 +22,72 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+const META_PIXEL_ID = "1280166973678477";
+
+async function sha256Hex(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value.trim().toLowerCase());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sendMetaPurchase(params: {
+  eventId: string;
+  email?: string | null;
+  userId: string;
+  value: number;
+  currency: string;
+  sourceUrl?: string;
+}) {
+  const token = Deno.env.get("META_CAPI_TOKEN");
+  if (!token) {
+    console.warn("[meta-capi] META_CAPI_TOKEN not set, skipping Purchase event");
+    return;
+  }
+  try {
+    const user_data: Record<string, unknown> = {
+      external_id: [await sha256Hex(params.userId)],
+    };
+    if (params.email) {
+      user_data.em = [await sha256Hex(params.email)];
+    }
+
+    const payload = {
+      data: [
+        {
+          event_name: "Purchase",
+          event_time: Math.floor(Date.now() / 1000),
+          event_id: params.eventId,
+          action_source: "website",
+          event_source_url: params.sourceUrl,
+          user_data,
+          custom_data: {
+            currency: params.currency.toUpperCase(),
+            value: params.value,
+          },
+        },
+      ],
+    };
+
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!res.ok) {
+      console.error("[meta-capi] Purchase failed", res.status, await res.text());
+    } else {
+      console.log(`[meta-capi] Purchase sent (event_id=${params.eventId}, value=${params.value} ${params.currency})`);
+    }
+  } catch (err) {
+    console.error("[meta-capi] Purchase exception", err);
+  }
+}
+
 serve(async (req) => {
   const signature = req.headers.get("Stripe-Signature");
   const body = await req.text();
@@ -101,6 +167,17 @@ serve(async (req) => {
         if (profileError) throw profileError;
         
         console.log(`✅ checkout.session.completed: Successfully activated plan '${planName}' for user ${userId}.`);
+
+        // Meta Conversions API - Purchase (server-side, dedup via session.id with client Pixel)
+        const purchaseValue = (price.unit_amount ?? 0) / 100;
+        await sendMetaPurchase({
+          eventId: session.id,
+          email: session.customer_details?.email ?? session.customer_email ?? null,
+          userId,
+          value: purchaseValue,
+          currency: price.currency || "eur",
+          sourceUrl: session.success_url ?? undefined,
+        });
         break;
       }
       

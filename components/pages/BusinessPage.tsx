@@ -22,6 +22,7 @@ import { useI18n, pathTranslations, useTranslation, useAutoTranslations, getLang
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES, SEDE_COUNTRIES } from '../../constants';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
+import { trackMetaEvent } from '../../utils/metaPixel';
 
 const PAGE_SIZE = 20; // Reduced from 50 for better performance
 
@@ -752,6 +753,19 @@ const BusinessPage: React.FC = () => {
         }
         
     }, [business?.id, language]);
+
+    // Meta Pixel ViewContent (fires once per business view)
+    useEffect(() => {
+        if (!business?.id) return;
+        void trackMetaEvent('ViewContent', {
+            userData: { email: user?.email, external_id: user?.id },
+            customData: {
+                content_ids: [business.id],
+                content_name: business.name,
+                content_type: 'business',
+            },
+        });
+    }, [business?.id, business?.name, user?.email, user?.id]);
 
     // FIX: Add missing return statement
     if (isLoadingBusiness) {
