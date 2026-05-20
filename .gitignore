@@ -31,6 +31,7 @@ nul
 
 # Local scripts and test files
 scripts/reviews-injection/
+scripts/_*
 test-widgets.html
 
 # Supabase CLI temp files
