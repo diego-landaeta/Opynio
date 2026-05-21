@@ -468,6 +468,9 @@ export default {
     IT: "Italy",
     AD: "Andorra",
     CN: "China",
+    SE: "Sweden",
+    PL: "Poland",
+    JP: "Japan",
   },
   common: {
     home: "Home",

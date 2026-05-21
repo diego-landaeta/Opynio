@@ -216,7 +216,7 @@ const AssignBusinessPage: React.FC = () => {
                         <select id="category" name="category" value={formData.category} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-200">
                             <option value="" disabled>{t('assignBusiness.selectCategory')}</option>
                             {Object.entries(CATEGORIES).map(([main, subs]) => (
-                                <optgroup key={main} label={t(`categories.${main}`)}>{subs.map(s => <option key={s} value={`${main}: ${s}`}>{t(`subcategories.${s}`)}</option>)}</optgroup>
+                                <optgroup key={main} label={t(`categories.${main}`)}>{subs.map(s => <option key={s} value={`${main}:${s}`}>{t(`subcategories.${s}`)}</option>)}</optgroup>
                             ))}
                         </select>
                     </div>

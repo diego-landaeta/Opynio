@@ -73,7 +73,7 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
-  // Portugués (Brasil, Portugal)
+  // Portugués Brasil (pt-BR)
   br: {
     explore: 'explorar',
     businesses: 'empresas',
@@ -82,6 +82,22 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     whatsNew: 'novidades',
     pricing: 'precos',
     support: 'suporte',
+    about: 'sobre-nos',
+    faq: 'perguntas-frequentes',
+    howItWorks: 'como-funciona',
+    forBusinesses: 'para-empresas',
+    caseStudies: 'casos-de-sucesso',
+    widgets: 'widgets',
+  },
+  // Portugués Portugal (pt-PT) — vocabulario diferente: análises, palavra-passe, utilizador, etc.
+  pt: {
+    explore: 'explorar',
+    businesses: 'empresas',
+    business: 'empresa',
+    community: 'comunidade',
+    whatsNew: 'novidades',
+    pricing: 'precos',
+    support: 'apoio',
     about: 'sobre-nos',
     faq: 'perguntas-frequentes',
     howItWorks: 'como-funciona',
@@ -153,6 +169,54 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'casos-dexit',
     widgets: 'widgets',
   },
+  // Sueco
+  sv: {
+    explore: 'utforska',
+    businesses: 'foretag',
+    business: 'foretag',
+    community: 'community',
+    whatsNew: 'nyheter',
+    pricing: 'priser',
+    support: 'support',
+    about: 'om-oss',
+    faq: 'vanliga-fragor',
+    howItWorks: 'sa-funkar-det',
+    forBusinesses: 'for-foretag',
+    caseStudies: 'kundberattelser',
+    widgets: 'widgets',
+  },
+  // Polaco
+  pl: {
+    explore: 'odkrywaj',
+    businesses: 'firmy',
+    business: 'firma',
+    community: 'spolecznosc',
+    whatsNew: 'nowosci',
+    pricing: 'cennik',
+    support: 'pomoc',
+    about: 'o-nas',
+    faq: 'najczestsze-pytania',
+    howItWorks: 'jak-to-dziala',
+    forBusinesses: 'dla-firm',
+    caseStudies: 'historie-sukcesu',
+    widgets: 'widgets',
+  },
+  // Japonés (slugs en inglés para evitar problemas de encoding en sitemap XML; las URLs reales usan caracteres japoneses via locale)
+  ja: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
   // Chino
   cn: {
     explore: 'explore',
@@ -179,14 +243,17 @@ const countryToLanguage: Record<string, string> = {
   'pa': 'es', 'uy': 'es',
   // Países anglófonos → inglés
   'en': 'en', 'us': 'en', 'gb': 'en',
-  // Portugués
-  'br': 'br', 'pt': 'br',
+  // Portugués (BR y PT separados — vocabulario distinto)
+  'br': 'br', 'pt': 'pt',
   // Otros idiomas
   'fr': 'fr',
   'de': 'de',
   'it': 'it',
   'ca': 'ca', // Andorra - catalán
   'cn': 'cn',
+  'se': 'sv', // Suecia
+  'pl': 'pl', // Polonia
+  'jp': 'ja', // Japón
 };
 
 // Obtener paths traducidos para un código de país
@@ -225,7 +292,7 @@ serve(async (_req) => {
     const countryCodes = [
       'es', 'en', 'br', 'pt', 'ca', 'fr', 'de', 'it',
       'mx', 'ar', 'co', 'pe', 've', 'cl', 'ec', 'gt',
-      'cr', 'pa', 'uy', 'us', 'gb', 'cn'
+      'cr', 'pa', 'uy', 'us', 'gb', 'cn', 'se', 'pl', 'jp'
     ];
 
     const sitemapEntries: string[] = [];
@@ -298,6 +365,9 @@ serve(async (_req) => {
         'IT': 'it',  // Italy
         'AD': 'ca',  // Andorra (Catalán)
         'CN': 'cn',  // China
+        'SE': 'se',  // Suecia
+        'PL': 'pl',  // Polonia
+        'JP': 'jp',  // Japón
       };
 
       for (const business of businesses) {

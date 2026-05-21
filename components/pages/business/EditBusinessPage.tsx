@@ -697,10 +697,8 @@ const EditBusinessPage: React.FC = () => {
                                     {Object.entries(CATEGORIES).map(([mainCategory, subCategories]) => (
                                         <optgroup key={mainCategory} label={t(`categories.${mainCategory}`)}>
                                             {subCategories.map(subCategory => {
-                                                // Format: "Main Category: Subcategory" (both in Spanish, with space after colon)
-                                                const subcategoryTranslated = t(`subcategories.${subCategory}`);
-                                                const fullCategory = `${mainCategory}: ${subcategoryTranslated}`;
-                                                return <option key={fullCategory} value={fullCategory}>{subcategoryTranslated}</option>;
+                                                const fullCategory = `${mainCategory}:${subCategory}`;
+                                                return <option key={fullCategory} value={fullCategory}>{t(`subcategories.${subCategory}`)}</option>;
                                             })}
                                         </optgroup>
                                     ))}

@@ -472,6 +472,9 @@ export default {
     IT: "Italia",
     AD: "Andorra",
     CN: "China",
+    SE: "Suecia",
+    PL: "Polonia",
+    JP: "Japón",
   },
   common: {
     home: "Inicio",
@@ -1318,6 +1321,7 @@ export default {
   },
   adminBugsPage: {
     title: 'Gestionar Informes de Errores',
+    new: 'Nuevos',
     open: 'Abiertos',
     in_progress: 'En Progreso',
     resolved: 'Resueltos',
@@ -1963,6 +1967,14 @@ export default {
     contactDesc: '¿Tienes preguntas? Estamos aquí para ayudarte.',
     contactEmail: 'support@opynio.com',
     contactButton: 'Enviar Mensaje',
+    numbersTitle: 'Opynio en cifras',
+    number1Label: 'Reseñas verificadas',
+    number2Label: 'Empresas registradas',
+    number3Label: 'Usuarios activos',
+    number4Label: 'Países',
+    ctaTitle: 'Únete a la comunidad de Opynio',
+    ctaDesc: 'Sé parte de la revolución de las reseñas.',
+    ctaButton: 'Crear cuenta',
   },
   caseStudiesPage: {
     metaTitle: 'Casos de Éxito 2026 - Empresas que Confían en Opynio',

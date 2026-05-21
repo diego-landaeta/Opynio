@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.4.2
+ * Opynio Widget Loader v6.4.5
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -606,6 +606,8 @@
         nl: { reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
         ru: { reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
         ar: { reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
+        sv: { reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
+        pl: { reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
     };
 
     async function getStrings(lang) {
@@ -690,7 +692,7 @@
         }, 1000);
     }
 
-    var LANG_MAP = { en: 'en', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar' };
+    var LANG_MAP = { en: 'en', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl' };
 
     function detectTargetLang() {
         // 1. Page's <html lang="fr"> (set by i18n frameworks)

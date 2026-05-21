@@ -37,36 +37,54 @@ serve(async (req) => {
     }
 
     // 2. PROCESAMIENTO DE LA SOLICITUD
-    // Se extraen los parámetros necesarios del cuerpo de la solicitud JSON.
-    const { data_id, next_page_token } = await req.json();
-    if (!data_id) {
-      throw new Error('El "data_id" del negocio es obligatorio.');
+    // Acepta data_id (0x...:0x...) o place_id (ChIJ...). Si solo viene place_id,
+    // se resuelve a data_id via engine=google_maps (consulta extra).
+    const { data_id: bodyDataId, place_id, next_page_token } = await req.json();
+    if (!bodyDataId && !place_id) {
+      throw new Error('Se requiere "data_id" o "place_id" del negocio.');
+    }
+
+    let data_id = bodyDataId;
+    if (!data_id && place_id) {
+      const lookupParams = new URLSearchParams({
+        engine: 'google_maps',
+        place_id: place_id,
+        api_key: SERPAPI_KEY,
+        hl: 'es'
+      });
+      const lookupRes = await fetch(`${SERPAPI_BASE_URL}?${lookupParams}`);
+      const lookupData = await lookupRes.json();
+      data_id = lookupData?.place_results?.data_id;
+      if (!data_id) {
+        throw new Error('No se pudo resolver data_id desde place_id: ' + (lookupData?.error || 'sin data_id en respuesta'));
+      }
     }
 
     // 3. CONSTRUCCIÓN Y LLAMADA A LA API EXTERNA (SERPAPI)
-    // Se construye la URL para la petición a SerpApi.
+    // Nota: el parámetro `num` SOLO se acepta si hay next_page_token; en primera
+    // página devuelve siempre 8 resultados.
     const params = new URLSearchParams({
       engine: 'google_maps_reviews',
       data_id: data_id,
-      api_key: SERPAPI_KEY, // Se usa la clave segura.
-      hl: 'es', // Se piden las reseñas en español.
-      sort_by: 'newestFirst',
-      num: '20' // Se piden 20 reseñas por página.
+      api_key: SERPAPI_KEY,
+      hl: 'es',
+      sort_by: 'newestFirst'
     });
 
     if (next_page_token) {
       params.append('next_page_token', next_page_token);
+      params.append('num', '20'); // 20 resultados por página solo con token
     }
 
     // Se realiza la llamada a la API de SerpApi.
     const response = await fetch(`${SERPAPI_BASE_URL}?${params}`);
 
     // 4. MANEJO DE LA RESPUESTA DE SERPAPI
-    // Si la respuesta de SerpApi no es exitosa, se lanza un error.
+    // Si la respuesta de SerpApi no es exitosa, se lanza un error con detalle.
     if (!response.ok) {
       const errorBody = await response.text();
       console.error('Error en la respuesta de SerpApi:', errorBody);
-      throw new Error(`El servicio externo de reseñas devolvió un error: ${response.status}`);
+      throw new Error(`SerpAPI ${response.status} (data_id usado: ${data_id}): ${errorBody.slice(0, 300)}`);
     }
 
     const responseData = await response.json();

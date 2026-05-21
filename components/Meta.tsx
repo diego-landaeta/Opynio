@@ -209,6 +209,9 @@ const Meta: React.FC<MetaProps> = ({
         { code: 'it', path: `/it${pathWithoutLang}` },      // Italiano
         { code: 'ca', path: `/ad${pathWithoutLang}` },      // Català (Andorra)
         { code: 'zh', path: `/cn${pathWithoutLang}` },      // 中文 (China)
+        { code: 'sv', path: `/se${pathWithoutLang}` },      // Svenska (Sverige)
+        { code: 'pl', path: `/pl${pathWithoutLang}` },      // Polski (Polska)
+        { code: 'ja', path: `/jp${pathWithoutLang}` },      // 日本語 (日本)
       ];
 
       // Añadir hreflang para cada idioma

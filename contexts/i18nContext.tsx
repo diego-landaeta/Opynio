@@ -16,8 +16,12 @@ import frTranslations from "../locales/fr";
 import deTranslations from "../locales/de";
 import itTranslations from "../locales/it";
 import cnTranslations from "../locales/cn";
+import svTranslations from "../locales/sv";
+import plTranslations from "../locales/pl";
+import jaTranslations from "../locales/ja";
+import ptTranslations from "../locales/pt";
 
-export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn";
+export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt";
 
 interface I18nContextType {
   language: Language;
@@ -34,6 +38,10 @@ export const translations = {
   de: deTranslations,
   it: itTranslations,
   cn: cnTranslations,
+  sv: svTranslations,
+  pl: plTranslations,
+  ja: jaTranslations,
+  pt: ptTranslations,
 };
 
 export const pathTranslations: {
@@ -45,6 +53,10 @@ export const pathTranslations: {
   de: typeof deTranslations.paths;
   it: typeof itTranslations.paths;
   cn: typeof cnTranslations.paths;
+  sv: typeof svTranslations.paths;
+  pl: typeof plTranslations.paths;
+  ja: typeof jaTranslations.paths;
+  pt: typeof ptTranslations.paths;
 } = {
   es: esTranslations.paths,
   en: enTranslations.paths,
@@ -54,6 +66,10 @@ export const pathTranslations: {
   de: deTranslations.paths,
   it: itTranslations.paths,
   cn: cnTranslations.paths,
+  sv: svTranslations.paths,
+  pl: plTranslations.paths,
+  ja: jaTranslations.paths,
+  pt: ptTranslations.paths,
 };
 
 // Detecta el idioma al que pertenece un segmento del path comparándolo
@@ -126,6 +142,10 @@ export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
     br: 'br',
     ca: 'ad',
     cn: 'cn',
+    sv: 'se',
+    pl: 'pl',
+    ja: 'jp',
+    pt: 'pt',
 };
 
 // Maps a country code from the URL to a language code for path generation.
@@ -137,8 +157,9 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
         case 'GB':
             return 'en';
         case 'BR':
-        case 'PT':
             return 'br';
+        case 'PT':
+            return 'pt';
         case 'FR':
             return 'fr';
         case 'DE':
@@ -149,6 +170,12 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
             return 'ca';
         case 'CN':
             return 'cn';
+        case 'SE':
+            return 'sv';
+        case 'PL':
+            return 'pl';
+        case 'JP':
+            return 'ja';
         // All other Spanish-speaking countries map to 'es'
         case 'ES':
         case 'MX':
@@ -200,7 +227,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({
     // Initialize from localStorage or default to 'es'
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('opynio_language');
-      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn'].includes(saved)) {
+      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt'].includes(saved)) {
         return saved as Language;
       }
     }
@@ -395,6 +422,10 @@ export function getLocaleFromLanguage(language: Language): string {
     de: 'de-DE',
     it: 'it-IT',
     cn: 'zh-CN',
+    sv: 'sv-SE',
+    pl: 'pl-PL',
+    ja: 'ja-JP',
+    pt: 'pt-PT',
   };
   return localeMap[language] || 'es-ES';
 }

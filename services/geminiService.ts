@@ -249,6 +249,9 @@ const GOOGLE_LANG_CODES: { [key: string]: string } = {
     'it': 'it',
     'ca': 'ca',
     'cn': 'zh-CN',
+    'sv': 'sv',
+    'pl': 'pl',
+    'ja': 'ja',
     'es': 'es',
 };
 

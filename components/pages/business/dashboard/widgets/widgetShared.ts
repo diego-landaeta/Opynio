@@ -723,6 +723,9 @@ const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
     pt: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', seeAllReviews: 'Ver todas as avaliações' },
     ca: { ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio', seeAllReviews: 'Veure totes les ressenyes' },
     zh: { ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', seeAllReviews: '查看所有评论' },
+    sv: { ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', writeReview: 'Skriv en recension', reviewsFor: 'Recensioner för', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', seeAllReviews: 'Se alla recensioner' },
+    pl: { ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', writeReview: 'Napisz opinię', reviewsFor: 'Opinie dla', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', seeAllReviews: 'Zobacz wszystkie opinie' },
+    ja: { ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', reviews: 'レビュー', outOf5: '/ 5つ星', customerRatings: 'お客様の評価', basedOn: '{n}件のレビューに基づく', basedOnAlt: '<strong>{n}件のレビュー</strong>に基づく', writeReview: 'レビューを書く', reviewsFor: 'レビュー: ', googleReview: 'Googleレビュー', opynioReview: 'Opynioレビュー', seeAllReviews: 'すべてのレビューを見る' },
 };
 
 const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh' };
@@ -770,7 +773,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.4.2';
+const EMBED_VERSION = 'v6.4.5';
 
 export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';

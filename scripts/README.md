@@ -101,3 +101,48 @@ GROUP BY b.plan ORDER BY positive_pct DESC;
 | `relation 'review_votes' does not exist` | Migración de votos no aplicada | Aplica [`../supabase/migrations/create_review_votes_system.sql`](../supabase/migrations/create_review_votes_system.sql) |
 | `No hay usuarios en la base de datos` | `profiles` vacío | Registra usuarios o inserta perfiles de prueba |
 | Votos duplicados | Re-ejecución | Esperado: el script es idempotente y los ignora |
+
+---
+
+## Utilities efímeras (`_*.cjs`)
+
+Scripts con prefijo `_` están **gitignored** (no van al repo). Son utilities reusables para auditoría, despliegue y enrichment puntual. Requieren `SUPABASE_PAT` en `.env` además de los keys habituales:
+
+```env
+SUPABASE_PAT=sbp_xxx   # Settings → Access Tokens en supabase.com
+```
+
+### Auditoría (solo lectura)
+
+| Script | Qué hace |
+| - | - |
+| `_audit-businesses-data.cjs` | Reporta completitud de datos de TODAS las empresas (logo, website, description, lat/lng, etc.) |
+| `_audit-session.cjs` | Auditoría integral: estado de empresas, distribución de reseñas, dupes, owners |
+
+### Despliegue de Edge Functions
+
+| Script | Qué hace |
+| - | - |
+| `_deploy-edge-function.cjs` | Despliega una Edge Function vía Supabase Management API usando PAT |
+| `_deploy-edge-multipart.cjs` | Variante multipart para functions con dependencias adicionales |
+| `_get-deployed-code.cjs` | Descarga el código actualmente desplegado de una Edge Function para inspeccionar |
+
+### Enriquecimiento de datos
+
+| Script | Qué hace |
+| - | - |
+| `_enrich-from-website.cjs` | Fetch HTML del `website_url` y extrae `og:image`/`og:description`/`og:title`. Solo actualiza campos vacíos. Sin APIs de pago. Dry-run por defecto |
+| `_import-google-reviews.cjs` | Importa reseñas Google Maps via SerpAPI proxy. Filtros: sin owner, con google_maps_url, menos de N reseñas |
+| `_inject-reviews.cjs` | Inyecta reseñas vía Management API. Útil para seeding manual |
+
+### Testing / Inspección
+
+| Script | Qué hace |
+| - | - |
+| `_inspect-gmaps-urls.cjs` | Inspecciona estado de las URLs de Google Maps en BD (place_ids, formato, accesibilidad) |
+| `_test-place-id.cjs` | Verifica resolución de un place_id concreto contra SerpAPI |
+| `_test-serpapi-proxy.cjs` | Smoke test del Edge Function `serpapi-proxy` |
+
+### Convención
+
+Si un script vuelve a ser one-shot (específico a una empresa o fix ya aplicado), bórralo al terminar. Los del prefijo `_` que se queden deben ser genuinamente reusables.

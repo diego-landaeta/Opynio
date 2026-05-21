@@ -190,12 +190,16 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         const localeMap: { [key: string]: string } = {
             cn: 'zh-CN',
             br: 'pt-BR',
+            pt: 'pt-PT',
             en: 'en-US',
             es: 'es-ES',
             fr: 'fr-FR',
             de: 'de-DE',
             it: 'it-IT',
             ca: 'ca-ES',
+            sv: 'sv-SE',
+            pl: 'pl-PL',
+            ja: 'ja-JP',
         };
         const locale = localeMap[language] || language;
 

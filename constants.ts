@@ -107,12 +107,16 @@ export const CATEGORIES: { [key: string]: string[] } = {
 export const LANGUAGES = [
   { code: 'es', name: 'Español', flag: 'https://flagcdn.com/es.svg' },
   { code: 'en', name: 'English', flag: 'https://flagcdn.com/gb.svg' },
-  { code: 'br', name: 'Português', flag: 'https://flagcdn.com/br.svg' },
+  { code: 'br', name: 'Português (BR)', flag: 'https://flagcdn.com/br.svg' },
+  { code: 'pt', name: 'Português (PT)', flag: 'https://flagcdn.com/pt.svg' },
   { code: 'ca', name: 'Català', flag: 'https://flagcdn.com/ad.svg' },
   { code: 'fr', name: 'Français', flag: 'https://flagcdn.com/fr.svg' },
   { code: 'de', name: 'Deutsch', flag: 'https://flagcdn.com/de.svg' },
   { code: 'it', name: 'Italiano', flag: 'https://flagcdn.com/it.svg' },
   { code: 'cn', name: '简体中文', flag: 'https://flagcdn.com/cn.svg' },
+  { code: 'sv', name: 'Svenska', flag: 'https://flagcdn.com/se.svg' },
+  { code: 'pl', name: 'Polski', flag: 'https://flagcdn.com/pl.svg' },
+  { code: 'ja', name: '日本語', flag: 'https://flagcdn.com/jp.svg' },
 ];
 
 export const COUNTRIES = [
@@ -135,6 +139,9 @@ export const COUNTRIES = [
   { code: 'DE', name: 'Deutschland', flag: 'https://flagcdn.com/de.svg' },
   { code: 'IT', name: 'Italia', flag: 'https://flagcdn.com/it.svg' },
   { code: 'AD', name: 'Andorra', flag: 'https://flagcdn.com/ad.svg' },
+  { code: 'SE', name: 'Sverige', flag: 'https://flagcdn.com/se.svg' },
+  { code: 'PL', name: 'Polska', flag: 'https://flagcdn.com/pl.svg' },
+  { code: 'JP', name: '日本', flag: 'https://flagcdn.com/jp.svg' },
 ];
 
 export const SEDE_COUNTRIES = [
@@ -159,6 +166,9 @@ export const SEDE_COUNTRIES = [
   { code: 'IT', name: 'Italia', flag: 'https://flagcdn.com/it.svg', disabled: false },
   { code: 'AD', name: 'Andorra', flag: 'https://flagcdn.com/ad.svg', disabled: false },
   { code: 'CN', name: '中国', flag: 'https://flagcdn.com/cn.svg', disabled: false },
+  { code: 'SE', name: 'Sverige', flag: 'https://flagcdn.com/se.svg', disabled: false },
+  { code: 'PL', name: 'Polska', flag: 'https://flagcdn.com/pl.svg', disabled: false },
+  { code: 'JP', name: '日本', flag: 'https://flagcdn.com/jp.svg', disabled: false },
 ];
 
 export const APP_LANGUAGES = [
@@ -183,6 +193,9 @@ export const APP_LANGUAGES = [
   { code: 'uy', name: 'Uruguay', flag: 'https://flagcdn.com/uy.svg', disabled: false },
   { code: 'us', name: 'Estados Unidos', flag: 'https://flagcdn.com/us.svg', disabled: false },
   { code: 'cn', name: '中国', flag: 'https://flagcdn.com/cn.svg', disabled: false },
+  { code: 'se', name: 'Sverige', flag: 'https://flagcdn.com/se.svg', disabled: false },
+  { code: 'pl', name: 'Polska', flag: 'https://flagcdn.com/pl.svg', disabled: false },
+  { code: 'jp', name: '日本', flag: 'https://flagcdn.com/jp.svg', disabled: false },
 ];
 
 

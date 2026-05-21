@@ -59,6 +59,10 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
     const dashLang = business.country ? getLanguageForCountryCode(business.country) : language;
     const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', encodeURIComponent(business.name.replace(/ /g, '_')));
     const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
+    const businessSlug = (business as any).slug as string | undefined;
+    const publicUrl = businessSlug
+        ? `${countryPrefix}/${(pathTranslations[dashLang] ?? pathTranslations.es).business.replace(':identifier', businessSlug)}`
+        : null;
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -110,11 +114,23 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
                         <i className="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
-                <div className="mt-auto pt-4 border-t dark:border-zinc-700">
+                <div className="mt-auto pt-4 border-t dark:border-zinc-700 flex items-center justify-between gap-2">
                     <Link to={`${countryPrefix}/${dashboardPath}`} className="text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 flex items-center gap-2">
                         <span>{t('myBusinesses.manage')}</span>
                         <i className="fa-solid fa-arrow-right"></i>
                     </Link>
+                    {publicUrl && (
+                        <Link
+                            to={publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-gray-500 hover:text-brand-green dark:text-gray-400 dark:hover:text-brand-green flex items-center gap-1.5"
+                            title={t('homepage.viewProfile')}
+                        >
+                            <span>{t('homepage.viewProfile')}</span>
+                            <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                        </Link>
+                    )}
                 </div>
             </div>
 

@@ -13,6 +13,10 @@ Documentación técnica de Opynio — plataforma de reseñas verificadas.
 | 05 | [Widget](./05-WIDGET.md) | Widget `stars-carousel` (SEO + bot path) y plan futuro de Shadow DOM. |
 | 06 | [SEO y rendimiento](./06-SEO-AND-PERFORMANCE.md) | Política de noindex, Soft 404, optimización de bundle, Lighthouse. |
 
+## Playbooks
+
+Procedimientos paso a paso para operaciones repetitivas (añadir idioma, añadir país, bump widget, etc.). Ver [`./playbooks/`](./playbooks/README.md).
+
 ## Migraciones SQL
 
 En [`../supabase/migrations/`](../supabase/migrations/). Las que llevan prefijo timestamp (`YYYYMMDD…`) las aplica el CLI de Supabase; las sin timestamp son legado histórico ya aplicado.

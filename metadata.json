@@ -1,8 +1,0 @@
-{
-  "name": "Opynio: Reseñas Auténticas de Empresas",
-  "description": "Encuentra y comparte reseñas auténticas de empresas. Opynio te ayuda a tomar decisiones informadas con opiniones reales de otros usuarios en texto y audio.",
-  "requestFramePermissions": [
-    "microphone"
-  ],
-  "prompt": ""
-}
