@@ -167,22 +167,22 @@ const DashboardWidgets: React.FC = () => {
                                 onChange={(e) => setWidgetLang(e.target.value)}
                                 className="w-full p-2 sm:p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-green focus:border-transparent"
                             >
-                                <option value="auto">{t('businessDashboard.widgetLangAuto')}</option>
-                                <option value="es">Español</option>
-                                <option value="en">English</option>
-                                <option value="fr">Français</option>
-                                <option value="de">Deutsch</option>
-                                <option value="it">Italiano</option>
-                                <option value="pt">Português</option>
-                                <option value="ca">Català</option>
-                                <option value="zh-CN">中文</option>
-                                <option value="sv">Svenska</option>
-                                <option value="pl">Polski</option>
-                                <option value="ja">日本語</option>
-                                <option value="ko">한국어</option>
-                                <option value="nl">Nederlands</option>
-                                <option value="ru">Русский</option>
-                                <option value="ar">العربية</option>
+                                <option value="auto">🌐 {t('businessDashboard.widgetLangAuto')}</option>
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="en">🇬🇧 English</option>
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="it">🇮🇹 Italiano</option>
+                                <option value="pt">🇵🇹 Português</option>
+                                <option value="ca">🇦🇩 Català</option>
+                                <option value="zh-CN">🇨🇳 中文</option>
+                                <option value="sv">🇸🇪 Svenska</option>
+                                <option value="pl">🇵🇱 Polski</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="nl">🇳🇱 Nederlands</option>
+                                <option value="ru">🇷🇺 Русский</option>
+                                <option value="ar">🇸🇦 العربية</option>
                             </select>
                         </div>
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 flex flex-col">
