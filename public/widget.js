@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.4.5
+ * Opynio Widget Loader v6.4.6
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -586,9 +586,28 @@
         }).join('');
     }
 
+    // Mapeo country → prefijo de URL pública en Opynio.
+    // Mantén sincronizado con pathTranslations.business + countryToUrlCode del frontend.
+    // Si la empresa no tiene country, fallback a /es/empresa (canonical histórico).
+    var COUNTRY_TO_URL_PATH = {
+        'ES': '/es/empresa', 'MX': '/mx/empresa', 'AR': '/ar/empresa', 'CO': '/co/empresa',
+        'CL': '/cl/empresa', 'PE': '/pe/empresa', 'VE': '/ve/empresa', 'EC': '/ec/empresa',
+        'GT': '/gt/empresa', 'CR': '/cr/empresa', 'PA': '/pa/empresa', 'UY': '/uy/empresa',
+        'US': '/us/business', 'GB': '/gb/business',
+        'BR': '/br/empresa', 'PT': '/pt/empresa',
+        'FR': '/fr/entreprise', 'DE': '/de/unternehmen', 'IT': '/it/azienda',
+        'AD': '/ad/empresa', 'CN': '/cn/公司',
+        'SE': '/se/foretag', 'PL': '/pl/firma', 'JP': '/jp/会社'
+    };
+
     function getBusinessUrl(business) {
-        var name = (business && business.name) ? business.name : 'business';
-        return BASE_URL + '/es/empresa/' + encodeURIComponent(name.replace(/ /g, '_'));
+        // Identificador: slug canónico si existe (evita redirect 301 al name URL-encoded)
+        var identifier = (business && business.slug)
+            ? business.slug
+            : encodeURIComponent(((business && business.name) ? business.name : 'business').replace(/ /g, '_'));
+        var country = (business && business.country) ? String(business.country).toUpperCase() : 'ES';
+        var pathPrefix = COUNTRY_TO_URL_PATH[country] || '/es/empresa';
+        return BASE_URL + pathPrefix + '/' + identifier;
     }
 
     // Widget UI strings (static text translations)

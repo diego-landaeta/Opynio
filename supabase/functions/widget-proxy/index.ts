@@ -39,7 +39,7 @@ serve(async (req) => {
 
     // Fetch business data and reviews in parallel
     const [businessRes, reviewsRes, reviewStatsRes] = await Promise.all([
-      supabaseAdmin.from('businesses').select('id, name, logo_url').eq('id', businessId).single(),
+      supabaseAdmin.from('businesses').select('id, name, slug, country, logo_url').eq('id', businessId).single(),
       supabaseAdmin.from('reviews').select('title, review_text, rating, original_author_name, source, created_at').eq('business_id', businessId).eq('status', 'approved').lte('created_at', new Date().toISOString()).not('title', 'is', null).not('review_text', 'is', null).neq('title', '').neq('review_text', '').order('created_at', { ascending: false }).limit(20),
       // Calculate avg_rating and review_count directly from reviews table
       supabaseAdmin.from('reviews').select('rating').eq('business_id', businessId).eq('status', 'approved').lte('created_at', new Date().toISOString())

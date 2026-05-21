@@ -39,7 +39,7 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 // imprimir o mostrar en el local. Disponible en todos los planes.
 const PUBLIC_BASE_URL = 'https://web.opynio.com';
 
-const ShareBusinessCard: React.FC<{ businessName: string; businessCountry: string | null | undefined }> = ({ businessName, businessCountry }) => {
+const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string | null | undefined; businessCountry: string | null | undefined }> = ({ businessName, businessSlug, businessCountry }) => {
     const { showNotification } = useNotification();
     const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
     const [showQr, setShowQr] = useState(false);
@@ -51,12 +51,17 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessCountry: strin
     // independientemente de en qué idioma esté navegando el dueño.
     // El segmento "business" también se traduce (empresa / business /
     // entreprise / unternehmen / azienda / 公司 …).
+    //
+    // Identificador: prefiere `business.slug` cuando existe (slug limpio
+    // canónico, ej. `psicologo_ia`) — evita que el visitante caiga en un
+    // redirect 301 desde el name URL-encoded (`Psic%C3%B3logo_IA`). Fallback
+    // sólo para empresas legacy sin slug.
     const publicUrl = useMemo(() => {
-        const slug = encodeURIComponent(businessName.replace(/ /g, '_'));
+        const identifier = businessSlug || encodeURIComponent(businessName.replace(/ /g, '_'));
         const langCode = getLanguageForCountryCode(businessCountry);
         const businessPath = (pathTranslations[langCode]?.business ?? 'empresa/:identifier').replace('/:identifier', '');
-        return `${PUBLIC_BASE_URL}/${langCode}/${businessPath}/${slug}`;
-    }, [businessName, businessCountry]);
+        return `${PUBLIC_BASE_URL}/${langCode}/${businessPath}/${identifier}`;
+    }, [businessName, businessSlug, businessCountry]);
 
     const suggestedMessage = useMemo(
         () => `¡Hola! Si has tenido una buena experiencia con ${businessName}, ¿podrías compartirla con una reseña en Opynio? Tu opinión nos ayuda muchísimo. Aquí tienes el enlace: ${publicUrl}`,
@@ -339,7 +344,7 @@ const DashboardOverview: React.FC = () => {
             {/* Sección "Comparte tu empresa" — accesible para todos los planes,
                 permite obtener más reseñas de forma orgánica antes de pasar a
                 invitaciones automatizadas (planes pago). */}
-            <ShareBusinessCard businessName={business.name} businessCountry={business.country} />
+            <ShareBusinessCard businessName={business.name} businessSlug={business.slug} businessCountry={business.country} />
 
             <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
                 <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 dark:text-gray-100">{t('businessDashboard.ratingDistribution')}</h2>

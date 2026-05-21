@@ -176,6 +176,13 @@ const DashboardWidgets: React.FC = () => {
                                 <option value="pt">Português</option>
                                 <option value="ca">Català</option>
                                 <option value="zh-CN">中文</option>
+                                <option value="sv">Svenska</option>
+                                <option value="pl">Polski</option>
+                                <option value="ja">日本語</option>
+                                <option value="ko">한국어</option>
+                                <option value="nl">Nederlands</option>
+                                <option value="ru">Русский</option>
+                                <option value="ar">العربية</option>
                             </select>
                         </div>
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 flex flex-col">
