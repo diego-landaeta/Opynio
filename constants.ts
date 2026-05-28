@@ -119,6 +119,7 @@ export const LANGUAGES = [
   { code: 'th', name: 'ไทย', flag: 'https://flagcdn.com/th.svg' },
   { code: 'fa', name: 'فارسی', flag: 'https://flagcdn.com/ir.svg' },
   { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/vn.svg' },
+  { code: 'bn', name: 'বাংলা', flag: 'https://flagcdn.com/bd.svg' },
   { code: 'br', name: 'Português (BR)', flag: 'https://flagcdn.com/br.svg' },
   { code: 'pt', name: 'Português (PT)', flag: 'https://flagcdn.com/pt.svg' },
   { code: 'ca', name: 'Català', flag: 'https://flagcdn.com/ad.svg' },
@@ -177,6 +178,7 @@ export const COUNTRIES = [
   { code: 'TH', name: 'ประเทศไทย', flag: 'https://flagcdn.com/th.svg' },
   { code: 'IR', name: 'ایران', flag: 'https://flagcdn.com/ir.svg' },
   { code: 'VN', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg' },
+  { code: 'BD', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg' },
 ];
 
 export const SEDE_COUNTRIES = [
@@ -227,6 +229,7 @@ export const SEDE_COUNTRIES = [
   { code: 'TH', name: 'ประเทศไทย', flag: 'https://flagcdn.com/th.svg', disabled: false },
   { code: 'IR', name: 'ایران', flag: 'https://flagcdn.com/ir.svg', disabled: false },
   { code: 'VN', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg', disabled: false },
+  { code: 'BD', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg', disabled: false },
 ];
 
 export const APP_LANGUAGES = [
@@ -264,6 +267,7 @@ export const APP_LANGUAGES = [
   { code: 'th', name: 'ประเทศไทย', flag: 'https://flagcdn.com/th.svg', disabled: false },
   { code: 'ir', name: 'ایران', flag: 'https://flagcdn.com/ir.svg', disabled: false },
   { code: 'vn', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg', disabled: false },
+  { code: 'bd', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg', disabled: false },
 ];
 
 

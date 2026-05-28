@@ -736,6 +736,7 @@ const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
     th: { ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', writeReview: 'เขียนรีวิว', reviewsFor: 'รีวิวสำหรับ', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', seeAllReviews: 'ดูรีวิวทั้งหมด' },
     fa: { ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', writeReview: 'نوشتن نظر', reviewsFor: 'نظرات برای', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', seeAllReviews: 'مشاهده همه نظرات' },
     vi: { ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', writeReview: 'Viết đánh giá', reviewsFor: 'Đánh giá cho', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', seeAllReviews: 'Xem tất cả đánh giá' },
+    bn: { ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', writeReview: 'পর্যালোচনা লিখুন', reviewsFor: 'পর্যালোচনা', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', seeAllReviews: 'সব পর্যালোচনা দেখুন' },
 };
 
 const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh' };
@@ -783,7 +784,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.4.7';
+const EMBED_VERSION = 'v6.4.8';
 
 export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';

@@ -327,6 +327,22 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'cau-chuyen',
     widgets: 'widgets',
   },
+  // Bengali (paths en inglés ASCII — bn.ts copia las paths de en.ts)
+  bn: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
 };
 
 // Mapea código de país URL → idioma para paths
@@ -351,6 +367,7 @@ const countryToLanguage: Record<string, string> = {
   'ae': 'ar', 'sa': 'ar', 'kw': 'ar', 'eg': 'ar', // Países árabes
   'nl': 'nl', 'ru': 'ru', 'id': 'id', 'my': 'ms', 'tw': 'tw', 'hk': 'tw', 'th': 'th', 'ir': 'fa',
   'vn': 'vi', // Vietnam
+  'bd': 'bn', // Bangladesh
 
   'se': 'sv', // Suecia
   'pl': 'pl', // Polonia
@@ -395,7 +412,7 @@ serve(async (_req) => {
       'mx', 'ar', 'co', 'pe', 've', 'cl', 'ec', 'gt',
       'cr', 'pa', 'uy', 'us', 'gb', 'ie', 'sg', 'nz', 'za', 'in', 'ph', 'ng', 'au', 'ca',
       'cn', 'se', 'pl', 'jp', 'kr', 'ae', 'sa', 'kw', 'eg',
-      'nl', 'ru', 'id', 'my', 'tw', 'hk', 'th', 'ir', 'vn'
+      'nl', 'ru', 'id', 'my', 'tw', 'hk', 'th', 'ir', 'vn', 'bd'
     ];
 
     const sitemapEntries: string[] = [];
@@ -494,6 +511,7 @@ serve(async (_req) => {
         'TH': 'th',  // Tailandia
         'IR': 'ir',  // Irán
         'VN': 'vn',  // Vietnam
+        'BD': 'bd',  // Bangladesh
       };
 
       for (const business of businesses) {
