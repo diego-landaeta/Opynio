@@ -1431,8 +1431,24 @@ export const createReview = async (reviewData: any) => {
     .insert([reviewData])
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505' && /uniq_review_per_user_business/.test(error.message || '')) {
+      throw new Error('ALREADY_REVIEWED');
+    }
+    throw error;
+  }
   return data;
+};
+
+export const userHasReviewedBusiness = async (userId: string, businessId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('business_id', businessId)
+    .limit(1);
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
 };
 
 // Get detailed business counts for banner display

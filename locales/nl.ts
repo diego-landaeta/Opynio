@@ -791,6 +791,7 @@ export default {
     mustLogInToWriteReview: 'Je moet ingelogd zijn om een beoordeling te schrijven.',
     pleaseCompleteFields: 'Vul de volgende verplichte velden in',
     errorPublishingReview: 'Er is een fout opgetreden bij het publiceren van je beoordeling. Probeer het opnieuw.',
+    alreadyReviewedThisBusiness: 'Je hebt al een review achtergelaten voor dit bedrijf. Slechts één review per gebruiker per bedrijf is toegestaan.',
     audioFileTooLarge: 'Het audiobestand is te groot (maximaal 10MB).',
     microphoneAccessError: 'Kon geen toegang krijgen tot de microfoon. Controleer de rechten in je browser.',
     selectBusinessAndRatingError: 'Selecteer een bedrijf en een beoordeling voordat je een concept genereert.',

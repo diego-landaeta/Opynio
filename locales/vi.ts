@@ -793,6 +793,7 @@ export default {
     mustLogInToWriteReview: 'Bạn phải đăng nhập để viết đánh giá.',
     pleaseCompleteFields: 'Vui lòng hoàn thành các trường bắt buộc sau',
     errorPublishingReview: 'Đã xảy ra lỗi khi đăng đánh giá. Vui lòng thử lại.',
+    alreadyReviewedThisBusiness: 'Bạn đã để lại đánh giá cho doanh nghiệp này. Chỉ cho phép một đánh giá cho mỗi người dùng trên mỗi doanh nghiệp.',
     audioFileTooLarge: 'Tệp âm thanh quá lớn (tối đa 10MB).',
     microphoneAccessError: 'Không thể truy cập micro. Vui lòng kiểm tra quyền trong trình duyệt.',
     selectBusinessAndRatingError: 'Vui lòng chọn doanh nghiệp và xếp hạng trước khi tạo bản nháp.',

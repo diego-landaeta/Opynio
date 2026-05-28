@@ -790,6 +790,7 @@ export default {
     mustLogInToWriteReview: 'Musisz być zalogowany, aby napisać opinię.',
     pleaseCompleteFields: 'Wypełnij następujące wymagane pola',
     errorPublishingReview: 'Wystąpił błąd podczas publikowania opinii. Spróbuj ponownie.',
+    alreadyReviewedThisBusiness: 'Już zostawiłeś recenzję dla tej firmy. Dozwolona jest tylko jedna recenzja na użytkownika i firmę.',
     audioFileTooLarge: 'Plik audio jest zbyt duży (maksymalnie 10 MB).',
     microphoneAccessError: 'Nie udało się uzyskać dostępu do mikrofonu. Sprawdź uprawnienia w przeglądarce.',
     selectBusinessAndRatingError: 'Wybierz firmę i ocenę przed wygenerowaniem szkicu.',

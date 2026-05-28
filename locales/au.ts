@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'You must be logged in to write a review.',
     pleaseCompleteFields: 'Please complete the following required fields',
     errorPublishingReview: 'An error occurred while publishing your review. Please try again.',
+    alreadyReviewedThisBusiness: 'You have already left a review on this business. Only one review per user per business is allowed.',
     audioFileTooLarge: 'The audio file is too large (10MB maximum).',
     microphoneAccessError: 'Could not access the microphone. Please check the permissions in your browser.',
     selectBusinessAndRatingError: 'Please select a business and a rating before generating a draft.',

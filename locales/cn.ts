@@ -791,6 +791,7 @@ export default {
     mustLogInToWriteReview: '您必须登录才能撰写评论。',
     pleaseCompleteFields: '请填写以下必填字段',
     errorPublishingReview: '发布评论时发生错误。请重试。',
+    alreadyReviewedThisBusiness: '您已经为这家企业留下评论。每位用户每家企业只允许留下一条评论。',
     audioFileTooLarge: '音频文件太大（最大10MB）。',
     microphoneAccessError: '无法访问麦克风。请检查浏览器中的权限。',
     selectBusinessAndRatingError: '请在生成草稿之前选择企业和评分。',

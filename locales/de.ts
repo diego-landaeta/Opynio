@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Sie müssen angemeldet sein, um eine Bewertung zu schreiben.',
     pleaseCompleteFields: 'Bitte füllen Sie die folgenden Pflichtfelder aus',
     errorPublishingReview: 'Beim Veröffentlichen Ihrer Bewertung ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
+    alreadyReviewedThisBusiness: 'Du hast bereits eine Bewertung zu diesem Unternehmen abgegeben. Nur eine Bewertung pro Nutzer und Unternehmen ist erlaubt.',
     audioFileTooLarge: 'Die Audiodatei ist zu groß (maximal 10 MB).',
     microphoneAccessError: 'Auf das Mikrofon konnte nicht zugegriffen werden. Bitte überprüfen Sie die Berechtigungen in Ihrem Browser.',
     selectBusinessAndRatingError: 'Bitte wählen Sie ein Unternehmen und eine Bewertung aus, bevor Sie einen Entwurf erstellen.',

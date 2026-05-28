@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import NotFoundPage from './NotFoundPage';
 import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../types';
 import { getBusinessInsights } from '../../services/geminiService';
-import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile } from '../../services/supabaseService';
+import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile, userHasReviewedBusiness } from '../../services/supabaseService';
 import { getReviewsOptimized } from '../../services/optimizedQueries';
 import ReviewCard from '../ReviewCard';
 import StarRating from '../StarRating';
@@ -231,7 +231,7 @@ const BusinessPage: React.FC = () => {
     const hasSedeLocation = useMemo(() => latitudeToDisplay != null && longitudeToDisplay != null, [latitudeToDisplay, longitudeToDisplay]);
 
 
-    const handleWriteReviewClick = () => {
+    const handleWriteReviewClick = async () => {
         if (!business) return;
 
         // Use country directly - don't infer from language
@@ -240,6 +240,15 @@ const BusinessPage: React.FC = () => {
         const paths = pathTranslations[pathLang] || pathTranslations.es;
 
         if (user) {
+            try {
+                const already = await userHasReviewedBusiness(user.id, business.id);
+                if (already) {
+                    showNotification(t('alreadyReviewedThisBusiness'), 'info');
+                    return;
+                }
+            } catch {
+                // Si falla la verificación, dejamos pasar; el constraint de BD lo capturará al insertar.
+            }
             navigate(`${countryPrefix}/${paths.writeReview}`, { state: { businessId: business.id } });
         } else {
             const postLoginAction = {

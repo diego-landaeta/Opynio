@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Deve iniciar sessão para escrever uma análise.',
     pleaseCompleteFields: 'Por favor, preencha os seguintes campos obrigatórios',
     errorPublishingReview: 'Ocorreu um erro ao publicar a sua análise. Por favor, tente novamente.',
+    alreadyReviewedThisBusiness: 'Já deixou uma avaliação nesta empresa. Apenas uma avaliação por utilizador e por empresa é permitida.',
     audioFileTooLarge: 'O ficheiro de áudio é demasiado grande (máximo 10MB).',
     microphoneAccessError: 'Não foi possível aceder ao microfone. Por favor, verifique as permissões no seu navegador.',
     selectBusinessAndRatingError: 'Por favor, selecione uma empresa e uma avaliação antes de gerar um rascunho.',

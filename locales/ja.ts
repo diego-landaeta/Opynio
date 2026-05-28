@@ -790,6 +790,7 @@ export default {
     mustLogInToWriteReview: 'レビューを書くにはログインが必要です。',
     pleaseCompleteFields: '次の必須フィールドを入力してください',
     errorPublishingReview: 'レビューの公開中にエラーが発生しました。もう一度お試しください。',
+    alreadyReviewedThisBusiness: 'このビジネスにはすでにレビューを投稿しています。ユーザーごとに各ビジネスへのレビューは1件のみ許可されます。',
     audioFileTooLarge: '音声ファイルが大きすぎます (最大10MB)。',
     microphoneAccessError: 'マイクにアクセスできませんでした。ブラウザの権限を確認してください。',
     selectBusinessAndRatingError: '下書きを生成する前に、会社と評価を選択してください。',

@@ -511,7 +511,10 @@ const WriteReviewPage: React.FC = () => {
             resetForm();
             setSubmissionStatus('idle');
         } catch (error: any) {
-             setSubmitError(error.message || t('errorPublishingReview'));
+             const msg = error?.message === 'ALREADY_REVIEWED'
+                 ? t('alreadyReviewedThisBusiness')
+                 : (error.message || t('errorPublishingReview'));
+             setSubmitError(msg);
              setShowErrorModal(true);
              setSubmissionStatus('idle');
         }

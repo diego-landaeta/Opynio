@@ -793,6 +793,7 @@ export default {
     mustLogInToWriteReview: 'برای نوشتن نظر باید وارد شوید.',
     pleaseCompleteFields: 'لطفا فیلدهای الزامی زیر را تکمیل کنید',
     errorPublishingReview: 'خطایی در انتشار نظر شما رخ داد. لطفا دوباره تلاش کنید.',
+    alreadyReviewedThisBusiness: 'شما قبلاً برای این کسب‌وکار نظری ثبت کرده‌اید. فقط یک نظر برای هر کاربر برای هر کسب‌وکار مجاز است.',
     audioFileTooLarge: 'فایل صوتی بیش از حد بزرگ است (حداکثر 10 مگابایت).',
     microphoneAccessError: 'دسترسی به میکروفون ممکن نشد. لطفا مجوزها را در مرورگر خود بررسی کنید.',
     selectBusinessAndRatingError: 'لطفا قبل از تولید پیش‌نویس، یک کسب‌وکار و امتیاز انتخاب کنید.',

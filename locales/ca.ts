@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Has d\'iniciar sessió per escriure una ressenya.',
     pleaseCompleteFields: 'Si us plau, completa els següents camps obligatoris',
     errorPublishingReview: 'S\'ha produït un error en publicar la teva ressenya. Si us plau, intenta-ho de nou.',
+    alreadyReviewedThisBusiness: 'Ja has deixat una ressenya en aquesta empresa. Només es permet una ressenya per usuari i empresa.',
     audioFileTooLarge: 'El fitxer d\'àudio és massa gran (màxim 10MB).',
     microphoneAccessError: 'No s\'ha pogut accedir al micròfon. Si us plau, comprova els permisos al teu navegador.',
     selectBusinessAndRatingError: 'Si us plau, selecciona una empresa i una valoració abans de generar un esborrany.',

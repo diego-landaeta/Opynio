@@ -791,6 +791,7 @@ export default {
     mustLogInToWriteReview: '리뷰를 작성하려면 로그인해야 합니다.',
     pleaseCompleteFields: '다음 필수 필드를 완성해주세요',
     errorPublishingReview: '리뷰를 게시하는 중 오류가 발생했습니다. 다시 시도해주세요.',
+    alreadyReviewedThisBusiness: '이미 이 업체에 리뷰를 남기셨습니다. 사용자당 업체당 하나의 리뷰만 허용됩니다.',
     audioFileTooLarge: '오디오 파일이 너무 큽니다 (최대 10MB).',
     microphoneAccessError: '마이크에 접근할 수 없습니다. 브라우저의 권한 설정을 확인해주세요.',
     selectBusinessAndRatingError: '초안을 생성하기 전에 회사와 평점을 선택해주세요.',

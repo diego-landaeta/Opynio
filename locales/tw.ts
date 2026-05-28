@@ -793,6 +793,7 @@ export default {
     mustLogInToWriteReview: '您必須登入才能撰寫評論。',
     pleaseCompleteFields: '請填寫以下必填欄位',
     errorPublishingReview: '發佈評論時發生錯誤。請重試。',
+    alreadyReviewedThisBusiness: '您已經為此商家留下評論。每位用戶每個商家只允許留下一則評論。',
     audioFileTooLarge: '音訊檔案太大（最大10MB）。',
     microphoneAccessError: '無法存取麥克風。請檢查瀏覽器中的權限。',
     selectBusinessAndRatingError: '請在產生草稿之前選擇企業和評分。',

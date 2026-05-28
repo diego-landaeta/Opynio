@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Devi effettuare l\'accesso per scrivere una recensione.',
     pleaseCompleteFields: 'Per favore, compila i seguenti campi obbligatori',
     errorPublishingReview: 'Si è verificato un errore durante la pubblicazione della tua recensione. Per favore, riprova.',
+    alreadyReviewedThisBusiness: 'Hai già lasciato una recensione per questa attività. È consentita una sola recensione per utente per attività.',
     audioFileTooLarge: 'Il file audio è troppo grande (massimo 10MB).',
     microphoneAccessError: 'Impossibile accedere al microfono. Per favore, controlla i permessi nel tuo browser.',
     selectBusinessAndRatingError: 'Per favore, seleziona un\'azienda e una valutazione prima di generare una bozza.',

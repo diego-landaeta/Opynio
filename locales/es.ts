@@ -803,6 +803,7 @@ export default {
     mustLogInToWriteReview: 'Debes iniciar sesión para escribir una reseña.',
     pleaseCompleteFields: 'Por favor, completa los siguientes campos obligatorios',
     errorPublishingReview: 'Ocurrió un error al publicar tu reseña. Por favor, inténtalo de nuevo.',
+    alreadyReviewedThisBusiness: 'Ya has dejado una reseña en esta empresa. Solo se permite una reseña por usuario y empresa.',
     audioFileTooLarge: 'El archivo de audio es demasiado grande (máximo 10MB).',
     microphoneAccessError: 'No se pudo acceder al micrófono. Por favor, comprueba los permisos en tu navegador.',
     selectBusinessAndRatingError: 'Por favor, selecciona una empresa y una valoración antes de generar un borrador.',

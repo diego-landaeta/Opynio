@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Kailangan mong naka-log in upang sumulat ng review.',
     pleaseCompleteFields: 'Kumpletuhin ang mga sumusunod na kinakailangang field',
     errorPublishingReview: 'May error habang ina-publish ang iyong review. Subukan ulit.',
+    alreadyReviewedThisBusiness: 'Mayroon ka nang naiwang review sa negosyong ito. Isang review lamang kada user kada negosyo ang pinapayagan.',
     audioFileTooLarge: 'Masyadong malaki ang audio file (maximum 10MB).',
     microphoneAccessError: 'Hindi ma-access ang mikropono. Suriin ang mga pahintulot sa iyong browser.',
     selectBusinessAndRatingError: 'Pumili ng negosyo at rating bago bumuo ng draft.',

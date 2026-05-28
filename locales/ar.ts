@@ -794,6 +794,7 @@ export default {
     mustLogInToWriteReview: 'يجب تسجيل الدخول لكتابة تقييم.',
     pleaseCompleteFields: 'يرجى إكمال الحقول المطلوبة التالية',
     errorPublishingReview: 'حدث خطأ أثناء نشر تقييمك. يرجى المحاولة مرة أخرى.',
+    alreadyReviewedThisBusiness: 'لقد تركت بالفعل تقييمًا لهذا النشاط التجاري. مسموح بتقييم واحد فقط لكل مستخدم لكل نشاط تجاري.',
     audioFileTooLarge: 'ملف الصوت كبير جداً (10 ميجا كحد أقصى).',
     microphoneAccessError: 'تعذر الوصول إلى الميكروفون. يرجى التحقق من الأذونات في متصفحك.',
     selectBusinessAndRatingError: 'يرجى تحديد شركة وتقييم قبل إنشاء مسودة.',

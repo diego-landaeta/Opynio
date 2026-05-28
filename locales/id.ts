@@ -793,6 +793,7 @@ export default {
     mustLogInToWriteReview: 'Anda harus masuk untuk menulis ulasan.',
     pleaseCompleteFields: 'Silakan lengkapi bidang wajib berikut',
     errorPublishingReview: 'Terjadi kesalahan saat menerbitkan ulasan Anda. Silakan coba lagi.',
+    alreadyReviewedThisBusiness: 'Anda sudah meninggalkan ulasan untuk bisnis ini. Hanya satu ulasan per pengguna per bisnis yang diperbolehkan.',
     audioFileTooLarge: 'File audio terlalu besar (maksimal 10MB).',
     microphoneAccessError: 'Tidak dapat mengakses mikrofon. Silakan periksa izin di peramban Anda.',
     selectBusinessAndRatingError: 'Silakan pilih bisnis dan penilaian sebelum membuat draf.',

@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'Vous devez être connecté pour écrire un avis.',
     pleaseCompleteFields: 'Veuillez remplir les champs obligatoires suivants',
     errorPublishingReview: 'Une erreur est survenue lors de la publication de votre avis. Veuillez réessayer.',
+    alreadyReviewedThisBusiness: 'Vous avez déjà laissé un avis sur cette entreprise. Un seul avis par utilisateur et par entreprise est autorisé.',
     audioFileTooLarge: 'Le fichier audio est trop volumineux (10 Mo maximum).',
     microphoneAccessError: 'Impossible d\'accéder au microphone. Veuillez vérifier les autorisations dans votre navigateur.',
     selectBusinessAndRatingError: 'Veuillez sélectionner une entreprise et une évaluation avant de générer un brouillon.',

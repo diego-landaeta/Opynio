@@ -790,6 +790,7 @@ export default {
     mustLogInToWriteReview: 'Du måste vara inloggad för att skriva en recension.',
     pleaseCompleteFields: 'Vänligen fyll i följande obligatoriska fält',
     errorPublishingReview: 'Ett fel uppstod vid publicering av din recension. Försök igen.',
+    alreadyReviewedThisBusiness: 'Du har redan lämnat en recension för detta företag. Endast en recension per användare och företag är tillåten.',
     audioFileTooLarge: 'Ljudfilen är för stor (max 10 MB).',
     microphoneAccessError: 'Kunde inte komma åt mikrofonen. Kontrollera behörigheterna i din webbläsare.',
     selectBusinessAndRatingError: 'Välj ett företag och ett betyg innan du genererar ett utkast.',

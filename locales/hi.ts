@@ -792,6 +792,7 @@ export default {
     mustLogInToWriteReview: 'समीक्षा लिखने के लिए आपको लॉग इन करना होगा।',
     pleaseCompleteFields: 'कृपया निम्नलिखित आवश्यक फ़ील्ड भरें',
     errorPublishingReview: 'आपकी समीक्षा प्रकाशित करते समय त्रुटि हुई। पुनः प्रयास करें।',
+    alreadyReviewedThisBusiness: 'आपने पहले ही इस व्यवसाय पर एक समीक्षा छोड़ी है। प्रति उपयोगकर्ता प्रति व्यवसाय केवल एक समीक्षा की अनुमति है।',
     audioFileTooLarge: 'ऑडियो फ़ाइल बहुत बड़ी है (अधिकतम 10MB)।',
     microphoneAccessError: 'माइक्रोफ़ोन एक्सेस नहीं हो सका। अपने ब्राउज़र में अनुमतियाँ जाँचें।',
     selectBusinessAndRatingError: 'ड्राफ़्ट बनाने से पहले एक व्यवसाय और रेटिंग चुनें।',
