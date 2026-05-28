@@ -73,6 +73,84 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
+  // Inglés UK (mismos slugs que en-US)
+  gb: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
+  // Neerlandés
+  nl: { explore: 'ontdek', businesses: 'bedrijven', business: 'bedrijf', community: 'community', whatsNew: 'nieuws', pricing: 'prijzen', support: 'support', about: 'over-ons', faq: 'veelgestelde-vragen', howItWorks: 'hoe-werkt-het', forBusinesses: 'voor-bedrijven', caseStudies: 'casestudies', widgets: 'widgets' },
+  // Ruso (slugs ASCII)
+  ru: { explore: 'explore', businesses: 'kompanii', business: 'kompaniya', community: 'soobshchestvo', whatsNew: 'novosti', pricing: 'tseny', support: 'podderzhka', about: 'o-nas', faq: 'faq', howItWorks: 'kak-eto-rabotaet', forBusinesses: 'dlya-kompaniy', caseStudies: 'kejsy', widgets: 'widgets' },
+  // Indonesio
+  id: { explore: 'jelajahi', businesses: 'perusahaan', business: 'perusahaan', community: 'komunitas', whatsNew: 'apa-yang-baru', pricing: 'harga', support: 'dukungan', about: 'tentang-kami', faq: 'faq', howItWorks: 'cara-kerja', forBusinesses: 'untuk-bisnis', caseStudies: 'studi-kasus', widgets: 'widgets' },
+  // Malayo
+  ms: { explore: 'jelajah', businesses: 'syarikat', business: 'syarikat', community: 'komuniti', whatsNew: 'terkini', pricing: 'harga', support: 'sokongan', about: 'tentang-kami', faq: 'soalan-lazim', howItWorks: 'cara-guna', forBusinesses: 'untuk-perniagaan', caseStudies: 'kajian-kes', widgets: 'widgets' },
+  // Chino tradicional (slugs ASCII para sitemap)
+  tw: { explore: 'explore', businesses: 'businesses', business: 'business', community: 'community', whatsNew: 'whats-new', pricing: 'pricing', support: 'support', about: 'about', faq: 'faq', howItWorks: 'how-it-works', forBusinesses: 'for-businesses', caseStudies: 'case-studies', widgets: 'widgets' },
+  // Tailandés (slugs ASCII)
+  th: { explore: 'samruat', businesses: 'thurakij', business: 'thurakij', community: 'chumchon', whatsNew: 'mai', pricing: 'rakha', support: 'chuailue', about: 'kiao-kap-rao', faq: 'kham-tham', howItWorks: 'withi-chai', forBusinesses: 'samrap-thurakij', caseStudies: 'korani-suksaa', widgets: 'widgets' },
+  // Persa/Farsi (slugs ASCII)
+  fa: { explore: 'jostoju', businesses: 'sherkat-ha', business: 'sherkat', community: 'anjoman', whatsNew: 'tazeha', pricing: 'gheymat', support: 'poshtibani', about: 'darbare-ma', faq: 'soalat', howItWorks: 'chegune-kar-mikonad', forBusinesses: 'baraye-kasb-o-kar', caseStudies: 'dastanha', widgets: 'widgets' },
+  // Árabe (slugs en transliteración ASCII — URLs reales usan transliteración via locale)
+  ar: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
+  // Coreano (slugs en inglés para sitemap XML — URLs reales usan Hangul via locale)
+  ko: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
+  // Inglés AU (mismos slugs que en/gb)
+  au: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
   // Portugués Brasil (pt-BR)
   br: {
     explore: 'explorar',
@@ -233,6 +311,22 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
+  // Vietnamita
+  vi: {
+    explore: 'kham-pha',
+    businesses: 'doanh-nghiep',
+    business: 'doanh-nghiep',
+    community: 'cong-dong',
+    whatsNew: 'co-gi-moi',
+    pricing: 'gia',
+    support: 'ho-tro',
+    about: 've-chung-toi',
+    faq: 'cau-hoi',
+    howItWorks: 'cach-hoat-dong',
+    forBusinesses: 'danh-cho-doanh-nghiep',
+    caseStudies: 'cau-chuyen',
+    widgets: 'widgets',
+  },
 };
 
 // Mapea código de país URL → idioma para paths
@@ -241,8 +335,10 @@ const countryToLanguage: Record<string, string> = {
   'es': 'es', 'mx': 'es', 'ar': 'es', 'co': 'es', 'cl': 'es',
   'pe': 'es', 've': 'es', 'ec': 'es', 'gt': 'es', 'cr': 'es',
   'pa': 'es', 'uy': 'es',
-  // Países anglófonos → inglés
-  'en': 'en', 'us': 'en', 'gb': 'en',
+  // Países anglófonos (US/CA → en, GB/IE → gb, AU → au)
+  'en': 'en', 'us': 'en', 'ca': 'en', 'ph': 'en',
+  'gb': 'gb', 'ie': 'gb', 'sg': 'gb', 'nz': 'gb', 'za': 'gb', 'in': 'gb', 'ng': 'gb',
+  'au': 'au',
   // Portugués (BR y PT separados — vocabulario distinto)
   'br': 'br', 'pt': 'pt',
   // Otros idiomas
@@ -251,6 +347,11 @@ const countryToLanguage: Record<string, string> = {
   'it': 'it',
   'ca': 'ca', // Andorra - catalán
   'cn': 'cn',
+  'kr': 'ko', // Corea del Sur
+  'ae': 'ar', 'sa': 'ar', 'kw': 'ar', 'eg': 'ar', // Países árabes
+  'nl': 'nl', 'ru': 'ru', 'id': 'id', 'my': 'ms', 'tw': 'tw', 'hk': 'tw', 'th': 'th', 'ir': 'fa',
+  'vn': 'vi', // Vietnam
+
   'se': 'sv', // Suecia
   'pl': 'pl', // Polonia
   'jp': 'ja', // Japón
@@ -292,7 +393,9 @@ serve(async (_req) => {
     const countryCodes = [
       'es', 'en', 'br', 'pt', 'ca', 'fr', 'de', 'it',
       'mx', 'ar', 'co', 'pe', 've', 'cl', 'ec', 'gt',
-      'cr', 'pa', 'uy', 'us', 'gb', 'cn', 'se', 'pl', 'jp'
+      'cr', 'pa', 'uy', 'us', 'gb', 'ie', 'sg', 'nz', 'za', 'in', 'ph', 'ng', 'au', 'ca',
+      'cn', 'se', 'pl', 'jp', 'kr', 'ae', 'sa', 'kw', 'eg',
+      'nl', 'ru', 'id', 'my', 'tw', 'hk', 'th', 'ir', 'vn'
     ];
 
     const sitemapEntries: string[] = [];
@@ -368,6 +471,29 @@ serve(async (_req) => {
         'SE': 'se',  // Suecia
         'PL': 'pl',  // Polonia
         'JP': 'jp',  // Japón
+        'AU': 'au',  // Australia
+        'CA': 'ca',  // Canadá
+        'KR': 'kr',  // Corea del Sur
+        'IE': 'ie',  // Irlanda
+        'SG': 'sg',  // Singapur
+        'NZ': 'nz',  // Nueva Zelanda
+        'ZA': 'za',  // Sudáfrica
+        'IN': 'in',  // India
+        'PH': 'ph',  // Filipinas
+        'NG': 'ng',  // Nigeria
+        'AE': 'ae',  // EAU
+        'SA': 'sa',  // Arabia Saudita
+        'KW': 'kw',  // Kuwait
+        'EG': 'eg',  // Egipto
+        'NL': 'nl',  // Países Bajos
+        'RU': 'ru',  // Rusia
+        'ID': 'id',  // Indonesia
+        'MY': 'my',  // Malasia
+        'TW': 'tw',  // Taiwán
+        'HK': 'hk',  // Hong Kong
+        'TH': 'th',  // Tailandia
+        'IR': 'ir',  // Irán
+        'VN': 'vn',  // Vietnam
       };
 
       for (const business of businesses) {

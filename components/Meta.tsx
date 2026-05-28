@@ -212,6 +212,17 @@ const Meta: React.FC<MetaProps> = ({
         { code: 'sv', path: `/se${pathWithoutLang}` },      // Svenska (Sverige)
         { code: 'pl', path: `/pl${pathWithoutLang}` },      // Polski (Polska)
         { code: 'ja', path: `/jp${pathWithoutLang}` },      // 日本語 (日本)
+        { code: 'en-AU', path: `/au${pathWithoutLang}` },   // English (Australia)
+        { code: 'ko', path: `/kr${pathWithoutLang}` },       // 한국어 (Korea)
+        { code: 'ar', path: `/ae${pathWithoutLang}` },       // العربية (UAE)
+        { code: 'nl', path: `/nl${pathWithoutLang}` },       // Nederlands
+        { code: 'ru', path: `/ru${pathWithoutLang}` },       // Русский
+        { code: 'id', path: `/id${pathWithoutLang}` },       // Indonesia
+        { code: 'ms', path: `/my${pathWithoutLang}` },       // Malaysia
+        { code: 'zh-TW', path: `/tw${pathWithoutLang}` },    // 繁體中文 (Taiwan)
+        { code: 'th', path: `/th${pathWithoutLang}` },       // Thai
+        { code: 'fa', path: `/ir${pathWithoutLang}` },       // فارسی (Iran)
+        { code: 'vi', path: `/vn${pathWithoutLang}` },       // Tiếng Việt (Vietnam)
       ];
 
       // Añadir hreflang para cada idioma

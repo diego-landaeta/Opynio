@@ -242,6 +242,18 @@ const memoryCache = new Map<string, string>();
 
 const GOOGLE_LANG_CODES: { [key: string]: string } = {
     'en': 'en',
+    'gb': 'en',
+    'au': 'en',
+    'ko': 'ko',
+    'ar': 'ar',
+    'nl': 'nl',
+    'ru': 'ru',
+    'id': 'id',
+    'ms': 'ms',
+    'tw': 'zh-TW',
+    'th': 'th',
+    'fa': 'fa',
+    'vi': 'vi',
     'br': 'pt',
     'pt': 'pt',
     'fr': 'fr',

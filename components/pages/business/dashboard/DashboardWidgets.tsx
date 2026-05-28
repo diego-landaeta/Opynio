@@ -1,13 +1,96 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Plan } from '../../../../types';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import Spinner from '../../../Spinner';
-// FIX: WIDGET_CSS is now correctly exported from the shared file and imported here.
 import { getWidgetScript, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
 import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
+
+const WIDGET_LANGUAGES = [
+    { code: 'auto', name: '', flag: '' },
+    { code: 'es', name: 'Español', flag: 'https://flagcdn.com/es.svg' },
+    { code: 'en', name: 'English (US)', flag: 'https://flagcdn.com/us.svg' },
+    { code: 'gb', name: 'English (UK)', flag: 'https://flagcdn.com/gb.svg' },
+    { code: 'au', name: 'English (AU)', flag: 'https://flagcdn.com/au.svg' },
+    { code: 'fr', name: 'Français', flag: 'https://flagcdn.com/fr.svg' },
+    { code: 'de', name: 'Deutsch', flag: 'https://flagcdn.com/de.svg' },
+    { code: 'it', name: 'Italiano', flag: 'https://flagcdn.com/it.svg' },
+    { code: 'pt', name: 'Português', flag: 'https://flagcdn.com/pt.svg' },
+    { code: 'ca', name: 'Català', flag: 'https://flagcdn.com/ad.svg' },
+    { code: 'zh-CN', name: '中文', flag: 'https://flagcdn.com/cn.svg' },
+    { code: 'sv', name: 'Svenska', flag: 'https://flagcdn.com/se.svg' },
+    { code: 'pl', name: 'Polski', flag: 'https://flagcdn.com/pl.svg' },
+    { code: 'ja', name: '日本語', flag: 'https://flagcdn.com/jp.svg' },
+    { code: 'ko', name: '한국어 (KR)', flag: 'https://flagcdn.com/kr.svg' },
+    { code: 'nl', name: 'Nederlands', flag: 'https://flagcdn.com/nl.svg' },
+    { code: 'ru', name: 'Русский', flag: 'https://flagcdn.com/ru.svg' },
+    { code: 'ar', name: 'العربية', flag: 'https://flagcdn.com/sa.svg' },
+    { code: 'nl', name: 'Nederlands', flag: 'https://flagcdn.com/nl.svg' },
+    { code: 'ru', name: 'Русский', flag: 'https://flagcdn.com/ru.svg' },
+    { code: 'id', name: 'Bahasa Indonesia', flag: 'https://flagcdn.com/id.svg' },
+    { code: 'ms', name: 'Bahasa Melayu', flag: 'https://flagcdn.com/my.svg' },
+    { code: 'tw', name: '繁體中文', flag: 'https://flagcdn.com/tw.svg' },
+    { code: 'th', name: 'ไทย', flag: 'https://flagcdn.com/th.svg' },
+    { code: 'fa', name: 'فارسی', flag: 'https://flagcdn.com/ir.svg' },
+    { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/vn.svg' },
+];
+
+const WidgetLanguageSelect: React.FC<{ value: string; onChange: (v: string) => void; autoLabel: string }> = ({ value, onChange, autoLabel }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const selected = WIDGET_LANGUAGES.find(l => l.code === value) || WIDGET_LANGUAGES[0];
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center gap-2.5 p-2 sm:p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-xs sm:text-sm font-medium hover:border-brand-green transition-colors"
+            >
+                {selected.flag ? (
+                    <img src={selected.flag} alt="" className="w-5 h-3.5 rounded-[2px] object-cover ring-1 ring-black/10" loading="lazy" />
+                ) : (
+                    <i className="fa-solid fa-globe text-brand-green text-sm w-5 text-center"></i>
+                )}
+                <span className="flex-1 text-left truncate">{selected.code === 'auto' ? autoLabel : selected.name}</span>
+                <i className={`fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}></i>
+            </button>
+
+            {open && (
+                <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                    {WIDGET_LANGUAGES.map(lang => (
+                        <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => { onChange(lang.code); setOpen(false); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700
+                                ${value === lang.code ? 'bg-brand-green/10 text-brand-green font-semibold' : 'text-gray-700 dark:text-gray-200'}
+                                ${lang.code === 'auto' ? 'border-b border-gray-100 dark:border-zinc-700' : ''}`}
+                        >
+                            {lang.flag ? (
+                                <img src={lang.flag} alt="" className="w-5 h-3.5 rounded-[2px] object-cover ring-1 ring-black/10 flex-shrink-0" loading="lazy" />
+                            ) : (
+                                <i className="fa-solid fa-globe text-brand-green text-sm w-5 text-center flex-shrink-0"></i>
+                            )}
+                            <span className="truncate">{lang.code === 'auto' ? autoLabel : lang.name}</span>
+                            {value === lang.code && <i className="fa-solid fa-check text-brand-green text-xs ml-auto"></i>}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 // Import all widget components and render logic
 import { HorizontalCarouselPreview } from './widgets/HorizontalCarouselWidget';
@@ -161,29 +244,11 @@ const DashboardWidgets: React.FC = () => {
                                 <i className="fa-solid fa-language mr-1.5 text-brand-green"></i>
                                 {t('businessDashboard.widgetLanguageTitle')}
                             </h2>
-                            <select
-                                aria-label={t('businessDashboard.widgetLanguageTitle')}
+                            <WidgetLanguageSelect
                                 value={widgetLang}
-                                onChange={(e) => setWidgetLang(e.target.value)}
-                                className="w-full p-2 sm:p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                            >
-                                <option value="auto">🌐 {t('businessDashboard.widgetLangAuto')}</option>
-                                <option value="es">🇪🇸 Español</option>
-                                <option value="en">🇬🇧 English</option>
-                                <option value="fr">🇫🇷 Français</option>
-                                <option value="de">🇩🇪 Deutsch</option>
-                                <option value="it">🇮🇹 Italiano</option>
-                                <option value="pt">🇵🇹 Português</option>
-                                <option value="ca">🇦🇩 Català</option>
-                                <option value="zh-CN">🇨🇳 中文</option>
-                                <option value="sv">🇸🇪 Svenska</option>
-                                <option value="pl">🇵🇱 Polski</option>
-                                <option value="ja">🇯🇵 日本語</option>
-                                <option value="ko">🇰🇷 한국어</option>
-                                <option value="nl">🇳🇱 Nederlands</option>
-                                <option value="ru">🇷🇺 Русский</option>
-                                <option value="ar">🇸🇦 العربية</option>
-                            </select>
+                                onChange={setWidgetLang}
+                                autoLabel={t('businessDashboard.widgetLangAuto')}
+                            />
                         </div>
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 flex flex-col">
                             <h2 className="text-sm sm:text-base font-bold mb-2">{t('businessDashboard.step4GetCode')}</h2>

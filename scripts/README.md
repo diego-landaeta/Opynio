@@ -123,9 +123,15 @@ SUPABASE_PAT=sbp_xxx   # Settings → Access Tokens en supabase.com
 
 | Script | Qué hace |
 | - | - |
-| `_deploy-edge-function.cjs` | Despliega una Edge Function vía Supabase Management API usando PAT |
-| `_deploy-edge-multipart.cjs` | Variante multipart para functions con dependencias adicionales |
-| `_get-deployed-code.cjs` | Descarga el código actualmente desplegado de una Edge Function para inspeccionar |
+| `_deploy-edge-multipart.cjs` | **PREFERIDO**. Deploya Edge Function vía `POST /functions/deploy?slug=...` con multipart upload. Acepta TS plano y respeta `verify_jwt`. CLI: `node scripts/_deploy-edge-multipart.cjs <slug> [verify_jwt=true\|false]` |
+| `_deploy-edge-function.cjs` | ⚠️ **DEPRECATED** — usa `PATCH /functions/{slug}` con body TS que el endpoint espera como ESZIP binary. Produce BOOT_ERROR y fuerza `verify_jwt=true`. **NO USAR**, mantener sólo como referencia histórica. |
+| `_get-deployed-code.cjs` | Descarga el body actualmente desplegado de una Edge Function. CLI: `node scripts/_get-deployed-code.cjs <slug>` |
+
+⚠️ **Gotcha — `verify_jwt`**:
+
+- Functions llamadas por **frontend autenticado** (con sesión Supabase user) → `verify_jwt: true`
+- Functions llamadas por **widgets embebidos en webs de terceros** (solo con `apikey` anon, sin JWT user) → `verify_jwt: false` (ej: `widget-proxy`)
+- Cambiar verify_jwt en un deploy puede romper clientes que no envían `Authorization: Bearer <jwt>`
 
 ### Enriquecimiento de datos
 
