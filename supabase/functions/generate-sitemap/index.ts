@@ -343,6 +343,22 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
+  // Hindi (paths en inglés ASCII — hi.ts copia las paths de en.ts)
+  hi: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
 };
 
 // Mapea código de país URL → idioma para paths
@@ -353,7 +369,8 @@ const countryToLanguage: Record<string, string> = {
   'pa': 'es', 'uy': 'es',
   // Países anglófonos (US/CA → en, GB/IE → gb, AU → au)
   'en': 'en', 'us': 'en', 'ca': 'en', 'ph': 'en',
-  'gb': 'gb', 'ie': 'gb', 'sg': 'gb', 'nz': 'gb', 'za': 'gb', 'in': 'gb', 'ng': 'gb',
+  'gb': 'gb', 'ie': 'gb', 'sg': 'gb', 'nz': 'gb', 'za': 'gb', 'ng': 'gb',
+  'in': 'hi', // India → hindi
   'au': 'au',
   // Portugués (BR y PT separados — vocabulario distinto)
   'br': 'br', 'pt': 'pt',

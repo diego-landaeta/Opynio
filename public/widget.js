@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.4.8
+ * Opynio Widget Loader v6.4.9
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -629,6 +629,7 @@
         pl: { reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
         vi: { reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
         bn: { reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
+        hi: { reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
     };
 
     async function getStrings(lang) {

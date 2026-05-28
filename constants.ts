@@ -120,6 +120,7 @@ export const LANGUAGES = [
   { code: 'fa', name: 'فارسی', flag: 'https://flagcdn.com/ir.svg' },
   { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/vn.svg' },
   { code: 'bn', name: 'বাংলা', flag: 'https://flagcdn.com/bd.svg' },
+  { code: 'hi', name: 'हिन्दी', flag: 'https://flagcdn.com/in.svg' },
   { code: 'br', name: 'Português (BR)', flag: 'https://flagcdn.com/br.svg' },
   { code: 'pt', name: 'Português (PT)', flag: 'https://flagcdn.com/pt.svg' },
   { code: 'ca', name: 'Català', flag: 'https://flagcdn.com/ad.svg' },
@@ -268,6 +269,7 @@ export const APP_LANGUAGES = [
   { code: 'ir', name: 'ایران', flag: 'https://flagcdn.com/ir.svg', disabled: false },
   { code: 'vn', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg', disabled: false },
   { code: 'bd', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg', disabled: false },
+  { code: 'in', name: 'भारत', flag: 'https://flagcdn.com/in.svg', disabled: false },
 ];
 
 

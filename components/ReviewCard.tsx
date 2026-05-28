@@ -205,6 +205,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             fa: 'fa-IR',
             vi: 'vi-VN',
             bn: 'bn-BD',
+            hi: 'hi-IN',
             es: 'es-ES',
             fr: 'fr-FR',
             de: 'de-DE',

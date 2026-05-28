@@ -255,6 +255,7 @@ const GOOGLE_LANG_CODES: { [key: string]: string } = {
     'fa': 'fa',
     'vi': 'vi',
     'bn': 'bn',
+    'hi': 'hi',
     'br': 'pt',
     'pt': 'pt',
     'fr': 'fr',
