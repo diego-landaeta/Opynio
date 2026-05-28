@@ -1000,6 +1000,8 @@ export default {
     invitationsHistoryTitle: 'تاریخچه دعوت‌نامه‌ها',
     invitationsHistorySubtitle: 'وضعیت دعوت‌نامه‌هایی که ارسال می‌کنید اینجا نمایش داده خواهد شد.',
     webWidgetsTitle: 'ویجت‌های وب‌سایت',
+    widgetSeoFriendly: 'بهینه برای SEO',
+    widgetSeoNotFriendly: 'کمتر بهینه برای SEO',
     widgetsLockFeatureName: 'ویجت‌های وب',
     widgetsLockSubtitle: 'برای ادغام نظرات Opynio مستقیما در وب‌سایت خود و افزایش اعتماد بازدیدکنندگان، پلان خود را ارتقا دهید.',
     step1ChooseWidget: 'مرحله 1: انتخاب ویجت',

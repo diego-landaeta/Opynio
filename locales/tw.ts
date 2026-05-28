@@ -1000,6 +1000,8 @@ export default {
     invitationsHistoryTitle: '邀請記錄',
     invitationsHistorySubtitle: '您發送的邀請狀態將顯示在此處。',
     webWidgetsTitle: '網站小工具',
+    widgetSeoFriendly: 'SEO 友善',
+    widgetSeoNotFriendly: '對 SEO 較不友善',
     widgetsLockFeatureName: '網站小工具',
     widgetsLockSubtitle: '升級您的方案，將您的 Opynio 評論直接整合到您的網站並增加訪客的信任。',
     step1ChooseWidget: '步驟1：選擇小工具',

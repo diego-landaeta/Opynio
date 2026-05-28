@@ -997,6 +997,8 @@ export default {
     invitationsHistoryTitle: 'Inbjudningshistorik',
     invitationsHistorySubtitle: 'Statusen för inbjudningarna du skickar visas här.',
     webWidgetsTitle: 'Webbplats-widgets',
+    widgetSeoFriendly: 'SEO-vänlig',
+    widgetSeoNotFriendly: 'Mindre SEO-vänlig',
     widgetsLockFeatureName: 'Webb-widgets',
     widgetsLockSubtitle: 'Uppgradera din plan för att integrera dina Opynio-recensioner direkt på din webbplats och öka besökarnas förtroende.',
     step1ChooseWidget: 'Steg 1: Välj en widget',

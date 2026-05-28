@@ -999,6 +999,8 @@ export default {
     invitationsHistoryTitle: 'Invitations History',
     invitationsHistorySubtitle: 'The status of the invitations you send will appear here.',
     webWidgetsTitle: 'Website Widgets',
+    widgetSeoFriendly: 'SEO के अनुकूल',
+    widgetSeoNotFriendly: 'कम SEO के अनुकूल',
     widgetsLockFeatureName: 'Web Widgets',
     widgetsLockSubtitle: 'Upgrade your plan to integrate your Opynio reviews directly into your website and increase visitor trust.',
     step1ChooseWidget: 'Step 1: Choose a widget',

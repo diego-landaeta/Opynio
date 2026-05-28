@@ -1000,6 +1000,8 @@ export default {
     invitationsHistoryTitle: 'Sejarah Jemputan',
     invitationsHistorySubtitle: 'Status jemputan yang anda hantar akan muncul di sini.',
     webWidgetsTitle: 'Widget Laman Web',
+    widgetSeoFriendly: 'Mesra SEO',
+    widgetSeoNotFriendly: 'Kurang mesra SEO',
     widgetsLockFeatureName: 'Widget Web',
     widgetsLockSubtitle: 'Naik taraf pelan anda untuk mengintegrasikan ulasan Opynio anda terus ke laman web anda dan meningkatkan kepercayaan pelawat.',
     step1ChooseWidget: 'Langkah 1: Pilih widget',

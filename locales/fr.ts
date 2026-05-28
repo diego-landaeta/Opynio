@@ -999,6 +999,8 @@ export default {
     invitationsHistoryTitle: 'Historique des Invitations',
     invitationsHistorySubtitle: 'Le statut des invitations que vous envoyez apparaîtra ici.',
     webWidgetsTitle: 'Widgets pour Votre Site Web',
+    widgetSeoFriendly: 'Optimisé pour le SEO',
+    widgetSeoNotFriendly: 'Peu optimisé pour le SEO',
     widgetsLockFeatureName: 'Widgets Web',
     widgetsLockSubtitle: 'Mettez à niveau votre plan pour intégrer vos avis Opynio directement sur votre site web et augmenter la confiance de vos visiteurs.',
     step1ChooseWidget: 'Étape 1 : Choisissez un widget',

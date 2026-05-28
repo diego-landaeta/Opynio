@@ -970,6 +970,8 @@ export default {
     invitationsHistoryTitle: '邀请历史',
     invitationsHistorySubtitle: '您发送的邀请状态将显示在此处。',
     webWidgetsTitle: '网站小部件',
+    widgetSeoFriendly: 'SEO 友好',
+    widgetSeoNotFriendly: '对 SEO 不太友好',
     widgetsLockFeatureName: '网站小部件',
     widgetsLockSubtitle: '升级您的方案，将您的 Opynio 评论直接集成到您的网站并增加访问者的信任。',
     step1ChooseWidget: '步骤1：选择小部件',

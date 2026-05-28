@@ -997,6 +997,8 @@ export default {
     invitationsHistoryTitle: 'Historia zaproszeń',
     invitationsHistorySubtitle: 'Status zaproszeń, które wysyłasz, pojawi się tutaj.',
     webWidgetsTitle: 'Widgety strony internetowej',
+    widgetSeoFriendly: 'Przyjazny SEO',
+    widgetSeoNotFriendly: 'Mniej przyjazny SEO',
     widgetsLockFeatureName: 'Widgety internetowe',
     widgetsLockSubtitle: 'Ulepsz swój plan, aby zintegrować swoje opinie Opynio bezpośrednio na stronie internetowej i zwiększyć zaufanie odwiedzających.',
     step1ChooseWidget: 'Krok 1: Wybierz widget',

@@ -997,6 +997,8 @@ export default {
     invitationsHistoryTitle: '招待履歴',
     invitationsHistorySubtitle: '送信した招待のステータスがここに表示されます。',
     webWidgetsTitle: 'ウェブサイト用ウィジェット',
+    widgetSeoFriendly: 'SEOフレンドリー',
+    widgetSeoNotFriendly: 'SEOにあまり最適化されていない',
     widgetsLockFeatureName: 'ウェブウィジェット',
     widgetsLockSubtitle: 'プランをアップグレードして、Opynioレビューをウェブサイトに直接統合し、訪問者の信頼を高めましょう。',
     step1ChooseWidget: 'ステップ1: ウィジェットを選択',

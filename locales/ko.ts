@@ -998,6 +998,8 @@ export default {
     invitationsHistoryTitle: '초대 기록',
     invitationsHistorySubtitle: '보낸 초대의 상태가 여기에 표시됩니다.',
     webWidgetsTitle: '웹사이트 위젯',
+    widgetSeoFriendly: 'SEO 친화적',
+    widgetSeoNotFriendly: '덜 SEO 친화적',
     widgetsLockFeatureName: '웹 위젯',
     widgetsLockSubtitle: '플랜을 업그레이드하여 Opynio 리뷰를 웹사이트에 직접 통합하고 방문자의 신뢰를 높이세요.',
     step1ChooseWidget: '1단계: 위젯 선택',

@@ -999,6 +999,8 @@ export default {
     invitationsHistoryTitle: 'Historial d\'Invitacions',
     invitationsHistorySubtitle: 'L\'estat de les invitacions que enviïs apareixerà aquí.',
     webWidgetsTitle: 'Ginys per a la teva Web',
+    widgetSeoFriendly: 'Optimitzat per SEO',
+    widgetSeoNotFriendly: 'Poc optimitzat per SEO',
     widgetsLockFeatureName: 'Ginys Web',
     widgetsLockSubtitle: 'Millora el teu pla per integrar les teves ressenyes d\'Opynio directament a la teva web i augmentar la confiança dels teus visitants.',
     step1ChooseWidget: 'Pas 1: Tria un giny',

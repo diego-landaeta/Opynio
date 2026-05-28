@@ -1001,6 +1001,8 @@ export default {
     invitationsHistoryTitle: 'سجل الدعوات',
     invitationsHistorySubtitle: 'ستظهر هنا حالة الدعوات التي ترسلها.',
     webWidgetsTitle: 'ودجات الموقع الإلكتروني',
+    widgetSeoFriendly: 'صديق لمحركات البحث',
+    widgetSeoNotFriendly: 'أقل ملاءمة لمحركات البحث',
     widgetsLockFeatureName: 'ودجات الويب',
     widgetsLockSubtitle: 'قم بترقية خطتك لدمج تقييمات Opynio مباشرة في موقعك وزيادة ثقة الزوار.',
     step1ChooseWidget: 'الخطوة 1: اختر ودجاً',

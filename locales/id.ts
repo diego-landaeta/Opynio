@@ -1000,6 +1000,8 @@ export default {
     invitationsHistoryTitle: 'Riwayat Undangan',
     invitationsHistorySubtitle: 'Status undangan yang Anda kirim akan muncul di sini.',
     webWidgetsTitle: 'Widget Situs Web',
+    widgetSeoFriendly: 'Ramah SEO',
+    widgetSeoNotFriendly: 'Kurang ramah SEO',
     widgetsLockFeatureName: 'Widget Web',
     widgetsLockSubtitle: 'Tingkatkan paket Anda untuk mengintegrasikan ulasan Opynio langsung ke situs web Anda dan meningkatkan kepercayaan pengunjung.',
     step1ChooseWidget: 'Langkah 1: Pilih widget',

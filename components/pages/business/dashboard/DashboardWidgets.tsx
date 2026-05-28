@@ -214,6 +214,16 @@ const DashboardWidgets: React.FC = () => {
                                                 <i className="fa-solid fa-check"></i>
                                             </span>
                                         )}
+                                        {widget.type === 'stars-carousel' && (
+                                            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[9px] sm:text-[10px] font-bold leading-none border border-emerald-200 dark:border-emerald-800">
+                                                {t('businessDashboard.widgetSeoFriendly')}
+                                            </span>
+                                        )}
+                                        {widget.type === 'large-carousel' && (
+                                            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[9px] sm:text-[10px] font-bold leading-none border border-amber-200 dark:border-amber-800">
+                                                {t('businessDashboard.widgetSeoNotFriendly')}
+                                            </span>
+                                        )}
                                         <i className={`fa-solid ${widget.icon} text-2xl sm:text-3xl ${active ? 'text-brand-green' : 'text-gray-400 dark:text-gray-500 group-hover:text-brand-green/70'}`} aria-hidden="true"></i>
                                         <span className={`text-[11px] sm:text-xs font-semibold text-center leading-tight ${active ? 'text-brand-green' : 'text-gray-700 dark:text-gray-200'}`}>
                                             {t(`businessDashboard.widgetNames.${widget.name}`)}

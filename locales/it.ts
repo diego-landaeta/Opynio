@@ -999,6 +999,8 @@ export default {
     invitationsHistoryTitle: 'Cronologia Inviti',
     invitationsHistorySubtitle: 'Lo stato degli inviti che invii apparirà qui.',
     webWidgetsTitle: 'Widget per il Tuo Sito Web',
+    widgetSeoFriendly: 'Ottimizzato per il SEO',
+    widgetSeoNotFriendly: 'Poco ottimizzato per il SEO',
     widgetsLockFeatureName: 'Widget Web',
     widgetsLockSubtitle: 'Aggiorna il tuo piano per integrare le tue recensioni Opynio direttamente nel tuo sito web e aumentare la fiducia dei tuoi visitatori.',
     step1ChooseWidget: 'Passo 1: Scegli un widget',

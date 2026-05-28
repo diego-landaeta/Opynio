@@ -998,6 +998,8 @@ export default {
     invitationsHistoryTitle: 'История приглашений',
     invitationsHistorySubtitle: 'Здесь будет отображаться статус отправленных приглашений.',
     webWidgetsTitle: 'Веб-виджеты',
+    widgetSeoFriendly: 'SEO-дружественный',
+    widgetSeoNotFriendly: 'Менее SEO-дружественный',
     widgetsLockFeatureName: 'Веб-виджеты',
     widgetsLockSubtitle: 'Улучшите тариф, чтобы встроить отзывы Opynio прямо на ваш сайт и повысить доверие посетителей.',
     step1ChooseWidget: 'Шаг 1: Выберите виджет',

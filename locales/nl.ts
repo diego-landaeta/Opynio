@@ -998,6 +998,8 @@ export default {
     invitationsHistoryTitle: 'Geschiedenis van uitnodigingen',
     invitationsHistorySubtitle: 'De status van de uitnodigingen die je verzendt verschijnt hier.',
     webWidgetsTitle: 'Websitewidgets',
+    widgetSeoFriendly: 'SEO-vriendelijk',
+    widgetSeoNotFriendly: 'Minder SEO-vriendelijk',
     widgetsLockFeatureName: 'Webwidgets',
     widgetsLockSubtitle: 'Upgrade je abonnement om je Opynio-beoordelingen rechtstreeks op je website te integreren en het vertrouwen van bezoekers te vergroten.',
     step1ChooseWidget: 'Stap 1: Kies een widget',

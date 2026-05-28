@@ -1000,6 +1000,8 @@ export default {
     invitationsHistoryTitle: 'ประวัติคำเชิญ',
     invitationsHistorySubtitle: 'สถานะของคำเชิญที่คุณส่งจะปรากฏที่นี่',
     webWidgetsTitle: 'วิดเจ็ตสำหรับเว็บไซต์',
+    widgetSeoFriendly: 'เป็นมิตรกับ SEO',
+    widgetSeoNotFriendly: 'เป็นมิตรกับ SEO น้อยกว่า',
     widgetsLockFeatureName: 'วิดเจ็ตสำหรับเว็บ',
     widgetsLockSubtitle: 'อัปเกรดแผนของคุณเพื่อรวมรีวิว Opynio เข้ากับเว็บไซต์ของคุณโดยตรงและเพิ่มความไว้วางใจของผู้เยี่ยมชม',
     step1ChooseWidget: 'ขั้นตอนที่ 1: เลือกวิดเจ็ต',
