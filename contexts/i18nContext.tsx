@@ -34,8 +34,9 @@ import faTranslations from "../locales/fa";
 import viTranslations from "../locales/vi";
 import bnTranslations from "../locales/bn";
 import hiTranslations from "../locales/hi";
+import tlTranslations from "../locales/tl";
 
-export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi";
+export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi" | "tl";
 
 interface I18nContextType {
   language: Language;
@@ -70,6 +71,7 @@ export const translations = {
   vi: viTranslations,
   bn: bnTranslations,
   hi: hiTranslations,
+  tl: tlTranslations,
 };
 
 export const pathTranslations: {
@@ -99,6 +101,7 @@ export const pathTranslations: {
   vi: typeof viTranslations.paths;
   bn: typeof bnTranslations.paths;
   hi: typeof hiTranslations.paths;
+  tl: typeof tlTranslations.paths;
 } = {
   es: esTranslations.paths,
   en: enTranslations.paths,
@@ -126,6 +129,7 @@ export const pathTranslations: {
   vi: viTranslations.paths,
   bn: bnTranslations.paths,
   hi: hiTranslations.paths,
+  tl: tlTranslations.paths,
 };
 
 // Detecta el idioma al que pertenece un segmento del path comparándolo
@@ -216,6 +220,7 @@ export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
     vi: 'vn',
     bn: 'bd',
     hi: 'in',
+    tl: 'ph',
 };
 
 // Maps a country code from the URL to a language code for path generation.
@@ -236,7 +241,7 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
         case 'IN':
             return 'hi';
         case 'PH':
-            return 'en';
+            return 'tl';
         case 'AU':
             return 'au';
         case 'KR':
@@ -336,7 +341,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({
     // Initialize from localStorage or default to 'es'
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('opynio_language');
-      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi'].includes(saved)) {
+      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi', 'tl'].includes(saved)) {
         return saved as Language;
       }
     }
@@ -552,6 +557,7 @@ export function getLocaleFromLanguage(language: Language): string {
     vi: 'vi-VN',
     bn: 'bn-BD',
     hi: 'hi-IN',
+    tl: 'tl-PH',
   };
   return localeMap[language] || 'es-ES';
 }

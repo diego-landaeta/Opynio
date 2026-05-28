@@ -359,6 +359,22 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
+  // Filipino/Tagalog (paths en inglés ASCII — tl.ts copia las paths de en.ts)
+  tl: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
 };
 
 // Mapea código de país URL → idioma para paths
@@ -368,7 +384,8 @@ const countryToLanguage: Record<string, string> = {
   'pe': 'es', 've': 'es', 'ec': 'es', 'gt': 'es', 'cr': 'es',
   'pa': 'es', 'uy': 'es',
   // Países anglófonos (US/CA → en, GB/IE → gb, AU → au)
-  'en': 'en', 'us': 'en', 'ca': 'en', 'ph': 'en',
+  'en': 'en', 'us': 'en', 'ca': 'en',
+  'ph': 'tl', // Philippines → Filipino/Tagalog
   'gb': 'gb', 'ie': 'gb', 'sg': 'gb', 'nz': 'gb', 'za': 'gb', 'ng': 'gb',
   'in': 'hi', // India → hindi
   'au': 'au',

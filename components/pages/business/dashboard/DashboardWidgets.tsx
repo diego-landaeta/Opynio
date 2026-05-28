@@ -37,6 +37,7 @@ const WIDGET_LANGUAGES = [
     { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/vn.svg' },
     { code: 'bn', name: 'বাংলা', flag: 'https://flagcdn.com/bd.svg' },
     { code: 'hi', name: 'हिन्दी', flag: 'https://flagcdn.com/in.svg' },
+    { code: 'tl', name: 'Filipino', flag: 'https://flagcdn.com/ph.svg' },
 ];
 
 const WidgetLanguageSelect: React.FC<{ value: string; onChange: (v: string) => void; autoLabel: string }> = ({ value, onChange, autoLabel }) => {

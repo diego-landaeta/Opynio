@@ -225,6 +225,7 @@ const Meta: React.FC<MetaProps> = ({
         { code: 'vi', path: `/vn${pathWithoutLang}` },       // Tiếng Việt (Vietnam)
         { code: 'bn', path: `/bd${pathWithoutLang}` },       // বাংলা (Bangladesh)
         { code: 'hi', path: `/in${pathWithoutLang}` },       // हिन्दी (India)
+        { code: 'tl', path: `/ph${pathWithoutLang}` },       // Filipino (Philippines)
       ];
 
       // Añadir hreflang para cada idioma
