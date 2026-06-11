@@ -118,7 +118,7 @@ const MobileLanguageSelector: React.FC<{ onClose: () => void }> = ({ onClose }) 
                 </div>
             </button>
             {isOpen && (
-                <div className="pl-8 pt-1 space-y-1">
+                <div className="pl-8 pt-1 space-y-1 max-h-48 overflow-y-auto">
                     {LANGUAGES.map(lang => (
                         <button
                             key={lang.code}
@@ -683,7 +683,7 @@ const Header: React.FC = () => {
     );
     
     const LanguageDropdownPanel: React.FC = () => (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-100 dark:border-zinc-700">
+        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-100 dark:border-zinc-700 max-h-60 overflow-y-auto">
             {LANGUAGES.map(lang => (
                 <button 
                     key={lang.code}

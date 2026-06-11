@@ -1,4 +1,4 @@
-// locales/de.ts
+// locales/at.ts
 export default {
   paths: {
     explore: "entdecken",

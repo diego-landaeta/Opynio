@@ -473,6 +473,9 @@ export default {
     SE: "瑞典",
     PL: "波蘭",
     JP: "日本",
+    SG: "新加坡",
+    IE: "愛爾蘭",
+    AT: "奧地利",
   },
   common: {
     home: "首頁",

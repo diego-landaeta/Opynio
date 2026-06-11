@@ -471,7 +471,10 @@ export default {
     SE: "Thụy Điển",
     PL: "Ba Lan",
     JP: "Nhật Bản",
+    SG: "Singapore",
+    IE: "Ireland",
     VN: "Việt Nam",
+    AT: "Áo",
   },
   common: {
     home: "Trang chủ",

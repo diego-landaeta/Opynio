@@ -741,7 +741,7 @@ const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
     tl: { ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', writeReview: 'Sumulat ng review', reviewsFor: 'Mga review para sa', googleReview: 'Google review', opynioReview: 'Opynio review', seeAllReviews: 'Tingnan lahat ng review' },
 };
 
-const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh' };
+const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh', 'gb': 'en', 'au': 'en', 'sg': 'en', 'ie': 'en', 'at': 'de' };
 
 export function getPreviewStrings(lang: string): PreviewStrings {
     const normalized = LANG_NORMALIZE[lang] || lang;
@@ -786,7 +786,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.5.0';
+const EMBED_VERSION = 'v6.5.2';
 
 export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';

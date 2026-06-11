@@ -480,6 +480,9 @@ export default {
     SE: "Suecia",
     PL: "Polonia",
     JP: "Japón",
+    SG: "Singapur",
+    IE: "Irlanda",
+    AT: "Austria",
   },
   common: {
     home: "Inicio",

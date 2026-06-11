@@ -375,6 +375,55 @@ const pathsByLanguage: Record<string, PathTranslations> = {
     caseStudies: 'case-studies',
     widgets: 'widgets',
   },
+  // Deutsch (Österreich) — variante alemana con bandera AT (at.ts clona de de;
+  // mismos slugs SEO, las diferencias austriacas están en el contenido UI)
+  at: {
+    explore: 'entdecken',
+    businesses: 'unternehmen',
+    business: 'unternehmen',
+    community: 'gemeinschaft',
+    whatsNew: 'neuigkeiten',
+    pricing: 'preise',
+    support: 'support',
+    about: 'ueber-uns',
+    faq: 'faq',
+    howItWorks: 'wie-es-funktioniert',
+    forBusinesses: 'fuer-unternehmen',
+    caseStudies: 'fallstudien',
+    widgets: 'widgets',
+  },
+  // English (Singapore) — variante inglesa con bandera SG (sg.ts clona de gb)
+  sg: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
+  // English (Ireland) — variante inglesa con bandera IE (ie.ts clona de gb)
+  ie: {
+    explore: 'explore',
+    businesses: 'businesses',
+    business: 'business',
+    community: 'community',
+    whatsNew: 'whats-new',
+    pricing: 'pricing',
+    support: 'support',
+    about: 'about',
+    faq: 'faq',
+    howItWorks: 'how-it-works',
+    forBusinesses: 'for-businesses',
+    caseStudies: 'case-studies',
+    widgets: 'widgets',
+  },
 };
 
 // Mapea código de país URL → idioma para paths
@@ -386,7 +435,7 @@ const countryToLanguage: Record<string, string> = {
   // Países anglófonos (US/CA → en, GB/IE → gb, AU → au)
   'en': 'en', 'us': 'en', 'ca': 'en',
   'ph': 'tl', // Philippines → Filipino/Tagalog
-  'gb': 'gb', 'ie': 'gb', 'sg': 'gb', 'nz': 'gb', 'za': 'gb', 'ng': 'gb',
+  'gb': 'gb', 'ie': 'ie', 'sg': 'sg', 'nz': 'gb', 'za': 'gb', 'ng': 'gb',
   'in': 'hi', // India → hindi
   'au': 'au',
   // Portugués (BR y PT separados — vocabulario distinto)
@@ -394,6 +443,8 @@ const countryToLanguage: Record<string, string> = {
   // Otros idiomas
   'fr': 'fr',
   'de': 'de',
+  'at': 'at', // Austria - alemán austriaco
+
   'it': 'it',
   'ca': 'ca', // Andorra - catalán
   'cn': 'cn',
@@ -444,7 +495,7 @@ serve(async (_req) => {
     const countryCodes = [
       'es', 'en', 'br', 'pt', 'ca', 'fr', 'de', 'it',
       'mx', 'ar', 'co', 'pe', 've', 'cl', 'ec', 'gt',
-      'cr', 'pa', 'uy', 'us', 'gb', 'ie', 'sg', 'nz', 'za', 'in', 'ph', 'ng', 'au', 'ca',
+      'cr', 'pa', 'uy', 'us', 'gb', 'ie', 'sg', 'nz', 'za', 'in', 'ph', 'ng', 'au', 'ca', 'at',
       'cn', 'se', 'pl', 'jp', 'kr', 'ae', 'sa', 'kw', 'eg',
       'nl', 'ru', 'id', 'my', 'tw', 'hk', 'th', 'ir', 'vn', 'bd'
     ];
@@ -516,6 +567,7 @@ serve(async (_req) => {
         'PT': 'pt',  // Portugal
         'FR': 'fr',  // France
         'DE': 'de',  // Germany
+        'AT': 'at',  // Austria
         'IT': 'it',  // Italy
         'AD': 'ca',  // Andorra (Catalán)
         'CN': 'cn',  // China

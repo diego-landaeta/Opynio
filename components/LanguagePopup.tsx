@@ -111,48 +111,78 @@ const popupTranslations: Record<string, {
         changeToLanguage: '{language}に切り替え',
         keepCurrentLanguage: '現在の言語を維持',
     },
+    sg: {
+        welcome: 'Welcome to Opynio!',
+        selectLanguage: 'Select your preferred language',
+        changeLanguageHint: 'You can change the language anytime from the footer',
+        countryDetected: 'You have entered Opynio {country}',
+        changeToLanguage: 'Switch to {language}',
+        keepCurrentLanguage: 'Keep current language',
+    },
+    ie: {
+        welcome: 'Welcome to Opynio!',
+        selectLanguage: 'Select your preferred language',
+        changeLanguageHint: 'You can change the language anytime from the footer',
+        countryDetected: 'You have entered Opynio {country}',
+        changeToLanguage: 'Switch to {language}',
+        keepCurrentLanguage: 'Keep current language',
+    },
+    at: {
+        welcome: 'Servus bei Opynio!',
+        selectLanguage: 'Wählen Sie Ihre bevorzugte Sprache',
+        changeLanguageHint: 'Sie können die Sprache jederzeit in der Fußzeile ändern',
+        countryDetected: 'Sie sind auf Opynio {country}',
+        changeToLanguage: 'Zu {language} wechseln',
+        keepCurrentLanguage: 'Aktuelle Sprache beibehalten',
+    },
 };
 
 // Language names in different languages
 const languageNames: Record<string, Record<string, string>> = {
-    es: { es: 'Español', en: 'Inglés (US)', gb: 'Inglés (UK)', au: 'Inglés (AU)', br: 'Portugués (BR)', pt: 'Portugués (PT)', fr: 'Francés', de: 'Alemán', it: 'Italiano', ca: 'Catalán', cn: 'Chino', sv: 'Sueco', pl: 'Polaco', ja: 'Japonés', vi: 'Vietnamita' },
-    en: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese', vi: 'Vietnamese' },
-    vi: { es: 'Tiếng Tây Ban Nha', en: 'Tiếng Anh (US)', gb: 'Tiếng Anh (UK)', au: 'Tiếng Anh (AU)', br: 'Tiếng Bồ Đào Nha (BR)', pt: 'Tiếng Bồ Đào Nha (PT)', fr: 'Tiếng Pháp', de: 'Tiếng Đức', it: 'Tiếng Ý', ca: 'Tiếng Catalan', cn: 'Tiếng Trung', sv: 'Tiếng Thụy Điển', pl: 'Tiếng Ba Lan', ja: 'Tiếng Nhật', vi: 'Tiếng Việt', bn: 'Tiếng Bengali' },
-    bn: { es: 'স্প্যানিশ', en: 'ইংরেজি (US)', gb: 'ইংরেজি (UK)', au: 'ইংরেজি (AU)', br: 'পর্তুগিজ (BR)', pt: 'পর্তুগিজ (PT)', fr: 'ফরাসি', de: 'জার্মান', it: 'ইতালিয়ান', ca: 'কাতালান', cn: 'চীনা', sv: 'সুইডিশ', pl: 'পোলিশ', ja: 'জাপানি', vi: 'ভিয়েতনামী', bn: 'বাংলা', hi: 'হিন্দি' },
-    hi: { es: 'स्पेनिश', en: 'अंग्रेज़ी (US)', gb: 'अंग्रेज़ी (UK)', au: 'अंग्रेज़ी (AU)', br: 'पुर्तगाली (BR)', pt: 'पुर्तगाली (PT)', fr: 'फ़्रेंच', de: 'जर्मन', it: 'इतालवी', ca: 'कैटलन', cn: 'चीनी', sv: 'स्वीडिश', pl: 'पोलिश', ja: 'जापानी', vi: 'वियतनामी', bn: 'बंगाली', hi: 'हिन्दी', tl: 'फ़िलिपिनो' },
-    tl: { es: 'Espanyol', en: 'Ingles (US)', gb: 'Ingles (UK)', au: 'Ingles (AU)', br: 'Portuges (BR)', pt: 'Portuges (PT)', fr: 'Pranses', de: 'Aleman', it: 'Italyano', ca: 'Catalan', cn: 'Tsino', sv: 'Suweko', pl: 'Polako', ja: 'Hapon', vi: 'Vietnames', bn: 'Bengali', hi: 'Hindi', tl: 'Filipino' },
-    gb: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
-    au: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
-    pt: { es: 'Espanhol', en: 'Inglês (US)', gb: 'Inglês (UK)', br: 'Português (BR)', pt: 'Português (PT)', fr: 'Francês', de: 'Alemão', it: 'Italiano', ca: 'Catalão', cn: 'Chinês', sv: 'Sueco', pl: 'Polonês', ja: 'Japonês' },
-    br: { es: 'Espanhol', en: 'Inglês (US)', gb: 'Inglês (UK)', br: 'Português (BR)', pt: 'Português (PT)', fr: 'Francês', de: 'Alemão', it: 'Italiano', ca: 'Catalão', cn: 'Chinês', sv: 'Sueco', pl: 'Polonês', ja: 'Japonês' },
-    fr: { es: 'Espagnol', en: 'Anglais (US)', gb: 'Anglais (UK)', br: 'Portugais (BR)', pt: 'Portugais (PT)', fr: 'Français', de: 'Allemand', it: 'Italien', ca: 'Catalan', cn: 'Chinois', sv: 'Suédois', pl: 'Polonais', ja: 'Japonais' },
-    de: { es: 'Spanisch', en: 'Englisch (US)', gb: 'Englisch (UK)', br: 'Portugiesisch (BR)', pt: 'Portugiesisch (PT)', fr: 'Französisch', de: 'Deutsch', it: 'Italienisch', ca: 'Katalanisch', cn: 'Chinesisch', sv: 'Schwedisch', pl: 'Polnisch', ja: 'Japanisch' },
-    it: { es: 'Spagnolo', en: 'Inglese (US)', gb: 'Inglese (UK)', br: 'Portoghese (BR)', pt: 'Portoghese (PT)', fr: 'Francese', de: 'Tedesco', it: 'Italiano', ca: 'Catalano', cn: 'Cinese', sv: 'Svedese', pl: 'Polacco', ja: 'Giapponese' },
-    ca: { es: 'Espanyol', en: 'Anglès (US)', gb: 'Anglès (UK)', br: 'Portuguès (BR)', pt: 'Portuguès (PT)', fr: 'Francès', de: 'Alemany', it: 'Italià', ca: 'Català', cn: 'Xinès', sv: 'Suec', pl: 'Polonès', ja: 'Japonès' },
-    zh: { es: '西班牙语', en: '英语 (US)', gb: '英语 (UK)', br: '葡萄牙语 (BR)', pt: '葡萄牙语 (PT)', fr: '法语', de: '德语', it: '意大利语', ca: '加泰罗尼亚语', cn: '中文', sv: '瑞典语', pl: '波兰语', ja: '日语' },
-    cn: { es: '西班牙语', en: '英语 (US)', gb: '英语 (UK)', br: '葡萄牙语 (BR)', pt: '葡萄牙语 (PT)', fr: '法语', de: '德语', it: '意大利语', ca: '加泰罗尼亚语', cn: '中文', sv: '瑞典语', pl: '波兰语', ja: '日语' },
-    sv: { es: 'Spanska', en: 'Engelska (US)', gb: 'Engelska (UK)', br: 'Portugisiska (BR)', pt: 'Portugisiska (PT)', fr: 'Franska', de: 'Tyska', it: 'Italienska', ca: 'Katalanska', cn: 'Kinesiska', sv: 'Svenska', pl: 'Polska', ja: 'Japanska' },
-    pl: { es: 'Hiszpański', en: 'Angielski (US)', gb: 'Angielski (UK)', br: 'Portugalski (BR)', pt: 'Portugalski (PT)', fr: 'Francuski', de: 'Niemiecki', it: 'Włoski', ca: 'Kataloński', cn: 'Chiński', sv: 'Szwedzki', pl: 'Polski', ja: 'Japoński' },
-    ja: { es: 'スペイン語', en: '英語 (US)', gb: '英語 (UK)', br: 'ポルトガル語 (BR)', pt: 'ポルトガル語 (PT)', fr: 'フランス語', de: 'ドイツ語', it: 'イタリア語', ca: 'カタルーニャ語', cn: '中国語', sv: 'スウェーデン語', pl: 'ポーランド語', ja: '日本語' },
+    es: { es: 'Español', en: 'Inglés (US)', gb: 'Inglés (UK)', au: 'Inglés (AU)', sg: 'Inglés (SG)', ie: 'Inglés (IE)', br: 'Portugués (BR)', pt: 'Portugués (PT)', fr: 'Francés', de: 'Alemán', at: 'Alemán (AT)', it: 'Italiano', ca: 'Catalán', cn: 'Chino', sv: 'Sueco', pl: 'Polaco', ja: 'Japonés', vi: 'Vietnamita' },
+    en: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', sg: 'English (SG)', ie: 'English (IE)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', at: 'German (AT)', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese', vi: 'Vietnamese' },
+    vi: { es: 'Tiếng Tây Ban Nha', en: 'Tiếng Anh (US)', gb: 'Tiếng Anh (UK)', au: 'Tiếng Anh (AU)', sg: 'Tiếng Anh (SG)', ie: 'Tiếng Anh (IE)', br: 'Tiếng Bồ Đào Nha (BR)', pt: 'Tiếng Bồ Đào Nha (PT)', fr: 'Tiếng Pháp', de: 'Tiếng Đức', it: 'Tiếng Ý', ca: 'Tiếng Catalan', cn: 'Tiếng Trung', sv: 'Tiếng Thụy Điển', pl: 'Tiếng Ba Lan', ja: 'Tiếng Nhật', vi: 'Tiếng Việt', bn: 'Tiếng Bengali' },
+    bn: { es: 'স্প্যানিশ', en: 'ইংরেজি (US)', gb: 'ইংরেজি (UK)', au: 'ইংরেজি (AU)', sg: 'ইংরেজি (SG)', ie: 'ইংরেজি (IE)', br: 'পর্তুগিজ (BR)', pt: 'পর্তুগিজ (PT)', fr: 'ফরাসি', de: 'জার্মান', it: 'ইতালিয়ান', ca: 'কাতালান', cn: 'চীনা', sv: 'সুইডিশ', pl: 'পোলিশ', ja: 'জাপানি', vi: 'ভিয়েতনামী', bn: 'বাংলা', hi: 'হিন্দি' },
+    hi: { es: 'स्पेनिश', en: 'अंग्रेज़ी (US)', gb: 'अंग्रेज़ी (UK)', au: 'अंग्रेज़ी (AU)', sg: 'अंग्रेज़ी (SG)', ie: 'अंग्रेज़ी (IE)', br: 'पुर्तगाली (BR)', pt: 'पुर्तगाली (PT)', fr: 'फ़्रेंच', de: 'जर्मन', it: 'इतालवी', ca: 'कैटलन', cn: 'चीनी', sv: 'स्वीडिश', pl: 'पोलिश', ja: 'जापानी', vi: 'वियतनामी', bn: 'बंगाली', hi: 'हिन्दी', tl: 'फ़िलिपिनो' },
+    tl: { es: 'Espanyol', en: 'Ingles (US)', gb: 'Ingles (UK)', au: 'Ingles (AU)', sg: 'Ingles (SG)', ie: 'Ingles (IE)', br: 'Portuges (BR)', pt: 'Portuges (PT)', fr: 'Pranses', de: 'Aleman', it: 'Italyano', ca: 'Catalan', cn: 'Tsino', sv: 'Suweko', pl: 'Polako', ja: 'Hapon', vi: 'Vietnames', bn: 'Bengali', hi: 'Hindi', tl: 'Filipino' },
+    gb: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', sg: 'English (SG)', ie: 'English (IE)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
+    au: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', sg: 'English (SG)', ie: 'English (IE)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
+    pt: { es: 'Espanhol', en: 'Inglês (US)', gb: 'Inglês (UK)', au: 'Inglês (AU)', sg: 'Inglês (SG)', ie: 'Inglês (IE)', br: 'Português (BR)', pt: 'Português (PT)', fr: 'Francês', de: 'Alemão', it: 'Italiano', ca: 'Catalão', cn: 'Chinês', sv: 'Sueco', pl: 'Polonês', ja: 'Japonês' },
+    br: { es: 'Espanhol', en: 'Inglês (US)', gb: 'Inglês (UK)', au: 'Inglês (AU)', sg: 'Inglês (SG)', ie: 'Inglês (IE)', br: 'Português (BR)', pt: 'Português (PT)', fr: 'Francês', de: 'Alemão', it: 'Italiano', ca: 'Catalão', cn: 'Chinês', sv: 'Sueco', pl: 'Polonês', ja: 'Japonês' },
+    fr: { es: 'Espagnol', en: 'Anglais (US)', gb: 'Anglais (UK)', au: 'Anglais (AU)', sg: 'Anglais (SG)', ie: 'Anglais (IE)', br: 'Portugais (BR)', pt: 'Portugais (PT)', fr: 'Français', de: 'Allemand', it: 'Italien', ca: 'Catalan', cn: 'Chinois', sv: 'Suédois', pl: 'Polonais', ja: 'Japonais' },
+    de: { es: 'Spanisch', en: 'Englisch (US)', gb: 'Englisch (UK)', au: 'Englisch (AU)', sg: 'Englisch (SG)', ie: 'Englisch (IE)', br: 'Portugiesisch (BR)', pt: 'Portugiesisch (PT)', fr: 'Französisch', de: 'Deutsch', at: 'Deutsch (AT)', it: 'Italienisch', ca: 'Katalanisch', cn: 'Chinesisch', sv: 'Schwedisch', pl: 'Polnisch', ja: 'Japanisch' },
+    it: { es: 'Spagnolo', en: 'Inglese (US)', gb: 'Inglese (UK)', au: 'Inglese (AU)', sg: 'Inglese (SG)', ie: 'Inglese (IE)', br: 'Portoghese (BR)', pt: 'Portoghese (PT)', fr: 'Francese', de: 'Tedesco', it: 'Italiano', ca: 'Catalano', cn: 'Cinese', sv: 'Svedese', pl: 'Polacco', ja: 'Giapponese' },
+    ca: { es: 'Espanyol', en: 'Anglès (US)', gb: 'Anglès (UK)', au: 'Anglès (AU)', sg: 'Anglès (SG)', ie: 'Anglès (IE)', br: 'Portuguès (BR)', pt: 'Portuguès (PT)', fr: 'Francès', de: 'Alemany', it: 'Italià', ca: 'Català', cn: 'Xinès', sv: 'Suec', pl: 'Polonès', ja: 'Japonès' },
+    zh: { es: '西班牙语', en: '英语 (US)', gb: '英语 (UK)', au: '英语 (AU)', sg: '英语 (SG)', ie: '英语 (IE)', br: '葡萄牙语 (BR)', pt: '葡萄牙语 (PT)', fr: '法语', de: '德语', it: '意大利语', ca: '加泰罗尼亚语', cn: '中文', sv: '瑞典语', pl: '波兰语', ja: '日语' },
+    cn: { es: '西班牙语', en: '英语 (US)', gb: '英语 (UK)', au: '英语 (AU)', sg: '英语 (SG)', ie: '英语 (IE)', br: '葡萄牙语 (BR)', pt: '葡萄牙语 (PT)', fr: '法语', de: '德语', it: '意大利语', ca: '加泰罗尼亚语', cn: '中文', sv: '瑞典语', pl: '波兰语', ja: '日语' },
+    sv: { es: 'Spanska', en: 'Engelska (US)', gb: 'Engelska (UK)', au: 'Engelska (AU)', sg: 'Engelska (SG)', ie: 'Engelska (IE)', br: 'Portugisiska (BR)', pt: 'Portugisiska (PT)', fr: 'Franska', de: 'Tyska', it: 'Italienska', ca: 'Katalanska', cn: 'Kinesiska', sv: 'Svenska', pl: 'Polska', ja: 'Japanska' },
+    pl: { es: 'Hiszpański', en: 'Angielski (US)', gb: 'Angielski (UK)', au: 'Angielski (AU)', sg: 'Angielski (SG)', ie: 'Angielski (IE)', br: 'Portugalski (BR)', pt: 'Portugalski (PT)', fr: 'Francuski', de: 'Niemiecki', it: 'Włoski', ca: 'Kataloński', cn: 'Chiński', sv: 'Szwedzki', pl: 'Polski', ja: 'Japoński' },
+    ja: { es: 'スペイン語', en: '英語 (US)', gb: '英語 (UK)', au: '英語 (AU)', sg: '英語 (SG)', ie: '英語 (IE)', br: 'ポルトガル語 (BR)', pt: 'ポルトガル語 (PT)', fr: 'フランス語', de: 'ドイツ語', it: 'イタリア語', ca: 'カタルーニャ語', cn: '中国語', sv: 'スウェーデン語', pl: 'ポーランド語', ja: '日本語' },
+    sg: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', sg: 'English (SG)', ie: 'English (IE)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
+    ie: { es: 'Spanish', en: 'English (US)', gb: 'English (UK)', au: 'English (AU)', sg: 'English (SG)', ie: 'English (IE)', br: 'Portuguese (BR)', pt: 'Portuguese (PT)', fr: 'French', de: 'German', it: 'Italian', ca: 'Catalan', cn: 'Chinese', sv: 'Swedish', pl: 'Polish', ja: 'Japanese' },
+    at: { es: 'Spanisch', en: 'Englisch (US)', gb: 'Englisch (UK)', au: 'Englisch (AU)', sg: 'Englisch (SG)', ie: 'Englisch (IE)', br: 'Portugiesisch (BR)', pt: 'Portugiesisch (PT)', fr: 'Französisch', de: 'Deutsch', at: 'Deutsch (AT)', it: 'Italienisch', ca: 'Katalanisch', cn: 'Chinesisch', sv: 'Schwedisch', pl: 'Polnisch', ja: 'Japanisch' },
 };
 
 // Country names in different languages
 const countryNames: Record<string, Record<string, string>> = {
-    es: { ES: 'España', MX: 'México', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Perú', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguay', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'Francia', DE: 'Alemania', IT: 'Italia', AD: 'Andorra', SE: 'Suecia', PL: 'Polonia', JP: 'Japón', VN: 'Vietnam' },
-    en: { ES: 'Spain', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'United States', GB: 'United Kingdom', BR: 'Brazil', PT: 'Portugal', FR: 'France', DE: 'Germany', IT: 'Italy', AD: 'Andorra', SE: 'Sweden', PL: 'Poland', JP: 'Japan', VN: 'Vietnam' },
-    vi: { ES: 'Tây Ban Nha', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Hoa Kỳ', GB: 'Vương quốc Anh', BR: 'Brazil', PT: 'Bồ Đào Nha', FR: 'Pháp', DE: 'Đức', IT: 'Ý', AD: 'Andorra', SE: 'Thụy Điển', PL: 'Ba Lan', JP: 'Nhật Bản', VN: 'Việt Nam', BD: 'Bangladesh' },
-    bn: { ES: 'স্পেন', MX: 'মেক্সিকো', AR: 'আর্জেন্টিনা', CO: 'কলম্বিয়া', CL: 'চিলি', PE: 'পেরু', VE: 'ভেনেজুয়েলা', EC: 'ইকুয়েডর', GT: 'গুয়াতেমালা', CR: 'কোস্টা রিকা', PA: 'পানামা', UY: 'উরুগুয়ে', US: 'মার্কিন যুক্তরাষ্ট্র', GB: 'যুক্তরাজ্য', BR: 'ব্রাজিল', PT: 'পর্তুগাল', FR: 'ফ্রান্স', DE: 'জার্মানি', IT: 'ইতালি', AD: 'অ্যান্ডোরা', SE: 'সুইডেন', PL: 'পোল্যান্ড', JP: 'জাপান', VN: 'ভিয়েতনাম', BD: 'বাংলাদেশ', IN: 'ভারত' },
-    hi: { ES: 'स्पेन', MX: 'मेक्सिको', AR: 'अर्जेंटीना', CO: 'कोलंबिया', CL: 'चिली', PE: 'पेरू', VE: 'वेनेज़ुएला', EC: 'इक्वाडोर', GT: 'ग्वाटेमाला', CR: 'कोस्टा रिका', PA: 'पनामा', UY: 'उरुग्वे', US: 'संयुक्त राज्य अमेरिका', GB: 'यूनाइटेड किंगडम', BR: 'ब्राज़ील', PT: 'पुर्तगाल', FR: 'फ़्रांस', DE: 'जर्मनी', IT: 'इटली', AD: 'अंडोरा', SE: 'स्वीडन', PL: 'पोलैंड', JP: 'जापान', VN: 'वियतनाम', BD: 'बांग्लादेश', IN: 'भारत', PH: 'फ़िलिपीन्स' },
-    tl: { ES: 'Espanya', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Estados Unidos', GB: 'Nagkakaisang Kaharian', BR: 'Brazil', PT: 'Portugal', FR: 'Pransya', DE: 'Alemanya', IT: 'Italya', AD: 'Andorra', SE: 'Suwesya', PL: 'Poland', JP: 'Japan', VN: 'Vietnam', BD: 'Bangladesh', IN: 'India', PH: 'Pilipinas' },
-    pt: { ES: 'Espanha', MX: 'México', AR: 'Argentina', CO: 'Colômbia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguai', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanha', IT: 'Itália', AD: 'Andorra', SE: 'Suécia', PL: 'Polônia', JP: 'Japão' },
-    br: { ES: 'Espanha', MX: 'México', AR: 'Argentina', CO: 'Colômbia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguai', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanha', IT: 'Itália', AD: 'Andorra', SE: 'Suécia', PL: 'Polônia', JP: 'Japão' },
-    fr: { ES: 'Espagne', MX: 'Mexique', AR: 'Argentine', CO: 'Colombie', CL: 'Chili', PE: 'Pérou', VE: 'Venezuela', EC: 'Équateur', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'États-Unis', GB: 'Royaume-Uni', BR: 'Brésil', PT: 'Portugal', FR: 'France', DE: 'Allemagne', IT: 'Italie', AD: 'Andorre', SE: 'Suède', PL: 'Pologne', JP: 'Japon' },
-    de: { ES: 'Spanien', MX: 'Mexiko', AR: 'Argentinien', CO: 'Kolumbien', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Vereinigte Staaten', GB: 'Vereinigtes Königreich', BR: 'Brasilien', PT: 'Portugal', FR: 'Frankreich', DE: 'Deutschland', IT: 'Italien', AD: 'Andorra', SE: 'Schweden', PL: 'Polen', JP: 'Japan' },
-    it: { ES: 'Spagna', MX: 'Messico', AR: 'Argentina', CO: 'Colombia', CL: 'Cile', PE: 'Perù', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Stati Uniti', GB: 'Regno Unito', BR: 'Brasile', PT: 'Portogallo', FR: 'Francia', DE: 'Germania', IT: 'Italia', AD: 'Andorra', SE: 'Svezia', PL: 'Polonia', JP: 'Giappone' },
-    ca: { ES: 'Espanya', MX: 'Mèxic', AR: 'Argentina', CO: 'Colòmbia', CL: 'Xile', PE: 'Perú', VE: 'Veneçuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamà', UY: 'Uruguai', US: 'Estats Units', GB: 'Regne Unit', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanya', IT: 'Itàlia', AD: 'Andorra', SE: 'Suècia', PL: 'Polònia', JP: 'Japó' },
-    sv: { ES: 'Spanien', MX: 'Mexiko', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'USA', GB: 'Storbritannien', BR: 'Brasilien', PT: 'Portugal', FR: 'Frankrike', DE: 'Tyskland', IT: 'Italien', AD: 'Andorra', SE: 'Sverige', PL: 'Polen', JP: 'Japan' },
-    pl: { ES: 'Hiszpania', MX: 'Meksyk', AR: 'Argentyna', CO: 'Kolumbia', CL: 'Chile', PE: 'Peru', VE: 'Wenezuela', EC: 'Ekwador', GT: 'Gwatemala', CR: 'Kostaryka', PA: 'Panama', UY: 'Urugwaj', US: 'Stany Zjednoczone', GB: 'Wielka Brytania', BR: 'Brazylia', PT: 'Portugalia', FR: 'Francja', DE: 'Niemcy', IT: 'Włochy', AD: 'Andora', SE: 'Szwecja', PL: 'Polska', JP: 'Japonia' },
-    ja: { ES: 'スペイン', MX: 'メキシコ', AR: 'アルゼンチン', CO: 'コロンビア', CL: 'チリ', PE: 'ペルー', VE: 'ベネズエラ', EC: 'エクアドル', GT: 'グアテマラ', CR: 'コスタリカ', PA: 'パナマ', UY: 'ウルグアイ', US: 'アメリカ合衆国', GB: 'イギリス', BR: 'ブラジル', PT: 'ポルトガル', FR: 'フランス', DE: 'ドイツ', IT: 'イタリア', AD: 'アンドラ', SE: 'スウェーデン', PL: 'ポーランド', JP: '日本' },
+    es: { ES: 'España', MX: 'México', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Perú', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguay', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'Francia', DE: 'Alemania', IT: 'Italia', AD: 'Andorra', SE: 'Suecia', PL: 'Polonia', JP: 'Japón', VN: 'Vietnam', SG: 'Singapur', IE: 'Irlanda', AT: 'Austria' },
+    en: { ES: 'Spain', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'United States', GB: 'United Kingdom', BR: 'Brazil', PT: 'Portugal', FR: 'France', DE: 'Germany', IT: 'Italy', AD: 'Andorra', SE: 'Sweden', PL: 'Poland', JP: 'Japan', VN: 'Vietnam', SG: 'Singapore', IE: 'Ireland', AT: 'Austria' },
+    vi: { ES: 'Tây Ban Nha', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Hoa Kỳ', GB: 'Vương quốc Anh', BR: 'Brazil', PT: 'Bồ Đào Nha', FR: 'Pháp', DE: 'Đức', IT: 'Ý', AD: 'Andorra', SE: 'Thụy Điển', PL: 'Ba Lan', JP: 'Nhật Bản', VN: 'Việt Nam', BD: 'Bangladesh', SG: 'Singapore', IE: 'Ireland', AT: 'Áo' },
+    bn: { ES: 'স্পেন', MX: 'মেক্সিকো', AR: 'আর্জেন্টিনা', CO: 'কলম্বিয়া', CL: 'চিলি', PE: 'পেরু', VE: 'ভেনেজুয়েলা', EC: 'ইকুয়েডর', GT: 'গুয়াতেমালা', CR: 'কোস্টা রিকা', PA: 'পানামা', UY: 'উরুগুয়ে', US: 'মার্কিন যুক্তরাষ্ট্র', GB: 'যুক্তরাজ্য', BR: 'ব্রাজিল', PT: 'পর্তুগাল', FR: 'ফ্রান্স', DE: 'জার্মানি', IT: 'ইতালি', AD: 'অ্যান্ডোরা', SE: 'সুইডেন', PL: 'পোল্যান্ড', JP: 'জাপান', VN: 'ভিয়েতনাম', BD: 'বাংলাদেশ', IN: 'ভারত', SG: 'সিঙ্গাপুর', IE: 'আয়ারল্যান্ড', AT: 'অস্ট্রিয়া' },
+    hi: { ES: 'स्पेन', MX: 'मेक्सिको', AR: 'अर्जेंटीना', CO: 'कोलंबिया', CL: 'चिली', PE: 'पेरू', VE: 'वेनेज़ुएला', EC: 'इक्वाडोर', GT: 'ग्वाटेमाला', CR: 'कोस्टा रिका', PA: 'पनामा', UY: 'उरुग्वे', US: 'संयुक्त राज्य अमेरिका', GB: 'यूनाइटेड किंगडम', BR: 'ब्राज़ील', PT: 'पुर्तगाल', FR: 'फ़्रांस', DE: 'जर्मनी', IT: 'इटली', AD: 'अंडोरा', SE: 'स्वीडन', PL: 'पोलैंड', JP: 'जापान', VN: 'वियतनाम', BD: 'बांग्लादेश', IN: 'भारत', PH: 'फ़िलिपीन्स', SG: 'सिंगापुर', IE: 'आयरलैंड', AT: 'ऑस्ट्रिया' },
+    tl: { ES: 'Espanya', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Estados Unidos', GB: 'Nagkakaisang Kaharian', BR: 'Brazil', PT: 'Portugal', FR: 'Pransya', DE: 'Alemanya', IT: 'Italya', AD: 'Andorra', SE: 'Suwesya', PL: 'Poland', JP: 'Japan', VN: 'Vietnam', BD: 'Bangladesh', IN: 'India', PH: 'Pilipinas', SG: 'Singapore', IE: 'Ireland', AT: 'Austria' },
+    pt: { ES: 'Espanha', MX: 'México', AR: 'Argentina', CO: 'Colômbia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguai', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanha', IT: 'Itália', AD: 'Andorra', SE: 'Suécia', PL: 'Polônia', JP: 'Japão', SG: 'Singapura', IE: 'Irlanda', AT: 'Áustria' },
+    br: { ES: 'Espanha', MX: 'México', AR: 'Argentina', CO: 'Colômbia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamá', UY: 'Uruguai', US: 'Estados Unidos', GB: 'Reino Unido', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanha', IT: 'Itália', AD: 'Andorra', SE: 'Suécia', PL: 'Polônia', JP: 'Japão', SG: 'Singapura', IE: 'Irlanda', AT: 'Áustria' },
+    fr: { ES: 'Espagne', MX: 'Mexique', AR: 'Argentine', CO: 'Colombie', CL: 'Chili', PE: 'Pérou', VE: 'Venezuela', EC: 'Équateur', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'États-Unis', GB: 'Royaume-Uni', BR: 'Brésil', PT: 'Portugal', FR: 'France', DE: 'Allemagne', IT: 'Italie', AD: 'Andorre', SE: 'Suède', PL: 'Pologne', JP: 'Japon', SG: 'Singapour', IE: 'Irlande', AT: 'Autriche' },
+    de: { ES: 'Spanien', MX: 'Mexiko', AR: 'Argentinien', CO: 'Kolumbien', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Vereinigte Staaten', GB: 'Vereinigtes Königreich', BR: 'Brasilien', PT: 'Portugal', FR: 'Frankreich', DE: 'Deutschland', IT: 'Italien', AD: 'Andorra', SE: 'Schweden', PL: 'Polen', JP: 'Japan', SG: 'Singapur', IE: 'Irland', AT: 'Österreich' },
+    it: { ES: 'Spagna', MX: 'Messico', AR: 'Argentina', CO: 'Colombia', CL: 'Cile', PE: 'Perù', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Stati Uniti', GB: 'Regno Unito', BR: 'Brasile', PT: 'Portogallo', FR: 'Francia', DE: 'Germania', IT: 'Italia', AD: 'Andorra', SE: 'Svezia', PL: 'Polonia', JP: 'Giappone', SG: 'Singapore', IE: 'Irlanda', AT: 'Austria' },
+    ca: { ES: 'Espanya', MX: 'Mèxic', AR: 'Argentina', CO: 'Colòmbia', CL: 'Xile', PE: 'Perú', VE: 'Veneçuela', EC: 'Equador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panamà', UY: 'Uruguai', US: 'Estats Units', GB: 'Regne Unit', BR: 'Brasil', PT: 'Portugal', FR: 'França', DE: 'Alemanya', IT: 'Itàlia', AD: 'Andorra', SE: 'Suècia', PL: 'Polònia', JP: 'Japó', SG: 'Singapur', IE: 'Irlanda', AT: 'Àustria' },
+    sv: { ES: 'Spanien', MX: 'Mexiko', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'USA', GB: 'Storbritannien', BR: 'Brasilien', PT: 'Portugal', FR: 'Frankrike', DE: 'Tyskland', IT: 'Italien', AD: 'Andorra', SE: 'Sverige', PL: 'Polen', JP: 'Japan', SG: 'Singapore', IE: 'Irland', AT: 'Österrike' },
+    pl: { ES: 'Hiszpania', MX: 'Meksyk', AR: 'Argentyna', CO: 'Kolumbia', CL: 'Chile', PE: 'Peru', VE: 'Wenezuela', EC: 'Ekwador', GT: 'Gwatemala', CR: 'Kostaryka', PA: 'Panama', UY: 'Urugwaj', US: 'Stany Zjednoczone', GB: 'Wielka Brytania', BR: 'Brazylia', PT: 'Portugalia', FR: 'Francja', DE: 'Niemcy', IT: 'Włochy', AD: 'Andora', SE: 'Szwecja', PL: 'Polska', JP: 'Japonia', SG: 'Singapur', IE: 'Irlandia', AT: 'Austria' },
+    ja: { ES: 'スペイン', MX: 'メキシコ', AR: 'アルゼンチン', CO: 'コロンビア', CL: 'チリ', PE: 'ペルー', VE: 'ベネズエラ', EC: 'エクアドル', GT: 'グアテマラ', CR: 'コスタリカ', PA: 'パナマ', UY: 'ウルグアイ', US: 'アメリカ合衆国', GB: 'イギリス', BR: 'ブラジル', PT: 'ポルトガル', FR: 'フランス', DE: 'ドイツ', IT: 'イタリア', AD: 'アンドラ', SE: 'スウェーデン', PL: 'ポーランド', JP: '日本', SG: 'シンガポール', IE: 'アイルランド', AT: 'オーストリア' },
+    sg: { ES: 'Spain', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'United States', GB: 'United Kingdom', BR: 'Brazil', PT: 'Portugal', FR: 'France', DE: 'Germany', IT: 'Italy', AD: 'Andorra', SE: 'Sweden', PL: 'Poland', JP: 'Japan', SG: 'Singapore', IE: 'Ireland', AT: 'Austria' },
+    ie: { ES: 'Spain', MX: 'Mexico', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'United States', GB: 'United Kingdom', BR: 'Brazil', PT: 'Portugal', FR: 'France', DE: 'Germany', IT: 'Italy', AD: 'Andorra', SE: 'Sweden', PL: 'Poland', JP: 'Japan', SG: 'Singapore', IE: 'Ireland', AT: 'Austria' },
+    at: { ES: 'Spanien', MX: 'Mexiko', AR: 'Argentinien', CO: 'Kolumbien', CL: 'Chile', PE: 'Peru', VE: 'Venezuela', EC: 'Ecuador', GT: 'Guatemala', CR: 'Costa Rica', PA: 'Panama', UY: 'Uruguay', US: 'Vereinigte Staaten', GB: 'Vereinigtes Königreich', BR: 'Brasilien', PT: 'Portugal', FR: 'Frankreich', DE: 'Deutschland', IT: 'Italien', AD: 'Andorra', SE: 'Schweden', PL: 'Polen', JP: 'Japan', SG: 'Singapur', IE: 'Irland', AT: 'Österreich' },
 };
 
 type PopupMode = 'first_visit' | 'country_change' | null;
@@ -356,11 +386,11 @@ const LanguagePopup: React.FC = () => {
             onClick={handleClose}
         >
             <div
-                className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
+                className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-brand-green to-green-600 p-5 sm:p-6 text-center">
+                <div className="flex-shrink-0 bg-gradient-to-r from-brand-green to-green-600 p-5 sm:p-6 text-center">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full mx-auto flex items-center justify-center mb-3 shadow-lg">
                         <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl"></i>
                     </div>
@@ -373,7 +403,7 @@ const LanguagePopup: React.FC = () => {
                 </div>
 
                 {/* Language Grid */}
-                <div className="p-4 sm:p-6">
+                <div className="p-4 sm:p-6 overflow-y-auto">
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         {LANGUAGES.map((lang) => (
                             <button
@@ -396,7 +426,7 @@ const LanguagePopup: React.FC = () => {
                 </div>
 
                 {/* Footer hint */}
-                <div className="bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 sm:py-4 border-t dark:border-zinc-700">
+                <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 sm:py-4 border-t dark:border-zinc-700">
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center">
                         <i className="fa-solid fa-info-circle mr-1.5"></i>
                         {currentLangTexts.changeLanguageHint}

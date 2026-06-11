@@ -471,7 +471,10 @@ export default {
     SE: "Sweden",
     PL: "Poland",
     JP: "Jepun",
+    SG: "Singapura",
+    IE: "Ireland",
     MY: "Malaysia",
+    AT: "Austria",
   },
   common: {
     home: "Laman Utama",

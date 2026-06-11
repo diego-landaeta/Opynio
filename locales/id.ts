@@ -471,7 +471,10 @@ export default {
     SE: "Swedia",
     PL: "Polandia",
     JP: "Jepang",
+    SG: "Singapura",
+    IE: "Irlandia",
     ID: "Indonesia",
+    AT: "Austria",
   },
   common: {
     home: "Beranda",

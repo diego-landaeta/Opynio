@@ -470,6 +470,9 @@ export default {
     SE: "Sverige",
     PL: "Polen",
     JP: "Japan",
+    SG: "Singapore",
+    IE: "Irland",
+    AT: "Österrike",
   },
   common: {
     home: "Hem",

@@ -35,8 +35,11 @@ import viTranslations from "../locales/vi";
 import bnTranslations from "../locales/bn";
 import hiTranslations from "../locales/hi";
 import tlTranslations from "../locales/tl";
+import sgTranslations from "../locales/sg";
+import ieTranslations from "../locales/ie";
+import atTranslations from "../locales/at";
 
-export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi" | "tl";
+export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi" | "tl" | "sg" | "ie" | "at";
 
 interface I18nContextType {
   language: Language;
@@ -72,6 +75,9 @@ export const translations = {
   bn: bnTranslations,
   hi: hiTranslations,
   tl: tlTranslations,
+  sg: sgTranslations,
+  ie: ieTranslations,
+  at: atTranslations,
 };
 
 export const pathTranslations: {
@@ -102,6 +108,9 @@ export const pathTranslations: {
   bn: typeof bnTranslations.paths;
   hi: typeof hiTranslations.paths;
   tl: typeof tlTranslations.paths;
+  sg: typeof sgTranslations.paths;
+  ie: typeof ieTranslations.paths;
+  at: typeof atTranslations.paths;
 } = {
   es: esTranslations.paths,
   en: enTranslations.paths,
@@ -130,6 +139,9 @@ export const pathTranslations: {
   bn: bnTranslations.paths,
   hi: hiTranslations.paths,
   tl: tlTranslations.paths,
+  sg: sgTranslations.paths,
+  ie: ieTranslations.paths,
+  at: atTranslations.paths,
 };
 
 // Detecta el idioma al que pertenece un segmento del path comparándolo
@@ -221,6 +233,9 @@ export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
     bn: 'bd',
     hi: 'in',
     tl: 'ph',
+    sg: 'sg',
+    ie: 'ie',
+    at: 'at',
 };
 
 // Maps a country code from the URL to a language code for path generation.
@@ -231,9 +246,11 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
         case 'US':
         case 'CA':
             return 'en';
-        case 'GB':
         case 'IE':
+            return 'ie';
         case 'SG':
+            return 'sg';
+        case 'GB':
         case 'NZ':
         case 'ZA':
         case 'NG':
@@ -276,6 +293,8 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
             return 'pt';
         case 'FR':
             return 'fr';
+        case 'AT':
+            return 'at';
         case 'DE':
             return 'de';
         case 'IT':
@@ -341,7 +360,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({
     // Initialize from localStorage or default to 'es'
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('opynio_language');
-      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi', 'tl'].includes(saved)) {
+      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi', 'tl', 'sg', 'ie', 'at'].includes(saved)) {
         return saved as Language;
       }
     }
@@ -558,6 +577,9 @@ export function getLocaleFromLanguage(language: Language): string {
     bn: 'bn-BD',
     hi: 'hi-IN',
     tl: 'tl-PH',
+    sg: 'en-SG',
+    ie: 'en-IE',
+    at: 'de-AT',
   };
   return localeMap[language] || 'es-ES';
 }

@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.5.0
+ * Opynio Widget Loader v6.5.2
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -633,8 +633,17 @@
         tl: { reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
     };
 
+    // Alias regional variants (gb, au, sg, ie, at, en-*, de-*) to their canonical
+    // base locale so the widget uses static strings instead of running them
+    // through Google Translate.
+    var ENGLISH_VARIANTS = { gb: 1, au: 1, sg: 1, ie: 1, nz: 1, za: 1, ng: 1 };
+    var GERMAN_VARIANTS = { at: 1, ch: 1 };
+
     async function getStrings(lang) {
-        var exact = UI_STRINGS[lang] || UI_STRINGS[lang.split('-')[0]];
+        var base = lang.split('-')[0];
+        if (ENGLISH_VARIANTS[lang] || ENGLISH_VARIANTS[base]) return UI_STRINGS.en;
+        if (GERMAN_VARIANTS[lang] || GERMAN_VARIANTS[base]) return UI_STRINGS.de;
+        var exact = UI_STRINGS[lang] || UI_STRINGS[base];
         if (exact) return exact;
         // Translate English UI strings on-the-fly for unsupported languages
         var base = UI_STRINGS.en;
@@ -715,7 +724,7 @@
         }, 1000);
     }
 
-    var LANG_MAP = { en: 'en', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl' };
+    var LANG_MAP = { en: 'en', gb: 'en', au: 'en', sg: 'en', ie: 'en', pt: 'pt', fr: 'fr', de: 'de', at: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl' };
 
     function detectTargetLang() {
         // 1. Page's <html lang="fr"> (set by i18n frameworks)

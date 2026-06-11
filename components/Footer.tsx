@@ -107,7 +107,7 @@ const Footer: React.FC = () => {
               <i className={`fa-solid fa-chevron-down text-xs transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`}></i>
             </button>
             {langDropdownOpen && (
-              <div className="absolute bottom-full mb-2 left-0 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-zinc-700">
+              <div className="absolute bottom-full mb-2 left-0 w-48 max-h-60 overflow-y-auto bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-zinc-700">
                 {LANGUAGES.map(lang => (
                   <button
                     key={lang.code}
