@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.5.2
+ * Opynio Widget Loader v6.5.3
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -1167,22 +1167,46 @@
         'stars-carousel': 320
     };
 
+    // Per-type min-width. Page builders (Elementor, Bricks, Divi…) drop the embed
+    // inside flex containers, where the host div becomes a `flex: 0 1 auto` item and
+    // shrinks to its min-content — measured at 48px on a real site, which squashes the
+    // widget into an unreadable column. A min-width on the host stops that collapse.
+    // Note `width: 100%` does NOT work here: the parent is already collapsed, so 100%
+    // of it is still 48px.
+    var TYPE_MIN_WIDTH = {
+        'badge': 240,
+        'sidebar': 260,
+        'grid': 300,
+        'wall': 300,
+        'showcase': 300,
+        'large-carousel': 300,
+        'horizontal-carousel': 300,
+        'stars-carousel': 300
+    };
+
+    // Applies a default only when the host hasn't set that property itself, inline or
+    // through their own stylesheet, so `.opynio-widget { min-width: 200px }` on the
+    // client side always wins. getComputedStyle returns "0px"/"auto"/"none" when unset.
+    function applyIfUnset(el, prop, value) {
+        if (el.style[prop]) return;
+        if (typeof getComputedStyle === 'function') {
+            var computed = getComputedStyle(el)[prop];
+            if (computed && computed !== '0px' && computed !== 'auto' && computed !== 'none') return;
+        }
+        el.style[prop] = value;
+    }
+
     function reserveSpace(el) {
         if (el.dataset.reserved) return;
         el.dataset.reserved = '1';
         var type = el.dataset.type || 'badge';
-        // 'floating' is position:fixed, so it doesn't push host content; skip min-height.
+        // 'floating' is position:fixed, so it neither pushes host content nor depends
+        // on the container width; skip both reservations.
         if (type === 'floating') return;
-        var min = TYPE_MIN_HEIGHT[type] || 150;
-        // Don't override an explicit min-height — check both inline and computed style
-        // so a host that sets `.opynio-widget { min-height: 200px }` in their external CSS
-        // wins over our default. getComputedStyle returns "0px" or "auto" when unset.
-        if (el.style.minHeight) return;
-        if (typeof getComputedStyle === 'function') {
-            var computed = getComputedStyle(el).minHeight;
-            if (computed && computed !== '0px' && computed !== 'auto') return;
-        }
-        el.style.minHeight = min + 'px';
+        applyIfUnset(el, 'minHeight', (TYPE_MIN_HEIGHT[type] || 150) + 'px');
+        // Every value is <= 300px on purpose: it fits a 320px phone without forcing
+        // horizontal scroll, so no viewport clamping is needed here.
+        applyIfUnset(el, 'minWidth', (TYPE_MIN_WIDTH[type] || 260) + 'px');
     }
 
     // Defer init until the browser is idle so we never race the host's LCP.
