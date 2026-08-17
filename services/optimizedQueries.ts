@@ -289,6 +289,112 @@ export const getReviewsOptimized = async (
   }
 };
 
+// Max reviews scanned when searching within a single business's reviews.
+const REVIEW_SEARCH_SCAN_CAP = 2000;
+// Max matches returned to the UI.
+const REVIEW_SEARCH_RESULT_CAP = 60;
+
+// Search within a single business's reviews by title, text or author name.
+// Accent-insensitive (matches the behaviour of the business search). Because a
+// single business has a bounded number of reviews, we scan them and filter on
+// the client so accents and partial words all match reliably.
+export const searchReviewsOptimized = async (
+  businessId: string,
+  searchTerm: string,
+  source: string = 'all',
+  ratingFilter: 'all' | '5' | '4+' | '3-' = 'all'
+) => {
+  try {
+    const term = removeAccents((searchTerm || '').trim());
+    if (!term) return [];
+
+    const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason';
+
+    let query = supabase
+      .from('reviews')
+      .select(reviewFields)
+      .eq('business_id', businessId)
+      .eq('status', 'approved')
+      .lte('created_at', new Date().toISOString());
+
+    if (source !== 'all') {
+      query = query.eq('source', source);
+    }
+    if (ratingFilter === '5') {
+      query = query.eq('rating', 5);
+    } else if (ratingFilter === '4+') {
+      query = query.gte('rating', 4);
+    } else if (ratingFilter === '3-') {
+      query = query.lte('rating', 3);
+    }
+
+    query = query
+      .order('created_at', { ascending: false })
+      .limit(REVIEW_SEARCH_SCAN_CAP);
+
+    const { data: reviews, error } = await query;
+
+    if (error) {
+      console.error('Error searching reviews:', error);
+      throw error;
+    }
+
+    if (!reviews || reviews.length === 0) return [];
+
+    const matches = reviews.filter(r => {
+      const haystack = removeAccents(
+        `${r.title || ''} ${r.review_text || ''} ${r.original_author_name || ''}`
+      );
+      return haystack.includes(term);
+    }).slice(0, REVIEW_SEARCH_RESULT_CAP);
+
+    if (matches.length === 0) return [];
+
+    // Enrich: author profiles
+    const userIds = [...new Set(matches.map(r => r.user_id).filter(Boolean))];
+    let profileMap = new Map();
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', userIds);
+      if (profiles) profileMap = new Map(profiles.map(p => [p.id, p]));
+    }
+
+    // Enrich: responses
+    const reviewIds = matches.map(r => r.id);
+    let responsesMap = new Map();
+    if (reviewIds.length > 0) {
+      const { data: responses } = await supabase
+        .from('review_responses')
+        .select('id, review_id, response_text, created_at')
+        .in('review_id', reviewIds);
+      if (responses) responsesMap = new Map(responses.map(r => [r.review_id, r]));
+    }
+
+    // Enrich: business
+    const { data: businessData } = await supabase
+      .from('businesses')
+      .select('id, name, country, category')
+      .eq('id', businessId)
+      .single();
+
+    return matches.map(review => ({
+      ...review,
+      profiles: profileMap.get(review.user_id) || null,
+      review_responses: responsesMap.get(review.id) ? [responsesMap.get(review.id)] : [],
+      businesses: businessData ? {
+        name: businessData.name,
+        country: businessData.country,
+        category: businessData.category
+      } : null
+    }));
+  } catch (error) {
+    console.error('Error in searchReviewsOptimized:', error);
+    throw error;
+  }
+};
+
 // Helper function to remove accents from text
 const removeAccents = (text: string): string => {
   return text
@@ -348,5 +454,6 @@ export default {
   getFeaturedReviews,
   getFeaturedCompanies,
   getReviewsOptimized,
+  searchReviewsOptimized,
   searchBusinessesOptimized,
 };

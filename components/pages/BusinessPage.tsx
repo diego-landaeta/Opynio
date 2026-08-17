@@ -6,7 +6,7 @@ import NotFoundPage from './NotFoundPage';
 import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../types';
 import { getBusinessInsights } from '../../services/geminiService';
 import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile, userHasReviewedBusiness } from '../../services/supabaseService';
-import { getReviewsOptimized } from '../../services/optimizedQueries';
+import { getReviewsOptimized, searchReviewsOptimized } from '../../services/optimizedQueries';
 import ReviewCard from '../ReviewCard';
 import StarRating from '../StarRating';
 import Spinner from '../Spinner';
@@ -75,6 +75,9 @@ const BusinessPage: React.FC = () => {
     // FIX: Updated the sourceCounts state to include 'trustindex' to correctly handle and display review counts from the new source.
     const [sourceCounts, setSourceCounts] = useState<{ opynio: number, google: number, trustindex: number } | null>(null);
     const [ratingFilter, setRatingFilter] = useState<'all' | '5' | '4+' | '3-'>('all');
+    // Review search within this business (by title, text or author)
+    const [searchInput, setSearchInput] = useState('');
+    const [activeSearch, setActiveSearch] = useState('');
 
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
@@ -575,6 +578,35 @@ const BusinessPage: React.FC = () => {
         }
     }, []);
 
+    const fetchSearch = useCallback(async (businessId: string, term: string, source: string, rating: typeof ratingFilter) => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        fetchInProgressRef.current = true;
+        setReviews([]);
+        setHasMore(false);
+        setIsLoadingMore(true);
+        try {
+            const reviewsData = await searchReviewsOptimized(businessId, term, source, rating);
+            if (!abortControllerRef.current?.signal.aborted) {
+                setReviews(reviewsData);
+                setHasMore(false);
+            }
+        } catch (e) {
+            if (e instanceof Error && e.name === 'AbortError') return;
+            console.error("Error searching reviews:", e instanceof Error ? e.message : String(e), e);
+            if (!abortControllerRef.current?.signal.aborted) {
+                setReviews([]);
+                setHasMore(false);
+            }
+        } finally {
+            fetchInProgressRef.current = false;
+            setIsLoadingMore(false);
+        }
+    }, []);
+
     const fetchBusinessData = useCallback(async () => {
         if (!identifier) {
             setError(t('businessPage.noBusinessId'));
@@ -700,25 +732,38 @@ const BusinessPage: React.FC = () => {
 
     useEffect(() => { fetchBusinessData(); }, [fetchBusinessData]);
 
-    // Reset to page 1 and fetch when filters change
+    // Debounce the search input into the active search term
+    useEffect(() => {
+        const trimmed = searchInput.trim();
+        if (trimmed === activeSearch) return;
+        const timeoutId = setTimeout(() => setActiveSearch(trimmed), 350);
+        return () => clearTimeout(timeoutId);
+    }, [searchInput, activeSearch]);
+
+    // Reset to page 1 and fetch when filters or the active search change.
+    // In search mode we run the search query; otherwise the normal paginated list.
     useEffect(() => {
         if (business) {
             setPage(1);
-            fetchReviews(business.id, 1, sourceFilter, ratingFilter, false);
+            if (activeSearch) {
+                fetchSearch(business.id, activeSearch, sourceFilter, ratingFilter);
+            } else {
+                fetchReviews(business.id, 1, sourceFilter, ratingFilter, false);
+            }
         }
-    }, [business, sourceFilter, ratingFilter, fetchReviews]);
+    }, [business, sourceFilter, ratingFilter, activeSearch, fetchReviews, fetchSearch]);
 
-    // Load more reviews when page changes (but not when filters change)
+    // Load more reviews when page changes (but not when filters change, and never in search mode)
     const prevFiltersRef = useRef({ sourceFilter, ratingFilter });
     useEffect(() => {
         const filtersChanged = prevFiltersRef.current.sourceFilter !== sourceFilter ||
                                prevFiltersRef.current.ratingFilter !== ratingFilter;
         prevFiltersRef.current = { sourceFilter, ratingFilter };
 
-        if (business && page > 1 && !filtersChanged) {
+        if (business && page > 1 && !filtersChanged && !activeSearch) {
             fetchReviews(business.id, page, sourceFilter, ratingFilter, true);
         }
-    }, [page, business, sourceFilter, ratingFilter, fetchReviews]);
+    }, [page, business, sourceFilter, ratingFilter, activeSearch, fetchReviews]);
     
     useEffect(() => {
         const generateInsights = async () => {
@@ -905,6 +950,27 @@ const BusinessPage: React.FC = () => {
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700">
                             <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.allReviewsFor', { businessName: business.name })}</h2>
                             <div className="flex flex-col gap-3 mb-4 pb-3 sm:pb-4 border-b dark:border-zinc-700">
+                                <div className="relative">
+                                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs sm:text-sm pointer-events-none"></i>
+                                    <input
+                                        type="text"
+                                        value={searchInput}
+                                        onChange={(e) => setSearchInput(e.target.value)}
+                                        placeholder={t('businessPage.searchReviewsPlaceholder')}
+                                        aria-label={t('businessPage.searchReviewsPlaceholder')}
+                                        className="w-full pl-9 pr-9 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green"
+                                    />
+                                    {searchInput && (
+                                        <button
+                                            onClick={() => setSearchInput('')}
+                                            aria-label={t('businessPage.clearSearch')}
+                                            title={t('businessPage.clearSearch')}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+                                        >
+                                            <i className="fa-solid fa-xmark text-sm"></i>
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('businessPage.source')}:</span>
                                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -923,11 +989,19 @@ const BusinessPage: React.FC = () => {
                                 </div>
                             </div>
 
+                            {activeSearch && !isLoadingMore && (
+                                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                    {t('businessPage.searchResultsCount', { count: reviews.length, term: activeSearch })}
+                                </p>
+                            )}
+
                             {isLoadingMore && reviews.length === 0 ? <div className="flex justify-center py-6 sm:py-8"><Spinner /></div> : reviews.length > 0 ? (
                                 <div className="space-y-4 sm:space-y-6 hide-scrollbar">
                                     {reviews.map(review => <LazyRender key={review.id} placeholderHeight="250px"><ReviewCard review={review} /></LazyRender>)}
                                     {hasMore && <div className="text-center pt-3 sm:pt-4"><button onClick={() => setPage(p => p+1)} disabled={isLoadingMore} className="bg-brand-dark text-white font-semibold px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base rounded-md hover:bg-opacity-90">{isLoadingMore ? t('common.loading') : t('businessPage.loadMore')}</button></div>}
                                 </div>
+                            ) : activeSearch ? (
+                                <PlaceholderMessage icon="fa-magnifying-glass" title={t('businessPage.noSearchResults', { term: activeSearch })} message={t('businessPage.noSearchResultsSubtitle')} />
                             ) : (
                                 <PlaceholderMessage icon="fa-comment-slash" title={t('businessPage.noReviewsMatchingFilter')} message={t('businessPage.noReviewsMatchingFilterSubtitle')} />
                             )}
