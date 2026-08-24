@@ -41,8 +41,10 @@ serve(async (req) => {
     const [businessRes, reviewsRes, reviewStatsRes] = await Promise.all([
       supabaseAdmin.from('businesses').select('id, name, slug, country, logo_url').eq('id', businessId).single(),
       supabaseAdmin.from('reviews').select('title, review_text, rating, original_author_name, source, created_at').eq('business_id', businessId).eq('status', 'approved').lte('created_at', new Date().toISOString()).not('title', 'is', null).not('review_text', 'is', null).neq('title', '').neq('review_text', '').order('created_at', { ascending: false }).limit(20),
-      // Calculate avg_rating and review_count directly from reviews table
-      supabaseAdmin.from('reviews').select('rating').eq('business_id', businessId).eq('status', 'approved').lte('created_at', new Date().toISOString())
+      // Stats via RPC: counting rows client-side hit PostgREST's 1000-row cap,
+      // so any business above that showed exactly 1000 (ISEIE: 1520 -> 1000).
+      // The average had the same flaw, silently computed over a 1000-row sample.
+      supabaseAdmin.rpc('widget_business_stats', { p_business_id: businessId })
     ]);
 
     if (businessRes.error) {
@@ -58,16 +60,14 @@ serve(async (req) => {
     if (reviewsRes.error) console.error("Reviews fetch error:", reviewsRes.error);
     if (reviewStatsRes.error) console.error("Review stats fetch error:", reviewStatsRes.error);
 
-    // Calculate review count and average rating from actual reviews
-    const allReviews = reviewStatsRes.data || [];
-    const reviewCount = allReviews.length;
-    const avgRating = reviewCount > 0
-      ? allReviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0) / reviewCount
-      : 0;
+    // The RPC returns a single row already aggregated in Postgres.
+    const stats = Array.isArray(reviewStatsRes.data) ? reviewStatsRes.data[0] : reviewStatsRes.data;
+    const reviewCount = Number(stats?.review_count ?? 0);
+    const avgRating = Number(stats?.avg_rating ?? 0);
 
     const businessData = {
       ...businessRes.data,
-      avg_rating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
+      avg_rating: avgRating,
       review_count: reviewCount,
     };
     
