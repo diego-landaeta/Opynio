@@ -475,6 +475,7 @@ export default {
     IE: "Irlandia",
     ID: "Indonesia",
     AT: "Austria",
+    TR: "Turki",
   },
   common: {
     home: "Beranda",

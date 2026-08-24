@@ -739,6 +739,7 @@ const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
     bn: { ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', writeReview: 'পর্যালোচনা লিখুন', reviewsFor: 'পর্যালোচনা', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', seeAllReviews: 'সব পর্যালোচনা দেখুন' },
     hi: { ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', writeReview: 'समीक्षा लिखें', reviewsFor: 'समीक्षाएँ', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', seeAllReviews: 'सभी समीक्षाएँ देखें' },
     tl: { ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', writeReview: 'Sumulat ng review', reviewsFor: 'Mga review para sa', googleReview: 'Google review', opynioReview: 'Opynio review', seeAllReviews: 'Tingnan lahat ng review' },
+    tr: { ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', writeReview: 'Yorum yaz', reviewsFor: 'Yorumlar:', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', seeAllReviews: 'Tüm yorumları gör' },
 };
 
 const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh', 'gb': 'en', 'au': 'en', 'sg': 'en', 'ie': 'en', 'at': 'de' };
@@ -786,7 +787,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.5.3';
+const EMBED_VERSION = 'v6.5.4';
 
 export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';

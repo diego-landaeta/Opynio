@@ -474,6 +474,7 @@ export default {
     IE: "아일랜드",
     KR: "대한민국",
     AT: "오스트리아",
+    TR: "튀르키예",
   },
   common: {
     home: "홈",

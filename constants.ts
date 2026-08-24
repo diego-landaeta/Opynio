@@ -135,6 +135,7 @@ export const LANGUAGES = [
   { code: 'sv', name: 'Svenska', flag: 'https://flagcdn.com/se.svg' },
   { code: 'pl', name: 'Polski', flag: 'https://flagcdn.com/pl.svg' },
   { code: 'ja', name: '日本語', flag: 'https://flagcdn.com/jp.svg' },
+  { code: 'tr', name: 'Türkçe', flag: 'https://flagcdn.com/tr.svg' },
 ];
 
 export const COUNTRIES = [
@@ -185,6 +186,7 @@ export const COUNTRIES = [
   { code: 'IR', name: 'ایران', flag: 'https://flagcdn.com/ir.svg' },
   { code: 'VN', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg' },
   { code: 'BD', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg' },
+  { code: 'TR', name: 'Türkiye', flag: 'https://flagcdn.com/tr.svg' },
 ];
 
 export const SEDE_COUNTRIES = [
@@ -237,6 +239,7 @@ export const SEDE_COUNTRIES = [
   { code: 'IR', name: 'ایران', flag: 'https://flagcdn.com/ir.svg', disabled: false },
   { code: 'VN', name: 'Việt Nam', flag: 'https://flagcdn.com/vn.svg', disabled: false },
   { code: 'BD', name: 'বাংলাদেশ', flag: 'https://flagcdn.com/bd.svg', disabled: false },
+  { code: 'TR', name: 'Türkiye', flag: 'https://flagcdn.com/tr.svg', disabled: false },
 ];
 
 export const APP_LANGUAGES = [
@@ -280,6 +283,7 @@ export const APP_LANGUAGES = [
   { code: 'sg', name: 'Singapore', flag: 'https://flagcdn.com/sg.svg', disabled: false },
   { code: 'ie', name: 'Ireland', flag: 'https://flagcdn.com/ie.svg', disabled: false },
   { code: 'at', name: 'Österreich', flag: 'https://flagcdn.com/at.svg', disabled: false },
+  { code: 'tr', name: 'Türkiye', flag: 'https://flagcdn.com/tr.svg', disabled: false },
 ];
 
 

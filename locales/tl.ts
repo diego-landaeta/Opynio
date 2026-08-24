@@ -474,6 +474,7 @@ export default {
     SG: "Singapore",
     IE: "Ireland",
     AT: "Austria",
+    TR: "Turkiya",
   },
   common: {
     home: "Home",

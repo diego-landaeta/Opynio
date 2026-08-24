@@ -271,6 +271,7 @@ const GOOGLE_LANG_CODES: { [key: string]: string } = {
     'pl': 'pl',
     'ja': 'ja',
     'es': 'es',
+    'tr': 'tr',
 };
 
 // Simple hash for cache keys (fast, collision-resistant enough for translations)

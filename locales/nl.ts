@@ -474,6 +474,7 @@ export default {
     IE: "Ierland",
     NL: "Nederland",
     AT: "Oostenrijk",
+    TR: "Turkije",
   },
   common: {
     home: "Home",

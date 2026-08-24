@@ -475,6 +475,7 @@ export default {
     IE: "ایرلند",
     IR: "ایران",
     AT: "اتریش",
+    TR: "ترکیه",
   },
   common: {
     home: "خانه",

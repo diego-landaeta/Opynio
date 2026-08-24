@@ -475,6 +475,7 @@ export default {
     IE: "Ireland",
     MY: "Malaysia",
     AT: "Austria",
+    TR: "Turki",
   },
   common: {
     home: "Laman Utama",

@@ -476,6 +476,7 @@ export default {
     SG: "新加坡",
     IE: "愛爾蘭",
     AT: "奧地利",
+    TR: "土耳其",
   },
   common: {
     home: "首頁",

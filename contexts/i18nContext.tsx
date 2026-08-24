@@ -38,8 +38,9 @@ import tlTranslations from "../locales/tl";
 import sgTranslations from "../locales/sg";
 import ieTranslations from "../locales/ie";
 import atTranslations from "../locales/at";
+import trTranslations from "../locales/tr";
 
-export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi" | "tl" | "sg" | "ie" | "at";
+export type Language = "es" | "en" | "br" | "ca" | "fr" | "de" | "it" | "cn" | "sv" | "pl" | "ja" | "pt" | "gb" | "au" | "ko" | "ar" | "nl" | "ru" | "id" | "ms" | "tw" | "th" | "fa" | "vi" | "bn" | "hi" | "tl" | "sg" | "ie" | "at" | "tr";
 
 interface I18nContextType {
   language: Language;
@@ -78,6 +79,7 @@ export const translations = {
   sg: sgTranslations,
   ie: ieTranslations,
   at: atTranslations,
+  tr: trTranslations,
 };
 
 export const pathTranslations: {
@@ -111,6 +113,7 @@ export const pathTranslations: {
   sg: typeof sgTranslations.paths;
   ie: typeof ieTranslations.paths;
   at: typeof atTranslations.paths;
+  tr: typeof trTranslations.paths;
 } = {
   es: esTranslations.paths,
   en: enTranslations.paths,
@@ -142,6 +145,7 @@ export const pathTranslations: {
   sg: sgTranslations.paths,
   ie: ieTranslations.paths,
   at: atTranslations.paths,
+  tr: trTranslations.paths,
 };
 
 // Detecta el idioma al que pertenece un segmento del path comparándolo
@@ -236,6 +240,7 @@ export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
     sg: 'sg',
     ie: 'ie',
     at: 'at',
+    tr: 'tr',
 };
 
 // Maps a country code from the URL to a language code for path generation.
@@ -295,6 +300,8 @@ export const getLanguageForCountryCode = (countryCode: string | null | undefined
             return 'fr';
         case 'AT':
             return 'at';
+        case 'TR':
+            return 'tr';
         case 'DE':
             return 'de';
         case 'IT':
@@ -360,7 +367,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({
     // Initialize from localStorage or default to 'es'
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('opynio_language');
-      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi', 'tl', 'sg', 'ie', 'at'].includes(saved)) {
+      if (saved && ['es', 'en', 'br', 'ca', 'fr', 'de', 'it', 'cn', 'sv', 'pl', 'ja', 'pt', 'gb', 'au', 'ko', 'ar', 'nl', 'ru', 'id', 'ms', 'tw', 'th', 'fa', 'vi', 'bn', 'hi', 'tl', 'sg', 'ie', 'at', 'tr'].includes(saved)) {
         return saved as Language;
       }
     }
@@ -580,6 +587,7 @@ export function getLocaleFromLanguage(language: Language): string {
     sg: 'en-SG',
     ie: 'en-IE',
     at: 'de-AT',
+    tr: 'tr-TR',
   };
   return localeMap[language] || 'es-ES';
 }

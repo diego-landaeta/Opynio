@@ -146,7 +146,7 @@ const Meta: React.FC<MetaProps> = ({
 
     // 6. Hreflang tags (internacional SEO)
     // Detectar TODOS los prefijos de idioma/país (incluyendo gb, ad, cn que se usan en hreflang)
-    const allLangCodes = 'es|en|br|pt|ca|fr|de|it|mx|ar|co|pe|ve|cl|ec|gt|cr|pa|uy|us|gb|ad|cn|sg|ie|at';
+    const allLangCodes = 'es|en|br|pt|ca|fr|de|it|mx|ar|co|pe|ve|cl|ec|gt|cr|pa|uy|us|gb|ad|cn|sg|ie|at|tr';
 
     // Extraer el path SIN el código de país
     // Ejemplos:

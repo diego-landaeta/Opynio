@@ -475,6 +475,7 @@ export default {
     IE: "Ireland",
     VN: "Việt Nam",
     AT: "Áo",
+    TR: "Thổ Nhĩ Kỳ",
   },
   common: {
     home: "Trang chủ",

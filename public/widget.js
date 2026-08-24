@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.5.3
+ * Opynio Widget Loader v6.5.4
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -631,6 +631,7 @@
         bn: { reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
         hi: { reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
         tl: { reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
+        tr: { reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
     };
 
     // Alias regional variants (gb, au, sg, ie, at, en-*, de-*) to their canonical
@@ -638,11 +639,17 @@
     // through Google Translate.
     var ENGLISH_VARIANTS = { gb: 1, au: 1, sg: 1, ie: 1, nz: 1, za: 1, ng: 1 };
     var GERMAN_VARIANTS = { at: 1, ch: 1 };
+    // Country-style codes the app uses that map onto a base locale already present
+    // in UI_STRINGS. Without these, `cn` and `br` fall through to machine
+    // translation despite the strings being right there as `zh` and `pt`.
+    var BASE_ALIASES = { cn: 'zh', br: 'pt' };
 
     async function getStrings(lang) {
         var base = lang.split('-')[0];
         if (ENGLISH_VARIANTS[lang] || ENGLISH_VARIANTS[base]) return UI_STRINGS.en;
         if (GERMAN_VARIANTS[lang] || GERMAN_VARIANTS[base]) return UI_STRINGS.de;
+        var aliased = BASE_ALIASES[lang] || BASE_ALIASES[base];
+        if (aliased && UI_STRINGS[aliased]) return UI_STRINGS[aliased];
         var exact = UI_STRINGS[lang] || UI_STRINGS[base];
         if (exact) return exact;
         // Translate English UI strings on-the-fly for unsupported languages
@@ -724,7 +731,7 @@
         }, 1000);
     }
 
-    var LANG_MAP = { en: 'en', gb: 'en', au: 'en', sg: 'en', ie: 'en', pt: 'pt', fr: 'fr', de: 'de', at: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl' };
+    var LANG_MAP = { en: 'en', gb: 'en', au: 'en', sg: 'en', ie: 'en', pt: 'pt', fr: 'fr', de: 'de', at: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl', tr: 'tr', cn: 'zh-CN', br: 'pt' };
 
     function detectTargetLang() {
         // 1. Page's <html lang="fr"> (set by i18n frameworks)
