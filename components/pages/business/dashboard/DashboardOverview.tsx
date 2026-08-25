@@ -279,23 +279,26 @@ const DashboardOverview: React.FC = () => {
                 setLoading(true);
                 try {
                     // Fetch recent reviews and all ratings for stats in parallel
-                    const [reviewsData, allRatingsRes] = await Promise.all([
+                    const [reviewsData, statsRes] = await Promise.all([
                         getReviewsForBusiness(business.id, 1, 5), // for recent list
-                        supabase.from('reviews').select('rating').eq('business_id', business.id).eq('status', 'approved') // for stats
+                        // Aggregated in Postgres. Counting rows client-side hit PostgREST's
+                        // 1000-row cap, so any business above that showed exactly 1000
+                        // (ISEIE: 1617 -> 1000) and its rating distribution was built from
+                        // that same truncated sample.
+                        supabase.rpc('business_review_stats', { p_business_id: business.id })
                     ]);
 
-                    // Calculate stats from allRatingsRes
-                    const ratingsData = allRatingsRes.data || [];
-                    const totalReviews = ratingsData.length;
-                    const totalRatingSum = ratingsData.reduce((sum, { rating }) => sum + rating, 0);
-                    const averageRating = totalReviews > 0 ? totalRatingSum / totalReviews : 0;
+                    const st = Array.isArray(statsRes.data) ? statsRes.data[0] : statsRes.data;
+                    const totalReviews = Number(st?.total_reviews ?? 0);
+                    const averageRating = Number(st?.average_rating ?? 0);
 
-                    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-                    ratingsData.forEach(({ rating }) => {
-                        if (distribution[rating] !== undefined) {
-                            distribution[rating]++;
-                        }
-                    });
+                    const distribution: Record<number, number> = {
+                        1: Number(st?.r1 ?? 0),
+                        2: Number(st?.r2 ?? 0),
+                        3: Number(st?.r3 ?? 0),
+                        4: Number(st?.r4 ?? 0),
+                        5: Number(st?.r5 ?? 0),
+                    };
 
                     setStats({
                         totalReviews: totalReviews,
