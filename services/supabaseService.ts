@@ -1209,12 +1209,11 @@ export const getBusinessesWithStatsOnly = async (
 
     // Step 3: Get review stats ONLY for limited businesses
     const businessIds = businessesToQuery.map(b => b.id);
+    // Agregado en Postgres. Pedir las filas de 30 empresas con .in() repartia
+    // el tope de 1.000 de PostgREST entre todas ellas, asi que falseaba a la
+    // vez el conteo y la media de varias empresas del listado.
     const { data: reviews, error: reviewsError } = await supabase
-      .from('reviews')
-      .select('business_id, rating')
-      .in('business_id', businessIds)
-      .eq('status', 'approved')
-      .lte('created_at', new Date().toISOString());
+      .rpc('review_stats_batch', { p_business_ids: businessIds, p_include_scheduled: false });
 
     if (reviewsError) {
       console.error('Error fetching review stats:', reviewsError);
@@ -1226,28 +1225,22 @@ export const getBusinessesWithStatsOnly = async (
       }));
     }
 
-    // Step 4: Calculate stats per business
-    const reviewCountByBusiness = new Map<string, number>();
-    const ratingTotalByBusiness = new Map<string, number>();
-
-    (reviews || []).forEach(review => {
-      const currentCount = reviewCountByBusiness.get(review.business_id) || 0;
-      reviewCountByBusiness.set(review.business_id, currentCount + 1);
-
-      const currentRatingTotal = ratingTotalByBusiness.get(review.business_id) || 0;
-      ratingTotalByBusiness.set(review.business_id, currentRatingTotal + (review.rating || 0));
-    });
+    // Step 4: Index stats per business
+    const statsByBusiness = new Map<string, { count: number; avg: number }>(
+      (reviews || []).map((r: any) => [
+        r.business_id,
+        { count: Number(r.total_reviews ?? 0), avg: Number(r.average_rating ?? 0) },
+      ])
+    );
 
     // Step 5: Enrich businesses with calculated stats
     const enrichedBusinesses = businessesToQuery.map(business => {
-      const reviewCount = reviewCountByBusiness.get(business.id) || 0;
-      const ratingTotal = ratingTotalByBusiness.get(business.id) || 0;
-      const avgRating = reviewCount > 0 ? ratingTotal / reviewCount : 0;
+      const stats = statsByBusiness.get(business.id);
 
       return {
         ...business,
-        review_count: reviewCount,
-        avg_rating: Math.round(avgRating * 10) / 10
+        review_count: stats?.count ?? 0,
+        avg_rating: Math.round((stats?.avg ?? 0) * 10) / 10
       };
     });
 
@@ -2550,16 +2543,28 @@ export const getReviewsForUser = async (userId: string) => {
   }
 };
 
-export const getReviewsForBusiness = async (businessId: string) => {
+export const getReviewsForBusiness = async (
+  businessId: string,
+  page: number = 1,
+  pageSize: number = 20
+) => {
   try {
-    // Fetch reviews without the problematic join
+    // La firma anterior era (businessId) a secas e ignoraba la paginacion, pero
+    // DashboardReviews ya la llamaba con (id, page, PAGE_SIZE). El efecto era
+    // doble: se descargaban hasta 1.000 resenas completas en cada carga, y como
+    // el componente decide `hasMore = data.length === PAGE_SIZE`, recibir 1.000
+    // en vez de 20 apagaba el boton de "cargar mas". El dueno de ISEIE veia las
+    // 1.000 mas recientes y no tenia forma de llegar a las 616 restantes.
+    const from = (Math.max(1, page) - 1) * pageSize;
+
     const { data: reviews, error } = await supabase
       .from('reviews')
       .select('*')
       .eq('business_id', businessId)
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString())
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
 
     if (error) {
       console.error('Error fetching reviews for business:', error);
@@ -2625,25 +2630,19 @@ export const getReviewRatingDistribution = async (businessId: string) => {
 };
 
 export const getReviewSourceCounts = async (businessId: string) => {
+  // Agregado en Postgres. Traerse las filas y contarlas aqui chocaba con el
+  // limite de 1.000 de PostgREST: ISEIE mostraba los chips "Todas (1000)" y
+  // "Opynio (1000)" justo debajo de un encabezado que ya decia 1616 resenas.
   const { data, error } = await supabase
-    .from('reviews')
-    .select('source, rating')
-    .eq('business_id', businessId)
-    .eq('status', 'approved')
-    .lte('created_at', new Date().toISOString());
+    .rpc('review_source_counts', { p_business_id: businessId });
   if (error) throw error;
 
-  const counts = { opynio: 0, google: 0, trustindex: 0 };
-  data?.forEach(review => {
-    // Count ALL approved reviews, but only if they have valid rating (matching distribution logic)
-    if (review.rating >= 1 && review.rating <= 5) {
-      const source = review.source || 'opynio';
-      if (source === 'opynio' || source === 'google' || source === 'trustindex') {
-        counts[source] = (counts[source] || 0) + 1;
-      }
-    }
-  });
-  return counts;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    opynio: Number(row?.opynio ?? 0),
+    google: Number(row?.google ?? 0),
+    trustindex: Number(row?.trustindex ?? 0),
+  };
 };
 
 export const submitReviewResponse = async (reviewId: string, responseText: string, businessId: string) => {
@@ -2888,18 +2887,43 @@ export const getAdminDashboardStats = async () => {
 };
 
 export const deleteBusinessesWithoutReviews = async () => {
-  const { data: businessesWithReviews } = await supabase
-    .from('reviews')
-    .select('business_id');
+  // OJO: esta funcion borra. La version anterior deducia que empresas tienen
+  // resenas leyendo la tabla entera desde el cliente:
+  //
+  //     .from('reviews').select('business_id')   -> PostgREST corta en 1.000
+  //
+  // Con 48.654 resenas esas 1.000 filas pertenecian a solo 15 empresas, y el
+  // DELETE se lanzaba contra todo lo que no estuviera en esa lista: 1.003 de
+  // 1.018 empresas, arrastrando sus resenas por ON DELETE CASCADE. Ahora la
+  // lista de empresas vacias se calcula en Postgres, donde no hay tope, y el
+  // borrado va contra ids explicitos en vez de contra una negacion.
+  const { data, error } = await supabase.rpc('businesses_without_reviews');
+  if (error) throw error;
 
-  const businessIds = [...new Set(businessesWithReviews?.map(r => r.business_id))];
+  const ids = (data || []).map((b: { id: string }) => b.id);
+  if (ids.length === 0) return 0;
 
-  const { error } = await supabase
+  // Red de seguridad: si alguna vez la lista abarcase casi todo el catalogo
+  // seria senal de que el calculo volvio a romperse. Antes de borrar, aborta.
+  const { count: totalBusinesses, error: countError } = await supabase
+    .from('businesses')
+    .select('*', { count: 'exact', head: true });
+  if (countError) throw countError;
+
+  if (totalBusinesses && ids.length > totalBusinesses * 0.5) {
+    throw new Error(
+      `Operacion abortada: se iban a borrar ${ids.length} de ${totalBusinesses} empresas. ` +
+      `Revisa businesses_without_reviews antes de continuar.`
+    );
+  }
+
+  const { error: deleteError } = await supabase
     .from('businesses')
     .delete()
-    .not('id', 'in', `(${businessIds.join(',')})`);
+    .in('id', ids);
+  if (deleteError) throw deleteError;
 
-  if (error) throw error;
+  return ids.length;
 };
 
 export const getAdminBugReports = async (status?: string) => {
