@@ -3025,113 +3025,60 @@ export const adminCreateBusiness = async (businessData: any) => {
 
 export async function getBusinessAnalytics(businessId: string, days: 30 | 90 | 3650) {
   try {
-    // Calculate date range
-    const now = new Date();
-    const startDate = new Date(now);
-    startDate.setDate(startDate.getDate() - days);
-
-    // Fetch reviews within the date range
-    const { data: reviews, error } = await supabase
-      .from('reviews')
-      .select('rating, created_at, source, review_responses(id)')
-      .eq('business_id', businessId)
-      .eq('status', 'approved')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', new Date().toISOString())
-      .order('created_at', { ascending: true });
-
+    // Aggregated in Postgres. The previous version pulled every review in the
+    // range and computed total, average, response rate, distribution, source
+    // split and the time series in JS — so PostgREST's 1000-row cap silently
+    // truncated ALL of those metrics for any business above that threshold.
+    const { data, error } = await supabase
+      .rpc('business_analytics', { p_business_id: businessId, p_days: days });
     if (error) throw error;
 
-    if (!reviews || reviews.length === 0) {
-      return {
-        totalReviews: 0,
-        averageRating: 0,
-        responseRate: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-        reviewsBySource: {},
-        reviewsOverTime: []
-      };
-    }
+    const a: any = data || {};
+    const totalReviews = Number(a.totalReviews ?? 0);
 
-    // Calculate metrics
-    const totalReviews = reviews.length;
-    const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews;
-    const reviewsWithResponse = reviews.filter(r => r.review_responses && r.review_responses.length > 0).length;
-    const responseRate = (reviewsWithResponse / totalReviews) * 100;
+    const empty = {
+      totalReviews: 0,
+      averageRating: 0,
+      responseRate: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      reviewsBySource: {},
+      reviewsOverTime: []
+    };
+    if (totalReviews === 0) return empty;
 
-    // Rating distribution
-    const ratingDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    reviews.forEach(r => {
-      if (r.rating >= 1 && r.rating <= 5) {
-        ratingDistribution[r.rating]++;
+    const rd = a.ratingDistribution || {};
+    const ratingDistribution: Record<number, number> = {
+      1: Number(rd['1'] ?? 0), 2: Number(rd['2'] ?? 0), 3: Number(rd['3'] ?? 0),
+      4: Number(rd['4'] ?? 0), 5: Number(rd['5'] ?? 0),
+    };
+
+    // The RPC only returns buckets that actually have reviews. Filling the gaps
+    // is a presentation decision, so it stays here: for short ranges with enough
+    // volume we show every day, otherwise sparse bars become invisible.
+    const serie: { date: string; count: number }[] = (a.reviewsOverTime || [])
+      .map((p: any) => ({ date: String(p.date), count: Number(p.count) || 0 }));
+
+    let reviewsOverTime = serie;
+    if (days <= 90 && totalReviews > 10) {
+      const byDate = new Map(serie.map(p => [p.date, p.count]));
+      const filled: { date: string; count: number }[] = [];
+      const now = new Date();
+      const cursor = new Date(now);
+      cursor.setDate(cursor.getDate() - days);
+      while (cursor <= now) {
+        const key = cursor.toISOString().split('T')[0];
+        filled.push({ date: key, count: byDate.get(key) || 0 });
+        cursor.setDate(cursor.getDate() + 1);
       }
-    });
-
-    // Reviews by source
-    const reviewsBySource: Record<string, number> = {};
-    reviews.forEach(r => {
-      const source = r.source || 'opynio';
-      reviewsBySource[source] = (reviewsBySource[source] || 0) + 1;
-    });
-
-    // Reviews over time - aggregate by day, week, or month depending on range
-    const reviewsOverTime: { date: string; count: number }[] = [];
-
-    if (days <= 90) {
-      // For short ranges (30-90 days), show daily data
-      const dateMap = new Map<string, number>();
-      reviews.forEach(r => {
-        const date = new Date(r.created_at).toISOString().split('T')[0];
-        dateMap.set(date, (dateMap.get(date) || 0) + 1);
-      });
-
-      // If there are many reviews (>10), fill in all dates to show density
-      // Otherwise, only show days with reviews to avoid sparse/invisible bars
-      if (totalReviews > 10) {
-        const currentDate = new Date(startDate);
-        while (currentDate <= now) {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          reviewsOverTime.push({
-            date: dateStr,
-            count: dateMap.get(dateStr) || 0
-          });
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-      } else {
-        // Show only days with reviews for better visibility
-        const sortedDates = Array.from(dateMap.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([date, count]) => ({ date, count }));
-        reviewsOverTime.push(...sortedDates);
-      }
-    } else {
-      // For long ranges (all time), aggregate by week
-      const weekMap = new Map<string, number>();
-
-      reviews.forEach(r => {
-        const date = new Date(r.created_at);
-        // Get Monday of the week (ISO week)
-        const dayOfWeek = date.getDay();
-        const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        const monday = new Date(date.setDate(diff));
-        const weekKey = monday.toISOString().split('T')[0];
-        weekMap.set(weekKey, (weekMap.get(weekKey) || 0) + 1);
-      });
-
-      // Convert to sorted array
-      const sortedWeeks = Array.from(weekMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, count]) => ({ date, count }));
-
-      reviewsOverTime.push(...sortedWeeks);
+      reviewsOverTime = filled;
     }
 
     return {
       totalReviews,
-      averageRating,
-      responseRate,
+      averageRating: Number(a.averageRating ?? 0),
+      responseRate: Number(a.responseRate ?? 0),
       ratingDistribution,
-      reviewsBySource,
+      reviewsBySource: (a.reviewsBySource || {}) as Record<string, number>,
       reviewsOverTime
     };
   } catch (error) {
