@@ -65,6 +65,11 @@ GRANT EXECUTE ON FUNCTION public.review_source_counts(uuid) TO anon, authenticat
 -- en ningún estado (ni pendientes, ni rechazadas, ni programadas), que es la
 -- lectura conservadora: si hay cualquier rastro, no se toca.
 
+-- Se excluyen ademas las fichas con owner_id. Una ficha reclamada por su
+-- dueno no es basura del catalogo aunque no tenga resenas todavia: es el caso
+-- normal de un cliente recien dado de alta. Hoy las 37 fichas con dueno tienen
+-- resenas y ninguna caeria en la lista, pero la primera alta nueva si lo haria.
+
 CREATE OR REPLACE FUNCTION public.businesses_without_reviews()
 RETURNS TABLE (id uuid, name text)
 LANGUAGE sql
@@ -74,7 +79,8 @@ SET search_path = public
 AS $$
     SELECT b.id, b.name
     FROM public.businesses b
-    WHERE NOT EXISTS (
+    WHERE b.owner_id IS NULL
+      AND NOT EXISTS (
         SELECT 1 FROM public.reviews r WHERE r.business_id = b.id
     )
     ORDER BY b.name;
