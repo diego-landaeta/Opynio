@@ -50,12 +50,12 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
 
   // Step 2: Get ALL reviews for these businesses in ONE query (much faster!)
   const businessIds = businesses.map(b => b.id);
-  const { data: allReviews, error: reviewsError } = await supabase
-    .from('reviews')
-    .select('business_id, rating')
-    .in('business_id', businessIds)
-    .eq('status', 'approved')
-    .lte('created_at', new Date().toISOString());
+  // Aggregated in Postgres. The previous version pulled every review for the
+  // whole batch with .in(...) and counted client-side, so PostgREST's 1000-row
+  // cap was shared across all businesses in the page and silently skewed the
+  // counts of many of them at once — not just the ones above 1000 reviews.
+  const { data: statsRows, error: reviewsError } = await supabase
+    .rpc('review_stats_batch', { p_business_ids: businessIds, p_include_scheduled: false });
 
   if (reviewsError) {
     console.error('❌ Error fetching reviews:', reviewsError);
@@ -63,23 +63,20 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
   }
 
   // Step 3: Calculate stats from the batch results
-  const reviewsByBusiness = new Map<string, number[]>();
-  (allReviews || []).forEach(review => {
-    const ratings = reviewsByBusiness.get(review.business_id) || [];
-    ratings.push(review.rating || 0);
-    reviewsByBusiness.set(review.business_id, ratings);
+  const statsByBusiness = new Map<string, { count: number; avg: number }>();
+  (statsRows || []).forEach((row: any) => {
+    statsByBusiness.set(row.business_id, {
+      count: Number(row.total_reviews) || 0,
+      avg: Number(row.average_rating) || 0,
+    });
   });
 
   const enrichedBusinesses = businesses.map(business => {
-    const ratings = reviewsByBusiness.get(business.id) || [];
-    const reviewCount = ratings.length;
-    const ratingSum = ratings.reduce((sum, r) => sum + r, 0);
-    const avgRating = reviewCount > 0 ? ratingSum / reviewCount : 0;
-
+    const st = statsByBusiness.get(business.id);
     return {
       ...business,
-      review_count: reviewCount,
-      avg_rating: Math.round(avgRating * 10) / 10
+      review_count: st?.count ?? 0,
+      avg_rating: st?.avg ?? 0
     };
   });
 

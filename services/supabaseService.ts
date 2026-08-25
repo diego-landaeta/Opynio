@@ -2607,21 +2607,21 @@ export const getReviewsForBusiness = async (businessId: string) => {
 };
 
 export const getReviewRatingDistribution = async (businessId: string) => {
+  // Aggregated in Postgres. Fetching the rows and counting them client-side hit
+  // PostgREST's 1000-row cap, so any business above that got a truncated
+  // distribution — and the callers derive total and average from it.
   const { data, error } = await supabase
-    .from('reviews')
-    .select('rating')
-    .eq('business_id', businessId)
-    .eq('status', 'approved')
-    .lte('created_at', new Date().toISOString());
+    .rpc('review_stats_batch', { p_business_ids: [businessId], p_include_scheduled: false });
   if (error) throw error;
 
-  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  data?.forEach(review => {
-    if (review.rating >= 1 && review.rating <= 5) {
-      distribution[review.rating as keyof typeof distribution]++;
-    }
-  });
-  return distribution;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    1: Number(row?.r1 ?? 0),
+    2: Number(row?.r2 ?? 0),
+    3: Number(row?.r3 ?? 0),
+    4: Number(row?.r4 ?? 0),
+    5: Number(row?.r5 ?? 0),
+  };
 };
 
 export const getReviewSourceCounts = async (businessId: string) => {
