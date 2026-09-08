@@ -760,15 +760,25 @@ export const getBusinessesForDirectoryPaginated = async (
     // and wrong averages too. The RPC returns one row per business, so we still
     // chunk the ids to stay under the same row cap on the way back.
     if (businessIds.length > 0) {
-      const STATS_CHUNK = 500;
-      for (let i = 0; i < businessIds.length; i += STATS_CHUNK) {
-        const chunk = businessIds.slice(i, i + STATS_CHUNK);
+      // 100 ids per call measures ~200ms and never timed out; 500 did once,
+      // intermittently. On failure we halve the batch and retry instead of
+      // skipping it, because skipping leaves those businesses showing zero
+      // reviews — a worse lie than the truncated count we just removed.
+      const STATS_CHUNK = 100;
+
+      const loadStats = async (ids: string[]): Promise<void> => {
         const { data: statsRows, error: statsError } = await supabase
-          .rpc('review_stats_batch', { p_business_ids: chunk, p_include_scheduled: false });
+          .rpc('review_stats_batch', { p_business_ids: ids, p_include_scheduled: false });
 
         if (statsError) {
+          if (ids.length > 10) {
+            const mid = Math.ceil(ids.length / 2);
+            await loadStats(ids.slice(0, mid));
+            await loadStats(ids.slice(mid));
+            return;
+          }
           console.error('Error fetching review stats:', statsError);
-          continue;
+          return;
         }
 
         (statsRows || []).forEach((row: any) => {
@@ -777,6 +787,10 @@ export const getBusinessesForDirectoryPaginated = async (
             avg: Number(row.average_rating) || 0
           });
         });
+      };
+
+      for (let i = 0; i < businessIds.length; i += STATS_CHUNK) {
+        await loadStats(businessIds.slice(i, i + STATS_CHUNK));
       }
     }
 
