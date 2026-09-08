@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.5.4
+ * Opynio Widget Loader v6.5.5
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -741,6 +741,31 @@
         return (navigator.language || navigator.userLanguage || 'es').split('-')[0].toLowerCase();
     }
 
+    // No third party gets to hold the host's page hostage. Every network call the
+    // widget makes is capped: without this, a Google Translate endpoint that accepts
+    // the connection and never answers left the widget spinning forever, because the
+    // try/catch below only catches errors — never a hang.
+    var TRANSLATE_TIMEOUT_MS = 2500;   // per phrase
+    var TRANSLATE_BUDGET_MS = 5000;    // whole batch; past this we show the originals
+    var DATA_TIMEOUT_MS = 10000;       // our own widget-proxy
+
+    function fetchWithTimeout(url, options, ms) {
+        options = options || {};
+        if (typeof AbortController === 'function') {
+            var ctrl = new AbortController();
+            var timer = setTimeout(function () { ctrl.abort(); }, ms);
+            options.signal = ctrl.signal;
+            return fetch(url, options).then(function (r) { clearTimeout(timer); return r; },
+                                            function (e) { clearTimeout(timer); throw e; });
+        }
+        // No AbortController (old browsers): the request keeps running, but the
+        // await stops waiting for it, which is what actually blocks the render.
+        return Promise.race([
+            fetch(url, options),
+            new Promise(function (_, reject) { setTimeout(function () { reject(new Error('timeout')); }, ms); })
+        ]);
+    }
+
     async function translateReviewText(text, targetLang) {
         if (!text) return text;
         var targetCode = LANG_MAP[targetLang] || targetLang;
@@ -749,7 +774,7 @@
         if (hit && hit.value) return hit.value;
         try {
             var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + targetCode + '&dt=t&q=' + encodeURIComponent(text);
-            var resp = await fetch(url);
+            var resp = await fetchWithTimeout(url, null, TRANSLATE_TIMEOUT_MS);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             var data = await resp.json();
             var segments = data && data[0];
@@ -777,16 +802,21 @@
                 return copy;
             });
         });
-        return Promise.all(promises);
+        // Translation is an enhancement, not a precondition for showing reviews.
+        // If the batch overruns its budget we render the originals and move on.
+        return Promise.race([
+            Promise.all(promises),
+            new Promise(function (resolve) { setTimeout(function () { resolve(reviews); }, TRANSLATE_BUDGET_MS); })
+        ]);
     }
 
     // Fetch widget data
     async function fetchData(businessId) {
-        var response = await fetch(API_URL, {
+        var response = await fetchWithTimeout(API_URL, {
             method: 'POST',
             headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
             body: JSON.stringify({ businessId: businessId })
-        });
+        }, DATA_TIMEOUT_MS);
         if (!response.ok) {
             var err = await response.json().catch(function() { return { error: 'HTTP ' + response.status }; });
             throw new Error(err.error || 'Error del servidor');
@@ -1360,14 +1390,31 @@
                 var nested = node.querySelectorAll('.opynio-widget');
                 for (var k = 0; k < nested.length; k++) widgets.push(nested[k]);
             }
-            for (var n = 0; n < widgets.length; n++) {
-                var w = widgets[n];
-                if (lazyObserver) { try { lazyObserver.unobserve(w); } catch (e) {} }
-                if (w.__opynioTicker && w.__opynioTicker.stop) {
-                    try { w.__opynioTicker.stop(); } catch (e) {}
-                    w.__opynioTicker = null;
+            if (!widgets.length) return;
+
+            // A *move* — host.insertBefore() on a node already in the page, which is
+            // what Moodle, Elementor/Divi and SPA re-parenting all do — fires
+            // removedNodes and addedNodes for the SAME node in one batch. Tearing
+            // down synchronously killed those widgets: the element kept its
+            // data-scheduled mark, so the re-scan below filtered it out through
+            // :not([data-scheduled]) and it never rendered again — reserved space,
+            // no content, no error. Defer one task and only clean up what really
+            // left the document.
+            setTimeout(function () {
+                for (var n = 0; n < widgets.length; n++) {
+                    var w = widgets[n];
+                    var stillInPage = (typeof w.isConnected === 'boolean') ? w.isConnected : document.contains(w);
+                    if (stillInPage) continue; // only moved: keep its observer and ticker alive
+                    if (lazyObserver) { try { lazyObserver.unobserve(w); } catch (e) {} }
+                    if (w.__opynioTicker && w.__opynioTicker.stop) {
+                        try { w.__opynioTicker.stop(); } catch (e) {}
+                        w.__opynioTicker = null;
+                    }
+                    // Genuinely removed: drop the mark so a later re-insert
+                    // (SPA unmount -> remount) can schedule the widget again.
+                    if (!w.dataset.loaded) delete w.dataset.scheduled;
                 }
-            }
+            }, 0);
         }
 
         new MutationObserver(function(mutations) {
