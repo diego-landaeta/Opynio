@@ -751,56 +751,39 @@ export const getBusinessesForDirectoryPaginated = async (
 
     // Get review stats for these businesses (both Opynio and Google reviews are in the same table)
     const businessIds = filteredBusinesses.map(b => b.id);
-    const statsMap = new Map<string, { count: number; totalRating: number }>();
+    const statsMap = new Map<string, { count: number; avg: number }>();
 
-    // Only fetch review stats if we have business IDs
+    // Aggregated in Postgres. Reading every review to count them here was capped
+    // at 1000 rows by PostgREST no matter what .limit() asked for, and that one
+    // cap was shared by the whole batch: ISEIE (2246 reviews) ate 937 of the
+    // 1000 and the other businesses in its group came back with truncated counts
+    // and wrong averages too. The RPC returns one row per business, so we still
+    // chunk the ids to stay under the same row cap on the way back.
     if (businessIds.length > 0) {
-      // Fetch reviews in batches to avoid URL length limits
-      // Reduced batch size to 25 to ensure we don't hit row limits when businesses have many reviews
-      const BATCH_SIZE = 25;
-      const batches = [];
-      for (let i = 0; i < businessIds.length; i += BATCH_SIZE) {
-        batches.push(businessIds.slice(i, i + BATCH_SIZE));
-      }
+      const STATS_CHUNK = 500;
+      for (let i = 0; i < businessIds.length; i += STATS_CHUNK) {
+        const chunk = businessIds.slice(i, i + STATS_CHUNK);
+        const { data: statsRows, error: statsError } = await supabase
+          .rpc('review_stats_batch', { p_business_ids: chunk, p_include_scheduled: false });
 
-      for (const batch of batches) {
-        // IMPORTANT: Supabase has a default limit of 1000 rows per query
-        // We need to set a higher limit to get all reviews for businesses with many reviews
-        // Using 10000 as limit to ensure we get all reviews for each batch
-        const { data: reviewStats, error: reviewError } = await supabase
-          .from('reviews')
-          .select('business_id, rating')
-          .in('business_id', batch)
-          .eq('status', 'approved')
-          .lte('created_at', new Date().toISOString())
-          .gt('rating', 0)
-          .limit(10000);
-
-        if (reviewError) {
-          console.error('Error fetching review stats:', reviewError);
+        if (statsError) {
+          console.error('Error fetching review stats:', statsError);
           continue;
         }
 
-        // Calculate avg_rating and review_count for each business (includes all sources: Opynio + Google)
-        if (reviewStats) {
-          reviewStats.forEach(r => {
-            // Only count reviews that have a valid rating (not null, not 0)
-            if (r.rating && r.rating > 0) {
-              const current = statsMap.get(r.business_id) || { count: 0, totalRating: 0 };
-              statsMap.set(r.business_id, {
-                count: current.count + 1,
-                totalRating: current.totalRating + r.rating
-              });
-            }
+        (statsRows || []).forEach((row: any) => {
+          statsMap.set(row.business_id, {
+            count: Number(row.total_reviews) || 0,
+            avg: Number(row.average_rating) || 0
           });
-        }
+        });
       }
     }
 
     const enrichedBusinesses = filteredBusinesses.map(b => {
       const stats = statsMap.get(b.id);
       const reviewCount = stats?.count || 0;
-      const avgRating = reviewCount > 0 ? stats!.totalRating / reviewCount : 0;
+      const avgRating = stats?.avg || 0;
       return {
         ...b,
         avg_rating: avgRating,
@@ -1053,106 +1036,108 @@ export const getBusinessesWithReviewsPaginated = async (
       return { businesses: [], hasMore: false };
     }
 
-    // Get reviews for these businesses (all approved reviews for counting, but we'll only display 3)
+    // Reviews shown per card (3) plus the business's real totals.
+    //
+    // This used to pull EVERY approved review of every business on the page in
+    // one go and count them in JS. PostgREST truncates that at 1000 rows, and
+    // the quota is shared: a business with thousands of reviews (ISEIE has
+    // 2246) swallowed it and the rest of the page came back with counts and
+    // averages that were simply wrong. Now each card asks only for the three
+    // reviews it renders, and the totals are aggregated in Postgres.
     const businessIds = paginatedBusinesses.map(b => b.id);
-    let reviewQuery = supabase
-      .from('reviews')
-      .select('*, profiles:user_id(id, name, avatar_url)')
-      .in('business_id', businessIds)
-      .eq('status', 'approved')
-      .lte('created_at', new Date().toISOString());
 
-    // Apply rating filter
-    if (filters.minRating && filters.minRating > 0) {
-      reviewQuery = reviewQuery.gte('rating', filters.minRating);
-    }
-
-    // Note: verified filter disabled - is_verified column doesn't exist, use is_verified_purchase instead
-    // Note: format filters disabled - has_images, has_audio, business_response columns don't exist
-
-    // Apply date filter
-    if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-      const now = new Date();
-      let startDate: Date | null = null;
-
-      switch (filters.dateFilter.type) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-          break;
-        case 'year':
-          startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-          break;
-        case 'custom':
-          if (filters.dateFilter.startDate) {
-            startDate = new Date(filters.dateFilter.startDate);
-          }
-          if (filters.dateFilter.endDate) {
-            reviewQuery = reviewQuery.lte('created_at', filters.dateFilter.endDate + 'T23:59:59');
-          }
-          break;
+    const applyReviewFilters = (q: any) => {
+      if (filters.minRating && filters.minRating > 0) {
+        q = q.gte('rating', filters.minRating);
       }
 
-      if (startDate) {
-        reviewQuery = reviewQuery.gte('created_at', startDate.toISOString());
+      if (filters.dateFilter && filters.dateFilter.type !== 'all') {
+        const now = new Date();
+        let startDate: Date | null = null;
+
+        switch (filters.dateFilter.type) {
+          case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case 'week':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            break;
+          case 'year':
+            startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            break;
+          case 'custom':
+            if (filters.dateFilter.startDate) {
+              startDate = new Date(filters.dateFilter.startDate);
+            }
+            if (filters.dateFilter.endDate) {
+              q = q.lte('created_at', filters.dateFilter.endDate + 'T23:59:59');
+            }
+            break;
+        }
+
+        if (startDate) {
+          q = q.gte('created_at', startDate.toISOString());
+        }
       }
-    }
 
-    // Apply sort order
-    if (filters.sortOrder === 'oldest') {
-      reviewQuery = reviewQuery.order('created_at', { ascending: true });
-    } else if (filters.sortOrder === 'highest') {
-      reviewQuery = reviewQuery.order('rating', { ascending: false });
-    } else if (filters.sortOrder === 'lowest') {
-      reviewQuery = reviewQuery.order('rating', { ascending: true });
-    } else {
-      reviewQuery = reviewQuery.order('created_at', { ascending: false });
-    }
+      if (filters.sortOrder === 'oldest') {
+        q = q.order('created_at', { ascending: true });
+      } else if (filters.sortOrder === 'highest') {
+        q = q.order('rating', { ascending: false });
+      } else if (filters.sortOrder === 'lowest') {
+        q = q.order('rating', { ascending: true });
+      } else {
+        q = q.order('created_at', { ascending: false });
+      }
 
-    const { data: reviews, error: reviewsError } = await reviewQuery;
+      return q;
+    };
 
-    if (reviewsError) {
-      console.error('Error fetching reviews:', reviewsError);
-    }
-
-    // Group all reviews by business to calculate totals, but limit display to 3
     const reviewsByBusiness = new Map<string, any[]>();
-    const reviewCountByBusiness = new Map<string, number>();
-    const ratingTotalByBusiness = new Map<string, number>();
+    await Promise.all(paginatedBusinesses.map(async (b) => {
+      const { data, error } = await applyReviewFilters(
+        supabase
+          .from('reviews')
+          .select('*, profiles:user_id(id, name, avatar_url)')
+          .eq('business_id', b.id)
+          .eq('status', 'approved')
+          .lte('created_at', new Date().toISOString())
+      ).limit(3);
 
-    (reviews || []).forEach(review => {
-      // Count all reviews
-      const currentCount = reviewCountByBusiness.get(review.business_id) || 0;
-      reviewCountByBusiness.set(review.business_id, currentCount + 1);
-
-      // Sum ratings for average
-      const currentRatingTotal = ratingTotalByBusiness.get(review.business_id) || 0;
-      ratingTotalByBusiness.set(review.business_id, currentRatingTotal + (review.rating || 0));
-
-      // Keep only first 3 reviews for display
-      const businessReviews = reviewsByBusiness.get(review.business_id) || [];
-      if (businessReviews.length < 3) {
-        businessReviews.push(review);
-        reviewsByBusiness.set(review.business_id, businessReviews);
+      if (error) {
+        console.error('Error fetching reviews for business', b.id, error);
+        return;
       }
+      reviewsByBusiness.set(b.id, data || []);
+    }));
+
+    // Same totals the business page shows, aggregated in Postgres.
+    const statsByBusiness = new Map<string, { count: number; avg: number }>();
+    const { data: statsRows, error: statsError } = await supabase
+      .rpc('review_stats_batch', { p_business_ids: businessIds, p_include_scheduled: false });
+
+    if (statsError) {
+      console.error('Error fetching review stats:', statsError);
+    }
+
+    (statsRows || []).forEach((row: any) => {
+      statsByBusiness.set(row.business_id, {
+        count: Number(row.total_reviews) || 0,
+        avg: Number(row.average_rating) || 0
+      });
     });
 
-    // Combine businesses with their reviews and calculated stats
     const businessesWithReviews = paginatedBusinesses.map(business => {
-      const reviewCount = reviewCountByBusiness.get(business.id) || 0;
-      const ratingTotal = ratingTotalByBusiness.get(business.id) || 0;
-      const avgRating = reviewCount > 0 ? ratingTotal / reviewCount : 0;
+      const st = statsByBusiness.get(business.id);
 
       return {
         business: {
           ...business,
-          review_count: reviewCount,
-          avg_rating: Math.round(avgRating * 10) / 10 // Round to 1 decimal
+          review_count: st?.count || 0,
+          avg_rating: st?.avg || 0
         },
         reviews: reviewsByBusiness.get(business.id) || []
       };
