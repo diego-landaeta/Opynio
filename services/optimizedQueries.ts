@@ -287,7 +287,12 @@ export const getReviewsOptimized = async (
 };
 
 // Max reviews scanned when searching within a single business's reviews.
-const REVIEW_SEARCH_SCAN_CAP = 2000;
+const REVIEW_SEARCH_SCAN_CAP = 6000;
+// PostgREST caps any single response at 1000 rows, so a bare .limit(SCAN_CAP)
+// silently returned just the 1000 newest reviews: on ISEIE (2248 approved) every
+// review older than that was simply unfindable from the search box. We page
+// through the scan window instead of asking for it in one go.
+const REVIEW_SEARCH_PAGE_SIZE = 1000;
 // Max matches returned to the UI.
 const REVIEW_SEARCH_RESULT_CAP = 60;
 
@@ -307,43 +312,52 @@ export const searchReviewsOptimized = async (
 
     const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason';
 
-    let query = supabase
-      .from('reviews')
-      .select(reviewFields)
-      .eq('business_id', businessId)
-      .eq('status', 'approved')
-      .lte('created_at', new Date().toISOString());
+    // A fresh builder per page: supabase-js builders carry their own headers and
+    // are not meant to be awaited twice.
+    const nowIso = new Date().toISOString();
+    const buildQuery = () => {
+      let q = supabase
+        .from('reviews')
+        .select(reviewFields)
+        .eq('business_id', businessId)
+        .eq('status', 'approved')
+        .lte('created_at', nowIso);
 
-    if (source !== 'all') {
-      query = query.eq('source', source);
+      if (source !== 'all') {
+        q = q.eq('source', source);
+      }
+      if (ratingFilter === '5') {
+        q = q.eq('rating', 5);
+      } else if (ratingFilter === '4+') {
+        q = q.gte('rating', 4);
+      } else if (ratingFilter === '3-') {
+        q = q.lte('rating', 3);
+      }
+
+      return q.order('created_at', { ascending: false });
+    };
+
+    const matchesTerm = (r: any) => removeAccents(
+      `${r.title || ''} ${r.review_text || ''} ${r.original_author_name || ''}`
+    ).includes(term);
+
+    const matches: any[] = [];
+    for (let offset = 0; offset < REVIEW_SEARCH_SCAN_CAP; offset += REVIEW_SEARCH_PAGE_SIZE) {
+      const { data: page, error } = await buildQuery()
+        .range(offset, offset + REVIEW_SEARCH_PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('Error searching reviews:', error);
+        throw error;
+      }
+      if (!page || page.length === 0) break;
+
+      matches.push(...page.filter(matchesTerm));
+      // Enough to fill the UI, or the last page came back short: stop paging.
+      if (matches.length >= REVIEW_SEARCH_RESULT_CAP || page.length < REVIEW_SEARCH_PAGE_SIZE) break;
     }
-    if (ratingFilter === '5') {
-      query = query.eq('rating', 5);
-    } else if (ratingFilter === '4+') {
-      query = query.gte('rating', 4);
-    } else if (ratingFilter === '3-') {
-      query = query.lte('rating', 3);
-    }
 
-    query = query
-      .order('created_at', { ascending: false })
-      .limit(REVIEW_SEARCH_SCAN_CAP);
-
-    const { data: reviews, error } = await query;
-
-    if (error) {
-      console.error('Error searching reviews:', error);
-      throw error;
-    }
-
-    if (!reviews || reviews.length === 0) return [];
-
-    const matches = reviews.filter(r => {
-      const haystack = removeAccents(
-        `${r.title || ''} ${r.review_text || ''} ${r.original_author_name || ''}`
-      );
-      return haystack.includes(term);
-    }).slice(0, REVIEW_SEARCH_RESULT_CAP);
+    matches.length = Math.min(matches.length, REVIEW_SEARCH_RESULT_CAP);
 
     if (matches.length === 0) return [];
 
