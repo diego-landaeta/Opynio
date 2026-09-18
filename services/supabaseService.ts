@@ -3968,6 +3968,27 @@ export const getPublicBusinessProducts = async (businessId: string): Promise<Rev
  * que obliga al cliente a alojar la foto en otro sitio: la mayoria no lo hace y
  * el producto se queda sin imagen.
  */
+/**
+ * Cuantas resenas esperan moderacion.
+ *
+ * Las resenas escritas desde la web entran como `pending` y no se ven en
+ * ninguna ficha hasta que un administrador las aprueba. Esa cola no estaba a la
+ * vista en ningun sitio: en produccion habia 49.763 aprobadas, 2 rechazadas y
+ * cero pendientes, o sea que nadie la miraba porque nunca llegaba nada. Ahora
+ * que el boton del widget funciona, empezara a llegar.
+ */
+export const getPendingReviewCount = async (): Promise<number> => {
+  const { count, error } = await supabase
+    .from('reviews')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending');
+  if (error) {
+    console.error('Error contando reseñas pendientes:', error);
+    return 0;
+  }
+  return count ?? 0;
+};
+
 export const uploadProductImage = async (businessId: string, fichero: File): Promise<string> => {
   const extension = (fichero.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
   const ruta = `productos/${businessId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
