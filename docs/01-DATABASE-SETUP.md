@@ -111,9 +111,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own profile"
+-- OJO: los perfiles son PUBLICOS de lectura, no privados. Si solo se pudiera
+-- ver el propio, el nombre del autor de cualquier reseña saldria como
+-- «Anónimo» para todo el mundo: la ficha los lee de aquí. Comprobado contra
+-- producción, donde la política se llama "Profiles are viewable by everyone".
+CREATE POLICY "Profiles are viewable by everyone."
     ON profiles FOR SELECT
-    USING (auth.uid() = id);
+    USING (true);
 
 CREATE POLICY "Users can update own profile"
     ON profiles FOR UPDATE
