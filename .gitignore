@@ -49,3 +49,4 @@ supabase/.temp/
 .tmp-*.mjs
 .tmp-*.json
 .tmp-*.txt
+scripts/local/comparar/
