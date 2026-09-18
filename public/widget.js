@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.10.1
+ * Opynio Widget Loader v6.10.2
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -53,6 +53,19 @@
  */
 (function() {
     'use strict';
+
+    // Version de ESTE fichero. Tiene que coincidir con la cabecera de arriba,
+    // con EMBED_VERSION (widgetShared.ts) y con la del widget-proxy.
+    // `npm run check:widget` lo comprueba; no te fies de la memoria.
+    var WIDGET_VERSION = 'v6.10.2';
+
+    // URL desde la que se cargo este script. Hace falta para poder recargarse a
+    // si mismo si el servidor esta sirviendo una version mas nueva.
+    var SELF_SRC = (document.currentScript && document.currentScript.src) || '';
+
+    // Version que esta corriendo de verdad en esta pagina. Sirve para mirar la
+    // consola de la web de un cliente y saber que codigo tiene, sin adivinar.
+    window.OpynioWidgetVersion = WIDGET_VERSION;
 
     // Prevent multiple initializations
     if (window.OpynioWidgetLoaded) return;
@@ -679,6 +692,52 @@
         return url;
     }
 
+    /**
+     * Se recarga a si mismo si el servidor sirve una version mas nueva.
+     *
+     * Por que hace falta si todos los clientes piden el mismo /widget.js: en
+     * cuanto se despliega, cualquier carga nueva ya trae el codigo nuevo (la
+     * cache es de 5 minutos). Lo que NO se actualiza solo es una pestana que
+     * lleva horas abierta, o una web detras de un proxy que cachea de mas. Esto
+     * cubre esos dos casos.
+     *
+     * Precauciones:
+     *  - Se intenta UNA sola vez por pagina. Si el fichero servido sigue siendo
+     *    el viejo (por ejemplo, se desplego el proxy antes que el fichero), se
+     *    registra el aviso y se sigue con lo que hay, sin bucle.
+     *  - No se vuelve a crear el Shadow DOM: attachWidgetShell reutiliza
+     *    el.__opynioRoot, asi que el script nuevo repinta sobre el mismo sitio.
+     */
+    function maybeSelfUpdate(data) {
+        var servida = data && data.widget_version;
+        if (!servida || servida === WIDGET_VERSION) return false;
+        if (window.__opynioSelfUpdating || !SELF_SRC) return false;
+        window.__opynioSelfUpdating = true;
+
+        console.warn('[Opynio] widget ' + WIDGET_VERSION + ' desactualizado; el servidor sirve '
+            + servida + '. Recargando el script.');
+
+        var nuevo = document.createElement('script');
+        nuevo.src = SELF_SRC.split('?')[0] + '?v=' + encodeURIComponent(servida);
+        nuevo.async = true;
+        nuevo.onerror = function () {
+            console.warn('[Opynio] no se pudo recargar el widget; sigue la version ' + WIDGET_VERSION);
+        };
+
+        // El script nuevo comprueba OpynioWidgetLoaded al arrancar, y cada
+        // contenedor comprueba data-loaded: hay que soltar ambos frenos para que
+        // vuelva a pintar.
+        window.OpynioWidgetLoaded = false;
+        var contenedores = document.querySelectorAll('.opynio-widget');
+        for (var i = 0; i < contenedores.length; i++) {
+            delete contenedores[i].dataset.loaded;
+            delete contenedores[i].dataset.scheduled;
+        }
+
+        document.head.appendChild(nuevo);
+        return true;
+    }
+
     // Widget UI strings (static text translations)
     var UI_STRINGS = {
         es: { reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
@@ -1214,6 +1273,10 @@
         try {
             var data = await fetchData(businessId, productId);
             if (!data.business) { renderError(root, 'Negocio no encontrado'); return; }
+
+            // Si el servidor sirve una version mas nueva, el script nuevo toma el
+            // relevo y repinta: este se retira sin dibujar nada a medias.
+            if (maybeSelfUpdate(data)) return;
 
             // Vista que consumen los 9 renderers. Con data-product-id, el nombre
             // y las cifras son las del producto; la identidad de la empresa

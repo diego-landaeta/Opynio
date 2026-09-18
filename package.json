@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "node scripts/typecheck.mjs",
+    "check:widget": "node scripts/check-widget-version.mjs",
+    "verify": "npm run typecheck && npm run check:widget",
     "preview": "vite preview",
     "populate-votes": "tsx scripts/populate-review-votes.ts",
     "populate-votes-single": "tsx scripts/populate-votes-single-business.ts",

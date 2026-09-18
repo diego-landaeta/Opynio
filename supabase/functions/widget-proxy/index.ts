@@ -16,6 +16,11 @@ const corsHeaders = {
   'Cache-Control': 'public, max-age=300, stale-while-revalidate=600', // Cache for 5 minutes, serve stale for up to 10 minutes while revalidating
 }
 
+// Version de widget.js que deberia estar corriendo. El widget la compara
+// con la suya y, si es mas antigua, se recarga. Tiene que coincidir con la
+// cabecera de public/widget.js: `npm run check:widget` lo comprueba.
+const WIDGET_VERSION = 'v6.10.2';
+
 serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
@@ -79,6 +84,7 @@ serve(async (req) => {
     const reviewsData = reviewsRes.data || [];
 
     const responseData: Record<string, unknown> = {
+      widget_version: WIDGET_VERSION,
       business: businessData,
       reviews: reviewsData,
     };

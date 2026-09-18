@@ -27,7 +27,47 @@ caché y el cliente ve una interfaz que ya no existe.
    ```
 
    Esa constante va al snippet que copia el cliente (`widget.js?v=v6.8.0`) y es lo que
-   fuerza la redescarga. **Las dos tienen que coincidir.**
+   fuerza la redescarga.
+
+3. **`WIDGET_VERSION` dentro de `public/widget.js`** (junto a la configuración):
+
+   ```js
+   var WIDGET_VERSION = 'v6.8.0';
+   ```
+
+   Es lo que el widget cree ser. Se compara con la que anuncia el servidor para
+   decidir si tiene que recargarse.
+
+4. **`WIDGET_VERSION` en
+   [`supabase/functions/widget-proxy/index.ts`](../../supabase/functions/widget-proxy/index.ts)**:
+
+   ```ts
+   const WIDGET_VERSION = 'v6.8.0';
+   ```
+
+   Viaja en cada respuesta. Un widget más antiguo la ve y se recarga solo.
+
+**Las cuatro tienen que coincidir.** No lo compruebes a ojo:
+
+```bash
+npm run check:widget
+```
+
+Y actívate el guardián una vez por copia del repositorio, para que no dependa de
+acordarse:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+A partir de ahí, cualquier commit que toque el widget con las versiones
+descuadradas —o que cambie `widget.js` sin subir la versión— se detiene solo.
+
+### Orden al desplegar
+
+**Primero el fichero, después el proxy.** Si sale antes el proxy, anunciará una
+versión que aún no existe y los widgets harán un intento de recarga inútil (uno
+solo: hay un freno para que no se repita). Al revés no pasa nada.
 
 3. **Anota el cambio** en la cabecera del propio `widget.js`, en la lista de versiones:
    una línea diciendo qué cambió para el cliente, no para ti.
