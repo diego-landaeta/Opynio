@@ -192,7 +192,29 @@ Ya hay registro en [`index.tsx`](../index.tsx) para push notifications. Extender
 
 ---
 
-## 5. Referencias
+## 5. Fichas de producto y `schema.org/Product`
+
+Cada producto reseñable tiene su propia página pública en
+`/{país}/{empresa}/{producto}/{slug}`, con:
+
+- `schema.org/Product` real, con `aggregateRating` propio y hasta 10 `review`.
+  Hasta ahora el único schema de producto que emitía la plataforma usaba la
+  **empresa** como si fuera un producto; este describe el producto de verdad.
+- `canonical` propio y `Meta` con el idioma de la página.
+- Enlace de vuelta a la ficha de la empresa (migas).
+
+El widget de un producto enlaza a esta página, no a la de la empresa.
+
+### ⚠️ Pendiente: no están en el sitemap
+
+`generate-sitemap` **no incluye las fichas de producto**. Mientras siga así,
+Google no las descubrirá por sitemap y todo el trabajo de datos estructurados
+por producto rinde por debajo de lo que podría. Es la primera tarea de SEO
+pendiente.
+
+---
+
+## 6. Referencias
 
 - [Lighthouse Docs](https://developer.chrome.com/docs/lighthouse)
 - [Web Vitals](https://web.dev/vitals/)

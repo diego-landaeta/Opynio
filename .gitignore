@@ -36,6 +36,10 @@ nul
 scripts/reviews-injection/
 scripts/_*
 test-widgets.html
+# Copia del widget apuntando al Supabase local; la genera
+# scripts/local/preparar-widget.py a partir de public/widget.js
+scripts/local/widget-local.js
+scripts/local/ids.js
 
 # Supabase CLI temp files
 supabase/.temp/
