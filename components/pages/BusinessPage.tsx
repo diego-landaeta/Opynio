@@ -50,6 +50,149 @@ const FilterChip: React.FC<{ label: string; isActive: boolean; onClick: () => vo
 ));
 
 
+// Selector de producto de la ficha publica. Es un desplegable propio y no un
+// <select>: el nativo no admite imagen ni estrellas dentro de sus opciones, que
+// es justo lo que distingue un curso de otro de un vistazo.
+const ProductChooser: React.FC<{
+    products: any[];
+    value: string;
+    onChange: (id: string) => void;
+    title: string;
+    hint: string;
+    allLabel: string;
+    reviewsWord: (n: number) => string;
+}> = ({ products, value, onChange, title, hint, allLabel, reviewsWord }) => {
+    const [abierto, setAbierto] = useState(false);
+    const cajaRef = useRef<HTMLDivElement>(null);
+    const botonRef = useRef<HTMLButtonElement>(null);
+    const seleccionado = products.find(p => p.id === value) || null;
+
+    useEffect(() => {
+        if (!abierto) return;
+        const fuera = (e: MouseEvent) => {
+            if (cajaRef.current && !cajaRef.current.contains(e.target as Node)) setAbierto(false);
+        };
+        const tecla = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { setAbierto(false); botonRef.current?.focus(); }
+        };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => {
+            document.removeEventListener('mousedown', fuera);
+            document.removeEventListener('keydown', tecla);
+        };
+    }, [abierto]);
+
+    const elegir = (id: string) => {
+        onChange(id);
+        setAbierto(false);
+        botonRef.current?.focus();
+    };
+
+    const Miniatura: React.FC<{ producto: any | null }> = ({ producto }) => (
+        <BusinessLogo
+            logoUrl={producto?.image_url}
+            businessName={producto?.name || ''}
+            className="w-9 h-9 flex-shrink-0"
+            iconSize="text-xs"
+            fallbackIcon="fa-box-open"
+            rounded="rounded-md"
+            fit="cover"
+            padding=""
+        />
+    );
+
+    return (
+        <div ref={cajaRef} className="relative">
+            <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{title}</h3>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+
+            <button
+                ref={botonRef}
+                type="button"
+                onClick={() => setAbierto(o => !o)}
+                aria-expanded={abierto}
+                aria-haspopup="true"
+                className={`mt-2 w-full min-h-[52px] flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green ${
+                    seleccionado
+                        ? 'border-brand-green bg-brand-green/10'
+                        : 'border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900'
+                }`}
+            >
+                {seleccionado ? <Miniatura producto={seleccionado} /> : (
+                    <span className="w-9 h-9 flex-shrink-0 rounded-md bg-gray-100 dark:bg-zinc-700 flex items-center justify-center">
+                        <i className="fa-solid fa-list text-gray-400 text-xs" aria-hidden="true"></i>
+                    </span>
+                )}
+                <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                        {seleccionado ? seleccionado.name : allLabel}
+                    </span>
+                    {seleccionado && (seleccionado.review_count ?? 0) > 0 && (
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <i className="fa-solid fa-star text-yellow-400" aria-hidden="true"></i>
+                            {(seleccionado.avg_rating ?? 0).toFixed(1)}
+                            <span>· {seleccionado.review_count} {reviewsWord(seleccionado.review_count ?? 0)}</span>
+                        </span>
+                    )}
+                </span>
+                <i className={`fa-solid fa-chevron-down text-xs text-gray-400 flex-shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`} aria-hidden="true"></i>
+            </button>
+
+            {abierto && (
+                <div className="absolute z-30 left-0 right-0 mt-1 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-xl">
+                    <button
+                        type="button"
+                        onClick={() => elegir('all')}
+                        className={`w-full min-h-[44px] flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 focus:outline-none focus:bg-gray-50 dark:focus:bg-zinc-700 ${
+                            !seleccionado ? 'bg-brand-green/10' : ''
+                        }`}
+                    >
+                        <span className="w-9 h-9 flex-shrink-0 rounded-md bg-gray-100 dark:bg-zinc-700 flex items-center justify-center">
+                            <i className="fa-solid fa-list text-gray-400 text-xs" aria-hidden="true"></i>
+                        </span>
+                        <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{allLabel}</span>
+                        {!seleccionado && <i className="fa-solid fa-check text-brand-green text-xs flex-shrink-0" aria-hidden="true"></i>}
+                    </button>
+
+                    <ul className="border-t dark:border-zinc-700">
+                        {products.map(producto => {
+                            const n = producto.review_count ?? 0;
+                            const activo = producto.id === value;
+                            return (
+                                <li key={producto.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => elegir(producto.id)}
+                                        className={`w-full min-h-[52px] flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 focus:outline-none focus:bg-gray-50 dark:focus:bg-zinc-700 ${
+                                            activo ? 'bg-brand-green/10' : ''
+                                        }`}
+                                    >
+                                        <Miniatura producto={producto} />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug break-words">{producto.name}</span>
+                                            {n > 0 ? (
+                                                <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                                    <StarRating rating={producto.avg_rating ?? 0} size="small" />
+                                                    {(producto.avg_rating ?? 0).toFixed(1)}
+                                                    <span>· {n} {reviewsWord(n)}</span>
+                                                </span>
+                                            ) : (
+                                                <span className="block text-xs text-gray-400 dark:text-gray-500 italic">—</span>
+                                            )}
+                                        </span>
+                                        {activo && <i className="fa-solid fa-check text-brand-green text-xs flex-shrink-0" aria-hidden="true"></i>}
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const BusinessPage: React.FC = () => {
     const { identifier, countryCode } = useParams<{ identifier: string; countryCode: string }>();
     const navigate = useNavigate();
@@ -1119,33 +1262,22 @@ const BusinessPage: React.FC = () => {
                     <aside className="lg:col-span-1 space-y-3 sm:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
                         {products.length > 0 && (
                             <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
-                                <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.productsTitle')}</h3>
-                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{t('businessPage.productsFilterHint')}</p>
-                                <select
+                                {/* allLabel: sin producto elegido el boton decia "Todos",
+                                    que no dice de que. Ahora nombra lo que se esta viendo. */}
+                                <ProductChooser
+                                    products={products}
                                     value={productFilter}
-                                    onChange={(e) => {
-                                        setProductFilter(e.target.value);
-                                        if (e.target.value !== 'all') {
+                                    title={t('businessPage.productsTitle')}
+                                    hint={t('businessPage.productsFilterHint')}
+                                    allLabel={t('businessPage.allReviewsFor', { businessName: business.name })}
+                                    reviewsWord={(n) => (n === 1 ? t('common.review') : t('common.reviews'))}
+                                    onChange={(id) => {
+                                        setProductFilter(id);
+                                        if (id !== 'all') {
                                             reviewsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                         }
                                     }}
-                                    aria-label={t('businessPage.productsTitle')}
-                                    className={`mt-2 w-full min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 border transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green ${
-                                        productFilter === 'all'
-                                            ? 'bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-zinc-700'
-                                            : 'bg-brand-green/10 text-gray-900 dark:text-gray-100 border-brand-green'
-                                    }`}
-                                >
-                                    <option value="all">{t('businessPage.allProducts')}</option>
-                                    {products.map(product => (
-                                        <option key={product.id} value={product.id}>
-                                            {product.name}
-                                            {(product.review_count ?? 0) > 0
-                                                ? ` — ${(product.avg_rating ?? 0).toFixed(1)} (${product.review_count})`
-                                                : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                                 {selectedProduct && urlDelProducto(selectedProduct) && (
                                     <Link
                                         to={urlDelProducto(selectedProduct) as string}
