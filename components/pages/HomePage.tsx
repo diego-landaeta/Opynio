@@ -4,6 +4,7 @@ import type { Review, Business, Sede, Json } from '../../types';
 import { getFeaturedBusinessesWithStats, getBusinessIdAndNameList, adminSetFeaturedCompanies, adminGetFeaturedCompanies } from '../../services/supabaseService';
 import { getLatestBusinessesOptimized, getFeaturedReviewsOptimized } from '../../services/optimizedQueries';
 import Spinner from '../Spinner';
+import BusinessLogo from '../BusinessLogo';
 import ReviewCard from '../ReviewCard';
 import Meta from '../Meta';
 import { updates as allUpdates } from './WhatsNewPage';
@@ -216,17 +217,18 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                             {/* Header with Logo and Info */}
                             <div className="flex items-start gap-4 mb-4">
                                 {/* Logo */}
-                                <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 bg-gray-100 dark:bg-zinc-700 rounded-xl flex items-center justify-center overflow-hidden">
-                                    {company.logo_url ? (
-                                        <img
-                                            src={company.logo_url}
-                                            alt=""
-                                            className="w-full h-full object-contain p-2"
-                                        />
-                                    ) : (
-                                        <i className="fa-solid fa-building text-gray-400 dark:text-gray-500 text-2xl sm:text-3xl"></i>
-                                    )}
-                                </div>
+                                <BusinessLogo
+                                    logoUrl={company.logo_url}
+                                    businessName={company.name}
+                                    tone={company.logo_tone}
+                                    className="w-16 h-16 sm:w-20 sm:h-20"
+                                    rounded="rounded-xl"
+                                    bordered={false}
+                                    padding="p-2"
+                                    iconSize="text-2xl sm:text-3xl"
+                                    width={80}
+                                    height={80}
+                                />
 
                                 {/* Company Info */}
                                 <div className="flex-1 min-w-0">

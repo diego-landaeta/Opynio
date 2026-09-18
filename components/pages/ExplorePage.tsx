@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ReviewCard from '../ReviewCard';
-import type { Review, BusinessListItem, SimpleBusiness, Json, Sede } from '../../types';
+import type { Review, BusinessListItem, SimpleBusiness, Json, Sede, LogoTone } from '../../types';
+import SharedBusinessLogo from '../BusinessLogo';
 import { CATEGORIES, COUNTRIES } from '../../constants';
 import { getPublicReviews, getBusinessesWithLocations, getBusinessCountByFilters, getBusinessesWithReviewsPaginated, searchBusinessList, getTotalReviewCount } from '../../services/supabaseService';
 import { generateSearchQueryFromPrompt } from '../../services/geminiService';
@@ -28,23 +29,27 @@ type BusinessLocation = {
   country: string | null;
   category?: string | null;
   logo_url?: string | null;
+  // La RPC del directorio devuelve el tono medido del logo; sin declararlo aqui
+  // el chip de contraste se pasaba sin que el tipo lo supiera.
+  logo_tone?: LogoTone | null;
 };
 
 const PAGE_SIZE = 10;
 
-// Component to handle business logo with fallback on error
-const BusinessLogo: React.FC<{ logoUrl: string | null | undefined; businessName: string; className?: string; iconSize?: string }> = ({ logoUrl, businessName, className = "w-10 h-10 sm:w-12 sm:h-12", iconSize = "text-xl sm:text-2xl" }) => {
-    const [imageError, setImageError] = useState(false);
-    return (
-        <div className={`${className} rounded-lg bg-gray-100 dark:bg-zinc-800 flex-shrink-0 overflow-hidden shadow-sm border border-gray-200 dark:border-zinc-700 flex items-center justify-center`}>
-            {logoUrl && !imageError ? (
-                <img src={logoUrl} alt={`${businessName} logo`} width={48} height={48} loading="lazy" decoding="async" className="w-full h-full object-contain p-1" onError={() => setImageError(true)} />
-            ) : (
-                <div className="text-gray-400 dark:text-gray-500"><i className={`fa-solid fa-store ${iconSize}`}></i></div>
-            )}
-        </div>
-    );
-};
+// Logo de empresa con el chip de contraste compartido. Conserva el matiz que esta
+// pagina usaba (zinc-800 + sombra) para las fichas sin tono medido.
+const BusinessLogo: React.FC<{ logoUrl: string | null | undefined; businessName: string; tone?: LogoTone | null; className?: string; iconSize?: string }> = ({ logoUrl, businessName, tone, className = "w-10 h-10 sm:w-12 sm:h-12", iconSize = "text-xl sm:text-2xl" }) => (
+    <SharedBusinessLogo
+        logoUrl={logoUrl}
+        businessName={businessName}
+        tone={tone}
+        className={className}
+        iconSize={iconSize}
+        defaultChip="bg-gray-100 dark:bg-zinc-800 shadow-sm border-gray-200 dark:border-zinc-700"
+        width={48}
+        height={48}
+    />
+);
 
 type SortOrder = 'newest' | 'oldest' | 'most_helpful' | 'least_helpful';
 type ActiveTab = 'manual' | 'ai' | 'map';
@@ -1854,6 +1859,7 @@ const ExplorePage: React.FC = () => {
                                                         <BusinessLogo
                                                             logoUrl={review.businesses.logo_url}
                                                             businessName={review.businesses.name}
+                                                            tone={(review.businesses as any).logo_tone}
                                                             className="w-12 h-12 sm:w-14 sm:h-14"
                                                             iconSize="text-xl"
                                                         />
@@ -2103,7 +2109,7 @@ const ExplorePage: React.FC = () => {
                             return (
                             <div className="bg-white dark:bg-zinc-800 border-2 border-brand-green p-4 sm:p-5 rounded-xl shadow-lg">
                                 <div className="flex gap-3 sm:gap-4 mb-4">
-                                    <BusinessLogo logoUrl={selectedBusinessForDisplay.logo_url} businessName={selectedBusinessForDisplay.name} className="w-16 h-16 sm:w-20 sm:h-20" iconSize="text-3xl" />
+                                    <BusinessLogo logoUrl={selectedBusinessForDisplay.logo_url} businessName={selectedBusinessForDisplay.name} tone={selectedBusinessForDisplay.logo_tone} className="w-16 h-16 sm:w-20 sm:h-20" iconSize="text-3xl" />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start">
                                             <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 pr-2">{selectedBusinessForDisplay.name}</h3>
@@ -2154,7 +2160,7 @@ const ExplorePage: React.FC = () => {
                                             className="w-full text-left bg-gray-50 dark:bg-zinc-700/50 border border-gray-200 dark:border-zinc-600 p-2 rounded-lg hover:border-brand-green dark:hover:border-brand-green transition-all"
                                         >
                                             <div className="flex items-center gap-2">
-                                                <BusinessLogo logoUrl={business.logo_url} businessName={business.name} className="w-8 h-8" iconSize="text-sm" />
+                                                <BusinessLogo logoUrl={business.logo_url} businessName={business.name} tone={business.logo_tone} className="w-8 h-8" iconSize="text-sm" />
                                                 <div className="flex-1 min-w-0">
                                                     <h5 className="font-medium text-gray-800 dark:text-gray-100 truncate text-xs">{business.name}</h5>
                                                     <p className="text-xs text-green-600 dark:text-green-400">
@@ -2186,7 +2192,7 @@ const ExplorePage: React.FC = () => {
                                 className="w-full text-left bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 p-3 rounded-lg shadow-sm hover:border-brand-green dark:hover:border-brand-green hover:shadow-md transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <BusinessLogo logoUrl={business.logo_url} businessName={business.name} className="w-10 h-10" iconSize="text-lg" />
+                                    <BusinessLogo logoUrl={business.logo_url} businessName={business.name} tone={business.logo_tone} className="w-10 h-10" iconSize="text-lg" />
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-semibold text-gray-800 dark:text-gray-100 truncate text-sm">{business.name}</h4>
                                         <p className="text-xs text-green-600 dark:text-green-400 font-medium">
@@ -2353,6 +2359,7 @@ const ExplorePage: React.FC = () => {
                                     <BusinessLogo
                                         logoUrl={group.business.logo_url}
                                         businessName={group.business.name}
+                                        tone={(group.business as any).logo_tone}
                                         className="w-16 h-16 sm:w-20 sm:h-20"
                                         iconSize="text-2xl sm:text-3xl"
                                     />

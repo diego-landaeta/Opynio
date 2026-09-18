@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { Business, Plan } from '../../../types';
 import Spinner from '../../Spinner';
+import BusinessLogo from '../../BusinessLogo';
 import { Link, useNavigate } from 'react-router-dom';
 import Meta from '../../Meta';
 import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
@@ -93,15 +94,13 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
         <>
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md border dark:border-zinc-700 p-5 flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-zinc-700 flex-shrink-0 flex items-center justify-center overflow-hidden border dark:border-zinc-600">
-                        {business.logo_url && !imageError ? (
-                            <img src={business.logo_url} alt={`${business.name} logo`} width={64} height={64} loading="lazy" decoding="async" className="w-full h-full object-contain p-1" onError={() => setImageError(true)} />
-                        ) : (
-                            <div className="text-gray-400 dark:text-gray-500">
-                                <i className="fa-solid fa-store text-3xl"></i>
-                            </div>
-                        )}
-                    </div>
+                    <BusinessLogo
+                        logoUrl={business.logo_url}
+                        businessName={business.name}
+                        tone={business.logo_tone}
+                        className="w-16 h-16"
+                        iconSize="text-3xl"
+                    />
                     <div className="flex-1">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">{business.name}</h3>
                     </div>

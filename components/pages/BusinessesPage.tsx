@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Business, Sede } from '../../types';
 import { getBusinessesForDirectoryPaginated, getTotalBusinessCount } from '../../services/supabaseService';
 import Spinner from '../Spinner';
+import BusinessLogo from '../BusinessLogo';
 import StarRating from '../StarRating';
 import { CATEGORIES, COUNTRIES } from '../../constants';
 import Meta from '../Meta';
@@ -96,20 +97,17 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
         <Link to={businessPath} className="group flex flex-col h-full bg-white dark:bg-zinc-800 rounded-2xl shadow-md border border-gray-200 dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
             <div className="p-4 sm:p-5 md:p-6 flex-1">
                 <div className="flex items-start gap-4 sm:gap-5">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl bg-gray-100 dark:bg-zinc-700 flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-zinc-600">
-                        {business.logo_url && !imageError ? (
-                            <img
-                                src={business.logo_url}
-                                alt={`${business.name} logo`}
-                                className="w-full h-full object-contain p-1.5"
-                                onError={() => setImageError(true)}
-                            />
-                        ) : (
-                            <div className="text-gray-400 dark:text-gray-500">
-                                <i className="fa-solid fa-store text-3xl sm:text-4xl md:text-5xl"></i>
-                            </div>
-                        )}
-                    </div>
+                    <BusinessLogo
+                        logoUrl={business.logo_url}
+                        businessName={business.name}
+                        tone={business.logo_tone}
+                        className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24"
+                        rounded="rounded-xl"
+                        padding="p-1.5"
+                        iconSize="text-3xl sm:text-4xl md:text-5xl"
+                        width={96}
+                        height={96}
+                    />
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                             <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-900 dark:text-gray-100 group-hover:text-brand-green transition-colors line-clamp-2" title={business.name}>

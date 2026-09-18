@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import BusinessLogo from '../BusinessLogo';
 import { getPublicReviews } from '../../services/supabaseService';
 import { searchBusinessesOptimized } from '../../services/optimizedQueries';
 import type { BusinessSearchResult, Review } from '../../types';
@@ -27,20 +28,17 @@ const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.m
     return (
         <Link to={businessPath} className="block bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg shadow-sm border dark:border-zinc-700 hover:border-brand-green hover:shadow-md transition-all">
             <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md bg-gray-100 dark:bg-zinc-700 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    {business.logo_url && !imageError ? (
-                        <img
-                            src={business.logo_url}
-                            alt={`${business.name} logo`}
-                            className="w-full h-full object-contain p-1"
-                            onError={() => setImageError(true)}
-                        />
-                    ) : (
-                        <div className="text-gray-400 dark:text-gray-500">
-                            <i className="fa-solid fa-store text-xl sm:text-2xl"></i>
-                        </div>
-                    )}
-                </div>
+                <BusinessLogo
+                    logoUrl={business.logo_url}
+                    businessName={business.name}
+                    tone={business.logo_tone}
+                    className="w-10 h-10 sm:w-12 sm:h-12"
+                    rounded="rounded-md"
+                    bordered={false}
+                    iconSize="text-xl sm:text-2xl"
+                    width={48}
+                    height={48}
+                />
                 <div>
                     <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-200">{business.name}</h3>
                     <p className="text-xs sm:text-sm text-brand-green font-semibold">{t('businessesPage.viewBusinessProfileLink')}</p>
