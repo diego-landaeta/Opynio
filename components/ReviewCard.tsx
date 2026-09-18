@@ -154,8 +154,11 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
     // Icono por tipo de etiqueta. El Map guarda etiqueta -> icono y de paso
     // evita duplicados, igual que hacia el Set anterior.
+    //
+    // 'texto' NO esta aqui a proposito: una resena escrita ya se lee debajo, asi
+    // que la etiqueta no anade nada y salia en practicamente todas. Solo se
+    // marcan los formatos que son la EXCEPCION: que ademas traiga foto o audio.
     const FORMAT_TAG_ICONS: Record<string, string> = {
-        'texto': 'fa-align-left',
         'imágenes': 'fa-image',
         'audio': 'fa-microphone',
     };
@@ -171,17 +174,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         add(getCategoryTranslation(categoryToUse), 'fa-tag');
 
         (review.tags || []).forEach(tag => {
-            // Translate format tags like 'texto', 'audio', etc.
+            if (tag === 'texto') return;   // ver FORMAT_TAG_ICONS
             if (FORMAT_TAG_ICONS[tag]) {
                 add(t(`common.${tag}`), FORMAT_TAG_ICONS[tag]);
             } else {
                 add(tag, 'fa-hashtag');
             }
         });
-
-        if (review.review_text && !review.audio_url) {
-            add(t('common.texto'), FORMAT_TAG_ICONS['texto']);
-        }
 
         return Array.from(tags, ([label, icon]) => ({ label, icon }));
     }, [review.tags, review.review_text, review.audio_url, review.category, review.businesses?.category, t]);
