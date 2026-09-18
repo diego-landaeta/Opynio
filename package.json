@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "node scripts/typecheck.mjs",
     "preview": "vite preview",
     "populate-votes": "tsx scripts/populate-review-votes.ts",
     "populate-votes-single": "tsx scripts/populate-votes-single-business.ts",
