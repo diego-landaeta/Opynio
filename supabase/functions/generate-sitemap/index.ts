@@ -460,6 +460,23 @@ const countryToLanguage: Record<string, string> = {
 };
 
 // Obtener paths traducidos para un código de país
+// Segmento de la ficha de producto, por idioma. Se mantiene en ASCII igual que
+// el resto de este fichero: para chino, japones y coreano las URLs reales usan
+// su propio alfabeto, pero App.tsx registra todos los segmentos conocidos bajo
+// cada prefijo de pais, asi que la version ASCII tambien resuelve.
+const productSegmentByLanguage: Record<string, string> = {
+  es: 'producto', ca: 'producte', br: 'produto', pt: 'produto',
+  fr: 'produit', it: 'prodotto', de: 'produkt', at: 'produkt',
+  sv: 'produkt', pl: 'produkt', nl: 'product',
+  ru: 'tovar', tr: 'urun', ar: 'muntaj', fa: 'mahsul', th: 'sinkha',
+  vi: 'san-pham', id: 'produk', ms: 'produk', tl: 'produkto',
+};
+
+const getProductSegment = (countryCode: string): string => {
+  const lang = countryToLanguage[countryCode] || 'es';
+  return productSegmentByLanguage[lang] || 'product';
+};
+
 const getPathsForCountry = (countryCode: string): PathTranslations => {
   const lang = countryToLanguage[countryCode] || 'es';
   return pathsByLanguage[lang] || pathsByLanguage.es;
@@ -482,12 +499,40 @@ serve(async (_req) => {
     // Obtiene las empresas con sus datos, país Y slug limpio
     const { data: businesses, error } = await supabaseClient
       .from('businesses')
-      .select('name, slug, created_at, country')
+      .select('id, name, slug, created_at, country')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching businesses:', error);
       throw error;
+    }
+
+    // Productos resenables activos, agrupados por empresa. Si las tablas aun no
+    // estan aplicadas, esto falla y el sitemap TIENE que seguir funcionando: se
+    // registra el aviso y se genera sin fichas de producto.
+    const productsByBusiness = new Map<string, { slug: string; updated: string }[]>();
+    try {
+      const { data: products, error: productsError } = await supabaseClient
+        .from('review_subjects')
+        .select('business_id, slug, created_at, updated_at')
+        .eq('type', 'product')
+        .eq('is_active', true);
+
+      if (productsError) {
+        console.warn('Sitemap sin fichas de producto:', productsError.message);
+      } else {
+        for (const product of products || []) {
+          if (!product.slug || !product.business_id) continue;
+          const lista = productsByBusiness.get(product.business_id) || [];
+          lista.push({
+            slug: product.slug,
+            updated: (product.updated_at || product.created_at || new Date().toISOString()),
+          });
+          productsByBusiness.set(product.business_id, lista);
+        }
+      }
+    } catch (e) {
+      console.warn('Sitemap sin fichas de producto (excepcion):', e);
     }
 
     // IMPORTANTE: Solo páginas con prefijo de idioma (NO rutas sin prefijo)
@@ -619,6 +664,21 @@ serve(async (_req) => {
             <changefreq>monthly</changefreq>
             <priority>0.9</priority>
           </url>`);
+
+        // Una entrada por producto resenable. Cuelgan de la ficha de la empresa
+        // y llevan su propio schema.org/Product, asi que merecen estar aqui.
+        const productSegment = getProductSegment(urlCode);
+        for (const product of productsByBusiness.get(business.id) || []) {
+          const productPath = `${businessPath}/${productSegment}/${product.slug}`;
+          const productLastMod = new Date(product.updated).toISOString().split('T')[0];
+          sitemapEntries.push(`
+          <url>
+            <loc>${APP_URL}${productPath}</loc>
+            <lastmod>${productLastMod}</lastmod>
+            <changefreq>weekly</changefreq>
+            <priority>0.8</priority>
+          </url>`);
+        }
       }
     }
     
