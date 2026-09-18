@@ -111,6 +111,40 @@ Contra un Supabase local real (PostgREST, RLS, Auth y roles), no contra maquetas
 - **Decidir quién vacía la cola de moderación.** Ahora se ve, pero verla no la
   vacía.
 
+## Después de desplegar: las 39 reseñas que mienten
+
+El arreglo hace que las fotos nuevas se suban, pero **no repara las viejas**. En
+producción hay **39 reseñas etiquetadas «imágenes» sin ninguna imagen**, de 2
+empresas, entre marzo de 2023 y diciembre de 2025. Sus ficheros nunca llegaron a
+subirse: no hay nada que recuperar, solo una etiqueta que promete algo que no
+está.
+
+Primero mira cuántas son (solo lectura):
+
+```sql
+SELECT id, business_id, title, created_at
+FROM reviews
+WHERE tags @> ARRAY['imágenes']
+  AND (image_urls IS NULL OR cardinality(image_urls) = 0)
+ORDER BY created_at;
+```
+
+Y si te cuadra, quita la etiqueta:
+
+```sql
+UPDATE reviews
+SET tags = array_remove(tags, 'imágenes')
+WHERE tags @> ARRAY['imágenes']
+  AND (image_urls IS NULL OR cardinality(image_urls) = 0);
+```
+
+> ⚠️ **Es la única sentencia de toda esta entrega que escribe en `reviews`.** Todo
+> lo demás deja esa tabla intacta. Solo quita una etiqueta de filas cuya promesa
+> es demostrablemente falsa —no borra reseñas, ni texto, ni valoraciones— pero
+> decídelo tú y hazlo aparte, no dentro del despliegue.
+
+---
+
 ## Lo que sigue pendiente
 
 Widget sin imagen del producto, orden de los productos por nota en vez de por
