@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.10.0
+ * Opynio Widget Loader v6.10.1
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -669,7 +669,10 @@
     // Enlace para escribir resena. Si el widget es de un producto, se lleva el
     // producto: la resena acabara asociada a el en vez de quedar suelta.
     function getWriteReviewUrl(business) {
-        var url = BASE_URL + '/es/escribir?businessId=' + encodeURIComponent(business.id);
+        // La ruta es 'escribir-resena' (locales/es.ts, bloque paths). El widget
+        // apuntaba a '/es/escribir', que no existe: el boton "Escribe tu resena"
+        // llevaba a un 404 en todas las webs de clientes.
+        var url = BASE_URL + '/es/escribir-resena?businessId=' + encodeURIComponent(business.id);
         if (business && business.producto_id) {
             url += '&producto=' + encodeURIComponent(business.producto_id);
         }

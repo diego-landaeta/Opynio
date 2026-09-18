@@ -793,7 +793,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.10.0';
+const EMBED_VERSION = 'v6.10.1';
 
 // `productId` es opcional. Sin él, el snippet es exactamente el de siempre y el
 // widget muestra la empresa entera. Con él, el widget muestra la nota y las

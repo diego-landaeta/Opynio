@@ -40,6 +40,7 @@ test-widgets.html
 # scripts/local/preparar-widget.py a partir de public/widget.js
 scripts/local/widget-local.js
 scripts/local/ids.js
+scripts/local/capturas/
 
 # Supabase CLI temp files
 supabase/.temp/
