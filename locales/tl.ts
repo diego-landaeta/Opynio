@@ -504,6 +504,7 @@ export default {
     logout: "Mag-log Out",
     save: "I-save",
     cancel: "Kanselahin",
+    upload: "Mag-upload ng larawan",
     saving: "Sini-save...",
     loading: "Naglo-load...",
     searching: "Naghahanap...",

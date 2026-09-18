@@ -503,6 +503,7 @@ export default {
     logout: "Wyloguj się",
     save: "Zapisz",
     cancel: "Anuluj",
+    upload: "Prześlij obraz",
     saving: "Zapisywanie...",
     loading: "Ładowanie...",
     searching: "Wyszukiwanie...",

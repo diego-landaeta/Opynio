@@ -505,6 +505,7 @@ export default {
     logout: "Tancar sessió",
     save: "Desar",
     cancel: "Cancel·lar",
+    upload: "Puja una imatge",
     saving: "S'està desant...",
     loading: "S'està carregant...",
     searching: "S'està cercant...",

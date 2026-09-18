@@ -503,6 +503,7 @@ export default {
     logout: "Logga ut",
     save: "Spara",
     cancel: "Avbryt",
+    upload: "Ladda upp bild",
     saving: "Sparar...",
     loading: "Laddar...",
     searching: "Söker...",

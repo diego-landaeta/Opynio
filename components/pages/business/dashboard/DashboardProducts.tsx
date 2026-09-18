@@ -11,6 +11,7 @@ import {
     createBusinessProduct,
     updateBusinessProduct,
     deleteBusinessProduct,
+  uploadProductImage,
 } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import Modal from '../../../Modal';
@@ -93,16 +94,19 @@ type FormState = { name: string; code: string; description: string; image_url: s
 const EMPTY_FORM: FormState = { name: '', code: '', description: '', image_url: '' };
 
 const ProductFormModal: React.FC<{
+    business: { id: string } | null;
     product: ReviewSubject | null;
     onClose: () => void;
     onSave: (fields: FormState) => Promise<void>;
-}> = ({ product, onClose, onSave }) => {
+}> = ({ business, product, onClose, onSave }) => {
     const t = useTranslation();
     const [form, setForm] = useState<FormState>(product
         ? { name: product.name, code: product.code || '', description: product.description || '', image_url: product.image_url || '' }
         : EMPTY_FORM);
     const [nameError, setNameError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [subiendo, setSubiendo] = useState(false);
+    const [imagenError, setImagenError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -198,14 +202,47 @@ const ProductFormModal: React.FC<{
                             fit="cover"
                             padding=""
                         />
-                        <input
-                            id="product-image"
-                            type="url"
-                            value={form.image_url}
-                            onChange={e => setForm({ ...form, image_url: e.target.value })}
-                            placeholder={t('businessDashboard.productImageUrlPlaceholder')}
-                            className={inputClass}
-                        />
+                        <div className="flex-1 min-w-0 space-y-2">
+                            <input
+                                id="product-image"
+                                type="url"
+                                value={form.image_url}
+                                onChange={e => setForm({ ...form, image_url: e.target.value })}
+                                placeholder={t('businessDashboard.productImageUrlPlaceholder')}
+                                className={inputClass}
+                            />
+                            {/* Pegar una URL obliga a alojar la foto en otro sitio. La
+                                mayoria de clientes no lo hara, asi que se puede subir. */}
+                            <label className="inline-flex items-center gap-2 min-h-[44px] px-3 rounded-lg text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 cursor-pointer focus-within:ring-2 focus-within:ring-brand-green transition-colors">
+                                <i className={`fa-solid ${subiendo ? 'fa-spinner fa-spin' : 'fa-arrow-up-from-bracket'}`} aria-hidden="true"></i>
+                                <span>{subiendo ? t('common.loading') : t('common.upload')}</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="sr-only"
+                                    disabled={subiendo}
+                                    onChange={async (e) => {
+                                        const fichero = e.target.files?.[0];
+                                        e.target.value = '';
+                                        if (!fichero || !business) return;
+                                        setSubiendo(true);
+                                        setImagenError('');
+                                        try {
+                                            const url = await uploadProductImage(business.id, fichero);
+                                            setForm(f => ({ ...f, image_url: url }));
+                                        } catch (error: any) {
+                                            console.error('Error subiendo la imagen del producto:', error);
+                                            setImagenError(error?.message || t('common.error'));
+                                        } finally {
+                                            setSubiendo(false);
+                                        }
+                                    }}
+                                />
+                            </label>
+                            {imagenError && (
+                                <p className="text-xs text-red-600 dark:text-red-400" role="alert">{imagenError}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1">
@@ -733,6 +770,7 @@ const DashboardProducts: React.FC = () => {
             hacia abajo dejando una franja sin oscurecer en la parte superior. */}
         {editing && (
             <ProductFormModal
+                    business={business}
                 product={editing.product}
                 onClose={() => setEditing(null)}
                 onSave={handleSave}

@@ -257,6 +257,7 @@ export default {
     logout: "Çıkış Yap",
     save: "Kaydet",
     cancel: "İptal",
+    upload: "Görsel yükle",
     saving: "Kaydediliyor...",
     loading: "Yükleniyor...",
     searching: "Aranıyor...",

@@ -505,6 +505,7 @@ export default {
     logout: "Đăng xuất",
     save: "Lưu",
     cancel: "Hủy",
+    upload: "Tải ảnh lên",
     saving: "Đang lưu...",
     loading: "Đang tải...",
     searching: "Đang tìm kiếm...",

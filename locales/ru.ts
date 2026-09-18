@@ -504,6 +504,7 @@ export default {
     logout: "Выйти",
     save: "Сохранить",
     cancel: "Отмена",
+    upload: "Загрузить изображение",
     saving: "Сохранение...",
     loading: "Загрузка...",
     searching: "Поиск...",

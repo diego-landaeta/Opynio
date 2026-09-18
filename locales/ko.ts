@@ -504,6 +504,7 @@ export default {
     logout: "로그아웃",
     save: "저장",
     cancel: "취소",
+    upload: "이미지 업로드",
     saving: "저장 중...",
     loading: "불러오는 중...",
     searching: "검색 중...",

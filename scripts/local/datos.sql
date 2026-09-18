@@ -1,5 +1,35 @@
 -- Datos del entorno LOCAL: una academia con catalogo y resenas repartidas.
--- Lo llama reconstruir_local.sh. No se aplica a produccion.
+-- Lo llama reconstruir.sh. No se aplica a produccion.
+
+-- Bucket de fotos y audios de resena, con las mismas politicas que produccion:
+-- la ruta tiene que empezar por el id de quien sube. Sin esto no se puede
+-- probar la subida de imagenes en local.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('review_media', 'review_media', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow authenticated insert on review_media" ON storage.objects;
+CREATE POLICY "Allow authenticated insert on review_media" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'review_media' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Bucket de logos, que produccion tambien usa para las imagenes de producto.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('business_logos', 'business_logos', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Authenticated users can upload logos" ON storage.objects;
+CREATE POLICY "Authenticated users can upload logos" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'business_logos');
+
+DROP POLICY IF EXISTS "Public read business_logos" ON storage.objects;
+CREATE POLICY "Public read business_logos" ON storage.objects
+  FOR SELECT USING (bucket_id = 'business_logos');
+
+DROP POLICY IF EXISTS "Public read review_media" ON storage.objects;
+CREATE POLICY "Public read review_media" ON storage.objects
+  FOR SELECT USING (bucket_id = 'review_media');
 
 INSERT INTO public.businesses (id, name, slug, description, category, country, owner_id, plan, is_verified)
 SELECT '11111111-1111-1111-1111-111111111111', 'Academia Local', 'academia-local',

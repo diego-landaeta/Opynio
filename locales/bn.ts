@@ -504,6 +504,7 @@ export default {
     logout: "লগ আউট",
     save: "সংরক্ষণ করুন",
     cancel: "বাতিল করুন",
+    upload: "ছবি আপলোড করুন",
     saving: "সংরক্ষণ হচ্ছে...",
     loading: "লোড হচ্ছে...",
     searching: "অনুসন্ধান হচ্ছে...",

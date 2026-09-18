@@ -504,6 +504,7 @@ export default {
     logout: "退出",
     save: "保存",
     cancel: "取消",
+    upload: "上传图片",
     saving: "保存中...",
     loading: "加载中...",
     searching: "搜索中...",

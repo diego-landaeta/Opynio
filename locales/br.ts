@@ -506,6 +506,7 @@ export default {
     logout: "Sair",
     save: "Salvar",
     cancel: "Cancelar",
+    upload: "Enviar imagem",
     saving: "Salvando...",
     loading: "Carregando...",
     searching: "Buscando...",

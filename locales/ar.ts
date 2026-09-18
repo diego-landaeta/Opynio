@@ -506,6 +506,7 @@ export default {
     logout: "تسجيل الخروج",
     save: "حفظ",
     cancel: "إلغاء",
+    upload: "رفع صورة",
     saving: "جارٍ الحفظ...",
     loading: "جارٍ التحميل...",
     searching: "جارٍ البحث...",

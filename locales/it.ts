@@ -505,6 +505,7 @@ export default {
     logout: "Esci",
     save: "Salva",
     cancel: "Annulla",
+    upload: "Carica immagine",
     saving: "Salvataggio...",
     loading: "Caricamento...",
     searching: "Ricerca...",

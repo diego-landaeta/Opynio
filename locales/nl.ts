@@ -504,6 +504,7 @@ export default {
     logout: "Uitloggen",
     save: "Opslaan",
     cancel: "Annuleren",
+    upload: "Afbeelding uploaden",
     saving: "Opslaan...",
     loading: "Laden...",
     searching: "Zoeken...",

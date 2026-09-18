@@ -504,6 +504,7 @@ export default {
     logout: "लॉग आउट",
     save: "सहेजें",
     cancel: "रद्द करें",
+    upload: "छवि अपलोड करें",
     saving: "सहेजा जा रहा है...",
     loading: "लोड हो रहा है...",
     searching: "खोजा जा रहा है...",

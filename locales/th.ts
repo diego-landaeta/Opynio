@@ -505,6 +505,7 @@ export default {
     logout: "ออกจากระบบ",
     save: "บันทึก",
     cancel: "ยกเลิก",
+    upload: "อัปโหลดรูปภาพ",
     saving: "กำลังบันทึก...",
     loading: "กำลังโหลด...",
     searching: "กำลังค้นหา...",

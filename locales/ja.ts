@@ -503,6 +503,7 @@ export default {
     logout: "ログアウト",
     save: "保存",
     cancel: "キャンセル",
+    upload: "画像をアップロード",
     saving: "保存中...",
     loading: "読み込み中...",
     searching: "検索中...",

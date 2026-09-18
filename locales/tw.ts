@@ -506,6 +506,7 @@ export default {
     logout: "登出",
     save: "儲存",
     cancel: "取消",
+    upload: "上傳圖片",
     saving: "儲存中...",
     loading: "載入中...",
     searching: "搜尋中...",

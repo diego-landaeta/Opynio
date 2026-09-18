@@ -1438,10 +1438,73 @@ export const checkGoogleMapsUrlExists = async (googleMapsUrl: string) => {
 
 // ==================== REVIEW FUNCTIONS ====================
 
-export const createReview = async (reviewData: any) => {
+// Bucket de fotos y audios de resena. Las politicas de storage exigen que el
+// primer tramo de la ruta sea el id del usuario que sube.
+const BUCKET_MEDIA_RESENA = 'review_media';
+
+const extensionDe = (fichero: File | Blob, porDefecto: string) => {
+  const nombre = (fichero as File).name || '';
+  const ext = nombre.includes('.') ? nombre.split('.').pop() : '';
+  return (ext || porDefecto).toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
+const subirMediaDeResena = async (userId: string, fichero: File | Blob, porDefecto: string) => {
+  const ruta = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extensionDe(fichero, porDefecto)}`;
+  const { error } = await supabase.storage
+    .from(BUCKET_MEDIA_RESENA)
+    .upload(ruta, fichero, { cacheControl: '31536000', upsert: false });
+  if (error) throw error;
+  return supabase.storage.from(BUCKET_MEDIA_RESENA).getPublicUrl(ruta).data.publicUrl;
+};
+
+/**
+ * Crea una resena y, si vienen, sube sus fotos y su audio.
+ *
+ * El segundo argumento se pasaba desde el formulario desde siempre, pero esta
+ * funcion solo aceptaba el primero: los ficheros se descartaban en silencio y
+ * la resena quedaba etiquetada como «imágenes» sin ninguna imagen. En la base
+ * de produccion habia 39 resenas asi y ni una sola con imagen real.
+ *
+ * Si la subida falla, la resena se publica igual pero SIN la etiqueta: es
+ * preferible perder la foto a publicar una resena que promete algo que no tiene.
+ */
+export const createReview = async (
+  reviewData: any,
+  media?: { audioBlob?: Blob; imageFiles?: File[] }
+) => {
+  const insert: any = { ...reviewData };
+  const userId = insert.user_id;
+  const sinEtiqueta = (etiqueta: string) => {
+    if (Array.isArray(insert.tags)) {
+      insert.tags = insert.tags.filter((t: string) => t !== etiqueta);
+    }
+  };
+
+  if (media?.imageFiles?.length) {
+    try {
+      if (!userId) throw new Error('sin usuario');
+      insert.image_urls = await Promise.all(
+        media.imageFiles.map(f => subirMediaDeResena(userId, f, 'jpg'))
+      );
+    } catch (e) {
+      console.error('No se pudieron subir las imágenes de la reseña:', e);
+      sinEtiqueta('imágenes');
+    }
+  }
+
+  if (media?.audioBlob) {
+    try {
+      if (!userId) throw new Error('sin usuario');
+      insert.audio_url = await subirMediaDeResena(userId, media.audioBlob, 'webm');
+    } catch (e) {
+      console.error('No se pudo subir el audio de la reseña:', e);
+      sinEtiqueta('audio');
+    }
+  }
+
   const { data, error } = await supabase
     .from('reviews')
-    .insert([reviewData])
+    .insert([insert])
     .select()
     .single();
   if (error) {
@@ -3895,6 +3958,24 @@ export const getPublicBusinessProducts = async (businessId: string): Promise<Rev
     review_count: stats.get(p.id)?.review_count ?? 0,
     avg_rating: stats.get(p.id)?.avg_rating ?? 0,
   })) as ReviewSubject[];
+};
+
+/**
+ * Sube la imagen de un producto y devuelve su URL publica.
+ *
+ * Reutiliza el bucket `business_logos`, que ya existe y ya tiene politica de
+ * escritura para usuarios autenticados. Antes solo se podia pegar una URL, lo
+ * que obliga al cliente a alojar la foto en otro sitio: la mayoria no lo hace y
+ * el producto se queda sin imagen.
+ */
+export const uploadProductImage = async (businessId: string, fichero: File): Promise<string> => {
+  const extension = (fichero.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const ruta = `productos/${businessId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+  const { error } = await supabase.storage
+    .from('business_logos')
+    .upload(ruta, fichero, { cacheControl: '31536000', upsert: false });
+  if (error) throw error;
+  return supabase.storage.from('business_logos').getPublicUrl(ruta).data.publicUrl;
 };
 
 export const getBusinessProducts = async (businessId: string): Promise<ReviewSubject[]> => {

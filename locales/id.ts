@@ -505,6 +505,7 @@ export default {
     logout: "Keluar",
     save: "Simpan",
     cancel: "Batal",
+    upload: "Unggah gambar",
     saving: "Menyimpan...",
     loading: "Memuat...",
     searching: "Mencari...",

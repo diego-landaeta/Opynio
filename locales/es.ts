@@ -513,6 +513,7 @@ export default {
     logout: "Cerrar sesión",
     save: "Guardar",
     cancel: "Cancelar",
+    upload: "Subir imagen",
     saving: "Guardando...",
     loading: "Cargando...",
     searching: "Buscando...",

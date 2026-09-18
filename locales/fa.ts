@@ -505,6 +505,7 @@ export default {
     logout: "خروج",
     save: "ذخیره",
     cancel: "لغو",
+    upload: "بارگذاری تصویر",
     saving: "در حال ذخیره...",
     loading: "در حال بارگذاری...",
     searching: "در حال جستجو...",

@@ -505,6 +505,7 @@ export default {
     logout: "Se déconnecter",
     save: "Enregistrer",
     cancel: "Annuler",
+    upload: "Importer une image",
     saving: "Enregistrement...",
     loading: "Chargement...",
     searching: "Recherche...",
