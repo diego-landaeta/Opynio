@@ -29,6 +29,9 @@ dist-ssr
 *.sw?
 nul
 
+# Capturas y trazas de Playwright MCP (se generan al verificar en navegador)
+.playwright-mcp/
+
 # Local scripts and test files
 scripts/reviews-injection/
 scripts/_*
