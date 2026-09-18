@@ -7,9 +7,11 @@ import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../typ
 import { getBusinessInsights } from '../../services/geminiService';
 import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile, userHasReviewedBusiness } from '../../services/supabaseService';
 import { getReviewsOptimized, searchReviewsOptimized } from '../../services/optimizedQueries';
+import { getPublicBusinessProducts } from '../../services/supabaseService';
 import ReviewCard from '../ReviewCard';
 import StarRating from '../StarRating';
 import Spinner from '../Spinner';
+import BusinessLogo from '../BusinessLogo';
 import L from 'leaflet';
 import Meta from '../Meta';
 import Schema from '../Schema';
@@ -60,6 +62,22 @@ const BusinessPage: React.FC = () => {
 
     const [business, setBusiness] = useState<Business | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
+    // Productos de la empresa con nota propia. 'all' = la ficha entera.
+    const [products, setProducts] = useState<any[]>([]);
+    const [productFilter, setProductFilter] = useState<string>('all');
+    const reviewsSectionRef = useRef<HTMLDivElement>(null);
+    // El producto elegido, si lo hay: lo usa el titulo de la lista.
+    const selectedProduct = products.find(p => p.id === productFilter) || null;
+
+    // URL publica de la ficha de un producto. Se usa en la barra de estado de
+    // las resenas; antes se armaba dentro del JSX de cada tarjeta.
+    const urlDelProducto = (producto: { slug?: string | null }) => {
+        if (!producto?.slug || !business) return null;
+        const pais = (activeCountryCode || business.country || 'es').toLowerCase();
+        const rutas = pathTranslations[pageLang] || pathTranslations.es;
+        const slugEmpresa = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
+        return `/${pais}/${rutas.productPage.replace(':identifier', slugEmpresa).replace(':productSlug', producto.slug)}`;
+    };
     const [insights, setInsights] = useState<AiInsight | null>(null);
     const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -221,6 +239,13 @@ const BusinessPage: React.FC = () => {
 
     // Sede-specific data with fallback to main location
     const logoToDisplay = currentSedeData?.logo_url || business?.logo_url;
+    // El tono medido corresponde a business.logo_url. Si acaba mostrandose el logo
+    // propio de una sede se esta pintando otra imagen, sin medir, y no se le aplica.
+    // Se compara la URL final en vez de mirar si hay sede: allSedes incluye una sede
+    // sintetica para la ubicacion principal que ya lleva el logo de la empresa.
+    const logoToneToDisplay = logoToDisplay && logoToDisplay === business?.logo_url
+        ? business?.logo_tone
+        : null;
     const websiteToDisplay = currentSedeData?.website_url || business?.website_url;
     const contactPhoneToDisplay = currentSedeData?.contact_phone || business?.contact_phone;
     const contactEmailToDisplay = currentSedeData?.contact_email || business?.contact_email;
@@ -438,8 +463,14 @@ const BusinessPage: React.FC = () => {
 
     const displayCategory = useMemo(() => {
         const categoryString = business?.category;
-        if (!categoryString || !categoryString.includes(':')) {
-            return categoryString || t('common.unspecified');
+        if (!categoryString) return t('common.unspecified');
+        if (!categoryString.includes(':')) {
+            // Sin subcategoria tambien hay que traducir: devolver la cadena tal
+            // cual dejaba la clave española a la vista en los otros 30 idiomas.
+            const translated = t(`categories.${categoryString.trim()}`);
+            return translated.startsWith('categories.')
+                ? categoryString.replace(/_/g, ' ').trim()
+                : translated;
         }
         const [mainKey, subKey] = categoryString.split(':');
         const main = t(`categories.${mainKey.trim()}`);
@@ -544,21 +575,24 @@ const BusinessPage: React.FC = () => {
     const fetchInProgressRef = useRef(false);
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const fetchReviews = useCallback(async (businessId: string, currentPage: number, source: string, rating: typeof ratingFilter, isLoadMore: boolean) => {
-        // Cancel any ongoing fetch
+    const fetchReviews = useCallback(async (businessId: string, currentPage: number, source: string, rating: typeof ratingFilter, isLoadMore: boolean, product: string) => {
+        // Cancela la peticion anterior y se queda con la suya. Comparar contra
+        // este controlador local (y no contra el ref, que ya apunta a otro) es
+        // lo que evita pintar una respuesta obsoleta.
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-        abortControllerRef.current = new AbortController();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const esLaUltima = () => abortControllerRef.current === controller;
 
-        if (fetchInProgressRef.current && !isLoadMore) return; // Prevent duplicate initial fetches
         fetchInProgressRef.current = true;
 
         if (isLoadMore) setIsLoadingMore(true); else { setReviews([]); setIsLoadingMore(true); }
         try {
-            const reviewsData = await getReviewsOptimized(businessId, currentPage, 20, source, rating);
-            // Check if component is still mounted and request wasn't aborted
-            if (!abortControllerRef.current?.signal.aborted) {
+            const reviewsData = await getReviewsOptimized(businessId, currentPage, 20, source, rating, product && product !== 'all' ? product : null);
+            // Si mientras tanto ha salido otra peticion, esta ya no manda.
+            if (esLaUltima()) {
                 setReviews(prev => isLoadMore ? [...prev, ...reviewsData] : reviewsData);
                 setHasMore(reviewsData.length === 20);
             }
@@ -567,43 +601,49 @@ const BusinessPage: React.FC = () => {
             if (e instanceof Error && e.name === 'AbortError') return;
             console.error("Error fetching reviews for business:", e instanceof Error ? e.message : String(e), e);
             // Don't set error state here - just show empty reviews
-            if (!abortControllerRef.current?.signal.aborted) {
+            if (esLaUltima()) {
                 setReviews([]);
                 setHasMore(false);
             }
         }
         finally {
-            fetchInProgressRef.current = false;
-            setIsLoadingMore(false);
+            if (esLaUltima()) {
+                fetchInProgressRef.current = false;
+                setIsLoadingMore(false);
+            }
         }
     }, []);
 
-    const fetchSearch = useCallback(async (businessId: string, term: string, source: string, rating: typeof ratingFilter) => {
+    const fetchSearch = useCallback(async (businessId: string, term: string, source: string, rating: typeof ratingFilter, product: string) => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-        abortControllerRef.current = new AbortController();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const esLaUltima = () => abortControllerRef.current === controller;
 
         fetchInProgressRef.current = true;
         setReviews([]);
         setHasMore(false);
         setIsLoadingMore(true);
         try {
-            const reviewsData = await searchReviewsOptimized(businessId, term, source, rating);
-            if (!abortControllerRef.current?.signal.aborted) {
+            const reviewsData = await searchReviewsOptimized(businessId, term, source, rating, product && product !== 'all' ? product : null);
+            if (esLaUltima()) {
                 setReviews(reviewsData);
                 setHasMore(false);
             }
         } catch (e) {
             if (e instanceof Error && e.name === 'AbortError') return;
             console.error("Error searching reviews:", e instanceof Error ? e.message : String(e), e);
-            if (!abortControllerRef.current?.signal.aborted) {
+            if (esLaUltima()) {
                 setReviews([]);
                 setHasMore(false);
             }
         } finally {
-            fetchInProgressRef.current = false;
-            setIsLoadingMore(false);
+            if (esLaUltima()) {
+                fetchInProgressRef.current = false;
+                setIsLoadingMore(false);
+            }
         }
     }, []);
 
@@ -746,24 +786,47 @@ const BusinessPage: React.FC = () => {
         if (business) {
             setPage(1);
             if (activeSearch) {
-                fetchSearch(business.id, activeSearch, sourceFilter, ratingFilter);
+                fetchSearch(business.id, activeSearch, sourceFilter, ratingFilter, productFilter);
             } else {
-                fetchReviews(business.id, 1, sourceFilter, ratingFilter, false);
+                fetchReviews(business.id, 1, sourceFilter, ratingFilter, false, productFilter);
             }
         }
-    }, [business, sourceFilter, ratingFilter, activeSearch, fetchReviews, fetchSearch]);
+    }, [business, sourceFilter, ratingFilter, productFilter, activeSearch, fetchReviews, fetchSearch]);
 
     // Load more reviews when page changes (but not when filters change, and never in search mode)
-    const prevFiltersRef = useRef({ sourceFilter, ratingFilter });
+    const prevFiltersRef = useRef({ sourceFilter, ratingFilter, productFilter });
     useEffect(() => {
         const filtersChanged = prevFiltersRef.current.sourceFilter !== sourceFilter ||
-                               prevFiltersRef.current.ratingFilter !== ratingFilter;
-        prevFiltersRef.current = { sourceFilter, ratingFilter };
+                               prevFiltersRef.current.ratingFilter !== ratingFilter ||
+                               prevFiltersRef.current.productFilter !== productFilter;
+        prevFiltersRef.current = { sourceFilter, ratingFilter, productFilter };
 
         if (business && page > 1 && !filtersChanged && !activeSearch) {
-            fetchReviews(business.id, page, sourceFilter, ratingFilter, true);
+            fetchReviews(business.id, page, sourceFilter, ratingFilter, true, productFilter);
         }
-    }, [page, business, sourceFilter, ratingFilter, activeSearch, fetchReviews]);
+    }, [page, business, sourceFilter, ratingFilter, productFilter, activeSearch, fetchReviews]);
+
+    // Productos activos de la empresa. Si falla, la ficha se comporta como
+    // siempre: sin sección de productos y sin filtro.
+    useEffect(() => {
+        if (!business?.id) return;
+        let cancelled = false;
+        getPublicBusinessProducts(business.id)
+            .then(list => { if (!cancelled) setProducts(list.filter(p => p.is_active)); })
+            .catch(err => console.error('No se pudieron cargar los productos de la ficha:', err));
+        return () => { cancelled = true; };
+    }, [business?.id]);
+
+    // Llegada desde un widget de producto (?producto=<id>): la ficha abre ya
+    // filtrada, para que el visitante encuentre lo que el widget le prometió.
+    // Solo se acepta si ese producto existe y está activo; un enlace viejo no
+    // debe dejar la ficha filtrada por algo que ya no está.
+    useEffect(() => {
+        const requested = new URLSearchParams(location.search).get('producto');
+        if (requested && products.some(p => p.id === requested)) {
+            setProductFilter(requested);
+        }
+    }, [location.search, products]);
     
     useEffect(() => {
         const generateInsights = async () => {
@@ -846,9 +909,15 @@ const BusinessPage: React.FC = () => {
                     <div className="flex flex-col gap-3 sm:gap-4">
                         {/* Logo and Title Row */}
                         <div className="flex items-start gap-3 sm:gap-4">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg bg-gray-100 dark:bg-zinc-700 flex-shrink-0 flex items-center justify-center overflow-hidden border dark:border-zinc-600">
-                                {logoToDisplay ? <img src={logoToDisplay} alt={`${business.name} logo`} width={96} height={96} loading="lazy" decoding="async" className="w-full h-full object-contain p-1" /> : <i className="fa-solid fa-store text-2xl sm:text-3xl md:text-4xl text-gray-400"></i>}
-                            </div>
+                            <BusinessLogo
+                                logoUrl={logoToDisplay}
+                                businessName={business.name}
+                                tone={logoToneToDisplay}
+                                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24"
+                                iconSize="text-2xl sm:text-3xl md:text-4xl"
+                                width={96}
+                                height={96}
+                            />
                             <div className="flex-grow min-w-0">
                                 <div className="flex flex-col gap-1.5 sm:gap-2">
                                     <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100 break-words">
@@ -947,8 +1016,13 @@ const BusinessPage: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700">
-                            <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.allReviewsFor', { businessName: business.name })}</h2>
+
+                        <div ref={reviewsSectionRef} className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700 scroll-mt-4">
+                            <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">
+                                {selectedProduct
+                                    ? t('businessPage.reviewsOfProduct', { name: selectedProduct.name })
+                                    : t('businessPage.allReviewsFor', { businessName: business.name })}
+                            </h2>
                             <div className="flex flex-col gap-3 mb-4 pb-3 sm:pb-4 border-b dark:border-zinc-700">
                                 <div className="relative">
                                     <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs sm:text-sm pointer-events-none"></i>
@@ -976,11 +1050,45 @@ const BusinessPage: React.FC = () => {
                                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
                                         {sourceCounts && [ 'all', 'opynio', 'google', 'trustindex' ].map(s => {
                                             const count = s === 'all' ? (sourceCounts.opynio + sourceCounts.google + sourceCounts.trustindex) : sourceCounts[s as keyof typeof sourceCounts];
-                                            if (count > 0) return <FilterChip key={s} label={`${t(`businessPage.${s}`)} (${count})`} isActive={sourceFilter === s} onClick={() => setSourceFilter(s as any)} />;
+                                            if (count > 0) {
+                                                // Con un producto seleccionado, ese recuento es el de la
+                                                // empresa entera y no el de lo que se esta viendo: se
+                                                // muestra el chip sin cifra en vez de una cifra falsa.
+                                                const label = selectedProduct ? t(`businessPage.${s}`) : `${t(`businessPage.${s}`)} (${count})`;
+                                                return <FilterChip key={s} label={label} isActive={sourceFilter === s} onClick={() => setSourceFilter(s as any)} />;
+                                            }
                                             return null;
                                         })}
                                     </div>
                                 </div>
+                                {/* Barra de estado del filtro. Antes habia aqui un
+                                    desplegable de productos: un segundo mando para lo
+                                    mismo que las tarjetas de arriba, sin decir cual
+                                    estaba activo. */}
+                                {selectedProduct && (
+                                    <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg bg-brand-green/10 border border-brand-green/30">
+                                        <i className="fa-solid fa-filter text-brand-green text-xs flex-shrink-0" aria-hidden="true"></i>
+                                        <span className="min-w-0 text-xs sm:text-sm text-gray-800 dark:text-gray-100">
+                                            {t('businessPage.reviewsOfProduct', { name: selectedProduct.name })}
+                                        </span>
+                                        {urlDelProducto(selectedProduct) && (
+                                            <Link
+                                                to={urlDelProducto(selectedProduct) as string}
+                                                className="text-xs font-semibold text-brand-green hover:underline focus:outline-none focus:ring-2 focus:ring-brand-green rounded"
+                                            >
+                                                {t('businessPage.seeProductPage')}
+                                            </Link>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setProductFilter('all')}
+                                            className="ml-auto min-h-[36px] inline-flex items-center gap-1.5 px-2.5 rounded-full text-xs font-semibold bg-white/70 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors"
+                                        >
+                                            <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+                                            {t('businessPage.allProducts')}
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('businessPage.rating')}:</span>
                                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -1009,7 +1117,56 @@ const BusinessPage: React.FC = () => {
                     </main>
 
                     <aside className="lg:col-span-1 space-y-3 sm:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
-                        <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
+                        {products.length > 0 && (
+                            <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
+                                <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.productsTitle')}</h3>
+                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{t('businessPage.productsFilterHint')}</p>
+                                <select
+                                    value={productFilter}
+                                    onChange={(e) => {
+                                        setProductFilter(e.target.value);
+                                        if (e.target.value !== 'all') {
+                                            reviewsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }
+                                    }}
+                                    aria-label={t('businessPage.productsTitle')}
+                                    className={`mt-2 w-full min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg px-3 py-2 border transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green ${
+                                        productFilter === 'all'
+                                            ? 'bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-zinc-700'
+                                            : 'bg-brand-green/10 text-gray-900 dark:text-gray-100 border-brand-green'
+                                    }`}
+                                >
+                                    <option value="all">{t('businessPage.allProducts')}</option>
+                                    {products.map(product => (
+                                        <option key={product.id} value={product.id}>
+                                            {product.name}
+                                            {(product.review_count ?? 0) > 0
+                                                ? ` — ${(product.avg_rating ?? 0).toFixed(1)} (${product.review_count})`
+                                                : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                {selectedProduct && urlDelProducto(selectedProduct) && (
+                                    <Link
+                                        to={urlDelProducto(selectedProduct) as string}
+                                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-green hover:underline focus:outline-none focus:ring-2 focus:ring-brand-green rounded"
+                                    >
+                                        <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                        {t('businessPage.seeProductPage')}
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+
+                        <div>
+                            <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
+                            {selectedProduct && (
+                                <p className="mt-1.5 px-1 text-[11px] text-gray-500 dark:text-gray-400 flex items-start gap-1.5">
+                                    <i className="fa-solid fa-circle-info mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                                    <span>{t('businessPage.allReviewsFor', { businessName: business.name })}</span>
+                                </p>
+                            )}
+                        </div>
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700 space-y-2.5 sm:space-y-3 overflow-hidden">
                             <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.aboutBusiness', { businessName: business.name })}</h3>
                             {isTranslating && business?.description ? (

@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { Plan } from '../../../../types';
+import { Plan, ReviewSubject } from '../../../../types';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import Spinner from '../../../Spinner';
 import { getWidgetScript, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
+import { getBusinessProducts } from '../../../../services/supabaseService';
 import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
 
 const WIDGET_LANGUAGES = [
@@ -160,7 +161,38 @@ const DashboardWidgets: React.FC = () => {
     const [selectedWidget, setSelectedWidget] = useState<WidgetCardConfig>(WIDGETS[0]);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [widgetLang, setWidgetLang] = useState<string>('auto');
+    // '' = la empresa entera, que es el comportamiento de siempre.
+    const [selectedProductId, setSelectedProductId] = useState<string>('');
+    const [products, setProducts] = useState<ReviewSubject[]>([]);
     const previewRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = ReactRouterDOM.useSearchParams();
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!business?.id) return;
+        let cancelled = false;
+        getBusinessProducts(business.id)
+            .then(list => { if (!cancelled) setProducts(list.filter(p => p.is_active)); })
+            // Sin productos no se pinta el selector: la pantalla queda como estaba.
+            .catch(err => {
+                // Si las tablas aun no estan aplicadas, esta pantalla se comporta
+                // como antes de que existieran los productos: sin selector.
+                const faltaLaTabla = err?.code === 'PGRST205' || err?.code === '42P01';
+                if (faltaLaTabla) console.info('Productos no disponibles en esta base de datos todavía.');
+                else console.error('No se pudieron cargar los productos:', err);
+            });
+        return () => { cancelled = true; };
+    }, [business?.id]);
+
+    // Se llega aquí desde "Ver widget" en la pantalla de Productos. Solo se
+    // acepta el id si ese producto existe y está activo, para que una URL vieja
+    // no deje el selector apuntando a algo que ya no está.
+    useEffect(() => {
+        const requested = searchParams.get('producto');
+        if (requested && products.some(p => p.id === requested)) {
+            setSelectedProductId(requested);
+        }
+    }, [searchParams, products]);
 
     const handleSelectWidget = (widget: WidgetCardConfig) => {
         setSelectedWidget(widget);
@@ -171,7 +203,32 @@ const DashboardWidgets: React.FC = () => {
         return <div className="flex justify-center items-center h-48 sm:h-64"><Spinner /></div>;
     }
 
-    const codeSnippet = getWidgetScript(business.id, selectedWidget.type, theme, widgetLang !== 'auto' ? widgetLang : undefined);
+    const selectedProduct = products.find(p => p.id === selectedProductId) || null;
+
+    // La vista previa tiene que enseñar lo mismo que enseñará el widget: si hay
+    // un producto elegido, sus cifras. Si no, un preview que dice una cosa y un
+    // snippet que hace otra.
+    const previewTarget = selectedProduct
+        ? { ...business, name: selectedProduct.name, avg_rating: selectedProduct.avg_rating ?? 0, average_rating: selectedProduct.avg_rating ?? 0, review_count: selectedProduct.review_count ?? 0 }
+        : business;
+
+    const productLabel = selectedProduct
+        ? (selectedProduct.code ? `${selectedProduct.name} [${selectedProduct.code}]` : selectedProduct.name)
+        : undefined;
+    const codeSnippet = getWidgetScript(business.id, selectedWidget.type, theme, widgetLang !== 'auto' ? widgetLang : undefined, selectedProductId || undefined, productLabel);
+
+    const copyCode = async () => {
+        try {
+            await navigator.clipboard.writeText(codeSnippet);
+            setCopied(true);
+            showNotification(t('businessDashboard.codeCopiedToast'), 'success');
+            // La confirmación vive en el propio botón unos segundos: el aviso
+            // se va solo y el usuario necesita saber que el copiado ocurrió.
+            window.setTimeout(() => setCopied(false), 2000);
+        } catch {
+            showNotification(t('businessDashboard.codeCopyFailed'), 'error');
+        }
+    };
 
     const downloadCodeAsTxt = () => {
         try {
@@ -237,39 +294,116 @@ const DashboardWidgets: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Alcance, tema e idioma en UNA tarjeta, y delante de la vista
+                        previa. Antes eran tres paneles sueltos colocados DESPUES del
+                        paso 3, asi que la pantalla se leia 1 -> 3 -> 2 -> 4. */}
+                    <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
+                        <div className={`grid grid-cols-1 gap-3 sm:gap-4 ${products.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                            {products.length > 0 && (
+                                <div>
+                                    <h2 className="text-sm font-bold mb-2 text-gray-800 dark:text-gray-100">
+                                        <i className="fa-solid fa-box-open mr-1.5 text-brand-green" aria-hidden="true"></i>
+                                        {t('businessDashboard.widgetScopeTitle')}
+                                    </h2>
+                                    <select
+                                        value={selectedProductId}
+                                        onChange={(e) => setSelectedProductId(e.target.value)}
+                                        aria-label={t('businessDashboard.widgetScopeTitle')}
+                                        className="w-full min-h-[44px] text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                                    >
+                                        <option value="">{t('businessDashboard.widgetScopeWholeBusiness')}</option>
+                                        {products.map(product => (
+                                            <option key={product.id} value={product.id}>
+                                                {product.code ? `[${product.code}] ` : ''}{product.name} ({(product.review_count ?? 0) > 0
+                                                    ? `${(product.avg_rating ?? 0).toFixed(1)} · ${product.review_count}`
+                                                    : '0'})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div>
+                                <h2 className="text-sm font-bold mb-2 text-gray-800 dark:text-gray-100">{t('businessDashboard.step2ChooseTheme')}</h2>
+                                <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg">
+                                    <button type="button" onClick={() => setTheme('light')} className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-md font-semibold text-xs sm:text-sm transition-all ${theme === 'light' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent'}`}>{t('businessDashboard.lightTheme')}</button>
+                                    <button type="button" onClick={() => setTheme('dark')} className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-md font-semibold text-xs sm:text-sm transition-all ${theme === 'dark' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent'}`}>{t('businessDashboard.darkTheme')}</button>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-bold mb-2 text-gray-800 dark:text-gray-100">
+                                    <i className="fa-solid fa-language mr-1.5 text-brand-green" aria-hidden="true"></i>
+                                    {t('businessDashboard.widgetLanguageTitle')}
+                                </h2>
+                                <WidgetLanguageSelect
+                                    value={widgetLang}
+                                    onChange={setWidgetLang}
+                                    autoLabel={t('businessDashboard.widgetLangAuto')}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Preview */}
                     <div ref={previewRef} className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 scroll-mt-4">
                         <h2 className="text-lg sm:text-xl font-bold mb-1">{t('businessDashboard.step3Preview', { widgetName: t(`businessDashboard.widgetNames.${selectedWidget.name}`) })}</h2>
                         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-3 sm:mb-4">{t(selectedWidget.description)}</p>
+                        {/* Las vistas previas rellenan con cifras de ejemplo cuando no hay
+                            datos (5.0 y 123 reseñas). Para un producto sin reseñas eso
+                            contradiría al widget real, que mostrará 0: se avisa aquí mismo,
+                            pegado a las cifras que no son suyas. */}
+                        {selectedProduct && (selectedProduct.review_count ?? 0) === 0 && (
+                            <p className="mb-3 text-xs sm:text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 flex items-start gap-2">
+                                <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
+                                <span>{t('businessDashboard.widgetScopeProductWarning')}</span>
+                            </p>
+                        )}
                         <div className={`p-3 sm:p-4 rounded-lg overflow-x-auto ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
-                            <selectedWidget.component business={business} theme={theme} lang={widgetLang !== 'auto' ? widgetLang : language} />
+                            {/* Misma cabecera que pinta el widget publicado (v6.7.0):
+                                si la previsualizacion no la enseña, promete menos
+                                de lo que el cliente va a pegar en su web.
+                                'floating' es un boton fijo y no la lleva. */}
+                            {selectedProduct && selectedWidget.type !== 'floating' && (
+                                <div className={`opynio-widget opynio-theme-${theme}`}>
+                                    <div className={`opynio-subject-header${selectedWidget.type === 'badge' || selectedWidget.type === 'sidebar' ? ' opynio-subject-compact' : ''}`}>
+                                        <span className="opynio-subject-label">{t('businessDashboard.widgetSubjectLabel')}</span>
+                                        <span className="opynio-subject-name">{selectedProduct.name}</span>
+                                    </div>
+                                </div>
+                            )}
+                            <selectedWidget.component business={previewTarget} theme={theme} lang={widgetLang !== 'auto' ? widgetLang : language} />
                         </div>
                     </div>
 
-                    {/* Theme + idioma + descarga en una fila */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
-                            <h2 className="text-sm sm:text-base font-bold mb-2">{t('businessDashboard.step2ChooseTheme')}</h2>
-                            <div className="flex gap-1.5 sm:gap-2 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg">
-                                <button type="button" onClick={() => setTheme('light')} className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-md font-semibold text-xs sm:text-sm transition-all ${theme === 'light' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent'}`}>{t('businessDashboard.lightTheme')}</button>
-                                <button type="button" onClick={() => setTheme('dark')} className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-md font-semibold text-xs sm:text-sm transition-all ${theme === 'dark' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent'}`}>{t('businessDashboard.darkTheme')}</button>
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
-                            <h2 className="text-sm sm:text-base font-bold mb-2">
-                                <i className="fa-solid fa-language mr-1.5 text-brand-green"></i>
-                                {t('businessDashboard.widgetLanguageTitle')}
+                    <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                            <h2 className="text-sm sm:text-base font-bold text-gray-800 dark:text-gray-100">
+                                <i className="fa-solid fa-code mr-1.5 text-brand-green" aria-hidden="true"></i>
+                                {t('businessDashboard.step4GetCode')}
                             </h2>
-                            <WidgetLanguageSelect
-                                value={widgetLang}
-                                onChange={setWidgetLang}
-                                autoLabel={t('businessDashboard.widgetLangAuto')}
-                            />
+                            <button
+                                type="button"
+                                onClick={copyCode}
+                                aria-label={t('businessDashboard.copyCodeButton')}
+                                title={t('businessDashboard.copyCodeButton')}
+                                className="flex-shrink-0 min-h-[36px] min-w-[36px] rounded-lg text-sm font-semibold text-brand-green bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 transition-[background-color,transform] duration-100 active:scale-[0.97] motion-reduce:transform-none"
+                            >
+                                <i className={`fa-solid ${copied ? 'fa-check' : 'fa-clipboard'}`} aria-hidden="true"></i>
+                            </button>
                         </div>
-                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 flex flex-col">
-                            <h2 className="text-sm sm:text-base font-bold mb-2">{t('businessDashboard.step4GetCode')}</h2>
-                            <button type="button" onClick={downloadCodeAsTxt} className="mt-auto w-full bg-brand-dark hover:bg-black text-white dark:bg-gray-200 dark:text-brand-dark dark:hover:bg-white font-semibold py-2 sm:py-2.5 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm">
-                                <i className="fa-solid fa-download"></i>
+                        <pre className="overflow-x-auto rounded-lg bg-gray-900 dark:bg-black/60 p-3 text-[11px] sm:text-xs leading-relaxed text-gray-100 border dark:border-zinc-700"><code>{codeSnippet}</code></pre>
+                        {/* Copiar y descargar viven aqui, pegados al codigo: eran un
+                            panel aparte llamado "Paso 4" a tres tarjetas de distancia. */}
+                        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                            <button type="button" onClick={copyCode} className={`flex-1 min-h-[44px] font-semibold py-2 px-3 rounded-lg transition-[background-color,transform] duration-100 active:scale-[0.98] motion-reduce:transform-none flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                                copied
+                                    ? 'bg-green-100 dark:bg-green-900/40 text-brand-green'
+                                    : 'bg-brand-green text-white hover:bg-opacity-90 shadow-sm shadow-brand-green/30'
+                            }`}>
+                                <i className={`fa-solid ${copied ? 'fa-check' : 'fa-clipboard'}`} aria-hidden="true"></i>
+                                <span>{copied ? t('businessDashboard.codeCopiedToast') : t('businessDashboard.copyCodeButton')}</span>
+                            </button>
+                            <button type="button" onClick={downloadCodeAsTxt} className="flex-1 min-h-[44px] bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-800 dark:text-gray-100 font-semibold py-2 px-3 rounded-lg transition-[background-color,transform] duration-100 active:scale-[0.98] motion-reduce:transform-none flex items-center justify-center gap-2 text-xs sm:text-sm">
+                                <i className="fa-solid fa-download" aria-hidden="true"></i>
                                 <span>{t('businessDashboard.downloadCodeButton')}</span>
                             </button>
                         </div>

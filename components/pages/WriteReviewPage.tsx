@@ -4,9 +4,10 @@ import AudioPlayer from '../AudioPlayer';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Database, Business, BusinessListItem } from '../../types';
 import { CATEGORIES } from '../../constants';
-import { createReview, searchBusinessList, getBusinessListItemById, userCreateBusiness } from '../../services/supabaseService';
+import { createReview, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, linkOwnReviewToProduct } from '../../services/supabaseService';
 import { generateReviewDraft } from '../../services/geminiService';
 import Spinner from '../Spinner';
+import BusinessLogo from '../BusinessLogo';
 import Meta from '../Meta';
 import Modal from '../Modal';
 // FIX: Changed react-router-dom namespace import to named imports to resolve module resolution issues.
@@ -90,15 +91,18 @@ const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect:
             onClick={() => onSelect(business)}
             className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer flex items-center gap-3"
         >
-            <div className="w-10 h-10 rounded-md bg-gray-100 dark:bg-zinc-700 flex-shrink-0 overflow-hidden border dark:border-zinc-600">
-                {business.logo_url ? (
-                    <img src={business.logo_url} alt={`${business.name} logo`} width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <i className="fa-solid fa-store"></i>
-                    </div>
-                )}
-            </div>
+            <BusinessLogo
+                logoUrl={business.logo_url}
+                businessName={business.name}
+                tone={(business as any).logo_tone}
+                className="w-10 h-10"
+                rounded="rounded-md"
+                iconSize="text-base"
+                fit="cover"
+                padding=""
+                width={40}
+                height={40}
+            />
             <div>
                 <p className="font-semibold text-gray-800 dark:text-gray-200">{business.name}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{getCategoryTranslation(business.category)}</p>
@@ -158,7 +162,23 @@ const WriteReviewPage: React.FC = () => {
     const { user, profile } = useAuth();
     const { showNotification } = useNotification();
     const location = useLocation();
-    const preselectedBusinessId = location.state?.businessId;
+    // El widget enlaza con ?businessId=…&producto=…, pero hasta ahora solo se
+    // miraba location.state: quien llegaba desde un widget aterrizaba en el
+    // formulario sin empresa preseleccionada.
+    const paramsDeLaUrl = new URLSearchParams(location.search);
+    const preselectedBusinessId = location.state?.businessId || paramsDeLaUrl.get('businessId') || undefined;
+    const productoSolicitado = paramsDeLaUrl.get('producto') || null;
+    // Producto sobre el que se está opinando, si se llegó desde su widget.
+    const [productoDeLaResena, setProductoDeLaResena] = useState<{ id: string; business_id: string; name: string } | null>(null);
+
+    useEffect(() => {
+        if (!productoSolicitado) return;
+        let cancelado = false;
+        getPublicProductById(productoSolicitado)
+            .then(prod => { if (!cancelado) setProductoDeLaResena(prod); })
+            .catch(() => { /* producto borrado o desactivado: reseña normal */ });
+        return () => { cancelado = true; };
+    }, [productoSolicitado]);
 
     // Helper function to translate category string
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -503,10 +523,19 @@ const WriteReviewPage: React.FC = () => {
             if (audioBlob || imageFiles.length > 0) {
                 setSubmissionStatus('uploading');
             }
-            await createReview(reviewInsert, { 
-                audioBlob: audioBlob || undefined, 
-                imageFiles: imageFiles.length > 0 ? imageFiles : undefined 
+            const resenaCreada = await createReview(reviewInsert, {
+                audioBlob: audioBlob || undefined,
+                imageFiles: imageFiles.length > 0 ? imageFiles : undefined
             });
+
+            // Si viene de un widget de producto, la reseña queda asociada a ese
+            // producto. Va DESPUÉS de crearla y sin bloquear: si el enlace falla,
+            // la reseña está publicada igual, que es lo que le importa al autor.
+            if (productoDeLaResena && (resenaCreada as any)?.id
+                && productoDeLaResena.business_id === selectedBusinessId) {
+                await linkOwnReviewToProduct(String((resenaCreada as any).id), productoDeLaResena.id);
+            }
+
             setShowSuccessModal(true);
             resetForm();
             setSubmissionStatus('idle');
@@ -707,6 +736,14 @@ const WriteReviewPage: React.FC = () => {
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-gray-900 dark:text-gray-100">{t('writeReviewPage.writeReviewTitle')}</h1>
                         <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">{t('writeReviewPage.writeReviewSubtitle')}</p>
+                        {/* Se llegó desde el widget de un producto: se dice, porque
+                            asociar la reseña en silencio sería peor que no asociarla. */}
+                        {productoDeLaResena && (
+                            <p className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs sm:text-sm text-green-800 dark:text-green-200">
+                                <i className="fa-solid fa-box-open" aria-hidden="true"></i>
+                                <span>{t('writeReviewPage.reviewingProduct', { name: productoDeLaResena.name })}</span>
+                            </p>
+                        )}
                     </div>
                      <div className={`w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gray-50 dark:bg-zinc-700/50 border dark:border-zinc-700 rounded-lg flex items-center justify-center transition-all duration-300 ${selectedBusinessId ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
                         {selectedBusinessLogoUrl ? (

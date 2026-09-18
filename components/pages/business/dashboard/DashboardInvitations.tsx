@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Plan } from '../../../../types';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
-import { supabase } from '../../../../services/supabaseService';
+import { supabase, getBusinessProducts } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import { useTranslation } from '../../../../contexts/i18nContext';
 
@@ -58,6 +58,19 @@ const DashboardInvitations: React.FC = () => {
     const [emails, setEmails] = useState('');
     const [customMessage, setCustomMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
+    // Pedir reseña de un curso concreto: sin esto, el cliente recibe una
+    // invitación genérica y luego no se sabe de qué producto hablaba.
+    const [products, setProducts] = useState<any[]>([]);
+    const [productId, setProductId] = useState('');
+
+    useEffect(() => {
+        if (!business?.id) return;
+        let cancelado = false;
+        getBusinessProducts(business.id)
+            .then(list => { if (!cancelado) setProducts(list.filter((p: any) => p.is_active)); })
+            .catch(() => { /* sin productos o sin tablas: invitación normal */ });
+        return () => { cancelado = true; };
+    }, [business?.id]);
 
     if (!business) {
         return <div className="flex justify-center items-center h-48 sm:h-64"><Spinner /></div>;
@@ -78,7 +91,11 @@ const DashboardInvitations: React.FC = () => {
                     businessName: business.name,
                     businessId: business.id,
                     emails: emailList,
-                    message: customMessage
+                    message: customMessage,
+                    // El nombre del producto viaja al webhook para que el correo
+                    // pueda decir de qué curso se pide la reseña.
+                    productName: products.find(p => p.id === productId)?.name || null,
+                    productId: productId || null,
                 }
             });
             if (error) throw error;
@@ -124,6 +141,24 @@ const DashboardInvitations: React.FC = () => {
                                     className="w-full p-2 sm:p-2.5 border border-gray-300 dark:border-zinc-600 rounded-lg bg-transparent text-sm sm:text-base"
                                 />
                             </div>
+                            {products.length > 0 && (
+                                <div>
+                                    <label htmlFor="invitation-product" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        {t('businessDashboard.invitationProductLabel')}
+                                    </label>
+                                    <select
+                                        id="invitation-product"
+                                        value={productId}
+                                        onChange={e => setProductId(e.target.value)}
+                                        className="w-full p-2 sm:p-2.5 border border-gray-300 dark:border-zinc-600 rounded-lg bg-transparent text-sm sm:text-base text-gray-800 dark:text-gray-100"
+                                    >
+                                        <option value="">{t('businessDashboard.invitationProductNone')}</option>
+                                        {products.map(product => (
+                                            <option key={product.id} value={product.id}>{product.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                              <button type="submit" disabled={isSending} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 px-5 sm:px-6 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm sm:text-base">
                                 {isSending && <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
                                 <span>{isSending ? t('common.sending') : t('businessDashboard.sendInvitationsButton')}</span>

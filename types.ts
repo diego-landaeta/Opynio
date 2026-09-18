@@ -22,11 +22,20 @@ export interface Sede {
   flag?: string; // Bandera del país (para UI)
 }
 
+export type LogoTone = 'light' | 'dark';
+
 export interface SimpleBusiness {
   id: string;
   name: string;
   country: string | null;
   logo_url?: string | null;
+  /**
+   * Luminancia del contenido del logo, medida offline (el canvas no puede leer
+   * imagenes de otros dominios sin CORS). 'light' = contenido claro, necesita chip
+   * oscuro; 'dark' = contenido oscuro, necesita chip claro; ausente = sin medir o
+   * no concluyente, se usa el fondo por defecto.
+   */
+  logo_tone?: LogoTone | null;
   average_rating?: number | null;
   avg_rating?: number | null;
   review_count?: number | null;
@@ -138,6 +147,29 @@ export interface Review {
   businesses: SimpleBusiness | null;
   profiles?: Profile | null;
   review_responses?: ReviewResponse[] | null;
+}
+
+// Entidades reseñables dentro de una empresa. Hoy solo se usan productos; el
+// tipo está abierto para servicios, empleados y sedes sin rehacer el modelo.
+export type ReviewSubjectType = 'product' | 'service' | 'employee' | 'location';
+
+export interface ReviewSubject {
+  id: string;
+  business_id: string;
+  type: ReviewSubjectType;
+  name: string;
+  /** Referencia interna del negocio (código de curso, SKU). No se muestra al visitante. */
+  code: string | null;
+  slug: string | null;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+  // Agregados de business_subject_stats. No son columnas de la tabla: llegan
+  // solo cuando se piden las estadísticas junto al listado.
+  review_count?: number;
+  avg_rating?: number;
 }
 
 export interface Notification {

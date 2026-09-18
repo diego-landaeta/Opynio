@@ -3,7 +3,7 @@ import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardCont
 import { useAuth } from '../../../../contexts/AuthContext';
 import * as ReactRouterDOM from 'react-router-dom';
 import { Plan } from '../../../../types';
-import { getBusinessAnalytics } from '../../../../services/supabaseService';
+import { getBusinessAnalytics, getBusinessProducts } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
 
@@ -238,6 +238,10 @@ const FeatureLock: React.FC<{ requiredPlan: Plan, featureName: string, children:
 type DateRange = 30 | 90 | 3650; // Using a large number for "All time"
 
 const DashboardAnalytics: React.FC = () => {
+    // La analítica ignoraba por completo los productos: un negocio con cursos no
+    // podía ver cuál funciona y cuál no.
+    const [productosConNota, setProductosConNota] = useState<any[]>([]);
+
     const { business } = useBusinessDashboard();
     const t = useTranslation();
     const [loading, setLoading] = useState(true);
@@ -266,6 +270,15 @@ const DashboardAnalytics: React.FC = () => {
         { labelKey: 'businessDashboard.last90Days', value: 90 },
         { labelKey: 'businessDashboard.allTime', value: 3650 },
     ];
+
+    useEffect(() => {
+        if (!business?.id) return;
+        let cancelado = false;
+        getBusinessProducts(business.id)
+            .then(lista => { if (!cancelado) setProductosConNota(lista.filter((p: any) => p.is_active)); })
+            .catch(() => { /* sin tablas: la analítica se queda como estaba */ });
+        return () => { cancelado = true; };
+    }, [business?.id]);
 
     return (
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
@@ -316,6 +329,30 @@ const DashboardAnalytics: React.FC = () => {
                             <h3 className="text-sm sm:text-base font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessDashboard.ratingDistribution')}</h3>
                             <BarChart data={analyticsData.ratingDistribution} total={analyticsData.totalReviews} />
                         </div>
+
+                        {productosConNota.length > 0 && (
+                            <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg shadow-sm border dark:border-zinc-700">
+                                <h3 className="text-sm sm:text-base font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessDashboard.analyticsByProduct')}</h3>
+                                <ul className="divide-y dark:divide-zinc-700">
+                                    {[...productosConNota]
+                                        .sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0))
+                                        .map((producto: any) => (
+                                        <li key={producto.id} className="flex items-center gap-3 py-2.5">
+                                            <span className="min-w-0 flex-1 text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 break-words">{producto.name}</span>
+                                            <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                                                {producto.review_count ?? 0}
+                                            </span>
+                                            <span className="flex-shrink-0 w-14 text-right text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-100">
+                                                {(producto.review_count ?? 0) > 0
+                                                    ? <><i className="fa-solid fa-star text-yellow-400 mr-1" aria-hidden="true"></i>{(producto.avg_rating ?? 0).toFixed(1)}</>
+                                                    : '—'}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('businessDashboard.analyticsByProductNote')}</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </FeatureLock>

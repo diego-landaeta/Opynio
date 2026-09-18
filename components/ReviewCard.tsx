@@ -100,6 +100,11 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         return { name, location };
     };
 
+    // Ultimo recurso cuando la clave guardada no esta en los locales (filas
+    // antiguas, importadas o con el nombre en otro idioma): al menos que se lea
+    // como texto y no como identificador. Mismo criterio que BusinessPage.
+    const humanizeCategory = (value: string): string => value.replace(/_/g, ' ').trim();
+
     const getCategoryTranslation = (categoryString: string | null): string => {
         if (!categoryString) return '';
 
@@ -118,7 +123,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
         // Translate main category using i18n
         const translatedMain = t(`categories.${categoryKey}`);
-        const mainCategoryTranslated = translatedMain.startsWith('categories.') ? mainCategory : translatedMain;
+        const mainCategoryTranslated = translatedMain.startsWith('categories.') ? humanizeCategory(mainCategory) : translatedMain;
 
         // If there's a subcategory, translate it too
         if (subCategory) {
@@ -136,39 +141,49 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
             if (subCategoryKey) {
                 const translatedSub = t(`subcategories.${subCategoryKey}`);
-                const subCategoryTranslated = translatedSub.startsWith('subcategories.') ? subCategory : translatedSub;
+                const subCategoryTranslated = translatedSub.startsWith('subcategories.') ? humanizeCategory(subCategory) : translatedSub;
                 return `${mainCategoryTranslated}: ${subCategoryTranslated}`;
             }
 
             // Fallback if no mapping found
-            return `${mainCategoryTranslated}: ${subCategory}`;
+            return `${mainCategoryTranslated}: ${humanizeCategory(subCategory)}`;
         }
 
         return mainCategoryTranslated;
     };
 
+    // Icono por tipo de etiqueta. El Map guarda etiqueta -> icono y de paso
+    // evita duplicados, igual que hacia el Set anterior.
+    const FORMAT_TAG_ICONS: Record<string, string> = {
+        'texto': 'fa-align-left',
+        'imágenes': 'fa-image',
+        'audio': 'fa-microphone',
+    };
+
     const displayTags = useMemo(() => {
-        const tags = new Set<string>();
+        const tags = new Map<string, string>();
+        const add = (label: string, icon: string) => {
+            if (label && !tags.has(label)) tags.set(label, icon);
+        };
 
         // Use the business's current category instead of the review's stored category
         const categoryToUse = review.businesses?.category || review.category;
-        const translatedCategory = getCategoryTranslation(categoryToUse);
-        if(translatedCategory) tags.add(translatedCategory);
+        add(getCategoryTranslation(categoryToUse), 'fa-tag');
 
         (review.tags || []).forEach(tag => {
             // Translate format tags like 'texto', 'audio', etc.
-            if (['texto', 'imágenes', 'audio'].includes(tag)) {
-                tags.add(t(`common.${tag}`));
+            if (FORMAT_TAG_ICONS[tag]) {
+                add(t(`common.${tag}`), FORMAT_TAG_ICONS[tag]);
             } else {
-                tags.add(tag);
+                add(tag, 'fa-hashtag');
             }
         });
 
-        if (review.review_text && !review.audio_url && !tags.has(t('common.texto'))) {
-            tags.add(t('common.texto'));
+        if (review.review_text && !review.audio_url) {
+            add(t('common.texto'), FORMAT_TAG_ICONS['texto']);
         }
-        
-        return Array.from(tags);
+
+        return Array.from(tags, ([label, icon]) => ({ label, icon }));
     }, [review.tags, review.review_text, review.audio_url, review.category, review.businesses?.category, t]);
 
     const timeAgo = (dateString: string): string => {
@@ -339,8 +354,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                 {displayTags.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         {displayTags.map(tag => (
-                             <span key={tag} className="bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-300 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded capitalize">
-                                {tag}
+                             <span key={tag.label} className="inline-flex items-center gap-1 sm:gap-1.5 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                                <i className={`fa-solid ${tag.icon} text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500`} aria-hidden="true"></i>
+                                {/* `capitalize` ponia mayuscula en CADA palabra: "Salud Y Bienestar".
+                                    Las categorias y los formatos ya vienen bien escritos de los
+                                    locales; solo hace falta asegurar la primera letra de una
+                                    etiqueta libre escrita en minuscula. */}
+                                <span className="inline-block first-letter:uppercase">{tag.label}</span>
                             </span>
                         ))}
                     </div>

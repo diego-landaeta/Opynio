@@ -13,6 +13,7 @@ const features = [
     { id: 'reseñas', label: 'Reseñas', icon: 'fa-comments' },
     { id: 'analiticas', label: 'Analíticas', icon: 'fa-magnifying-glass-chart' },
     { id: 'invitaciones', label: 'Invitaciones', icon: 'fa-paper-plane' },
+    { id: 'productos', label: 'Productos', icon: 'fa-box-open' },
     { id: 'widgets', label: 'Widgets', icon: 'fa-puzzle-piece' },
     { id: 'perfil_de_empresa', label: 'Perfil de Empresa', icon: 'fa-store' },
     { id: 'manual_de_usuario', label: 'Manual de Usuario', icon: 'fa-book-open' },

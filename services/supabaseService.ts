@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { slugify } from '../utils/slugify';
+import type { ReviewSubject } from '../types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
@@ -463,7 +464,7 @@ export const getBusinessesForOwner = async (userId: string) => {
 export const getBusinessListItemById = async (id: string) => {
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, category, country, logo_url')
+    .select('id, name, category, country, logo_url, logo_tone')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -542,7 +543,7 @@ export const getBusinessIdAndNameList = async (searchTerm: string = '') => {
 export const getBusinessesWithLocations = async (country?: string) => {
   let query = supabase
     .from('businesses')
-    .select('id, name, category, country, latitude, longitude, sedes, logo_url')
+    .select('id, name, category, country, latitude, longitude, sedes, logo_url, logo_tone')
     .not('latitude', 'is', null)
     .not('longitude', 'is', null);
 
@@ -655,7 +656,7 @@ export const getBusinessesForDirectoryPaginated = async (
     let query = supabase
       .from('businesses')
       .select(`
-        id, name, country, logo_url, category, description,
+        id, name, country, logo_url, logo_tone, category, description,
         latitude, longitude, sedes, offers_international_services
       `, { count: 'exact' });
 
@@ -979,7 +980,7 @@ export const getBusinessesWithReviewsPaginated = async (
     // review_count, avg_rating, and offers_international_services don't exist as columns
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes, description');
+      .select('id, name, country, logo_url, logo_tone, category, sedes, description');
 
     // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
     // We don't apply .ilike() here
@@ -1129,20 +1130,40 @@ export const getBusinessesWithReviewsPaginated = async (
     }));
 
     // Same totals the business page shows, aggregated in Postgres.
+    // Se trocea y se reintenta por biseccion igual que en loadStats: si esta
+    // llamada falla entera, la pagina entera muestra 0 reseñas y 0.0 de nota,
+    // que es peor mentira que tardar un poco mas.
     const statsByBusiness = new Map<string, { count: number; avg: number }>();
-    const { data: statsRows, error: statsError } = await supabase
-      .rpc('review_stats_batch', { p_business_ids: businessIds, p_include_scheduled: false });
 
-    if (statsError) {
-      console.error('Error fetching review stats:', statsError);
-    }
+    const cargarStats = async (ids: string[]): Promise<void> => {
+      if (ids.length === 0) return;
+      const { data: statsRows, error: statsError } = await supabase
+        .rpc('review_stats_batch', { p_business_ids: ids, p_include_scheduled: false });
 
-    (statsRows || []).forEach((row: any) => {
-      statsByBusiness.set(row.business_id, {
-        count: Number(row.total_reviews) || 0,
-        avg: Number(row.average_rating) || 0
+      if (statsError) {
+        if (ids.length > 10) {
+          const mitad = Math.ceil(ids.length / 2);
+          await cargarStats(ids.slice(0, mitad));
+          await cargarStats(ids.slice(mitad));
+          return;
+        }
+        console.error('Error fetching review stats:', statsError);
+        return;
+      }
+
+      (statsRows || []).forEach((row: any) => {
+        statsByBusiness.set(row.business_id, {
+          count: Number(row.total_reviews) || 0,
+          avg: Number(row.average_rating) || 0
+        });
       });
-    });
+    };
+
+    // 100 ids por llamada, el mismo tamaño que ya estaba medido en loadStats.
+    const STATS_CHUNK = 100;
+    for (let i = 0; i < businessIds.length; i += STATS_CHUNK) {
+      await cargarStats(businessIds.slice(i, i + STATS_CHUNK));
+    }
 
     const businessesWithReviews = paginatedBusinesses.map(business => {
       const st = statsByBusiness.get(business.id);
@@ -1174,7 +1195,7 @@ export const getBusinessesWithStatsOnly = async (
     // We'll shuffle them first on the server side with random order
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes')
+      .select('id, name, country, logo_url, logo_tone, category, sedes')
       .limit(50); // Limit to prevent too many IDs in .in() clause
 
     if (country) {
@@ -1272,7 +1293,7 @@ export const getFeaturedBusinessesWithStats = async (
     // Step 1: Get featured businesses (limited to avoid timeout)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes, is_featured')
+      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured')
       .eq('is_featured', true)
       .limit(30); // Limit to avoid timeout
 
@@ -1300,7 +1321,7 @@ export const getFeaturedBusinessesWithStats = async (
 
     let randomQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes, is_featured');
+      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured');
 
     if (country) {
       randomQuery = randomQuery.eq('country', country);
@@ -1652,7 +1673,7 @@ const getOneReviewPerBusiness = async (
     // Step 1: Get businesses with filters (limit to avoid too many queries)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes')
+      .select('id, name, country, logo_url, logo_tone, category, sedes')
       .limit(100); // Limit businesses to avoid timeout
 
     if (filters.searchTerm) {
@@ -1780,6 +1801,7 @@ const getOneReviewPerBusiness = async (
       name: b.name,
       country: b.country,
       logo_url: b.logo_url,
+      logo_tone: b.logo_tone,
       category: b.category
     }]));
 
@@ -1829,7 +1851,7 @@ const getVariedReviews = async (
     // The limit was causing issues when there are many businesses in a category
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category, sedes, description');
+      .select('id, name, country, logo_url, logo_tone, category, sedes, description');
 
     // Only apply limit when no category filter (general browse)
     if (!filters.category && !filters.searchTerm) {
@@ -2059,6 +2081,7 @@ const getVariedReviews = async (
       id: b.id,
       name: b.name,
       logo_url: b.logo_url,
+      logo_tone: b.logo_tone,
       country: b.country,
       category: b.category
     }]));
@@ -2313,7 +2336,7 @@ export const getPublicReviews = async (
     // Fetch business data separately
     const { data: businesses, error: businessError } = await supabase
       .from('businesses')
-      .select('id, name, country, logo_url, category')
+      .select('id, name, country, logo_url, logo_tone, category')
       .in('id', businessIds);
 
     if (businessError) {
@@ -3828,3 +3851,291 @@ async function setCachedTranslation(textHash: string, sourceText: string, target
       translated_text: translatedText,
     }, { onConflict: 'text_hash,target_lang' });
 }
+
+// ==================== PRODUCTOS (REVIEW SUBJECTS) ====================
+// Entidades reseñables dentro de una empresa. Una reseña se asigna a un
+// producto de forma explícita (tabla review_subject_links); nunca por herencia.
+// Las cifras de la empresa no dependen de esto y no cambian al crear productos.
+
+/**
+ * Productos de una empresa con su nota y su número de reseñas.
+ * Las estadísticas llegan en una sola llamada (business_subject_stats) en lugar
+ * de una consulta por producto.
+ */
+/**
+ * Igual que getBusinessProducts pero SIN el código interno, para la ficha
+ * pública. El visitante no tiene por qué ver la referencia de curso del negocio,
+ * y el rol anónimo tampoco puede leer esa columna (ver la migración).
+ */
+export const getPublicBusinessProducts = async (businessId: string): Promise<ReviewSubject[]> => {
+  const [productsRes, statsRes] = await Promise.all([
+    supabase
+      .from('review_subjects')
+      .select('id, business_id, type, name, slug, description, image_url, is_active, created_at')
+      .eq('business_id', businessId)
+      .eq('type', 'product')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
+    supabase.rpc('business_subject_stats', { p_business_id: businessId }),
+  ]);
+
+  if (productsRes.error) throw productsRes.error;
+  if (statsRes.error) console.error('business_subject_stats error:', statsRes.error);
+
+  const stats = new Map<string, { review_count: number; avg_rating: number }>(
+    (statsRes.data || []).map((row: any) => [row.subject_id, {
+      review_count: Number(row.review_count ?? 0),
+      avg_rating: Number(row.avg_rating ?? 0),
+    }])
+  );
+
+  return (productsRes.data || []).map((p: any) => ({
+    ...p,
+    code: null,
+    review_count: stats.get(p.id)?.review_count ?? 0,
+    avg_rating: stats.get(p.id)?.avg_rating ?? 0,
+  })) as ReviewSubject[];
+};
+
+export const getBusinessProducts = async (businessId: string): Promise<ReviewSubject[]> => {
+  const [productsRes, statsRes] = await Promise.all([
+    supabase
+      .from('review_subjects')
+      .select('id, business_id, type, name, code, slug, description, image_url, is_active, created_at, updated_at')
+      .eq('business_id', businessId)
+      .eq('type', 'product')
+      // Los activos primero: un producto retirado no debe encabezar la pantalla
+      // solo por ser el ultimo que se toco. Dentro de cada grupo, el mas reciente.
+      .order('is_active', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase.rpc('business_subject_stats', { p_business_id: businessId }),
+  ]);
+
+  if (productsRes.error) throw productsRes.error;
+  // Las estadísticas son un extra: si fallan, se muestra el listado sin cifras
+  // en vez de dejar al usuario sin sus productos.
+  if (statsRes.error) console.error('business_subject_stats error:', statsRes.error);
+
+  const stats = new Map<string, { review_count: number; avg_rating: number }>(
+    (statsRes.data || []).map((row: any) => [row.subject_id, {
+      review_count: Number(row.review_count ?? 0),
+      avg_rating: Number(row.avg_rating ?? 0),
+    }])
+  );
+
+  return (productsRes.data || []).map((p: any) => ({
+    ...p,
+    review_count: stats.get(p.id)?.review_count ?? 0,
+    avg_rating: stats.get(p.id)?.avg_rating ?? 0,
+  })) as ReviewSubject[];
+};
+
+/**
+ * Crea un producto. El slug sale del nombre; si ya existe uno igual en esa
+ * empresa (UNIQUE business_id+slug) se reintenta con sufijo en vez de fallar
+ * delante del usuario.
+ */
+export const createBusinessProduct = async (
+  businessId: string,
+  fields: { name: string; code?: string | null; description?: string | null; image_url?: string | null }
+): Promise<ReviewSubject> => {
+  const base = slugify(fields.name) || 'producto';
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const slug = attempt === 0 ? base : `${base}_${attempt + 1}`;
+    const { data, error } = await supabase
+      .from('review_subjects')
+      .insert({
+        business_id: businessId,
+        type: 'product',
+        name: fields.name.trim(),
+        code: fields.code?.trim() || null,
+        slug,
+        description: fields.description?.trim() || null,
+        image_url: fields.image_url?.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (!error) return data as ReviewSubject;
+    if (error.code !== '23505') throw error; // 23505 = unique_violation
+
+    // Hay DOS restricciones únicas: (business_id, slug) y (business_id, code).
+    // El sufijo solo resuelve la del slug; si la colisión es del código, el
+    // reintento no puede arreglarla y hay que decírselo al usuario.
+    const detalle = `${error.message || ''} ${error.details || ''}`;
+    if (/code/i.test(detalle)) {
+      const duplicado: any = new Error('DUPLICATE_PRODUCT_CODE');
+      duplicado.code = 'DUPLICATE_PRODUCT_CODE';
+      throw duplicado;
+    }
+  }
+  throw new Error('No se pudo generar un identificador único para el producto.');
+};
+
+export const updateBusinessProduct = async (
+  productId: string,
+  updates: Partial<Pick<ReviewSubject, 'name' | 'code' | 'description' | 'image_url' | 'is_active'>>
+): Promise<ReviewSubject> => {
+  const { data, error } = await supabase
+    .from('review_subjects')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', productId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ReviewSubject;
+};
+
+/**
+ * Borra un producto. Sus reseñas NO se borran: solo desaparece la asignación
+ * (review_subject_links cae por ON DELETE CASCADE sobre el enlace).
+ */
+export const deleteBusinessProduct = async (productId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('review_subjects')
+    .delete()
+    .eq('id', productId);
+  if (error) throw error;
+};
+
+/**
+ * Producto asignado a cada una de las reseñas indicadas.
+ * Devuelve un mapa review_id -> subject_id; las reseñas sin asignar
+ * sencillamente no aparecen en el mapa.
+ */
+export const getReviewProductLinks = async (reviewIds: string[]): Promise<Record<string, string>> => {
+  if (reviewIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('review_subject_links')
+    .select('review_id, subject_id')
+    .in('review_id', reviewIds);
+  if (error) throw error;
+
+  const map: Record<string, string> = {};
+  for (const row of data || []) map[(row as any).review_id] = (row as any).subject_id;
+  return map;
+};
+
+/**
+ * Asigna una reseña a un producto. Una reseña pertenece como mucho a un
+ * producto (UNIQUE sobre review_id), así que reasignar sustituye la anterior.
+ * La barrera de empresas distintas la aplica un trigger en la base de datos.
+ */
+export const assignReviewToProduct = async (reviewId: string, productId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('review_subject_links')
+    .upsert({ review_id: reviewId, subject_id: productId }, { onConflict: 'review_id' });
+  if (error) throw error;
+};
+
+/** Quita la asignación. La reseña no se toca: sigue contando en la empresa. */
+export const unassignReviewFromProduct = async (reviewId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('review_subject_links')
+    .delete()
+    .eq('review_id', reviewId);
+  if (error) throw error;
+};
+
+/**
+ * Cuántas reseñas aprobadas de la empresa no están asignadas a ningún producto.
+ * Google y el scraping traen reseñas nuevas cada mes y ninguna se asigna sola:
+ * sin este número, el widget de un producto se queda atrás sin que nadie lo vea.
+ */
+export const getUnassignedReviewCount = async (businessId: string): Promise<number> => {
+  const { data, error } = await supabase
+    .rpc('business_unassigned_review_count', { p_business_id: businessId });
+  if (error) throw error;
+  return Number(data ?? 0);
+};
+
+/**
+ * Asigna VARIAS reseñas a un producto de una vez. Con miles de reseñas,
+ * hacerlo de una en una desde un desplegable no es un flujo, es un castigo.
+ * Mismo upsert que la asignación individual: reasignar mueve el enlace.
+ */
+export const assignReviewsToProduct = async (reviewIds: string[], productId: string): Promise<void> => {
+  if (reviewIds.length === 0) return;
+  const { error } = await supabase
+    .from('review_subject_links')
+    .upsert(reviewIds.map(id => ({ review_id: id, subject_id: productId })), { onConflict: 'review_id' });
+  if (error) throw error;
+};
+
+/** Quita la asignación de varias reseñas. Las reseñas no se tocan. */
+export const unassignReviews = async (reviewIds: string[]): Promise<void> => {
+  if (reviewIds.length === 0) return;
+  const { error } = await supabase
+    .from('review_subject_links')
+    .delete()
+    .in('review_id', reviewIds);
+  if (error) throw error;
+};
+
+/**
+ * El AUTOR de una reseña la enlaza a un producto, al publicarla desde el widget
+ * de ese producto. Es un INSERT simple (no upsert): la política RLS solo permite
+ * insertar, no reasignar — decir de qué va tu reseña, sí; reescribir enlaces
+ * después, no.
+ *
+ * No lanza: si el enlace falla, la reseña ya está guardada y es lo que importa.
+ * Se registra en consola y se sigue.
+ */
+export const linkOwnReviewToProduct = async (reviewId: string, productId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('review_subject_links')
+    .insert({ review_id: reviewId, subject_id: productId });
+  if (error) {
+    console.error('No se pudo enlazar la reseña con el producto:', error);
+    return false;
+  }
+  return true;
+};
+
+/** Datos públicos de un producto, para decirle al autor sobre qué está opinando. */
+export const getPublicProductById = async (productId: string): Promise<{ id: string; business_id: string; name: string } | null> => {
+  const { data, error } = await supabase
+    .from('review_subjects')
+    .select('id, business_id, name')
+    .eq('id', productId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error) {
+    console.error('No se pudo cargar el producto:', error);
+    return null;
+  }
+  return data as any;
+};
+
+/**
+ * Un producto por su slug dentro de una empresa. Para la ficha pública del
+ * producto, que se direcciona por slug y no por UUID.
+ * Sin el código interno: es una página pública.
+ */
+export const getPublicProductBySlug = async (businessId: string, slug: string): Promise<ReviewSubject | null> => {
+  const { data: producto, error } = await supabase
+    .from('review_subjects')
+    .select('id, business_id, type, name, slug, description, image_url, is_active, created_at')
+    .eq('business_id', businessId)
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!producto) return null;
+
+  // Las cifras van en una segunda llamada porque hace falta el id del producto,
+  // que solo se conoce despues de resolver el slug.
+  const { data: stats, error: statsError } = await supabase
+    .rpc('widget_subject_stats', { p_subject_id: (producto as any).id });
+  if (statsError) console.error('widget_subject_stats error:', statsError);
+  const fila = Array.isArray(stats) ? stats[0] : stats;
+
+  return {
+    ...(producto as any),
+    code: null,
+    review_count: Number(fila?.review_count ?? 0),
+    avg_rating: Number(fila?.avg_rating ?? 0),
+  } as ReviewSubject;
+};

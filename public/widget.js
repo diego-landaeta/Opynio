@@ -1,8 +1,29 @@
 /**
- * Opynio Widget Loader v6.5.5
+ * Opynio Widget Loader v6.10.0
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
+ *
+ * Widget de producto (v6.6.0):
+ *  - Anadiendo data-product-id="UUID" el widget muestra la nota y las resenas
+ *    de UN producto concreto de esa empresa, en lugar de las de la empresa.
+ *  - Solo cuenta las resenas asignadas explicitamente a ese producto. Si no
+ *    tiene ninguna, muestra cero: nunca hereda las de la empresa.
+ *  - Sin el atributo, el comportamiento es identico al de siempre.
+ *  - v6.7.0: el widget de producto se presenta con el nombre del producto,
+ *    para que el visitante sepa de que es esa nota. El de empresa no lleva
+ *    cabecera: sigue exactamente igual que antes.
+ *  - v6.8.0: y su enlace lleva a la ficha de Opynio ya filtrada por ese
+ *    producto (?producto=<id>), no a la ficha general.
+ *  - v6.8.1: el hueco reservado incluye la cabecera, y el nombre se acota a dos
+ *    lineas, para que el widget de producto no desplace el contenido del host.
+ *  - v6.9.0: el hueco reservado es por tramo de ancho. Antes habia un solo
+ *    numero por tipo, valido para escritorio: en movil el muro reservaba 560px
+ *    y ocupaba 1534, empujando ~1000px del contenido del cliente al cargar.
+ *  - v6.9.1: "Escribe tu resena" desde un widget de producto lleva el producto,
+ *    y la resena queda asociada a el al publicarse.
+ *  - v6.10.0: el widget de producto enlaza a la FICHA DEL PRODUCTO en Opynio
+ *    (con su propia nota y su schema.org/Product), no a la de la empresa.
  *
  * Isolation (v6.4.0):
  *  - Human path renders inside a Shadow DOM attached to each widget element.
@@ -126,6 +147,15 @@
         .opynio-platform-badge { flex-shrink: 0; width: 24px; height: 24px; }
         .opynio-platform-badge svg { width: 100%; height: 100%; }
         a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
+
+    /* Cabecera del widget de producto: dice de que es la nota. */
+    .opynio-subject-header { margin: 0 0 14px 0; padding: 0; text-align: left; }
+    .opynio-subject-label { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtext-color); margin-bottom: 2px; }
+    .opynio-subject-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; color: var(--text-color); }
+    .opynio-subject-header.opynio-subject-compact .opynio-subject-name { font-size: 1rem; }
+    @media (max-width: 480px) {
+        .opynio-subject-name { font-size: 1.1rem; }
+    }
 
         /* Horizontal Carousel */
         .opynio-horizontal-widget { padding: 50px; background: var(--card-bg); border-radius: 24px; box-shadow: var(--shadow-lg); max-width: 1400px; margin: 0 auto; width: 100%; position: relative; isolation: isolate; }
@@ -600,6 +630,19 @@
         'SE': '/se/foretag', 'PL': '/pl/firma', 'JP': '/jp/会社'
     };
 
+    // Segmento de la ficha de producto por pais. Tiene que coincidir con
+    // `paths.productPage` de los locales: es lo que registra las rutas reales.
+    var COUNTRY_TO_PRODUCT_SEGMENT = {
+        'ES': 'producto', 'MX': 'producto', 'AR': 'producto', 'CO': 'producto',
+        'CL': 'producto', 'PE': 'producto', 'VE': 'producto', 'EC': 'producto',
+        'GT': 'producto', 'CR': 'producto', 'PA': 'producto', 'UY': 'producto',
+        'US': 'product', 'GB': 'product',
+        'BR': 'produto', 'PT': 'produto',
+        'FR': 'produit', 'DE': 'produkt', 'IT': 'prodotto',
+        'AD': 'producto', 'CN': '产品',
+        'SE': 'produkt', 'PL': 'produkt', 'JP': '商品'
+    };
+
     function getBusinessUrl(business) {
         // Identificador: slug canónico si existe (evita redirect 301 al name URL-encoded)
         var identifier = (business && business.slug)
@@ -607,31 +650,54 @@
             : encodeURIComponent(((business && business.name) ? business.name : 'business').replace(/ /g, '_'));
         var country = (business && business.country) ? String(business.country).toUpperCase() : 'ES';
         var pathPrefix = COUNTRY_TO_URL_PATH[country] || '/es/empresa';
-        return BASE_URL + pathPrefix + '/' + identifier;
+        var url = BASE_URL + pathPrefix + '/' + identifier;
+
+        // Widget de producto: se enlaza a la ficha DEL PRODUCTO, que tiene su
+        // propia nota y su propio schema.org/Product. Hace falta el slug; si el
+        // producto no lo tiene (fila antigua), se cae al filtro por id sobre la
+        // ficha de la empresa, que sigue funcionando.
+        if (business && business.producto_slug) {
+            var segmento = COUNTRY_TO_PRODUCT_SEGMENT[country] || 'producto';
+            return url + '/' + segmento + '/' + encodeURIComponent(business.producto_slug);
+        }
+        if (business && business.producto_id) {
+            url += '?producto=' + encodeURIComponent(business.producto_id);
+        }
+        return url;
+    }
+
+    // Enlace para escribir resena. Si el widget es de un producto, se lleva el
+    // producto: la resena acabara asociada a el en vez de quedar suelta.
+    function getWriteReviewUrl(business) {
+        var url = BASE_URL + '/es/escribir?businessId=' + encodeURIComponent(business.id);
+        if (business && business.producto_id) {
+            url += '&producto=' + encodeURIComponent(business.producto_id);
+        }
+        return url;
     }
 
     // Widget UI strings (static text translations)
     var UI_STRINGS = {
-        es: { reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
-        en: { reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
-        fr: { reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
-        de: { reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
-        it: { reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
-        pt: { reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
-        ca: { reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
-        zh: { reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
-        ja: { reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
-        ko: { reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
-        nl: { reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
-        ru: { reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
-        ar: { reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
-        sv: { reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
-        pl: { reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
-        vi: { reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
-        bn: { reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
-        hi: { reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
-        tl: { reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
-        tr: { reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
+        es: { reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
+        en: { reviewsOf: 'Reviews of', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
+        fr: { reviewsOf: 'Avis sur', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
+        de: { reviewsOf: 'Bewertungen zu', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
+        it: { reviewsOf: 'Recensioni di', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
+        pt: { reviewsOf: 'Avaliações de', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
+        ca: { reviewsOf: 'Ressenyes de', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
+        zh: { reviewsOf: '关于', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
+        ja: { reviewsOf: 'レビュー対象', reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
+        ko: { reviewsOf: '리뷰 대상', reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
+        nl: { reviewsOf: 'Beoordelingen van', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
+        ru: { reviewsOf: 'Отзывы о', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
+        ar: { reviewsOf: 'تقييمات', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
+        sv: { reviewsOf: 'Omdömen om', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
+        pl: { reviewsOf: 'Opinie o', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
+        vi: { reviewsOf: 'Đánh giá về', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
+        bn: { reviewsOf: 'পর্যালোচনা', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
+        hi: { reviewsOf: 'समीक्षाएँ', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
+        tl: { reviewsOf: 'Mga review ng', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
+        tr: { reviewsOf: 'Değerlendirmeler', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
     };
 
     // Alias regional variants (gb, au, sg, ie, at, en-*, de-*) to their canonical
@@ -811,11 +877,13 @@
     }
 
     // Fetch widget data
-    async function fetchData(businessId) {
+    async function fetchData(businessId, productId) {
+        var payload = { businessId: businessId };
+        if (productId) payload.productId = productId;
         var response = await fetchWithTimeout(API_URL, {
             method: 'POST',
             headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ businessId: businessId })
+            body: JSON.stringify(payload)
         }, DATA_TIMEOUT_MS);
         if (!response.ok) {
             var err = await response.json().catch(function() { return { error: 'HTTP ' + response.status }; });
@@ -896,7 +964,7 @@
         },
 
         'sidebar': function(root, el, business, reviews, s) {
-            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + BASE_URL + '/es/escribir?businessId=' + business.id + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + getWriteReviewUrl(business) + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
         },
 
         'grid': function(root, el, business, reviews, s) {
@@ -1119,6 +1187,7 @@
         el.dataset.loaded = 'true';
 
         var businessId = el.dataset.businessId;
+        var productId = el.dataset.productId || null;
         var type = el.dataset.type || 'badge';
         var theme = el.dataset.theme || 'light';
 
@@ -1140,8 +1209,24 @@
         renderLoader(root);
 
         try {
-            var data = await fetchData(businessId);
+            var data = await fetchData(businessId, productId);
             if (!data.business) { renderError(root, 'Negocio no encontrado'); return; }
+
+            // Vista que consumen los 9 renderers. Con data-product-id, el nombre
+            // y las cifras son las del producto; la identidad de la empresa
+            // (slug, pais, logo) y por tanto el enlace se mantienen, porque el
+            // producto todavia no tiene ficha propia en Opynio.
+            var view = data.business;
+            if (data.product) {
+                view = Object.assign({}, data.business, {
+                    name: data.product.name,
+                    avg_rating: data.product.avg_rating,
+                    review_count: data.product.review_count,
+                    // Los consume getBusinessUrl para enlazar a la ficha del producto.
+                    producto_id: data.product.id,
+                    producto_slug: data.product.slug || null
+                });
+            }
 
             var targetLang = el.dataset.lang || detectTargetLang();
             var s = await getStrings(targetLang);
@@ -1151,7 +1236,7 @@
             // text. This protects the host from duplicate-content indexation
             // when the same reviews are embedded across many sites.
             if (IS_BOT) {
-                renderBotSafe(el, data.business, s);
+                renderBotSafe(el, view, s);
                 return;
             }
 
@@ -1162,21 +1247,39 @@
                 reviews = await translateReviews(reviews, targetLang);
             }
 
+            // Widget de producto: se presenta con el nombre, porque una nota
+            // suelta no dice de que es. Se excluye 'floating', que es un boton
+            // fijo en una esquina y no tiene sitio para una cabecera.
+            var target = root;
+            if (data.product && type !== 'floating') {
+                root.innerHTML = '';
+                var header = document.createElement('div');
+                header.className = 'opynio-subject-header' + (type === 'badge' || type === 'sidebar' ? ' opynio-subject-compact' : '');
+                // El nombre lo escribe el cliente: se escapa siempre.
+                header.innerHTML = '<span class="opynio-subject-label">' + escapeHtml(s.reviewsOf || '') + '</span>'
+                    // title: el nombre completo sigue disponible aunque el CSS lo acote.
+                    + '<span class="opynio-subject-name" title="' + escapeHtml(data.product.name || '') + '">'
+                    + escapeHtml(data.product.name || '') + '</span>';
+                root.appendChild(header);
+                target = document.createElement('div');
+                root.appendChild(target);
+            }
+
             // Widgets that only need metrics
             if (['badge', 'floating', 'sidebar'].indexOf(type) !== -1) {
-                renderers[type](root, el, data.business, [], s);
+                renderers[type](target, el, view, [], s);
                 return;
             }
 
             // Widgets that need reviews — these handle the empty case themselves (SEO-safe fallback).
             var SELF_HANDLED_EMPTY = ['stars-carousel'];
             if (reviews.length === 0 && SELF_HANDLED_EMPTY.indexOf(type) === -1) {
-                root.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
+                target.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
                 return;
             }
 
             if (renderers[type]) {
-                renderers[type](root, el, data.business, reviews, s);
+                renderers[type](target, el, view, reviews, s);
             } else {
                 renderError(root, 'Tipo de widget no soportado: ' + type);
             }
@@ -1192,10 +1295,17 @@
     // Per-type min-height to reserve space and keep CLS = 0 on the host.
     // Numbers chosen to match the median rendered height of each widget;
     // a couple of pixels of shift after hydration is acceptable, big shifts are not.
-    var TYPE_MIN_HEIGHT = {
-        'badge': 90,
+    // Alto reservado por tipo Y por tramo de ancho. Medidos en navegador con el
+    // widget real: un solo numero no sirve porque el mismo widget mide muy
+    // distinto segun el ancho (el carrusel horizontal es mas alto en tableta
+    // que en movil, y el muro al reves).
+    //
+    // Pasarse deja hueco en blanco; quedarse corto empuja el contenido de la
+    // web del cliente, que es lo que hay que evitar. Se redondea hacia arriba.
+    var TYPE_MIN_HEIGHT_DESKTOP = {
+        'badge': 100,
         'floating': 60,
-        'sidebar': 320,
+        'sidebar': 340,
         'grid': 480,
         'wall': 560,
         'showcase': 440,
@@ -1203,6 +1313,40 @@
         'horizontal-carousel': 440,
         'stars-carousel': 320
     };
+
+    // 768px - 1023px
+    var TYPE_MIN_HEIGHT_TABLET = {
+        'badge': 100,
+        'floating': 60,
+        'sidebar': 340,
+        'grid': 540,
+        'wall': 870,
+        'showcase': 630,
+        'large-carousel': 380,
+        'horizontal-carousel': 810,
+        'stars-carousel': 460
+    };
+
+    // Menos de 768px
+    var TYPE_MIN_HEIGHT_MOBILE = {
+        'badge': 100,
+        'floating': 60,
+        'sidebar': 340,
+        'grid': 1030,
+        'wall': 1540,
+        'showcase': 930,
+        'large-carousel': 380,
+        'horizontal-carousel': 640,
+        'stars-carousel': 450
+    };
+
+    function minHeightForType(type) {
+        var ancho = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1280;
+        var tabla = ancho < 768 ? TYPE_MIN_HEIGHT_MOBILE
+                  : ancho < 1024 ? TYPE_MIN_HEIGHT_TABLET
+                  : TYPE_MIN_HEIGHT_DESKTOP;
+        return tabla[type] || 150;
+    }
 
     // Per-type min-width. Page builders (Elementor, Bricks, Divi…) drop the embed
     // inside flex containers, where the host div becomes a `flex: 0 1 auto` item and
@@ -1233,6 +1377,14 @@
         el.style[prop] = value;
     }
 
+    // Alto maximo de la cabecera del widget de producto: etiqueta + nombre a dos
+    // lineas + margen inferior. El nombre esta acotado por CSS a dos lineas
+    // justamente para que este numero sea un techo y no una estimacion: medido
+    // en 76px con un nombre de 124 caracteres a 375px de ancho. Se reserva 80
+    // para tener holgura. Pasarse solo deja hueco en blanco; quedarse corto
+    // empuja el contenido del cliente, que es lo que hay que evitar.
+    var SUBJECT_HEADER_HEIGHT = 80;
+
     function reserveSpace(el) {
         if (el.dataset.reserved) return;
         el.dataset.reserved = '1';
@@ -1240,7 +1392,10 @@
         // 'floating' is position:fixed, so it neither pushes host content nor depends
         // on the container width; skip both reservations.
         if (type === 'floating') return;
-        applyIfUnset(el, 'minHeight', (TYPE_MIN_HEIGHT[type] || 150) + 'px');
+        // Un widget de producto pinta cabecera encima del cuerpo: si no se reserva,
+        // el widget crece al cargar y desplaza lo que el cliente tenga debajo.
+        var minHeight = minHeightForType(type) + (el.dataset.productId ? SUBJECT_HEADER_HEIGHT : 0);
+        applyIfUnset(el, 'minHeight', minHeight + 'px');
         // Every value is <= 300px on purpose: it fits a 320px phone without forcing
         // horizontal scroll, so no viewport clamping is needed here.
         applyIfUnset(el, 'minWidth', (TYPE_MIN_WIDTH[type] || 260) + 'px');

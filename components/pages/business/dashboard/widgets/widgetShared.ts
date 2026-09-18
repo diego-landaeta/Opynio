@@ -102,6 +102,12 @@ export const WIDGET_CSS = `
     .opynio-platform-badge { flex-shrink: 0; width: 24px; height: 24px; }
     .opynio-platform-badge svg { width: 100%; height: 100%; }
     a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
+
+    /* Cabecera del widget de producto: identica a la de public/widget.js. */
+    .opynio-subject-header { margin: 0 0 14px 0; padding: 0; text-align: left; }
+    .opynio-subject-label { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtext-color); margin-bottom: 2px; }
+    .opynio-subject-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; color: var(--text-color); }
+    .opynio-subject-header.opynio-subject-compact .opynio-subject-name { font-size: 1rem; }
     
     /* Horizontal Carousel - ACTUALIZADO */
     .opynio-horizontal-widget { padding: 50px; background: var(--card-bg); border-radius: 24px; box-shadow: var(--shadow-lg); max-width: 1400px; margin: 0 auto; width: 100%; position: relative; isolation: isolate; }
@@ -787,11 +793,20 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.5.5';
+const EMBED_VERSION = 'v6.10.0';
 
-export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
+// `productId` es opcional. Sin él, el snippet es exactamente el de siempre y el
+// widget muestra la empresa entera. Con él, el widget muestra la nota y las
+// reseñas de ese producto, y solo las asignadas explícitamente a ese producto.
+export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string, productId?: string, productLabel?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';
-    return `<!-- Opynio Widget ${EMBED_VERSION} - ${widgetType} -->
+    const productAttr = productId ? ` data-product-id="${productId}"` : '';
+    // El comentario identifica el snippet: con varios widgets pegados en la
+    // misma web, el UUID no le dice nada a quien mantiene la pagina.
+    // Se limpia lo que rompe un comentario HTML (`--`, `<`, `>`).
+    const safeLabel = (productLabel || '').replace(/[<>]/g, '').replace(/-{2,}/g, '-').trim().slice(0, 80);
+    const labelPart = safeLabel ? ` - ${safeLabel}` : '';
+    return `<!-- Opynio Widget ${EMBED_VERSION} - ${widgetType}${labelPart} -->
 <script src="https://web.opynio.com/widget.js?v=${EMBED_VERSION}" async></script>
-<div class="opynio-widget" data-business-id="${businessId}" data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
+<div class="opynio-widget" data-business-id="${businessId}"${productAttr} data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
 };

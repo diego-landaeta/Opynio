@@ -30,7 +30,7 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
   // Step 1: Get businesses filtered by country
   let businessQuery = supabase
     .from('businesses')
-    .select('id, name, country, logo_url, category, sedes')
+    .select('id, name, country, logo_url, logo_tone, category, sedes')
     .limit(50);
 
   if (country) {
@@ -115,7 +115,7 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
     // Step 1: Get businesses first (optionally filtered by country)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, category, logo_url')
+      .select('id, name, country, category, logo_url, logo_tone')
       .limit(50); // Limit businesses to avoid large IN clauses
 
     if (country) {
@@ -185,21 +185,28 @@ export const getReviewsOptimized = async (
   page: number = 1, 
   limit: number = 20, 
   source: string = 'all',
-  ratingFilter: 'all' | '5' | '4+' | '3-' = 'all'
+  ratingFilter: 'all' | '5' | '4+' | '3-' = 'all',
+  productId?: string | null
 ) => {
   try {
     const offset = (page - 1) * limit;
     
     // Optimized field selection - only fetch what we need
-    const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason';
+    const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason' as const;
+    const campos: string = productId ? `${reviewFields}, review_subject_links!inner(subject_id)` : reviewFields;
 
     // First, fetch reviews without the problematic joins
     let query = supabase
       .from('reviews')
-      .select(reviewFields)
+      .select(campos)
       .eq('business_id', businessId)
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString());
+
+    // Solo las reseñas asignadas a ese producto.
+    if (productId) {
+      query = query.eq('review_subject_links.subject_id', productId);
+    }
 
     // Apply source filter
     if (source !== 'all') {
@@ -219,7 +226,7 @@ export const getReviewsOptimized = async (
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    const { data: reviews, error } = await query;
+    const { data: reviews, error } = await query.returns<any[]>();
     
     if (error) {
       console.error('Error fetching reviews:', error);
@@ -304,13 +311,15 @@ export const searchReviewsOptimized = async (
   businessId: string,
   searchTerm: string,
   source: string = 'all',
-  ratingFilter: 'all' | '5' | '4+' | '3-' = 'all'
+  ratingFilter: 'all' | '5' | '4+' | '3-' = 'all',
+  productId?: string | null
 ) => {
   try {
     const term = removeAccents((searchTerm || '').trim());
     if (!term) return [];
 
-    const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason';
+    const reviewFields = 'id, rating, title, review_text, audio_url, image_urls, tags, category, created_at, user_id, business_id, status, source, helpful_votes, not_helpful_votes, is_verified_purchase, original_author_name, original_response_text, original_response_date, rejection_reason' as const;
+    const campos: string = productId ? `${reviewFields}, review_subject_links!inner(subject_id)` : reviewFields;
 
     // A fresh builder per page: supabase-js builders carry their own headers and
     // are not meant to be awaited twice.
@@ -318,10 +327,16 @@ export const searchReviewsOptimized = async (
     const buildQuery = () => {
       let q = supabase
         .from('reviews')
-        .select(reviewFields)
+        .select(campos)
         .eq('business_id', businessId)
         .eq('status', 'approved')
         .lte('created_at', nowIso);
+
+      // El filtro de producto convive con la busqueda: buscar dentro de un
+      // producto tiene que seguir buscando dentro de ese producto.
+      if (productId) {
+        q = q.eq('review_subject_links.subject_id', productId);
+      }
 
       if (source !== 'all') {
         q = q.eq('source', source);
@@ -344,7 +359,8 @@ export const searchReviewsOptimized = async (
     const matches: any[] = [];
     for (let offset = 0; offset < REVIEW_SEARCH_SCAN_CAP; offset += REVIEW_SEARCH_PAGE_SIZE) {
       const { data: page, error } = await buildQuery()
-        .range(offset, offset + REVIEW_SEARCH_PAGE_SIZE - 1);
+        .range(offset, offset + REVIEW_SEARCH_PAGE_SIZE - 1)
+        .returns<any[]>();
 
       if (error) {
         console.error('Error searching reviews:', error);
@@ -418,7 +434,7 @@ const removeAccents = (text: string): string => {
 export const searchBusinessesOptimized = async (searchTerm: string, filters: any = {}) => {
   let query = supabase
     .from('businesses')
-    .select('id, name, category, country, logo_url, description, sedes')
+    .select('id, name, category, country, logo_url, logo_tone, description, sedes')
     .order('name');
 
   // Aplicar filtros primero para reducir el conjunto de datos

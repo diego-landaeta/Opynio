@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { getBusinessById, updateBusinessProfile, isSlugAvailable } from '../../../services/supabaseService';
+import { getBusinessById, updateBusinessProfile, isSlugAvailable, getBusinessProducts } from '../../../services/supabaseService';
 import Spinner from '../../Spinner';
 import type { Business, BusinessHours, Json, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -102,6 +102,19 @@ const AdminEditBusinessPage: React.FC = () => {
 
     const [sedes, setSedes] = useState<Sede[]>([]);
     const [offersInternational, setOffersInternational] = useState(false);
+    // Productos de la empresa, en solo lectura: el admin necesita poder VER que
+    // tiene montado un cliente antes de tocarle nada.
+    const [productos, setProductos] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!businessId) return;
+        let cancelado = false;
+        getBusinessProducts(businessId)
+            .then(lista => { if (!cancelado) setProductos(lista); })
+            .catch(() => { /* sin tablas todavia: no se enseña la sección */ });
+        return () => { cancelado = true; };
+    }, [businessId]);
+
     const [newSede, setNewSede] = useState<{ country_code: string; website_url: string; logo_url: string }>({ country_code: '', website_url: '', logo_url: '' });
     
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -522,6 +535,35 @@ const AdminEditBusinessPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {productos.length > 0 && (
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                                Productos ({productos.length})
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                Solo lectura. Los gestiona el dueño desde su panel.
+                            </p>
+                            <ul className="space-y-2">
+                                {productos.map((producto: any) => (
+                                    <li key={producto.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-700/50 rounded-lg">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-semibold text-gray-800 dark:text-gray-200 break-words">{producto.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                                {producto.code || '—'} · {producto.is_active ? 'activo' : 'desactivado'} · id {producto.id}
+                                            </p>
+                                        </div>
+                                        <div className="flex-shrink-0 text-right">
+                                            <p className="font-bold text-gray-800 dark:text-gray-200">
+                                                {(producto.review_count ?? 0) > 0 ? (producto.avg_rating ?? 0).toFixed(1) : '—'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{producto.review_count ?? 0} reseñas</p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     <div>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Servicios Internacionales</h3>

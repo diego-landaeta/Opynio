@@ -105,6 +105,7 @@ const HomePage = lazy(() => import('./components/pages/HomePage'));
 const ExplorePage = lazy(() => import('./components/pages/ExplorePage'));
 const WriteReviewPage = lazy(() => import('./components/pages/WriteReviewPage'));
 const BusinessPage = lazy(() => import('./components/pages/BusinessPage'));
+const ProductPage = lazy(() => import('./components/pages/ProductPage'));
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
 const RegisterPage = lazy(() => import('./components/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage'));
@@ -154,6 +155,7 @@ const DashboardOverview = lazy(() => import('./components/pages/business/dashboa
 const DashboardReviews = lazy(() => import('./components/pages/business/dashboard/DashboardReviews'));
 const DashboardAnalytics = lazy(() => import('./components/pages/business/dashboard/DashboardAnalytics'));
 const DashboardInvitations = lazy(() => import('./components/pages/business/dashboard/DashboardInvitations'));
+const DashboardProducts = lazy(() => import('./components/pages/business/dashboard/DashboardProducts'));
 const DashboardWidgets = lazy(() => import('./components/pages/business/dashboard/DashboardWidgets'));
 const DashboardUserManual = lazy(() => import('./components/pages/business/dashboard/DashboardUserManual'));
 
@@ -530,6 +532,7 @@ const App = () => {
                                     {uniquePaths.search?.map(p => <Route key={`root-search-${p}`} path={p} element={<SearchResultsPage />} />)}
                                     {uniquePaths.forgotPassword?.map(p => <Route key={`root-forgotPassword-${p}`} path={p} element={<ForgotPasswordPage />} />)}
                                     {uniquePaths.business?.map(p => <Route key={`root-business-${p}`} path={p} element={<BusinessPage />} />)}
+                                    {uniquePaths.productPage?.map(p => <Route key={`root-product-${p}`} path={p} element={<ProductPage />} />)}
 
                                     {/* New auxiliary pages */}
                                     {uniquePaths.widgets?.map(p => <Route key={`root-widgets-${p}`} path={p} element={<WidgetsShowcasePage />} />)}
@@ -571,6 +574,7 @@ const App = () => {
                                                 {uniquePaths.dashboardReviews?.map(p => <Route key={`root-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
                                                 {uniquePaths.dashboardAnalytics?.map(p => <Route key={`root-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
                                                 {uniquePaths.dashboardInvitations?.map(p => <Route key={`root-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                {uniquePaths.dashboardProducts?.map(p => <Route key={`root-dashProducts-${p}`} path={p} element={<DashboardProducts />} />)}
                                                 {uniquePaths.dashboardWidgets?.map(p => <Route key={`root-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
                                                 {uniquePaths.dashboardEdit?.map(p => <Route key={`root-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
                                                 {uniquePaths.dashboardUserManual?.map(p => <Route key={`root-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}
@@ -608,6 +612,7 @@ const App = () => {
                                         {uniquePaths.explore?.map(p => <Route key={`explore-${p}`} path={p} element={<ExplorePage />} />)}
                                         {uniquePaths.businesses?.map(p => <Route key={`businesses-${p}`} path={p} element={<BusinessesPage />} />)}
                                         {uniquePaths.business?.map(p => <Route key={`business-${p}`} path={p} element={<BusinessPage />} />)}
+                                        {uniquePaths.productPage?.map(p => <Route key={`country-product-${p}`} path={p} element={<ProductPage />} />)}
                                         {uniquePaths.pricing?.map(p => <Route key={`pricing-${p}`} path={p} element={<PricingPage />} />)}
                                         {uniquePaths.community?.map(p => <Route key={`community-${p}`} path={p} element={<CommunityPage />} />)}
                                         {uniquePaths.whatsNew?.map(p => <Route key={`whatsNew-${p}`} path={p} element={<WhatsNewPage />} />)}
@@ -656,6 +661,7 @@ const App = () => {
                                                     {uniquePaths.dashboardReviews?.map(p => <Route key={`country-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
                                                     {uniquePaths.dashboardAnalytics?.map(p => <Route key={`country-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
                                                     {uniquePaths.dashboardInvitations?.map(p => <Route key={`country-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                    {uniquePaths.dashboardProducts?.map(p => <Route key={`country-dashProducts-${p}`} path={p} element={<DashboardProducts />} />)}
                                                     {uniquePaths.dashboardWidgets?.map(p => <Route key={`country-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
                                                     {uniquePaths.dashboardEdit?.map(p => <Route key={`country-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
                                                     {uniquePaths.dashboardUserManual?.map(p => <Route key={`country-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}
