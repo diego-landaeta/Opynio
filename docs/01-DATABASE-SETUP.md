@@ -18,6 +18,25 @@ Este documento contiene **TODOS los scripts SQL** necesarios para crear la plata
 
 ---
 
+## ⚠️ Antes de usar este documento
+
+Este esquema se **corrigió el 17/09/2026** tras descubrir que describía una
+versión antigua de la base de datos: faltaban 12 columnas en `profiles`, el
+`slug` de `businesses`, restricciones que el propio código viola, el tipo
+`user_role`, el disparador que crea el perfil al registrarse y nueve tablas
+enteras. Se detectó al intentar levantar un Supabase local a partir de él.
+
+Dos cosas que conviene saber:
+
+1. **El orden importa.** El documento anterior no se podía ejecutar de arriba
+   abajo: `profiles` usaba una función definida 500 líneas más abajo. Ahora el
+   orden es: extensiones → tipos → funciones → tablas → disparadores → vistas.
+2. **Esto se reconstruyó desde el código** (`types.ts` y las consultas reales),
+   no desde un volcado de producción. Antes de fiarte, contrástalo con tu base
+   usando la consulta de verificación del final, que es de solo lectura.
+
+---
+
 ## 🚀 Configuración Inicial
 
 ### Extensiones Requeridas
@@ -28,6 +47,23 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Activar extensión pgcrypto para funciones criptográficas
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Rol de usuario. Es un ENUM, no un TEXT con CHECK: varias funciones
+-- SECURITY DEFINER castean a este tipo (`'authenticated'::public.user_role`)
+-- y fallan si no existe.
+DO $$ BEGIN
+  CREATE TYPE public.user_role AS ENUM ('admin', 'business_owner', 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Función de los disparadores de updated_at. Va AQUÍ y no al final: la usan
+-- casi todas las tablas de abajo.
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ---
@@ -40,14 +76,32 @@ Extiende la autenticación de Supabase con información adicional del usuario.
 ```sql
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT NOT NULL UNIQUE,
-    full_name TEXT,
-    avatar_url TEXT,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
 
-    -- Configuración
-    language TEXT DEFAULT 'es',
-    theme TEXT DEFAULT 'system',
+    -- Identidad. OJO: la columna es `name`, no `full_name`, y NO hay `email`
+    -- (el correo vive en auth.users). El código lee `profiles.name`.
+    name TEXT,
+    username TEXT,
+    avatar_url TEXT,
+
+    -- Rol: enum, y los valores son estos tres. El disparador de alta inserta
+    -- 'authenticated'; 'user' no existe en esta aplicación.
+    role public.user_role NOT NULL DEFAULT 'authenticated',
+
+    -- Plan y facturación
+    plan TEXT NOT NULL DEFAULT 'free',
+    billing_cycle TEXT,
+    plan_expires_at TIMESTAMPTZ,
+    business_limit INTEGER,
+    feature_permissions JSONB,   -- solo enterprise: permisos por funcionalidad
+
+    -- Contadores
+    helpful_review_count INTEGER DEFAULT 0,
+    reviews_count INTEGER DEFAULT 0,
+
+    -- Créditos de IA
+    ai_credits_used INTEGER DEFAULT 0,
+    ai_credits_last_reset TIMESTAMPTZ,
+    ai_credit_limit INTEGER,
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -70,6 +124,40 @@ CREATE TRIGGER update_profiles_updated_at
     BEFORE UPDATE ON profiles
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Función que rellena el perfil con los metadatos del registro. Se define
+-- también en la migración 20260429214703; aquí va para que el documento se
+-- pueda ejecutar entero sin depender de ella.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+BEGIN
+  INSERT INTO public.profiles (id, name, role, username, plan)
+  VALUES (
+    new.id,
+    COALESCE(
+      new.raw_user_meta_data ->> 'full_name',
+      new.raw_user_meta_data ->> 'name',
+      'Nuevo Usuario'
+    ),
+    'authenticated'::public.user_role,
+    new.raw_user_meta_data ->> 'username',
+    'free'
+  );
+  RETURN new;
+END;
+$function$;
+
+-- SIN ESTO NO SE CREA NINGÚN PERFIL. Al registrarse un usuario, este
+-- disparador copia su nombre desde los metadatos a `profiles`. La función
+-- `handle_new_user()` está en la migración 20260429214703.
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ---
@@ -85,8 +173,12 @@ CREATE TABLE IF NOT EXISTS businesses (
 
     -- Información básica
     name TEXT NOT NULL,
+    -- `slug` es por donde la aplicación resuelve la ficha pública
+    -- (/es/empresa/<slug>). Sin esta columna no carga ninguna ficha.
+    slug TEXT UNIQUE,
     description TEXT,
     category TEXT NOT NULL,
+    meta_description_override TEXT,
 
     -- Ubicación
     country TEXT NOT NULL,
@@ -96,7 +188,13 @@ CREATE TABLE IF NOT EXISTS businesses (
 
     -- Contacto
     contact_phone TEXT,
+    contact_email TEXT,
     website_url TEXT,
+    social_links JSONB,
+
+    -- Sedes adicionales por país, y si ofrece servicio internacional
+    sedes JSONB,
+    offers_international_services BOOLEAN DEFAULT FALSE,
 
     -- Medios
     logo_url TEXT,
@@ -158,8 +256,10 @@ Almacena reseñas de usuarios sobre negocios.
 CREATE TABLE IF NOT EXISTS reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-    -- Relaciones
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    -- Relaciones. `user_id` admite NULL A PROPÓSITO: las reseñas de Google y
+    -- las importadas no tienen usuario en Opynio (su autor va en
+    -- `original_author_name`). Ponerlo NOT NULL rompe la importación.
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
 
     -- Contenido
@@ -169,7 +269,9 @@ CREATE TABLE IF NOT EXISTS reviews (
     category TEXT NOT NULL,
 
     -- Metadata de origen (para reseñas importadas)
-    source TEXT DEFAULT 'manual' CHECK (source IN ('manual', 'google', 'imported')),
+    -- 'opynio' es el origen que escribe la aplicación al crear una reseña
+    -- desde la web; sin él en el CHECK, publicar falla.
+    source TEXT DEFAULT 'manual' CHECK (source IN ('manual', 'google', 'imported', 'opynio', 'scraped', 'trustindex')),
     source_id TEXT, -- ID original en la plataforma de origen
     original_author_name TEXT, -- Nombre del autor original
     is_verified_purchase BOOLEAN DEFAULT FALSE,
@@ -181,6 +283,18 @@ CREATE TABLE IF NOT EXISTS reviews (
     -- Estado
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     published_at TIMESTAMPTZ,
+
+    -- Contenido multimedia y etiquetas (el código las selecciona siempre)
+    image_urls TEXT[],
+    audio_url TEXT,
+    tags TEXT[],
+
+    -- Votos y moderación
+    helpful_votes INTEGER DEFAULT 0,
+    not_helpful_votes INTEGER DEFAULT 0,
+    helpful_count INTEGER DEFAULT 0,
+    is_verified_customer BOOLEAN DEFAULT FALSE,
+    rejection_reason TEXT,
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -222,6 +336,120 @@ CREATE POLICY "Admins can manage all reviews"
         )
     );
 ```
+
+---
+
+### Tabla: `review_responses`
+Respuesta pública del negocio a una reseña. La leen el panel de reseñas, la
+ficha pública y `getReviewsOptimized`.
+
+```sql
+CREATE TABLE IF NOT EXISTS review_responses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    review_id UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    response_text TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE review_responses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Respuestas visibles para todos"
+    ON review_responses FOR SELECT USING (true);
+
+-- Solo el dueño de la empresa a la que pertenece la reseña puede responder.
+CREATE POLICY "El dueno responde a sus resenas"
+    ON review_responses FOR ALL USING (EXISTS (
+        SELECT 1 FROM reviews r
+        JOIN businesses b ON b.id = r.business_id
+        WHERE r.id = review_responses.review_id AND b.owner_id = auth.uid()
+    ));
+
+CREATE TRIGGER update_review_responses_updated_at
+    BEFORE UPDATE ON review_responses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+> **Nota:** además de esta, el código usa tablas que siguen sin documentarse
+> aquí porque no se ha podido reconstruir su forma con seguridad:
+> `notifications`, `push_subscriptions`, `translation_cache`, `url_redirects`,
+> `scraping_queue` y `scraping_sessions`. Si tocas alguna, documéntala.
+
+---
+
+## 📦 Productos reseñables (sujetos)
+
+Permiten que una empresa tenga entidades propias con **su propia nota y su propio
+widget**: hoy productos o cursos, y el tipo está abierto a servicios, empleados y
+sedes sin rehacer el modelo.
+
+> ⚠️ **No confundir con la tabla `products`**, que es de Stripe (catálogo de
+> planes). Estas entidades se llaman `review_subjects` precisamente por eso.
+
+### Tabla: `review_subjects`
+
+```sql
+CREATE TABLE IF NOT EXISTS review_subjects (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'product'
+    CHECK (type IN ('product', 'service', 'employee', 'location')),
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  code TEXT,                    -- referencia interna del negocio (código de curso, SKU)
+  slug TEXT,
+  description TEXT,
+  image_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (business_id, slug),
+  UNIQUE (business_id, code)    -- el código es único dentro de la empresa, no global
+);
+```
+
+### Tabla: `review_subject_links`
+
+Asigna una reseña **existente** a un sujeto. Es una tabla aparte y no una columna
+en `reviews` para no tocar la tabla de reseñas.
+
+```sql
+CREATE TABLE IF NOT EXISTS review_subject_links (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  review_id UUID NOT NULL UNIQUE REFERENCES reviews(id) ON DELETE CASCADE,
+  subject_id UUID NOT NULL REFERENCES review_subjects(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+```
+
+### Reglas que hay que conocer antes de tocar esto
+
+- **Ninguna reseña se asigna sola.** No hay backfill ni heurística: el enlace existe
+  solo si alguien lo crea. Al aplicar las migraciones, cero enlaces.
+- **El total de la empresa NO es la suma de sus productos.** Las reseñas de Google y
+  las scrapeadas no tienen producto; `widget_business_stats` sigue contándolas todas.
+  Por diseño: `suma de productos ≤ total de la empresa`.
+- **`UNIQUE(review_id)`**: una reseña pertenece como mucho a un sujeto, así que no
+  puede aparecer en dos widgets ni contarse dos veces. Reasignar **mueve** el enlace
+  (la app usa `ON CONFLICT (review_id) DO UPDATE`).
+- **Trigger `review_subject_link_same_business`**: impide enlazar una reseña de una
+  empresa con el producto de otra. Un `CHECK` no puede mirar otra tabla.
+- **Borrar un producto no borra reseñas**: se va el enlace, la reseña sigue contando
+  en su empresa.
+- **`uniq_review_per_user_business` sigue vigente**, así que un usuario sigue pudiendo
+  dejar **una sola reseña por empresa**. Permitir una reseña por producto exige
+  rehacer ese índice, y eso va en su propia migración.
+
+### RPCs asociadas
+
+| Función | Para qué |
+| - | - |
+| `widget_subject_stats(p_subject_id)` | Nota y nº de reseñas de un producto. La usa `widget-proxy`. |
+| `widget_subject_reviews(p_subject_id, p_limit)` | Las reseñas que pinta el widget del producto. |
+| `business_subject_stats(p_business_id)` | Cifras de **todos** los productos de una empresa en una sola llamada (listado del panel y ficha pública). |
+
+Ninguna toca `widget_business_stats`: el widget de empresa devuelve exactamente lo
+mismo que antes.
 
 ---
 
@@ -539,6 +767,7 @@ GROUP BY b.id, b.name, b.category, b.country;
 - [ ] Crear tabla `business_claims`
 - [ ] Crear tabla `review_appeals`
 - [ ] Crear tabla `bug_reports`
+- [ ] Crear tablas `review_subjects` y `review_subject_links` + trigger + RLS
 - [ ] Crear tablas de Stripe (`customers`, `products`, `prices`, `subscriptions`)
 - [ ] Crear funciones y triggers
 - [ ] Crear vistas útiles
@@ -547,5 +776,64 @@ GROUP BY b.id, b.name, b.category, b.country;
 
 ---
 
-**Última actualización:** Noviembre 2025
-**Versión:** 1.0.0
+---
+
+## 🔎 Verificar este documento contra tu base real
+
+Esta consulta es de **solo lectura**: no crea, no borra y no modifica nada.
+Pégala en el editor SQL de Supabase y te dice en qué se diferencia tu base de
+lo que dice este documento. Es la forma de no volver a fiarse a ciegas.
+
+```sql
+-- Columnas que este documento espera y que tu base PODRÍA no tener.
+WITH esperado(tabla, columna) AS (VALUES
+  ('profiles','name'), ('profiles','username'), ('profiles','role'),
+  ('profiles','plan'), ('profiles','billing_cycle'), ('profiles','plan_expires_at'),
+  ('profiles','business_limit'), ('profiles','feature_permissions'),
+  ('profiles','helpful_review_count'), ('profiles','reviews_count'),
+  ('profiles','ai_credits_used'), ('profiles','ai_credit_limit'),
+  ('businesses','slug'), ('businesses','sedes'), ('businesses','logo_tone'),
+  ('businesses','offers_international_services'), ('businesses','social_links'),
+  ('reviews','image_urls'), ('reviews','audio_url'), ('reviews','tags'),
+  ('reviews','source'), ('reviews','status'), ('reviews','original_author_name'),
+  ('review_subjects','code'), ('review_subjects','slug'), ('review_subjects','is_active'),
+  ('review_subject_links','review_id'), ('review_subject_links','subject_id')
+)
+SELECT e.tabla, e.columna,
+       CASE WHEN c.column_name IS NULL THEN 'FALTA EN TU BASE' ELSE 'ok' END AS estado
+FROM esperado e
+LEFT JOIN information_schema.columns c
+  ON c.table_schema = 'public' AND c.table_name = e.tabla AND c.column_name = e.columna
+ORDER BY (c.column_name IS NULL) DESC, e.tabla, e.columna;  -- los problemas, primero
+
+-- Tablas que el código usa. Las que salgan como FALTA romperán alguna pantalla.
+WITH esperado(tabla) AS (VALUES
+  ('profiles'), ('businesses'), ('reviews'), ('review_responses'), ('review_votes'),
+  ('review_subjects'), ('review_subject_links'), ('claims'), ('bug_reports'),
+  ('review_appeals'), ('notifications'), ('push_subscriptions'),
+  ('translation_cache'), ('url_redirects'), ('customers'), ('subscriptions')
+)
+SELECT e.tabla,
+       CASE WHEN t.table_name IS NULL THEN 'FALTA EN TU BASE' ELSE 'ok' END AS estado
+FROM esperado e
+LEFT JOIN information_schema.tables t
+  ON t.table_schema = 'public' AND t.table_name = e.tabla
+ORDER BY (t.table_name IS NULL) DESC, e.tabla;  -- los problemas, primero
+
+-- Restricciones que el código viola si están como decía el documento viejo.
+SELECT conrelid::regclass AS tabla, conname, pg_get_constraintdef(oid) AS definicion
+FROM pg_constraint
+WHERE conrelid IN ('public.reviews'::regclass, 'public.profiles'::regclass)
+  AND contype = 'c'
+ORDER BY 1, 2;
+
+-- El disparador que crea el perfil al registrarse. Si no sale ninguna fila,
+-- los usuarios nuevos se quedan sin perfil.
+SELECT tgname FROM pg_trigger
+WHERE tgrelid = 'auth.users'::regclass AND NOT tgisinternal;
+```
+
+---
+
+**Última actualización:** 17 de septiembre de 2026
+**Versión:** 2.0.0 — esquema corregido y hecho ejecutable en orden

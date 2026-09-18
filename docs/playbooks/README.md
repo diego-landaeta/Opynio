@@ -7,6 +7,8 @@ Procedimientos paso a paso para operaciones repetitivas. Cada playbook está pen
 | Playbook | Cuándo usarlo |
 | - | - |
 | [add-language.md](./add-language.md) | Añadir un idioma nuevo a la app + widget + sitemap |
+| [add-i18n-keys.md](./add-i18n-keys.md) | Añadir claves de traducción nuevas a los 31 locales de golpe |
+| [bump-widget-version.md](./bump-widget-version.md) | Tocar `public/widget.js` (cabecera + `EMBED_VERSION` + impacto en clientes) |
 
 ## Pendientes (placeholders)
 
@@ -16,7 +18,6 @@ Procedimientos paso a paso para operaciones repetitivas. Cada playbook está pen
 | `add-review.md` | TODO — flujo de creación de reseña, moderación, importación TrustIndex/Google |
 | `add-country.md` | TODO — añadir país (sólo país, sin idioma nuevo) — implica tocar `COUNTRIES`, `SEDE_COUNTRIES`, `countries.*` en los 11 locales, `Meta.tsx` hreflang si aplica, mapas de timezone, etc. |
 | `add-edge-function.md` | TODO — patrón base de Edge Function en Supabase (CORS, auth, errores, secrets) |
-| `bump-widget-version.md` | TODO — pasos al cambiar `public/widget.js` (header + EMBED_VERSION + impacto cliente) |
 
 ## Formato esperado
 

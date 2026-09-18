@@ -212,6 +212,50 @@ Cambios en `initWidget`: después de `IS_BOT` (que sigue light DOM), antes del r
 
 ---
 
+## 4.bis Widget de producto (v6.6.0 → v6.8.0)
+
+Un mismo negocio puede publicar un widget por producto/curso, además del de la
+empresa entera.
+
+```html
+<!-- Opynio Widget v6.8.0 - stars-carousel - Curso de Marketing Digital [MKT-101] -->
+<script src="https://web.opynio.com/widget.js?v=v6.8.0" async></script>
+<div class="opynio-widget"
+     data-business-id="UUID-EMPRESA"
+     data-product-id="UUID-PRODUCTO"
+     data-type="stars-carousel"
+     data-theme="light"></div>
+```
+
+| Versión | Qué añadió |
+| - | - |
+| v6.6.0 | `data-product-id`: el widget muestra la nota y las reseñas de **ese** producto. |
+| v6.7.0 | Cabecera con el nombre del producto ("RESEÑAS DE …"), para que el visitante sepa de qué es la nota. |
+| v6.8.0 | El enlace lleva a la ficha de Opynio ya filtrada: `?producto=<id>`. |
+
+### Reglas
+
+- **Sin `data-product-id` nada cambia.** Los widgets ya pegados en webs de clientes
+  se comportan exactamente igual que antes: misma consulta, mismas cifras, sin cabecera.
+- **Un producto sin reseñas asignadas muestra 0.** Nunca hereda las de su empresa: si
+  el proxy no encuentra enlaces, no hay recurso de respaldo. Es deliberado.
+- **`floating` no lleva cabecera**: es un botón fijo en una esquina y no tiene sitio.
+  `badge` y `sidebar` la llevan en versión compacta.
+- **El nombre del producto lo escribe el cliente**, así que se escapa siempre
+  (`escapeHtml`) antes de insertarlo.
+- Los textos de la cabecera viven en `UI_STRINGS` dentro de `public/widget.js`
+  (20 idiomas), **aparte** de los 31 locales de la app. Un texto nuevo hay que
+  ponerlo en los dos sitios.
+- El backend es la Edge Function `widget-proxy`, que acepta `productId` (alias
+  `subjectId`) opcional y valida que el producto pertenezca a esa empresa.
+
+### Al tocar `public/widget.js`
+
+Ver el playbook [bump-widget-version.md](./playbooks/bump-widget-version.md): hay que
+subir la cabecera **y** `EMBED_VERSION` en `widgetShared.ts`, y deben coincidir.
+
+---
+
 ## 5. Referencias
 
 - [Schema.org LocalBusiness](https://schema.org/LocalBusiness)
