@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBusinessesForOwner, getUserProfile, supabase } from '../../services/supabaseService';
+import { clearCache, getBusinessesForOwner, getUserProfile, supabase } from '../../services/supabaseService';
 import Meta from '../Meta';
 import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
@@ -16,6 +16,25 @@ import { trackMetaEvent } from '../../utils/metaPixel';
 // Overlay full-screen (z-[60]) tapa Header (z-30) y Footer del
 // MainLayout — pantalla dedicada sin nav.
 
+// Esperas entre comprobaciones (ms). El webhook de Stripe suele llegar en
+// segundos, pero con reintentos puede tardar bastante mas: se sondea ~85 s con
+// espera creciente antes de dar el pago por no confirmado.
+const ESPERAS_INICIALES = [2000, 2000, 3000, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000, 15000];
+// «Volver a comprobar»: una ronda corta (~12 s).
+const ESPERAS_REINTENTO = [2000, 4000, 6000];
+// A partir de aqui el spinner avisa de que esta tardando mas de lo normal.
+const AVISO_LENTO_MS = 12000;
+
+// Respuesta de la funcion get-checkout-status (solo lo que usa esta pantalla).
+interface CheckoutStatus {
+    paid: boolean;
+    ready: boolean;
+    amount: number | null;
+    currency: string | null;
+}
+
+type EstadoPago = 'checking' | 'confirmed' | 'paidPending' | 'pending';
+
 const PaymentSuccessPage: React.FC = () => {
     const { user, profile, setProfile, setBusinesses } = useAuth();
     const { language } = useI18n();
@@ -27,69 +46,126 @@ const PaymentSuccessPage: React.FC = () => {
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
+    // Perfil y empresas ya no se cargan al entrar: se cargan UNA vez, cuando el
+    // pago de esta sesion esta aplicado (antes se cargaban dos veces).
     useEffect(() => {
         try { localStorage.removeItem('opynio_pending_plan_welcome'); } catch {}
         const prevOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
-        const refreshUserData = async () => {
-            if (!user) return;
-            try {
-                const [updatedProfile, newBusinesses] = await Promise.all([
-                    getUserProfile(user),
-                    getBusinessesForOwner(user.id),
-                ]);
-                if (updatedProfile) setProfile(updatedProfile);
-                if (newBusinesses) setBusinesses(newBusinesses);
-            } catch (error) {
-                console.error('Failed to refresh user data after payment:', error);
-            }
-        };
-        refreshUserData();
         return () => {
             document.body.style.overflow = prevOverflow;
         };
-    }, [user, setProfile, setBusinesses]);
+    }, []);
 
     const plan: Plan = (profile?.plan as Plan | undefined) ?? 'v2';
     const data = getPlanBenefits(plan, t);
     const planLabel = plan === 'v2' ? 'v.2' : plan.charAt(0).toUpperCase() + plan.slice(1);
 
-    // Meta Pixel Purchase event — event_id = stripe session_id se comparte con el
-    // server-side CAPI en stripe-webhook para que Meta deduplique cliente↔servidor.
+    // Se verifica ESTA sesion de pago (session_id de la URL) con la funcion
+    // get-checkout-status: que es del usuario, que Stripe la da por pagada y
+    // que el webhook ya la ha aplicado (suscripcion, plan y, en un alta, la
+    // empresa y el rol). Antes bastaba cualquier suscripcion activa de las
+    // ultimas 48 h: se confirmaba antes de que existiera la empresa (y «Mis
+    // negocios» rebotaba) o con la suscripcion de un pago anterior.
+    // Sin verificacion no hay confirmacion ni Purchase.
+    const [estadoPago, setEstadoPago] = useState<EstadoPago>('checking');
+    // 0 = sondeo inicial; cada «Volver a comprobar» suma 1 y relanza el efecto.
+    const [ronda, setRonda] = useState(0);
+    const [tardando, setTardando] = useState(false);
+    // Purchase se manda una sola vez aunque se vuelva a comprobar.
+    const purchaseEnviado = useRef(false);
+
+    const volverAComprobar = useCallback(() => {
+        setEstadoPago('checking');
+        setRonda(r => r + 1);
+    }, []);
+
     useEffect(() => {
         if (!user) return;
-        const params = new URLSearchParams(location.search);
-        const sessionId = params.get('session_id');
-        if (!sessionId) return;
-
+        const sessionId = new URLSearchParams(location.search).get('session_id');
+        // Sin session_id (URL escrita a mano) no hay nada que verificar.
+        if (!sessionId) {
+            setEstadoPago('pending');
+            return;
+        }
         let cancelled = false;
-        const fire = async () => {
-            let value = 0;
-            let currency = 'EUR';
-            try {
-                const { data } = await supabase
-                    .from('subscriptions')
-                    .select('prices(unit_amount, currency)')
-                    .eq('user_id', user.id)
-                    .order('created', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                const price = (data as any)?.prices;
-                if (price?.unit_amount) value = price.unit_amount / 100;
-                if (price?.currency) currency = String(price.currency).toUpperCase();
-            } catch (err) {
-                console.warn('[meta] could not load subscription price for Purchase event', err);
-            }
-            if (cancelled) return;
-            void trackMetaEvent('Purchase', {
-                eventId: sessionId,
-                userData: { email: user.email, external_id: user.id },
-                customData: { value, currency },
+        const esperas = ronda === 0 ? ESPERAS_INICIALES : ESPERAS_REINTENTO;
+        setTardando(false);
+        const avisoLento = ronda === 0 ? setTimeout(() => { if (!cancelled) setTardando(true); }, AVISO_LENTO_MS) : undefined;
+
+        // null = aun no se sabe (red, 5xx...): se vuelve a probar.
+        // 'gone' = la sesion no existe, no es de este usuario o el id no vale:
+        // reintentar no cambia nada.
+        const consultar = async (): Promise<CheckoutStatus | 'gone' | null> => {
+            const { data: st, error } = await supabase.functions.invoke('get-checkout-status', {
+                body: { session_id: sessionId },
             });
+            if (!error) return st as CheckoutStatus;
+            const ctx = (error as any)?.context;
+            const status = Number(ctx?.status) || 0;
+            let code = '';
+            try { code = String((await ctx.clone().json())?.code ?? ''); } catch { /* cuerpo no JSON */ }
+            if (code === 'checkout_session_not_found' || code === 'invalid_request' || status === 400) return 'gone';
+            return null;
         };
-        void fire();
-        return () => { cancelled = true; };
-    }, [user, location.search]);
+
+        const comprobar = async () => {
+            let pagado = false;
+            for (let intento = 0; intento <= esperas.length && !cancelled; intento++) {
+                let st: CheckoutStatus | 'gone' | null = null;
+                try { st = await consultar(); } catch { st = null; }
+                if (cancelled) return;
+                if (st === 'gone') break;
+                if (st?.paid) pagado = true;
+                if (st?.ready) {
+                    // Perfil y empresas con lo que acaba de escribir el webhook
+                    // (plan; en un alta, empresa y rol) ANTES de pintar la
+                    // confirmacion: ni un instante con el plan anterior, y «Mis
+                    // negocios» ya encuentra la empresa.
+                    try {
+                        clearCache(`profile_${user.id}`);
+                        const [updatedProfile, newBusinesses] = await Promise.all([
+                            getUserProfile(user),
+                            getBusinessesForOwner(user.id),
+                        ]);
+                        if (!cancelled && updatedProfile) setProfile(updatedProfile);
+                        if (!cancelled && newBusinesses) setBusinesses(newBusinesses);
+                    } catch { /* se queda con el perfil que habia */ }
+                    if (cancelled) return;
+                    setEstadoPago('confirmed');
+                    // Meta Pixel Purchase: event_id = session_id, el mismo que
+                    // manda el CAPI del webhook (Meta deduplica). Importe y
+                    // moneda de ESTA sesion. Una vez por visita.
+                    if (!purchaseEnviado.current) {
+                        purchaseEnviado.current = true;
+                        void trackMetaEvent('Purchase', {
+                            eventId: sessionId,
+                            userData: { email: user.email, external_id: user.id },
+                            customData: {
+                                value: typeof st.amount === 'number' ? st.amount : 0,
+                                currency: st.currency ? String(st.currency).toUpperCase() : 'EUR',
+                            },
+                        });
+                    }
+                    return;
+                }
+                if (intento < esperas.length) {
+                    await new Promise(r => setTimeout(r, esperas[intento]));
+                }
+            }
+            // Pagado pero sin aplicar (webhook lento o fallando): no se confirma,
+            // pero tampoco se dice que no hay pago.
+            if (!cancelled) setEstadoPago(pagado ? 'paidPending' : 'pending');
+        };
+        void comprobar();
+        return () => {
+            cancelled = true;
+            if (avisoLento) clearTimeout(avisoLento);
+        };
+        // Por `user?.id` y no por el objeto: AuthContext lo sustituye al
+        // refrescar la sesion y eso reiniciaba el sondeo (y una consulta de mas).
+        // setProfile/setBusinesses vienen de AuthContext y son estables.
+    }, [user?.id, location.search, ronda]);
 
     return (
         <>
@@ -110,7 +186,7 @@ const PaymentSuccessPage: React.FC = () => {
                             Opynio
                         </Link>
                         <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500">
-                            {t('paymentSuccessPage.eyebrow')}
+                            {estadoPago === 'confirmed' ? t('paymentSuccessPage.eyebrow') : ''}
                         </span>
                     </div>
                 </header>
@@ -118,7 +194,53 @@ const PaymentSuccessPage: React.FC = () => {
                 {/* Cuerpo: ocupa el alto restante, contenido centrado y
                     con scroll INTERNO sólo si la pantalla es muy pequeña
                     (móvil tumbado, etc.) — por defecto cabe todo. */}
-                <main className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center px-4 sm:px-6 py-4 sm:py-6">
+                <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center px-4 sm:px-6 py-4 sm:py-6">
+                    {estadoPago !== 'confirmed' ? (
+                    <div className="w-full max-w-md text-center animate-fade-page">
+                        <article className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm px-6 py-8">
+                            {estadoPago === 'checking' || !user ? (
+                                <>
+                                    <div className="mx-auto mb-4 w-8 h-8 border-2 border-brand-green border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+                                    <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100" role="status">
+                                        {t('paymentSuccessPage.verifying')}
+                                    </p>
+                                    {tardando && (
+                                        <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                            {t('paymentSuccessPage.verifyingSlow')}
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-clock text-3xl text-amber-500 mb-3" aria-hidden="true"></i>
+                                    <p className="text-sm sm:text-base text-gray-700 dark:text-gray-200" role="status">
+                                        {estadoPago === 'paidPending'
+                                            ? t('paymentSuccessPage.paidNotReady')
+                                            : t('paymentSuccessPage.notConfirmed')}
+                                    </p>
+                                    <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+                                        <button
+                                            type="button"
+                                            onClick={volverAComprobar}
+                                            className="inline-flex items-center justify-center gap-2 bg-brand-green text-white font-semibold px-5 py-2.5 rounded-lg text-sm hover:bg-emerald-600 transition-colors"
+                                        >
+                                            <i className="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+                                            {t('paymentSuccessPage.checkAgain')}
+                                        </button>
+                                        {/* Pagado pero sin aplicar: a Soporte, no a Planes
+                                            (volver a pagar seria un doble cobro). */}
+                                        <Link
+                                            to={`${countryPrefix}/${estadoPago === 'paidPending' ? paths.support : paths.pricing}`}
+                                            className="inline-flex items-center justify-center bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 font-semibold px-5 py-2.5 rounded-lg text-sm border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                                        >
+                                            {estadoPago === 'paidPending' ? t('paymentSuccessPage.supportLink') : t('paymentSuccessPage.seePlans')}
+                                        </Link>
+                                    </div>
+                                </>
+                            )}
+                        </article>
+                    </div>
+                    ) : (
                     <div className="w-full max-w-2xl animate-fade-page">
 
                         <article className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
@@ -219,7 +341,8 @@ const PaymentSuccessPage: React.FC = () => {
                             </Link>
                         </div>
                     </div>
-                </main>
+                    )}
+                </div>
 
                 <style>{`
                     @keyframes fade-page {

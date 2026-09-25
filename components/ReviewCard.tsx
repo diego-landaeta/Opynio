@@ -6,26 +6,64 @@ import LazyImage from './LazyImage';
 import Modal from './Modal';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { voteOnReview, getUserVoteOnReview, removeVoteOnReview } from '../services/supabaseService';
-import { useI18n, useTranslation, useAutoTranslations, pathTranslations } from '../contexts/i18nContext';
+import { voteOnReview, getUserVoteOnReview, removeVoteOnReview, deleteOwnReview } from '../services/supabaseService';
+import { useI18n, useTranslation, useAutoTranslations, localizedPath } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { useCountry } from '../contexts/CountryContext';
 import { generateBusinessPath } from '../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../utils/categoryMappings';
+import { resolveReviewAuthor, formatReviewDate } from '../utils/reviewDisplay';
+import OwnBusinessBadge from './OwnBusinessBadge';
 
 
 interface ReviewCardProps {
     review: Review;
     showBusinessName?: boolean;
     hideResponse?: boolean;
+    /**
+     * Si se pasa, el AUTOR de la resena ve un boton «Eliminar» (con
+     * confirmacion) y, tras borrarla, se llama con su id para quitarla de la
+     * lista. Solo lo pasa el perfil del propio usuario.
+     */
+    onDeleted?: (reviewId: string) => void;
+    /**
+     * Si se pasa, el AUTOR ve un boton «Editar» en sus resenas pendientes o
+     * aprobadas (las rechazadas se apelan). La pagina abre el editor. Solo lo
+     * pasa el perfil del propio usuario: en el resto de sitios el autor ve un
+     * aviso con enlace a su perfil, que es donde se gestiona.
+     */
+    onEdit?: (review: Review) => void;
+    /**
+     * La resena cambio fuera de aqui (un admin la rechazo o la borro) y la
+     * accion no se pudo hacer: la pagina recarga su lista con el estado real.
+     */
+    onStale?: () => void;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = false, hideResponse = false }) => {
+/**
+ * ¿La escribio de verdad este usuario? El user_id solo no basta: las resenas
+ * importadas (Google, Trustindex, scraping o cargadas en nombre de otro)
+ * guardan el user_id del admin que las importo, y el admin veia «Es tu
+ * resena» y Editar/Eliminar en todas. Misma regla que FILTRO_FUENTE_PROPIA en
+ * services/supabaseService: fuente web ('opynio', 'manual' antigua o sin
+ * fuente) y sin autor original.
+ */
+const isAuthoredBy = (review: Review, userId: string | undefined): boolean => {
+    if (!userId || !review.user_id || review.user_id !== userId) return false;
+    const source = (review.source || '').trim().toLowerCase();
+    if (source && source !== 'opynio' && source !== 'manual') return false;
+    return !resolveReviewAuthor(review).fromImport;
+};
+
+const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = false, hideResponse = false, onDeleted, onEdit, onStale }) => {
     const { user } = useAuth();
     const { language } = useI18n();
     const { country } = useCountry();
     const t = useTranslation();
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const hasResponse = review.review_responses && review.review_responses.length > 0;
     const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
@@ -36,7 +74,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         response: originalResponseText || null,
     }), [review.title, review.review_text, originalResponseText]);
 
-    const { content: translated, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations(translationFields);
+    // Pais de la empresa: si el texto no da para detectar su idioma, el del
+    // pais decide si hace falta pedirlo a Google (moderacion en espanol pedia
+    // es->es y el endpoint acababa en 429).
+    const { content: translated, isTranslating, canToggle, showOriginal, toggle } = useAutoTranslations(
+        translationFields,
+        { country: review.businesses?.country ?? null }
+    );
 
     // Local state for vote counts to update immediately after voting
     const [localHelpfulVotes, setLocalHelpfulVotes] = useState(review.helpful_votes || 0);
@@ -45,16 +89,20 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const [userVote, setUserVote] = useState<'helpful' | 'not_helpful' | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    // Build login path based on current language/country
-    const countryPrefix = `/${country || 'es'}`;
-    const paths = pathTranslations[language] || pathTranslations.es;
-    const loginPath = `${countryPrefix}/${paths.login}`;
-    const registerPath = `${countryPrefix}/${paths.register}`;
+    // Prefijo del pais con el segmento en el idioma de ESE pais (/es + ruta
+    // inglesa = 404 para quien tiene la UI en ingles).
+    const loginPath = localizedPath('login', language, country || 'es');
+    const registerPath = localizedPath('register', language, country || 'es');
+    const profilePath = localizedPath('profile', language, country || 'es');
+
+    // El autor no vota su propia resena (la BD tambien lo impide: trigger
+    // trg_review_votes_block_own_review). Declarado aqui porque lo usa el efecto.
+    const isOwnReview = isAuthoredBy(review, user?.id);
 
     // Load user's vote on mount
     useEffect(() => {
         const loadUserVote = async () => {
-            if (user) {
+            if (user && !isOwnReview) {
                 try {
                     const vote = await getUserVoteOnReview(review.id, user.id);
                     if (vote.hasVoted) {
@@ -66,7 +114,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             }
         };
         loadUserVote();
-    }, [review.id, user]);
+    }, [review.id, user, isOwnReview]);
 
     // Update local state when review prop changes
     useEffect(() => {
@@ -89,16 +137,26 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
     const sourceInfo = isImportedReview ? sourceDetails[sourceKey] : null;
 
-    // Extract author name and location from combined string (e.g., "John Doe, España" -> {name: "John Doe", location: "España"})
-    const getAuthorInfo = (nameString: string | null | undefined): { name: string; location: string | null } => {
-        if (!nameString) return { name: 'Anónimo', location: null };
+    // Autor con la regla comun (utils/reviewDisplay). Las importadas traen a
+    // veces "Nombre, Pais" en un solo campo: se separa solo en ese caso, un
+    // nombre de perfil se muestra tal cual.
+    const getAuthorInfo = (): { name: string; location: string | null } => {
+        const anonimo = t('common.anonymous');
+        const { name: nameString, fromImport } = resolveReviewAuthor(review);
+        if (!nameString) return { name: anonimo, location: null };
+        if (!fromImport) return { name: nameString, location: null };
 
         const parts = nameString.split(',').map(p => p.trim());
-        const name = parts[0] || 'Anónimo';
+        const name = parts[0] || anonimo;
         const location = parts.length > 1 ? parts[1] : null;
 
         return { name, location };
     };
+
+    // Ultimo recurso cuando la clave guardada no esta en los locales (filas
+    // antiguas, importadas o con el nombre en otro idioma): al menos que se lea
+    // como texto y no como identificador. Mismo criterio que BusinessPage.
+    const humanizeCategory = (value: string): string => value.replace(/_/g, ' ').trim();
 
     const getCategoryTranslation = (categoryString: string | null): string => {
         if (!categoryString) return '';
@@ -118,7 +176,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
         // Translate main category using i18n
         const translatedMain = t(`categories.${categoryKey}`);
-        const mainCategoryTranslated = translatedMain.startsWith('categories.') ? mainCategory : translatedMain;
+        const mainCategoryTranslated = translatedMain.startsWith('categories.') ? humanizeCategory(mainCategory) : translatedMain;
 
         // If there's a subcategory, translate it too
         if (subCategory) {
@@ -136,113 +194,83 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
 
             if (subCategoryKey) {
                 const translatedSub = t(`subcategories.${subCategoryKey}`);
-                const subCategoryTranslated = translatedSub.startsWith('subcategories.') ? subCategory : translatedSub;
+                const subCategoryTranslated = translatedSub.startsWith('subcategories.') ? humanizeCategory(subCategory) : translatedSub;
                 return `${mainCategoryTranslated}: ${subCategoryTranslated}`;
             }
 
             // Fallback if no mapping found
-            return `${mainCategoryTranslated}: ${subCategory}`;
+            return `${mainCategoryTranslated}: ${humanizeCategory(subCategory)}`;
         }
 
         return mainCategoryTranslated;
     };
 
+    // Icono por tipo de etiqueta. El Map guarda etiqueta -> icono y de paso
+    // evita duplicados, igual que hacia el Set anterior.
+    //
+    // 'texto' NO esta aqui a proposito: una resena escrita ya se lee debajo, asi
+    // que la etiqueta no anade nada y salia en practicamente todas. Solo se
+    // marcan los formatos que son la EXCEPCION: que ademas traiga foto o audio.
+    const FORMAT_TAG_ICONS: Record<string, string> = {
+        'imágenes': 'fa-image',
+        'audio': 'fa-microphone',
+    };
+
     const displayTags = useMemo(() => {
-        const tags = new Set<string>();
+        const tags = new Map<string, string>();
+        const add = (label: string, icon: string) => {
+            if (label && !tags.has(label)) tags.set(label, icon);
+        };
 
         // Use the business's current category instead of the review's stored category
         const categoryToUse = review.businesses?.category || review.category;
-        const translatedCategory = getCategoryTranslation(categoryToUse);
-        if(translatedCategory) tags.add(translatedCategory);
+        add(getCategoryTranslation(categoryToUse), 'fa-tag');
 
         (review.tags || []).forEach(tag => {
-            // Translate format tags like 'texto', 'audio', etc.
-            if (['texto', 'imágenes', 'audio'].includes(tag)) {
-                tags.add(t(`common.${tag}`));
+            if (tag === 'texto') return;   // ver FORMAT_TAG_ICONS
+            if (FORMAT_TAG_ICONS[tag]) {
+                add(t(`common.${tag}`), FORMAT_TAG_ICONS[tag]);
             } else {
-                tags.add(tag);
+                add(tag, 'fa-hashtag');
             }
         });
 
-        if (review.review_text && !review.audio_url && !tags.has(t('common.texto'))) {
-            tags.add(t('common.texto'));
-        }
-        
-        return Array.from(tags);
+        return Array.from(tags, ([label, icon]) => ({ label, icon }));
     }, [review.tags, review.review_text, review.audio_url, review.category, review.businesses?.category, t]);
 
-    const timeAgo = (dateString: string): string => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    // Gestion (editar/eliminar) solo donde la pagina la activa: el perfil.
+    const managesHere = !!(onDeleted || onEdit);
+    const canEdit = !!onEdit && isOwnReview && (review.status === 'approved' || review.status === 'pending');
 
-        // Handle future dates by treating them as "just now"
-        // This can happen if the server time is ahead or data has incorrect dates
-        if (diffInSeconds < 0) {
-            return t('common.justNow');
-        }
-
-        if (diffInSeconds < 60) {
-            return t('common.justNow');
-        }
-
-        // Map language codes to Intl-compatible locale codes
-        const localeMap: { [key: string]: string } = {
-            cn: 'zh-CN',
-            br: 'pt-BR',
-            pt: 'pt-PT',
-            en: 'en-US',
-            gb: 'en-GB',
-            au: 'en-AU',
-            sg: 'en-SG',
-            ie: 'en-IE',
-            at: 'de-AT',
-            ko: 'ko-KR',
-            ar: 'ar-AE',
-            nl: 'nl-NL',
-            ru: 'ru-RU',
-            id: 'id-ID',
-            ms: 'ms-MY',
-            tw: 'zh-TW',
-            th: 'th-TH',
-            fa: 'fa-IR',
-            vi: 'vi-VN',
-            bn: 'bn-BD',
-            hi: 'hi-IN',
-            tl: 'tl-PH',
-            es: 'es-ES',
-            fr: 'fr-FR',
-            de: 'de-DE',
-            it: 'it-IT',
-            ca: 'ca-ES',
-            sv: 'sv-SE',
-            pl: 'pl-PL',
-            ja: 'ja-JP',
-        };
-        const locale = localeMap[language] || language;
-
-        const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-
-        // If 7 days or more, show formatted date DD/MM/YY
-        if (diffInSeconds >= 604800) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = String(date.getFullYear()).slice(-2);
-            return `${day}/${month}/${year}`;
-        }
-
-        const units: { [key: string]: number } = { day: 86400, hour: 3600, minute: 60 };
-
-        for (const unit in units) {
-            const interval = diffInSeconds / units[unit];
-            if (interval >= 1) {
-                return rtf.format(-Math.floor(interval), unit as Intl.RelativeTimeFormatUnit);
+    const handleDelete = async () => {
+        if (isDeleting) return;
+        const ok = await confirm({
+            title: t('common.deleteReviewConfirmTitle'),
+            message: t('common.deleteReviewConfirmMessage'),
+            confirmText: t('common.deleteReview'),
+            cancelText: t('common.cancel'),
+            danger: true,
+        });
+        if (!ok) return;
+        setIsDeleting(true);
+        try {
+            await deleteOwnReview(review);
+            showNotification(t('common.reviewDeleted'), 'success');
+            onDeleted?.(review.id);
+        } catch (error) {
+            console.error('Failed to delete review:', error);
+            // 0 filas: entretanto un admin la borro (o ya no es borrable). Se
+            // explica y se recarga la lista para ensenar el estado real.
+            if (error instanceof Error && error.message === 'REVIEW_NOT_DELETED') {
+                showNotification(t('common.reviewNoLongerDeletable'), 'error');
+                setIsDeleting(false);
+                onStale?.();
+                return;
             }
+            showNotification(t('common.reviewDeleteError'), 'error');
+            setIsDeleting(false);
         }
-
-        return t('common.justNow');
     };
-
 
     const handleVote = async (voteType: 'helpful' | 'not_helpful') => {
         if (!user) {
@@ -251,7 +279,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             return;
         }
 
-        if (isVoting) return; // Prevent multiple clicks
+        if (isVoting || isOwnReview) return; // Prevent multiple clicks
 
         // Si el usuario ya votó lo mismo, eliminar el voto
         if (userVote === voteType) {
@@ -296,7 +324,8 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             showNotification(message, 'success');
         } catch (error) {
             console.error("Failed to cast vote:", error);
-            showNotification(t('common.voteError') || "No se pudo registrar tu voto.", 'error');
+            const ownVote = error instanceof Error && error.message === 'OWN_REVIEW_VOTE';
+            showNotification(ownVote ? t('common.cannotVoteOwnReview') : (t('common.voteError') || "No se pudo registrar tu voto."), 'error');
         } finally {
             setIsVoting(false);
         }
@@ -318,29 +347,60 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                 <div className="px-3 sm:px-4 md:px-5 py-2 -mx-3 sm:-mx-4 md:-mx-5 -mt-3 sm:-mt-4 md:-mt-5 mb-3 sm:mb-4 md:mb-5 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-300 text-xs sm:text-sm font-semibold">
                     <div className="flex items-center gap-2"><i className="fa-solid fa-times-circle"></i><span>{t('common.rejectedReview')}</span></div>
                     {review.rejection_reason && <p className="text-[10px] sm:text-xs font-normal mt-1 pl-4 sm:pl-6">{t('common.reason')}: {review.rejection_reason}</p>}
-                    {user?.id === review.user_id && <ReactRouterDOM.Link to="/soporte" state={{ initialTab: 'claim_review', reviewId: review.id, reviewTitle: review.title }} className="text-[10px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline mt-1 sm:mt-2 inline-block pl-4 sm:pl-6"><i className="fa-solid fa-flag mr-1"></i>{t('common.appealDecision')}</ReactRouterDOM.Link>}
+                    {isOwnReview && <ReactRouterDOM.Link to="/soporte" state={{ initialTab: 'claim_review', reviewId: review.id, reviewTitle: review.title }} className="text-[10px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline mt-1 sm:mt-2 inline-block pl-4 sm:pl-6"><i className="fa-solid fa-flag mr-1"></i>{t('common.appealDecision')}</ReactRouterDOM.Link>}
                 </div>
             )}
 
             <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="flex justify-between items-center">
                     <StarRating rating={review.rating} size="small" />
-                    <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">{timeAgo(review.created_at)}</span>
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                        <time dateTime={review.created_at} className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatReviewDate(review.created_at, language)}</time>
+                        {canEdit && (
+                            <button
+                                type="button"
+                                onClick={() => onEdit?.(review)}
+                                data-testid="review-edit"
+                                className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-brand-green hover:underline"
+                            >
+                                <i className="fa-regular fa-pen-to-square" aria-hidden="true"></i>
+                                <span>{t('common.editReview')}</span>
+                            </button>
+                        )}
+                        {onDeleted && isOwnReview && (
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                data-testid="review-delete"
+                                className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-red-600 dark:text-red-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <i className={isDeleting ? 'fa-solid fa-spinner fa-spin' : 'fa-regular fa-trash-can'} aria-hidden="true"></i>
+                                <span>{t('common.deleteReview')}</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <h3 className="font-bold text-base sm:text-lg text-gray-900 dark:text-gray-100 break-words">{translated.title}</h3>
 
                 {showBusinessName && review.businesses && (
                     <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Para: <ReactRouterDOM.Link to={businessPath} className="font-bold text-gray-700 dark:text-gray-300 hover:underline">{review.businesses.name}</ReactRouterDOM.Link>
+                        {t('common.reviewForBusiness')} <ReactRouterDOM.Link to={businessPath} className="font-bold text-gray-700 dark:text-gray-300 hover:underline">{review.businesses.name}</ReactRouterDOM.Link>
+                        {' '}<OwnBusinessBadge business={review.businesses} manage="dashboardReviews" className="ml-0.5" />
                     </p>
                 )}
 
                 {displayTags.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         {displayTags.map(tag => (
-                             <span key={tag} className="bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-300 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded capitalize">
-                                {tag}
+                             <span key={tag.label} className="inline-flex items-center gap-1 sm:gap-1.5 bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                                <i className={`fa-solid ${tag.icon} text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500`} aria-hidden="true"></i>
+                                {/* `capitalize` ponia mayuscula en CADA palabra: "Salud Y Bienestar".
+                                    Las categorias y los formatos ya vienen bien escritos de los
+                                    locales; solo hace falta asegurar la primera letra de una
+                                    etiqueta libre escrita en minuscula. */}
+                                <span className="inline-block first-letter:uppercase">{tag.label}</span>
                             </span>
                         ))}
                     </div>
@@ -375,7 +435,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-zinc-700">
                 <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
                     {(() => {
-                        const authorInfo = getAuthorInfo(isImportedReview ? review.original_author_name : (review.profiles ? review.profiles.name : review.original_author_name));
+                        const authorInfo = getAuthorInfo();
                         return (
                             <>
                                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
@@ -400,7 +460,25 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                         );
                     })()}
                 </div>
-                {!isImportedReview && (
+                {!isImportedReview && isOwnReview && (
+                    // Resena propia: solo los recuentos, sin botones (no se vota a si mismo).
+                    <div
+                        className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-semibold"
+                        title={t('common.cannotVoteOwnReview')}
+                        data-testid="review-votes-readonly"
+                    >
+                        <span className="sr-only">{t('common.cannotVoteOwnReview')}</span>
+                        <span className="flex items-center gap-1 sm:gap-1.5">
+                            <i className="fa-regular fa-thumbs-up" aria-hidden="true"></i>
+                            <span>{localHelpfulVotes}</span>
+                        </span>
+                        <span className="flex items-center gap-1 sm:gap-1.5">
+                            <i className="fa-regular fa-thumbs-down" aria-hidden="true"></i>
+                            <span>{localNotHelpfulVotes}</span>
+                        </span>
+                    </div>
+                )}
+                {!isImportedReview && !isOwnReview && (
                     <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
                         <span className="text-gray-500 dark:text-gray-400 font-medium hidden sm:inline">{t('common.wasThisHelpful')}</span>
                         <button
@@ -431,6 +509,19 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                 )}
             </div>
 
+            {/* Fuera del perfil (ficha, panel del dueno, buscador...) el autor no
+                gestiona aqui su resena: se le dice donde se hace. */}
+            {isOwnReview && !managesHere && (
+                <p className="mt-2 sm:mt-3 flex flex-wrap items-center gap-x-1.5 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400" data-testid="own-review-note">
+                    <i className="fa-regular fa-user" aria-hidden="true"></i>
+                    <span>{t('common.ownReviewNote')}</span>
+                    <span aria-hidden="true">&middot;</span>
+                    <ReactRouterDOM.Link to={profilePath} className="font-semibold text-brand-green hover:underline">
+                        {t('common.ownReviewManageLink')}
+                    </ReactRouterDOM.Link>
+                </p>
+            )}
+
             {(hasResponse || originalResponseText) && !hideResponse && (
                  <div className="bg-gray-50 dark:bg-zinc-900/50 -mx-3 sm:-mx-4 md:-mx-5 -mb-3 sm:-mb-4 md:-mb-5 mt-3 sm:mt-4 p-3 sm:p-4 md:p-5 border-t border-gray-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2 sm:gap-3">
@@ -439,7 +530,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                         </div>
                         <div>
                             <p className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">{t('common.responseFrom', {businessName: review.businesses?.name || 'La empresa'})}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">{timeAgo(review.review_responses?.[0]?.created_at || review.original_response_date || new Date().toISOString())}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">{formatReviewDate(review.review_responses?.[0]?.created_at || review.original_response_date, language)}</p>
                         </div>
                     </div>
                     <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mt-2 sm:mt-3 pl-9 sm:pl-11">

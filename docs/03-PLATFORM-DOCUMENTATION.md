@@ -214,7 +214,33 @@ opynio/
 - Filtros anti-spam
 - Sistema de reportes
 
-### 4. Panel de Administración
+### 4. Productos y servicios reseñables
+
+Una empresa puede desglosar sus reseñas por producto, servicio o curso. Cada uno
+tiene su propia nota, sus propias reseñas y su propio widget.
+
+**Regla que no se puede romper**: el total de la empresa cuenta **todas** sus
+reseñas, no la suma de sus productos. Las de Google y las importadas no
+pertenecen a ningún producto y siguen contando para la empresa.
+
+**Dónde vive**:
+- Tablas `review_subjects` y `review_subject_links` — ver
+  [01-DATABASE-SETUP.md](./01-DATABASE-SETUP.md). No confundir `review_subjects`
+  con la tabla `products`, que es de Stripe.
+- Panel de la empresa → **Productos**: alta, edición, activar/desactivar y
+  límite por plan (free 0, starter 10, growth 30, pro 100).
+- Panel de la empresa → **Reseñas**: asignar cada reseña a un producto, una a
+  una o por lotes.
+- Ficha pública de la empresa: selector que filtra las reseñas por producto.
+- Ficha pública del producto: `/{país}/{empresa}/{producto}/{slug}`, con su
+  propio `schema.org/Product` y su nota agregada.
+- Widget: `data-product-id="UUID"` muestra la nota y las reseñas de ese producto
+  en lugar de las de la empresa.
+
+**Aislamiento**: una reseña solo puede pertenecer a un producto (`UNIQUE` sobre
+`review_id`) y un disparador impide enlazarla a un producto de otra empresa.
+
+### 5. Panel de Administración
 
 **Funcionalidades**:
 - Moderar reseñas
@@ -224,8 +250,12 @@ opynio/
 - Gestionar usuarios
 - Gestionar empresas destacadas
 - Ver reportes de bugs
+- Ver los productos de una empresa (solo lectura, en la ficha de edición): el
+  administrador necesita saber qué tiene montado un cliente antes de tocarle nada
+- Activar o desactivar la sección **Productos** a una empresa enterprise, desde
+  los permisos por funcionalidad
 
-### 5. Scraping de Google Maps
+### 6. Scraping de Google Maps
 
 Ver documento: [02-SCRAPING-SYSTEM.md](./02-SCRAPING-SYSTEM.md)
 
@@ -313,9 +343,18 @@ CREATE POLICY "Admins can manage all businesses"
 
 ### Idiomas Soportados
 
-- 🇪🇸 **Español (es)** - Por defecto
-- 🇧🇷 **Portugués (pt)** - Brasil
-- 🇬🇧 **Inglés (en)** - Internacional
+**31 idiomas cableados.** Esta lista estaba en tres y llevaba tiempo sin
+actualizarse: cuéntalos en los `import` de
+[contexts/i18nContext.tsx](../contexts/i18nContext.tsx), nunca de memoria.
+
+Español es el idioma por defecto y el de respaldo: si falta una clave en otro
+idioma, `t()` cae al español; si falta también ahí, se imprime la clave cruda en
+pantalla. Por eso las claves nuevas van siempre a los 31 a la vez — hay un
+playbook para no editarlos a mano:
+[add-i18n-keys.md](./playbooks/add-i18n-keys.md).
+
+Ojo con dos pares: `br` es portugués de Brasil y `pt` de Portugal; `gb`, `au`,
+`ie` y `sg` comparten el inglés y `at` comparte el alemán.
 
 ### Uso en Componentes
 
@@ -418,6 +457,20 @@ function MyComponent() {
    ```bash
    npm run dev
    ```
+
+5. **(Opcional) Supabase en local, sin tocar producción**:
+
+   Levanta Postgres, PostgREST, Auth y Studio en Docker y carga el esquema, las
+   migraciones y datos de ejemplo. Útil para probar migraciones y RLS de verdad
+   antes de aplicarlas en el proyecto real.
+
+   ```bash
+   npx supabase start
+   bash scripts/local/reconstruir.sh
+   npx vite --mode docker --port 8768
+   ```
+
+   Ver [scripts/local/README.md](../scripts/local/README.md).
 
 ### Crear Nueva Página
 

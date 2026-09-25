@@ -46,8 +46,9 @@
     <link rel="dns-prefetch" href="https://hvtrrepgnsrixnqgds.supabase.co">
     <link rel="dns-prefetch" href="https://images.unsplash.com">
 
-    <!-- Preload critical fonts to prevent FOUT/CLS -->
-    <link rel="preload" href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Sin preload de la fuente: la URL del .woff2 de Google cambia con cada
+         version (la que habia daba 404 en cada visita). El CSS de abajo ya la
+         carga con display=swap. -->
 
     <!-- Fonts with display=swap for better performance -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">

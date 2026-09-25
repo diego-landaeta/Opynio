@@ -11,6 +11,7 @@ import {
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
 import { slugify, isValidSlug, hasProblematicCharacters } from '../../../utils/slugify';
 import type { UrlRedirect } from '../../../types';
 import Meta from '../../Meta';
@@ -326,7 +327,9 @@ const AdminUrlManagerPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <>
+    <AdminBackLink />
+    <div className="max-w-7xl mx-auto pb-8">
       <Meta
         title={t('admin.urlManager.title')}
         description={t('admin.urlManager.description')}
@@ -689,7 +692,13 @@ const AdminUrlManagerPage: React.FC = () => {
                 <input
                   type="text"
                   value={newSlug}
-                  onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  onChange={(e) => {
+                    const valor = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                    setNewSlug(valor);
+                    // Cambiar un slug que ya existia deja la URL vieja sin destino:
+                    // la redireccion se marca sola (se puede desmarcar a mano).
+                    if (editingBusiness?.slug && valor !== editingBusiness.slug) setCreateRedirect(true);
+                  }}
                   className={`w-full p-3 border rounded-lg bg-transparent ${
                     slugAvailable === false
                       ? 'border-red-500'
@@ -765,6 +774,7 @@ const AdminUrlManagerPage: React.FC = () => {
         </Modal>
       )}
     </div>
+    </>
   );
 };
 

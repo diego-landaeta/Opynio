@@ -16,10 +16,19 @@
 //     deprecación de Stripe API 2025-03-31.
 //   • Errores en upserts de products/prices se chequean siempre (antes se tragaban).
 //   • La respuesta de error al exterior es genérica; el detalle queda en logs.
+//   • 24/09/2026: alta pagada con nombre o URL de Maps ya usados -> la empresa se
+//     crea igualmente ("Nombre (2)" / sin URL) en vez de 500 eterno
+//     (checkoutCompletion.ts). Con varias suscripciones vivas, solo la
+//     principal escribe el plan y deleted no baja a free si queda otra
+//     (subscriptionSync.ts).
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
+import { runCheckoutCompletion } from "./checkoutCompletion.ts";
+import { pickRemainingPrimary, shouldSyncProfile, type SubscriptionRow } from "./subscriptionSync.ts";
+import { LIVE_SUBSCRIPTION_STATUSES, planNameFromPrice } from "../_shared/stripePlans.ts";
+import { businessNameCandidates } from "../_shared/businessName.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
@@ -37,16 +46,10 @@ const supabaseAdmin = createClient(
 // Helpers
 // -----------------------------------------------------------------------------
 
-// Override: para algunos prices, el plan name local NO se deriva del nombre del
-// product en Stripe. Por ejemplo, el plan 'v2' (premium test) usa un product
-// llamado "TESTEO OPYNIO" en Stripe pero internamente se identifica como 'v2'.
-const PRICE_TO_PLAN_OVERRIDE: Record<string, string> = {
-  "price_1TTqZNRJqlZctcvhV711xZuz": "v2",
-};
-
-function planNameFromPrice(priceId: string, fallbackProductName: string): string {
-  return PRICE_TO_PLAN_OVERRIDE[priceId] ?? fallbackProductName.toLowerCase();
-}
+// El plan local sale del mapa de prices de _shared/stripePlans.ts (el mismo que
+// usa create-checkout-session) y, si el price no esta, del nombre del producto
+// en Stripe en minusculas. Antes solo 'v2' ("TESTEO OPYNIO" en Stripe) tenia
+// override: un producto llamado "Plan Growth" habria dado plan 'plan growth'.
 
 // Stripe API 2025-03-31 movió current_period_* de subscription a subscription.items[0].
 // Mientras estemos pinned a 2024-06-20 ambos formatos pueden existir. Preferimos el
@@ -171,6 +174,44 @@ async function resolvePlanFromSubscription(subscription: Stripe.Subscription) {
   return { planName, billingCycle };
 }
 
+// Suscripciones vivas (active/trialing/past_due) del usuario en la BD.
+// select('*'): la fecha es `created` en produccion y `created_at` en local.
+async function liveSubscriptionRows(userId: string): Promise<SubscriptionRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", [...LIVE_SUBSCRIPTION_STATUSES]);
+  if (error) throw error;
+  return (data ?? []) as SubscriptionRow[];
+}
+
+// Escribe en el perfil el plan de `subscription`, salvo que el usuario tenga
+// otra suscripcion viva mas reciente (ver subscriptionSync.ts): la renovacion o
+// el cambio de una suscripcion antigua no debe pisar el plan de la nueva.
+async function syncProfileFromSubscription(
+  subscription: Stripe.Subscription,
+  userId: string,
+  endISO: string,
+  eventLabel: string,
+): Promise<void> {
+  const rows = await liveSubscriptionRows(userId);
+  if (!shouldSyncProfile(subscription.id, rows)) {
+    console.warn(
+      `⚠️  ${eventLabel}: sub ${subscription.id} no es la suscripcion principal del usuario ${userId} ` +
+        `(tiene ${rows.length} vivas); no se toca el plan del perfil.`
+    );
+    return;
+  }
+  const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
+  if (!planName) return;
+  const { error: profErr } = await supabaseAdmin
+    .from("profiles")
+    .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: endISO })
+    .eq("id", userId);
+  if (profErr) throw profErr;
+}
+
 // -----------------------------------------------------------------------------
 // Meta Conversions API (server-side Purchase event, dedup vía event_id con Pixel cliente)
 // -----------------------------------------------------------------------------
@@ -291,17 +332,36 @@ serve(async (req) => {
           );
         }
 
-        // Si ya existe una fila en subscriptions con este id, este checkout fue
-        // procesado por un evento previo (p.ej. customer.subscription.created
-        // que llegó antes). Marcamos already_processed para no re-insertar el
-        // business.
-        const { data: existingSub, error: existingSubErr } = await supabaseAdmin
-          .from("subscriptions")
-          .select("id")
-          .eq("id", subscription.id)
-          .maybeSingle();
-        if (existingSubErr) throw existingSubErr;
-        const alreadyProcessed = !!existingSub;
+        // already_processed evita crear la empresa dos veces si este mismo
+        // checkout se reintenta (la RPC ya hizo commit pero algo posterior fallo
+        // y se libero el claim del evento).
+        //
+        // Antes se decidia mirando si existia la fila en `subscriptions`. Pero
+        // customer.subscription.created suele llegar ANTES que este evento y
+        // hace upsert de esa fila: el checkout se daba por procesado y la
+        // empresa pagada no se creaba nunca (el cliente quedaba business_owner
+        // de pago y sin empresa). Reproducido simulando ese orden en la BD.
+        //
+        // La senal correcta es si la EMPRESA de este checkout ya existe: mismo
+        // dueno, mismo nombre, creada despues de abrir la sesion de pago.
+        //
+        // El nombre puede llevar sufijo " (2)", " (3)"... o el de ultimo recurso
+        // con el id de la suscripcion si chocaba con otra empresa
+        // (checkoutCompletion.ts): se aceptan todos los candidatos, o el
+        // reintento crearia "Nombre (3)" al no encontrar "Nombre".
+        let alreadyProcessed = false;
+        if (isNewBusiness) {
+          const candidates = new Set(businessNameCandidates(session.metadata?.business_name ?? "", subscription.id));
+          const sessionCreatedISO = new Date(session.created * 1000).toISOString();
+          const { data: ownBizs, error: existingBizErr } = await supabaseAdmin
+            .from("businesses")
+            .select("id, name")
+            .eq("owner_id", userId)
+            .gte("created_at", sessionCreatedISO)
+            .limit(50);
+          if (existingBizErr) throw existingBizErr;
+          alreadyProcessed = (ownBizs ?? []).some((b) => candidates.has(b.name));
+        }
 
         const item = subscription.items.data[0];
         if (!item) throw new Error(`Subscription ${subscription.id} has no items`);
@@ -315,8 +375,12 @@ serve(async (req) => {
         const planName = planNameFromPrice(price.id, product.name);
         const billingCycle = price.recurring?.interval === "month" ? "monthly" : "annual";
 
-        const { error: rpcError } = await supabaseAdmin.rpc(
-          "process_checkout_completion",
+        // Si la URL de Maps o el nombre ya los tiene otra empresa (UNIQUE ->
+        // 23505), se reintenta sin la URL o con el nombre "X (2)" en vez de
+        // dejar al cliente cobrado y sin empresa (ver checkoutCompletion.ts).
+        // El resto de errores, igual que antes.
+        const { error: rpcError, droppedGoogleMapsUrl, renamedBusinessTo } = await runCheckoutCompletion(
+          (fn, params) => supabaseAdmin.rpc(fn, params),
           {
             p_subscription_id: subscription.id,
             p_user_id: userId,
@@ -363,12 +427,15 @@ serve(async (req) => {
               const n = Number(v);
               return Number.isFinite(n) && n >= -180 && n <= 180 ? n : null;
             })(),
-          }
+          },
+          (message) => console.warn(`${message} [event ${event.id}]`),
         );
         if (rpcError) throw rpcError;
 
         console.log(
-          `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}`
+          `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}` +
+            (droppedGoogleMapsUrl ? ` google_maps_url_descartada=${droppedGoogleMapsUrl}` : "") +
+            (renamedBusinessTo ? ` empresa_creada_como="${renamedBusinessTo}"` : "")
         );
 
         // Meta CAPI - Purchase (server-side). event_id = session.id se comparte con el
@@ -434,7 +501,8 @@ serve(async (req) => {
           });
         if (subUpsertErr) throw subUpsertErr;
 
-        // Si la sub está activa/trialing, sincronizamos el plan en profile.
+        // Si la sub está activa/trialing, sincronizamos el plan en profile
+        // (solo si es la suscripcion principal del usuario: subscriptionSync.ts).
         // Si está en estados terminales (canceled, unpaid, incomplete_expired),
         // la sincronización de baja la maneja customer.subscription.deleted.
         if (
@@ -442,20 +510,7 @@ serve(async (req) => {
           subscription.status === "trialing" ||
           subscription.status === "past_due"
         ) {
-          const { planName, billingCycle } = await resolvePlanFromSubscription(
-            subscription
-          );
-          if (planName) {
-            const { error: profErr } = await supabaseAdmin
-              .from("profiles")
-              .update({
-                plan: planName,
-                billing_cycle: billingCycle,
-                plan_expires_at: endISO,
-              })
-              .eq("id", userId);
-            if (profErr) throw profErr;
-          }
+          await syncProfileFromSubscription(subscription, userId, endISO, event.type);
         }
 
         console.log(`✅ ${event.type}: ${subscription.id} (status=${subscription.status})`);
@@ -513,18 +568,9 @@ serve(async (req) => {
           });
         if (subUpsertErr) throw subUpsertErr;
 
-        const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
-        if (planName) {
-          const { error: profErr } = await supabaseAdmin
-            .from("profiles")
-            .update({
-              plan: planName,
-              billing_cycle: billingCycle,
-              plan_expires_at: endISO,
-            })
-            .eq("id", userId);
-          if (profErr) throw profErr;
-        }
+        // La renovacion de una suscripcion antigua no pisa el plan de la
+        // principal (subscriptionSync.ts).
+        await syncProfileFromSubscription(subscription, userId, endISO, "invoice.paid");
 
         console.log(`✅ invoice.paid: synced sub ${subscription.id} for user ${userId}.`);
         break;
@@ -590,18 +636,7 @@ serve(async (req) => {
           });
         if (subUpsertErr) throw subUpsertErr;
 
-        const { planName, billingCycle } = await resolvePlanFromSubscription(subscription);
-        if (planName) {
-          const { error: profErr } = await supabaseAdmin
-            .from("profiles")
-            .update({
-              plan: planName,
-              billing_cycle: billingCycle,
-              plan_expires_at: endISO,
-            })
-            .eq("id", userId);
-          if (profErr) throw profErr;
-        }
+        await syncProfileFromSubscription(subscription, userId, endISO, event.type);
 
         console.log(`✅ async_payment_succeeded: synced sub ${subscription.id} for user ${userId}.`);
         break;
@@ -635,6 +670,58 @@ serve(async (req) => {
         if (!subRow) {
           console.warn(
             `customer.subscription.deleted: sub ${subscription.id} not found locally.`
+          );
+          break;
+        }
+
+        // Solo se baja a free si no le queda otra suscripcion viva. Antes, un
+        // usuario con dos (p. ej. la vieja y la del cambio de plan) bajaba a free
+        // al cancelar cualquiera aunque siguiera pagando la otra. La que queda se
+        // comprueba contra Stripe: si la fila local estaba desfasada (se perdio
+        // su deleted), se corrige y se mira la siguiente.
+        const fetched = new Map<string, Stripe.Subscription>();
+        const { primary: remaining, stale } = await pickRemainingPrimary(
+          await liveSubscriptionRows(subRow.user_id),
+          subscription.id,
+          async (id) => {
+            try {
+              const real = await stripe.subscriptions.retrieve(id);
+              fetched.set(id, real);
+              return real.status;
+            } catch (err) {
+              // deno-lint-ignore no-explicit-any
+              if ((err as any)?.code === "resource_missing") return null;
+              throw err;
+            }
+          },
+        );
+        for (const s of stale) {
+          // El enum subscription_status de la BD no tiene todos los estados de
+          // Stripe (p. ej. 'paused'): lo que no conoce se guarda como canceled.
+          const dbStatus = ["canceled", "incomplete", "incomplete_expired", "unpaid"].includes(s.status ?? "")
+            ? s.status
+            : "canceled";
+          const { error: staleErr } = await supabaseAdmin
+            .from("subscriptions")
+            .update({ status: dbStatus })
+            .eq("id", s.id);
+          if (staleErr) throw staleErr;
+          console.warn(`⚠️  customer.subscription.deleted: sub ${s.id} marcada viva en BD pero en Stripe es '${s.status ?? "inexistente"}'; corregida a '${dbStatus}'.`);
+        }
+
+        const other = remaining ? fetched.get(remaining.id) : undefined;
+        if (remaining && other) {
+          const { endISO: otherEnd } = getPeriodTimestamps(other);
+          const { planName, billingCycle } = await resolvePlanFromSubscription(other);
+          if (planName) {
+            const { error: profErr } = await supabaseAdmin
+              .from("profiles")
+              .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: otherEnd })
+              .eq("id", subRow.user_id);
+            if (profErr) throw profErr;
+          }
+          console.log(
+            `✅ customer.subscription.deleted: ${subscription.id}; el usuario ${subRow.user_id} conserva la sub ${remaining.id} (plan='${planName}').`
           );
           break;
         }

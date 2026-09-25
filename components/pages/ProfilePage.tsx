@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../Spinner';
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
@@ -6,10 +6,14 @@ import * as ReactRouterDOM from 'react-router-dom';
 import type { Review } from '../../types';
 import { getReviewsForUser, supabase } from '../../services/supabaseService';
 import ReviewCard from '../ReviewCard';
+import EditOwnReviewModal from '../EditOwnReviewModal';
+import MySupportTickets from '../support/MySupportTickets';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg flex items-center gap-4">
@@ -27,11 +31,19 @@ const StatCard: React.FC<{ title: string; value: number | string; icon: string }
 const ProfilePage: React.FC = () => {
     const { user, profile, businesses, loading: authLoading } = useAuth();
     const { showNotification } = useNotification();
+    // Errores de pago/portal traducidos, con enlace a Soporte (utils/userFacingError).
+    const { notifyError, showUserError } = useUserErrorNotifier();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
+    // Resena abierta en el editor (modal dentro del perfil, sin ruta propia).
+    const [editingReview, setEditingReview] = useState<Review | null>(null);
     const [v2Loading, setV2Loading] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
+    // Enlaces dentro del pais de la URL (/gb/..., /de/...): con
+    // `/${pathTranslations[language].x}` se perdia el prefijo de pais.
+    const { country } = useCountry();
+    const pathTo = (key: Parameters<typeof localizedPathOrRoot>[0]) => localizedPathOrRoot(key, language, country);
     const navigate = ReactRouterDOM.useNavigate();
 
     // Flujo en dos pasos:
@@ -61,10 +73,10 @@ const ProfilePage: React.FC = () => {
                 localStorage.getItem('opynio_pending_business_data') !== null
             ));
         if (intendedBusiness) {
-            const completePath = `/${pathTranslations[language].completeBusinessRegistration}?type=business`;
+            const completePath = `${localizedPathOrRoot('completeBusinessRegistration', language, country)}?type=business`;
             navigate(completePath, { replace: true });
         }
-    }, [authLoading, user, profile, isAdmin, isBusinessOwner, language, navigate]);
+    }, [authLoading, user, profile, isAdmin, isBusinessOwner, language, country, navigate]);
 
     const isOnV2 = profile?.plan === 'v2';
     // El bloque de gestión de suscripción sólo aparece cuando el usuario YA es
@@ -79,23 +91,23 @@ const ProfilePage: React.FC = () => {
                 body: { plan: 'v2', billingCycle: 'monthly', businessId: primaryBusinessId },
             });
             if (error) {
-                // 409 → ya tiene v2 → mandar al portal en su lugar.
-                // deno-lint-ignore no-explicit-any
-                const ctx: any = (error as any)?.context;
-                const status = ctx?.response?.status ?? ctx?.status;
-                if (status === 409) {
+                const info = await getUserFacingError(error, { flow: 'checkout' });
+                // 409 duplicate_subscription → ya tiene v2 → al portal en su lugar.
+                if (info.kind === 'duplicateSubscription') {
                     await handleOpenPortal();
                     return;
                 }
-                throw error;
+                showUserError(info);
+                setV2Loading(false);
+                return;
             }
             if (data?.url) {
                 window.location.href = data.url;
             } else {
-                throw new Error('No se recibió la URL de pago.');
+                throw new Error('create-checkout-session: respuesta sin url');
             }
-        } catch (err: any) {
-            showNotification(err.message || 'No se pudo iniciar el checkout.', 'error');
+        } catch (err) {
+            await notifyError(err, { flow: 'checkout' });
             setV2Loading(false);
         }
     };
@@ -108,30 +120,38 @@ const ProfilePage: React.FC = () => {
             if (data?.url) {
                 window.location.href = data.url;
             } else {
-                throw new Error('No se recibió la URL del portal.');
+                throw new Error('create-portal-session: respuesta sin url');
             }
-        } catch (err: any) {
-            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+        } catch (err) {
+            await notifyError(err, { flow: 'portal' });
             setV2Loading(false);
         }
     };
 
-    useEffect(() => {
-        if (user) {
-            const fetchUserReviews = async () => {
-                setLoadingReviews(true);
-                try {
-                    const userReviews = await getReviewsForUser(user.id);
-                    setReviews(userReviews);
-                } catch (error) {
-                    console.error("Failed to fetch user reviews:", error);
-                } finally {
-                    setLoadingReviews(false);
-                }
-            };
-            fetchUserReviews();
+    // `quiet`: recarga sin el spinner grande (tras un cambio de estado hecho
+    // fuera, para no perder la posicion en la lista).
+    const loadReviews = useCallback(async (quiet = false) => {
+        if (!user) return;
+        if (!quiet) setLoadingReviews(true);
+        try {
+            const userReviews = await getReviewsForUser(user.id);
+            setReviews(userReviews);
+        } catch (error) {
+            console.error("Failed to fetch user reviews:", error);
+        } finally {
+            if (!quiet) setLoadingReviews(false);
         }
     }, [user]);
+
+    useEffect(() => {
+        loadReviews();
+    }, [loadReviews]);
+
+    // Un admin la rechazo o la borro mientras el autor la tenia en pantalla:
+    // la tarjeta o el editor ya lo explicaron; aqui se trae el estado real.
+    const reloadReviewsQuietly = useCallback(() => {
+        loadReviews(true);
+    }, [loadReviews]);
 
     if (authLoading) {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -155,9 +175,26 @@ const ProfilePage: React.FC = () => {
                     'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
     };
 
+    // La tarjeta ya borro la resena y aviso al usuario; aqui solo se quita de
+    // la lista (y con ella del contador y la media de arriba).
+    const handleReviewDeleted = (reviewId: string) => {
+        setReviews(prev => prev.filter(r => r.id !== reviewId));
+    };
+
+    // El editor ya guardo y aviso; aqui se sustituye en la lista (con el
+    // estado que devolvio la BD: una aprobada editada vuelve a pendiente).
+    const handleReviewSaved = (updated: Review) => {
+        setReviews(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+    };
+
+    // Los tres contadores salen de la MISMA lista (solo resenas escritas por
+    // el usuario, ver getReviewsForUser). profile.helpful_review_count lo
+    // calcula un trigger sumando todas las filas con su user_id, importadas
+    // incluidas: en el admin contaba votos de resenas de Google.
     const averageRatingGiven = reviews.length > 0
         ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
         : 'N/A';
+    const helpfulVotesReceived = reviews.reduce((acc, r) => acc + (r.helpful_votes || 0), 0);
 
     return (
         <>
@@ -187,7 +224,7 @@ const ProfilePage: React.FC = () => {
                                 {roleInfo.name}
                             </span>
                         </div>
-                         <ReactRouterDOM.Link to={`/${pathTranslations[language].editProfile}`} className="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-zinc-600 transition-all text-sm self-start sm:self-center">
+                         <ReactRouterDOM.Link to={pathTo('editProfile')} className="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold px-4 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-zinc-600 transition-all text-sm self-start sm:self-center">
                             {t('profilePage.editProfile')}
                         </ReactRouterDOM.Link>
                     </div>
@@ -196,7 +233,7 @@ const ProfilePage: React.FC = () => {
                         <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">{t('profilePage.yourStats')}</h2>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <StatCard title={t('profilePage.reviewsWritten')} value={reviews.length} icon="fa-pencil" />
-                            <StatCard title={t('profilePage.helpfulVotesReceived')} value={profile.helpful_review_count || 0} icon="fa-thumbs-up" />
+                            <StatCard title={t('profilePage.helpfulVotesReceived')} value={helpfulVotesReceived} icon="fa-thumbs-up" />
                             <StatCard title={t('profilePage.averageRatingGiven')} value={averageRatingGiven} icon="fa-star-half-alt" />
                         </div>
                     </div>
@@ -218,14 +255,13 @@ const ProfilePage: React.FC = () => {
                                         <i className="fa-solid fa-store text-xl"></i>
                                     </div>
                                     <div className="flex-grow min-w-0">
-                                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">¿Tienes un negocio?</h2>
+                                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('profilePage.haveBusinessTitle')}</h2>
                                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5">
-                                            Convierte tu cuenta en una <strong>cuenta de empresa</strong> para gestionar reseñas,
-                                            responder a clientes y aparecer en Opynio. Es gratis empezar.
+                                            {t('profilePage.haveBusinessBody')}
                                         </p>
                                         <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                                             <ReactRouterDOM.Link
-                                                to={`/${pathTranslations[language].completeBusinessRegistration}?type=business`}
+                                                to={`${pathTo('completeBusinessRegistration')}?type=business`}
                                                 onClick={() => {
                                                     // Marca de intent + bandera para el modal de bienvenida tras éxito.
                                                     localStorage.setItem('opynio_business_signup_flow', 'true');
@@ -233,14 +269,14 @@ const ProfilePage: React.FC = () => {
                                                 className="bg-brand-green text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
                                             >
                                                 <i className="fa-solid fa-rocket"></i>
-                                                <span>Registra tu empresa gratis</span>
+                                                <span>{t('profilePage.registerBusinessFree')}</span>
                                             </ReactRouterDOM.Link>
                                             <ReactRouterDOM.Link
-                                                to={`/${pathTranslations[language].pricing}`}
+                                                to={pathTo('pricing')}
                                                 className="bg-white dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 px-5 rounded-lg border border-gray-200 dark:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2 text-sm"
                                             >
                                                 <i className="fa-solid fa-list-check"></i>
-                                                <span>Ver planes</span>
+                                                <span>{t('profilePage.seePlans')}</span>
                                             </ReactRouterDOM.Link>
                                         </div>
                                     </div>
@@ -254,16 +290,16 @@ const ProfilePage: React.FC = () => {
                         <div className="mt-8 pt-6 border-t dark:border-zinc-700">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Plan premium</h2>
+                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">{t('profilePage.premiumTitle')}</h2>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        Plan premium con capacidad para hasta <strong>20 negocios</strong>.
+                                        {t('profilePage.premiumBody')}
                                     </p>
                                 </div>
                                 <ReactRouterDOM.Link
-                                    to={`/${pathTranslations[language].pricing}`}
+                                    to={pathTo('pricing')}
                                     className="text-xs sm:text-sm font-semibold text-brand-green hover:underline self-start sm:self-center"
                                 >
-                                    Ver todos los planes <i className="fa-solid fa-arrow-right ml-1"></i>
+                                    {t('profilePage.seeAllPlans')} <i className="fa-solid fa-arrow-right ml-1"></i>
                                 </ReactRouterDOM.Link>
                             </div>
                             {isOnV2 ? (
@@ -276,7 +312,7 @@ const ProfilePage: React.FC = () => {
                                     {v2Loading
                                         ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         : <i className="fa-solid fa-credit-card"></i>}
-                                    <span>{v2Loading ? 'Abriendo portal…' : 'Gestionar plan'}</span>
+                                    <span>{v2Loading ? t('common.openingPortal') : t('profilePage.managePlan')}</span>
                                 </button>
                             ) : (
                                 <button
@@ -288,12 +324,15 @@ const ProfilePage: React.FC = () => {
                                     {v2Loading
                                         ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         : <i className="fa-solid fa-rocket"></i>}
-                                    <span>{v2Loading ? 'Redirigiendo a Stripe…' : 'Activar plan'}</span>
+                                    <span>{v2Loading ? t('common.redirectingToStripe') : t('profilePage.activatePlan')}</span>
                                 </button>
                             )}
                         </div>
                     )}
                 </div>
+
+                {/* Solicitudes de soporte (sin URL propia; ancla #soporte). */}
+                <MySupportTickets />
 
                 <div className="bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">
                     <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">{t('profilePage.myRecentReviews')}</h2>
@@ -303,7 +342,7 @@ const ProfilePage: React.FC = () => {
                         <div className="space-y-6">
                             {reviews.map(review => (
                                 <LazyRender key={review.id} placeholderHeight="250px">
-                                    <ReviewCard review={review} showBusinessName={true} />
+                                    <ReviewCard review={review} showBusinessName={true} onDeleted={handleReviewDeleted} onEdit={setEditingReview} onStale={reloadReviewsQuietly} />
                                 </LazyRender>
                             ))}
                         </div>
@@ -311,7 +350,7 @@ const ProfilePage: React.FC = () => {
                         <div className="text-center py-10 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-900/50 rounded-lg">
                             <p className="font-semibold">{t('profilePage.noReviewsWrittenYet')}</p>
                             <p className="text-sm mt-1">
-                                <ReactRouterDOM.Link to={`/${pathTranslations[language].writeReview}`} className="text-brand-green font-bold hover:underline">
+                                <ReactRouterDOM.Link to={pathTo('writeReview')} className="text-brand-green font-bold hover:underline">
                                     {t('profilePage.shareFirstExperience')}
                                 </ReactRouterDOM.Link>
                             </p>
@@ -319,6 +358,14 @@ const ProfilePage: React.FC = () => {
                     )}
                 </div>
             </div>
+            {editingReview && (
+                <EditOwnReviewModal
+                    review={editingReview}
+                    onClose={() => setEditingReview(null)}
+                    onSaved={handleReviewSaved}
+                    onStale={reloadReviewsQuietly}
+                />
+            )}
         </>
     );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useI18n, Language, isDashboardRoute } from '../contexts/i18nContext';
+import { useI18n, Language, isHomeRoute } from '../contexts/i18nContext';
 import { LANGUAGES } from '../constants';
 
 const DISMISSED_KEY = 'opynio_lang_button_dismissed';
@@ -10,14 +10,17 @@ const FloatingLanguageButton: React.FC = () => {
     const location = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const [isDismissed, setIsDismissed] = useState(() => {
-        return sessionStorage.getItem(DISMISSED_KEY) === 'true';
+        try { return sessionStorage.getItem(DISMISSED_KEY) === 'true'; } catch { return false; }
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Oculta el botón en dashboards (admin / panel business owner) — la URL
-    // está atada al país de la empresa y cambiar el idioma desde aquí
-    // rompería la navegación.
-    const hideOnDashboard = isDashboardRoute(location.pathname);
+    // Solo en la pantalla de inicio (/ y /<pais>), como el selector de pais de
+    // la cabecera. Antes salia en todas las pantallas salvo los paneles.
+    const onHome = isHomeRoute(location.pathname);
+
+    // Al cambiar de pantalla se cierra: si no, al volver a la home aparecia
+    // el desplegable abierto.
+    useEffect(() => { setIsOpen(false); }, [location.pathname]);
 
     // Get current language info
     const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
@@ -47,11 +50,11 @@ const FloatingLanguageButton: React.FC = () => {
     const handleDismiss = (e: React.MouseEvent) => {
         e.stopPropagation();
         setIsDismissed(true);
-        sessionStorage.setItem(DISMISSED_KEY, 'true');
+        try { sessionStorage.setItem(DISMISSED_KEY, 'true'); } catch { /* sin almacenamiento */ }
     };
 
     if (isDismissed) return null;
-    if (hideOnDashboard) return null;
+    if (!onHome) return null;
 
     return (
         <div

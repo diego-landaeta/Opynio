@@ -5,13 +5,20 @@ import { useAuth } from './AuthContext';
 interface BusinessDashboardContextType {
     business: Business;
     profile: Profile | null;
+    // Tras guardar cambios (p. ej. renombrar) el lateral y la cabecera se
+    // quedaban con el nombre viejo hasta recargar.
+    updateBusiness: (changes: Partial<Business>) => void;
 }
 
 const BusinessDashboardContext = createContext<BusinessDashboardContextType | undefined>(undefined);
 
-export const BusinessDashboardProvider: React.FC<{ business: Business; children: ReactNode }> = ({ business, children }) => {
+export const BusinessDashboardProvider: React.FC<{
+    business: Business;
+    onBusinessChange?: (changes: Partial<Business>) => void;
+    children: ReactNode;
+}> = ({ business, onBusinessChange, children }) => {
     const { profile } = useAuth();
-    const value = { business, profile };
+    const value = { business, profile, updateBusiness: onBusinessChange ?? (() => {}) };
     return <BusinessDashboardContext.Provider value={value}>{children}</BusinessDashboardContext.Provider>;
 };
 

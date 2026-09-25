@@ -1,12 +1,14 @@
 import React from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
 const DEMO_REVIEWS = [{
@@ -18,7 +20,7 @@ const DEMO_REVIEWS = [{
   source: 'google'
 }];
 
-export const LargeCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const LargeCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
     const translated = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'review_text']);
@@ -27,6 +29,7 @@ export const LargeCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
     return (
         <div className={`opynio-widget ${themeClass}`}>
             <div style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: '16px', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)', maxWidth: '450px', margin: 'auto', textAlign: 'center' }}>
+                <ProductPillSlot label={s.productBadge} name={productName} />
                 <span style={{ fontSize: '4rem', color: 'var(--opynio-green)', lineHeight: 0.5, display: 'block' }}>"</span>
                 <div style={{ marginTop: '1rem' }} className="opynio-stars">
                     <StaticStarRating rating={review.rating} sizeClass="text-2xl" />

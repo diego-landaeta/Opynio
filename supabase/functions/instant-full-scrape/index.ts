@@ -3,6 +3,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeadersFor } from '../_shared/cors.ts'
+import { requireAdmin } from '../_shared/requireAdmin.ts'
 
 // Type declarations for Deno environment
 declare const Deno: {
@@ -11,10 +13,6 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
@@ -300,15 +298,22 @@ async function scrapeBusinessReviews(
 }
 
 serve(async (req) => {
+    // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+    const corsHeaders = corsHeadersFor(req);
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
+
+    // Solo admin, antes de leer secretos: 401/403 en vez de 500.
+    const denied = await requireAdmin(req, corsHeaders);
+    if (denied) return denied;
 
     try {
         const SERPAPI_KEY = Deno.env.get('SERPAPI_KEY');
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
-        console.log(`🔑 SERPAPI_KEY detectada: ${SERPAPI_KEY ? `Sí (${SERPAPI_KEY.substring(0, 8)}...${SERPAPI_KEY.substring(SERPAPI_KEY.length - 4)})` : 'NO - ¡ERROR!'}`);
+        // No se imprime ni un fragmento de la clave: los logs los ve cualquiera con acceso al dashboard.
+        console.log(`🔑 SERPAPI_KEY configurada: ${SERPAPI_KEY ? 'sí' : 'NO - ¡ERROR!'}`);
         console.log(`🔑 GEMINI_API_KEY detectada: ${GEMINI_API_KEY ? 'Sí' : 'NO'}`);
 
         if (!SERPAPI_KEY) {

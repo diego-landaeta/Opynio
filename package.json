@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "node scripts/typecheck.mjs",
+    "check:widget": "node scripts/check-widget-version.mjs",
+    "gen:locale-paths": "node scripts/gen-locale-paths.mjs",
+    "check:locale-paths": "node scripts/gen-locale-paths.mjs --check",
+    "verify": "npm run typecheck && npm run check:widget && npm run check:locale-paths",
     "preview": "vite preview",
     "populate-votes": "tsx scripts/populate-review-votes.ts",
     "populate-votes-single": "tsx scripts/populate-votes-single-business.ts",

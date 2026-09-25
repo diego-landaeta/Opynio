@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Business } from '../../../../../types';
-import { translateText } from '../../../../../services/geminiService';
+import { translateText } from '../../../../../services/translateService';
 
 // Import all widget preview components
 import { HorizontalCarouselPreview } from './HorizontalCarouselWidget';
@@ -16,7 +16,9 @@ import { StarsCarouselPreview } from './StarsCarouselWidget';
 export interface WidgetConfig {
     name: string;
     description: string;
-    component: React.FC<{ business: Business, theme: 'light' | 'dark', lang: string }>;
+    // isProduct: widget de producto (data-product-id). Solo lo usan las vistas
+    // que llevan el distintivo dentro (escaparate y flotante).
+    component: React.FC<{ business: Business, theme: 'light' | 'dark', lang: string, isProduct?: boolean, productName?: string }>;
     type: string;
 }
 
@@ -102,6 +104,27 @@ export const WIDGET_CSS = `
     .opynio-platform-badge { flex-shrink: 0; width: 24px; height: 24px; }
     .opynio-platform-badge svg { width: 100%; height: 100%; }
     a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
+
+    /* Distintivo «Producto» dentro del widget: identico al de public/widget.js. */
+    .opynio-pill-slot { display: flex; justify-content: center; margin: 0 0 10px 0; }
+    .opynio-pill-slot.opynio-pill-slot-start { justify-content: flex-start; }
+    .opynio-product-pill { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px solid rgba(0, 182, 122, 0.35); background: rgba(0, 182, 122, 0.1); color: #047857 !important; font-size: 0.6875rem; font-weight: 700; line-height: 1.35; letter-spacing: 0.02em; text-transform: none; white-space: nowrap; vertical-align: middle; }
+    .opynio-product-pill svg { width: 12px; height: 12px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+    .opynio-product-pill svg circle { fill: currentColor; stroke: none; }
+    .opynio-theme-dark .opynio-product-pill { color: #6ee7b7 !important; background: rgba(0, 182, 122, 0.16); border-color: rgba(0, 182, 122, 0.45); }
+    .opynio-showcase-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+    .opynio-product-pill { cursor: help; }
+    .opynio-product-pill:focus { outline: none; }
+    .opynio-product-pill:focus-visible { outline: 2px solid #00b67a; outline-offset: 2px; }
+    .opynio-product-tip { position: fixed; left: 0; top: 0; z-index: 2147483000; box-sizing: border-box; max-width: 280px; margin: 0; padding: 8px 12px; border-radius: 10px; background: #111827 !important; color: #f9fafb !important; font-size: 0.8125rem; font-weight: 600; font-style: normal; line-height: 1.4; letter-spacing: normal; text-transform: none; text-align: left; white-space: normal; overflow-wrap: anywhere; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s ease, visibility 0s linear 0.12s; }
+    .opynio-product-tip.opynio-tip-visible { opacity: 1; visibility: visible; transition: opacity 0.12s ease; }
+    .opynio-product-tip::after { content: ''; position: absolute; left: var(--opynio-tip-arrow, 50%); width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+    .opynio-product-tip[data-placement="top"]::after { bottom: -4px; }
+    .opynio-product-tip[data-placement="bottom"]::after { top: -4px; }
+    .opynio-theme-dark .opynio-product-tip { background: #f9fafb !important; color: #111827 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+    @media (prefers-reduced-motion: reduce) {
+        .opynio-product-tip, .opynio-product-tip.opynio-tip-visible { transition: none; }
+    }
     
     /* Horizontal Carousel - ACTUALIZADO */
     .opynio-horizontal-widget { padding: 50px; background: var(--card-bg); border-radius: 24px; box-shadow: var(--shadow-lg); max-width: 1400px; margin: 0 auto; width: 100%; position: relative; isolation: isolate; }
@@ -699,6 +722,10 @@ export const WIDGET_CSS = `
 `;
 
 export interface PreviewStrings {
+    /** Distintivo «Producto» del widget de producto (UI_STRINGS.productBadge en widget.js). */
+    productBadge: string;
+    /** «Reseñas de» de la cabecera del widget de producto (UI_STRINGS.reviewsOf). */
+    reviewsOf: string;
     ratingExcellent: string;
     ratingVeryGood: string;
     ratingGood: string;
@@ -715,34 +742,37 @@ export interface PreviewStrings {
 }
 
 const PREVIEW_STRINGS: Record<string, PreviewStrings> = {
-    es: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', writeReview: 'Escribe tu reseña', reviewsFor: 'Opiniones para', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', seeAllReviews: 'Ver reseñas completas' },
-    en: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', writeReview: 'Write a review', reviewsFor: 'Reviews for', googleReview: 'Google Review', opynioReview: 'Opynio Review', seeAllReviews: 'See all reviews' },
-    fr: { ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', writeReview: 'Écrire un avis', reviewsFor: 'Avis pour', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', seeAllReviews: 'Voir tous les avis' },
-    de: { ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', writeReview: 'Bewertung schreiben', reviewsFor: 'Bewertungen für', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', seeAllReviews: 'Alle Bewertungen ansehen' },
-    it: { ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', writeReview: 'Scrivi una recensione', reviewsFor: 'Recensioni per', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', seeAllReviews: 'Vedi tutte le recensioni' },
-    pt: { ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', seeAllReviews: 'Ver todas as avaliações' },
-    ca: { ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio', seeAllReviews: 'Veure totes les ressenyes' },
-    zh: { ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', seeAllReviews: '查看所有评论' },
-    sv: { ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', writeReview: 'Skriv en recension', reviewsFor: 'Recensioner för', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', seeAllReviews: 'Se alla recensioner' },
-    pl: { ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', writeReview: 'Napisz opinię', reviewsFor: 'Opinie dla', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', seeAllReviews: 'Zobacz wszystkie opinie' },
-    ja: { ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', reviews: 'レビュー', outOf5: '/ 5つ星', customerRatings: 'お客様の評価', basedOn: '{n}件のレビューに基づく', basedOnAlt: '<strong>{n}件のレビュー</strong>に基づく', writeReview: 'レビューを書く', reviewsFor: 'レビュー: ', googleReview: 'Googleレビュー', opynioReview: 'Opynioレビュー', seeAllReviews: 'すべてのレビューを見る' },
-    ko: { ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', reviews: '리뷰', outOf5: '/ 5점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', writeReview: '리뷰 쓰기', reviewsFor: '리뷰: ', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', seeAllReviews: '모든 리뷰 보기' },
-    ar: { ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', writeReview: 'اكتب تقييماً', reviewsFor: 'تقييمات لـ', googleReview: 'تقييم Google', opynioReview: 'تقييم Opynio', seeAllReviews: 'عرض جميع التقييمات' },
-    nl: { ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', writeReview: 'Schrijf een beoordeling', reviewsFor: 'Beoordelingen voor', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', seeAllReviews: 'Alle beoordelingen bekijken' },
-    ru: { ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', writeReview: 'Написать отзыв', reviewsFor: 'Отзывы о', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', seeAllReviews: 'Все отзывы' },
-    id: { ratingExcellent: 'LUAR BIASA', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', reviews: 'ulasan', outOf5: 'dari 5 bintang', customerRatings: 'Peringkat pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', writeReview: 'Tulis ulasan', reviewsFor: 'Ulasan untuk', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', seeAllReviews: 'Lihat semua ulasan' },
-    ms: { ratingExcellent: 'CEMERLANG', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', reviews: 'ulasan', outOf5: 'daripada 5 bintang', customerRatings: 'Penilaian pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', writeReview: 'Tulis ulasan', reviewsFor: 'Ulasan untuk', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', seeAllReviews: 'Lihat semua ulasan' },
-    tw: { ratingExcellent: '優秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '評論', outOf5: '/ 5 星', customerRatings: '客戶評價', basedOn: '基於 {n} 條評論', basedOnAlt: '基於 <strong>{n} 條評論</strong>', writeReview: '寫評論', reviewsFor: '評論', googleReview: 'Google 評論', opynioReview: 'Opynio 評論', seeAllReviews: '查看所有評論' },
-    th: { ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', writeReview: 'เขียนรีวิว', reviewsFor: 'รีวิวสำหรับ', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', seeAllReviews: 'ดูรีวิวทั้งหมด' },
-    fa: { ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', writeReview: 'نوشتن نظر', reviewsFor: 'نظرات برای', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', seeAllReviews: 'مشاهده همه نظرات' },
-    vi: { ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', writeReview: 'Viết đánh giá', reviewsFor: 'Đánh giá cho', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', seeAllReviews: 'Xem tất cả đánh giá' },
-    bn: { ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', writeReview: 'পর্যালোচনা লিখুন', reviewsFor: 'পর্যালোচনা', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', seeAllReviews: 'সব পর্যালোচনা দেখুন' },
-    hi: { ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', writeReview: 'समीक्षा लिखें', reviewsFor: 'समीक्षाएँ', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', seeAllReviews: 'सभी समीक्षाएँ देखें' },
-    tl: { ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', writeReview: 'Sumulat ng review', reviewsFor: 'Mga review para sa', googleReview: 'Google review', opynioReview: 'Opynio review', seeAllReviews: 'Tingnan lahat ng review' },
-    tr: { ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', writeReview: 'Yorum yaz', reviewsFor: 'Yorumlar:', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', seeAllReviews: 'Tüm yorumları gör' },
+    es: { productBadge: 'Producto', reviewsOf: 'Reseñas de', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', writeReview: 'Escribe tu reseña', reviewsFor: 'Opiniones para', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', seeAllReviews: 'Ver reseñas completas' },
+    en: { productBadge: 'Product', reviewsOf: 'Reviews of', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', writeReview: 'Write a review', reviewsFor: 'Reviews for', googleReview: 'Google Review', opynioReview: 'Opynio Review', seeAllReviews: 'See all reviews' },
+    fr: { productBadge: 'Produit', reviewsOf: 'Avis sur', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', writeReview: 'Écrire un avis', reviewsFor: 'Avis pour', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', seeAllReviews: 'Voir tous les avis' },
+    de: { productBadge: 'Produkt', reviewsOf: 'Bewertungen zu', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', writeReview: 'Bewertung schreiben', reviewsFor: 'Bewertungen für', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', seeAllReviews: 'Alle Bewertungen ansehen' },
+    it: { productBadge: 'Prodotto', reviewsOf: 'Recensioni di', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', writeReview: 'Scrivi una recensione', reviewsFor: 'Recensioni per', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', seeAllReviews: 'Vedi tutte le recensioni' },
+    pt: { productBadge: 'Produto', reviewsOf: 'Avaliações de', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', writeReview: 'Escrever avaliação', reviewsFor: 'Avaliações para', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', seeAllReviews: 'Ver todas as avaliações' },
+    ca: { productBadge: 'Producte', reviewsOf: 'Ressenyes de', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', writeReview: 'Escriu la teva ressenya', reviewsFor: 'Ressenyes per a', googleReview: 'Ressenya de Google', opynioReview: 'Ressenya d\'Opynio', seeAllReviews: 'Veure totes les ressenyes' },
+    zh: { productBadge: '产品', reviewsOf: '关于', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', writeReview: '写评论', reviewsFor: '评论', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', seeAllReviews: '查看所有评论' },
+    sv: { productBadge: 'Produkt', reviewsOf: 'Omdömen om', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', writeReview: 'Skriv en recension', reviewsFor: 'Recensioner för', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', seeAllReviews: 'Se alla recensioner' },
+    pl: { productBadge: 'Produkt', reviewsOf: 'Opinie o', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', writeReview: 'Napisz opinię', reviewsFor: 'Opinie dla', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', seeAllReviews: 'Zobacz wszystkie opinie' },
+    ja: { productBadge: '商品', reviewsOf: 'レビュー対象', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', reviews: 'レビュー', outOf5: '/ 5つ星', customerRatings: 'お客様の評価', basedOn: '{n}件のレビューに基づく', basedOnAlt: '<strong>{n}件のレビュー</strong>に基づく', writeReview: 'レビューを書く', reviewsFor: 'レビュー: ', googleReview: 'Googleレビュー', opynioReview: 'Opynioレビュー', seeAllReviews: 'すべてのレビューを見る' },
+    ko: { productBadge: '제품', reviewsOf: '리뷰 대상', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', reviews: '리뷰', outOf5: '/ 5점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', writeReview: '리뷰 쓰기', reviewsFor: '리뷰: ', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', seeAllReviews: '모든 리뷰 보기' },
+    ar: { productBadge: 'منتج', reviewsOf: 'تقييمات', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', writeReview: 'اكتب تقييماً', reviewsFor: 'تقييمات لـ', googleReview: 'تقييم Google', opynioReview: 'تقييم Opynio', seeAllReviews: 'عرض جميع التقييمات' },
+    nl: { productBadge: 'Product', reviewsOf: 'Beoordelingen van', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', writeReview: 'Schrijf een beoordeling', reviewsFor: 'Beoordelingen voor', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', seeAllReviews: 'Alle beoordelingen bekijken' },
+    ru: { productBadge: 'Товар', reviewsOf: 'Отзывы о', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', writeReview: 'Написать отзыв', reviewsFor: 'Отзывы о', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', seeAllReviews: 'Все отзывы' },
+    id: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', ratingExcellent: 'LUAR BIASA', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', reviews: 'ulasan', outOf5: 'dari 5 bintang', customerRatings: 'Peringkat pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', writeReview: 'Tulis ulasan', reviewsFor: 'Ulasan untuk', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', seeAllReviews: 'Lihat semua ulasan' },
+    ms: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', ratingExcellent: 'CEMERLANG', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', reviews: 'ulasan', outOf5: 'daripada 5 bintang', customerRatings: 'Penilaian pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', writeReview: 'Tulis ulasan', reviewsFor: 'Ulasan untuk', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', seeAllReviews: 'Lihat semua ulasan' },
+    tw: { productBadge: '產品', reviewsOf: '關於', ratingExcellent: '優秀', ratingVeryGood: '很好', ratingGood: '好', reviews: '評論', outOf5: '/ 5 星', customerRatings: '客戶評價', basedOn: '根據 {n} 則評論', basedOnAlt: '根據 <strong>{n} 則評論</strong>', writeReview: '撰寫評論', reviewsFor: '評論', googleReview: 'Google 評論', opynioReview: 'Opynio 評論', seeAllReviews: '查看所有評論' },
+    th: { productBadge: 'สินค้า', reviewsOf: 'รีวิวของ', ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', writeReview: 'เขียนรีวิว', reviewsFor: 'รีวิวสำหรับ', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', seeAllReviews: 'ดูรีวิวทั้งหมด' },
+    fa: { productBadge: 'محصول', reviewsOf: 'نظرات درباره', ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', writeReview: 'نوشتن نظر', reviewsFor: 'نظرات برای', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', seeAllReviews: 'مشاهده همه نظرات' },
+    vi: { productBadge: 'Sản phẩm', reviewsOf: 'Đánh giá về', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', writeReview: 'Viết đánh giá', reviewsFor: 'Đánh giá cho', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', seeAllReviews: 'Xem tất cả đánh giá' },
+    bn: { productBadge: 'পণ্য', reviewsOf: 'পর্যালোচনা', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', writeReview: 'পর্যালোচনা লিখুন', reviewsFor: 'পর্যালোচনা', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', seeAllReviews: 'সব পর্যালোচনা দেখুন' },
+    hi: { productBadge: 'उत्पाद', reviewsOf: 'समीक्षाएँ', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', writeReview: 'समीक्षा लिखें', reviewsFor: 'समीक्षाएँ', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', seeAllReviews: 'सभी समीक्षाएँ देखें' },
+    tl: { productBadge: 'Produkto', reviewsOf: 'Mga review ng', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', writeReview: 'Sumulat ng review', reviewsFor: 'Mga review para sa', googleReview: 'Google review', opynioReview: 'Opynio review', seeAllReviews: 'Tingnan lahat ng review' },
+    tr: { productBadge: 'Ürün', reviewsOf: 'Değerlendirmeler', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', writeReview: 'Yorum yaz', reviewsFor: 'Yorumlar:', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', seeAllReviews: 'Tüm yorumları gör' },
 };
 
-const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'br': 'pt', 'cn': 'zh', 'gb': 'en', 'au': 'en', 'sg': 'en', 'ie': 'en', 'at': 'de' };
+// Codigos del selector de idioma del widget (y del idioma de la app, en modo
+// automatico) -> clave de PREVIEW_STRINGS. 'tw' es el locale de la app para
+// chino tradicional; en el snippet se emite 'zh-TW' (ver DashboardWidgets).
+const LANG_NORMALIZE: Record<string, string> = { 'zh-CN': 'zh', 'zh-TW': 'tw', 'br': 'pt', 'pt-BR': 'pt', 'cn': 'zh', 'gb': 'en', 'au': 'en', 'sg': 'en', 'ie': 'en', 'at': 'de' };
 
 export function getPreviewStrings(lang: string): PreviewStrings {
     const normalized = LANG_NORMALIZE[lang] || lang;
@@ -787,11 +817,20 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.5.4';
+const EMBED_VERSION = 'v6.10.8';
 
-export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string): string => {
+// `productId` es opcional. Sin él, el snippet es exactamente el de siempre y el
+// widget muestra la empresa entera. Con él, el widget muestra la nota y las
+// reseñas de ese producto, y solo las asignadas explícitamente a ese producto.
+export const getWidgetScript = (businessId: string, widgetType: string, theme: 'light' | 'dark', lang?: string, productId?: string, productLabel?: string): string => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';
-    return `<!-- Opynio Widget ${EMBED_VERSION} - ${widgetType} -->
+    const productAttr = productId ? ` data-product-id="${productId}"` : '';
+    // El comentario identifica el snippet: con varios widgets pegados en la
+    // misma web, el UUID no le dice nada a quien mantiene la pagina.
+    // Se limpia lo que rompe un comentario HTML (`--`, `<`, `>`).
+    const safeLabel = (productLabel || '').replace(/[<>]/g, '').replace(/-{2,}/g, '-').trim().slice(0, 80);
+    const labelPart = safeLabel ? ` - ${safeLabel}` : '';
+    return `<!-- Opynio Widget ${EMBED_VERSION} - ${widgetType}${labelPart} -->
 <script src="https://web.opynio.com/widget.js?v=${EMBED_VERSION}" async></script>
-<div class="opynio-widget" data-business-id="${businessId}" data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
+<div class="opynio-widget" data-business-id="${businessId}"${productAttr} data-type="${widgetType}" data-theme="${theme}"${langAttr}></div>`;
 };

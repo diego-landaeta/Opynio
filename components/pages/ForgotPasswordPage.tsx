@@ -4,16 +4,23 @@ import { sendPasswordResetEmail } from '../../services/supabaseService';
 import Modal from '../Modal';
 import * as ReactRouterDOM from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { escapeHtml } from '../../utils/textUtils';
+import { useCountry } from '../../contexts/CountryContext';
+import AuthErrorText from '../auth/AuthErrorText';
+import { getAuthErrorInfo, type AuthErrorInfo } from '../../utils/authErrors';
 
 const ForgotPasswordPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<AuthErrorInfo | null>(null);
     const [success, setSuccess] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
-    const langPrefix = `/${language}`;
+    // Prefijo de pais y segmento en el idioma de ESE pais (/es/restablecer-...).
+    // Con el segmento del idioma de la UI salia /es/reset-password = 404.
+    const { country } = useCountry();
+    const loginPath = localizedPathOrRoot('login', language, country);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -21,10 +28,15 @@ const ForgotPasswordPage: React.FC = () => {
         setError(null);
         setSuccess(false);
         try {
-            await sendPasswordResetEmail(email);
+            await sendPasswordResetEmail(email, localizedPathOrRoot('resetPassword', language, country));
             setSuccess(true);
         } catch (err: any) {
-            setError(err.message || 'No se pudo enviar el correo de restablecimiento.');
+            // Antes salia el texto crudo de Supabase («Error sending recovery
+            // email»), en ingles y como si la direccion estuviera mal. Limite de
+            // envios -> esperar; fallo del servidor -> es del servicio (con
+            // enlace a Soporte); email invalido -> validacion.
+            console.error('[forgot-password]', err);
+            setError(getAuthErrorInfo(err, 'recover'));
         } finally {
             setLoading(false);
         }
@@ -42,7 +54,7 @@ const ForgotPasswordPage: React.FC = () => {
 
                 {error && (
                     <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2 sm:py-3 rounded-lg relative mb-4 sm:mb-6" role="alert">
-                        <span className="block sm:inline text-sm sm:text-base">{error}</span>
+                        <span className="block sm:inline text-sm sm:text-base"><AuthErrorText info={error} /></span>
                     </div>
                 )}
 
@@ -74,7 +86,7 @@ const ForgotPasswordPage: React.FC = () => {
                 <div className="mt-4 sm:mt-6 text-center">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         {t('forgotPasswordPage.rememberPassword')}{' '}
-                        <ReactRouterDOM.Link to={`${langPrefix}/${pathTranslations[language].login}`} className="font-semibold text-brand-green hover:underline">{t('forgotPasswordPage.backToLoginLink')}</ReactRouterDOM.Link>
+                        <ReactRouterDOM.Link to={loginPath} className="font-semibold text-brand-green hover:underline">{t('forgotPasswordPage.backToLoginLink')}</ReactRouterDOM.Link>
                     </p>
                 </div>
             </div>
@@ -82,9 +94,9 @@ const ForgotPasswordPage: React.FC = () => {
                 <Modal title={t('forgotPasswordPage.checkYourEmail')} onClose={() => setSuccess(false)}>
                     <div className="text-center py-3 sm:py-4">
                         <i className="fa-solid fa-envelope-circle-check text-4xl sm:text-5xl text-brand-green mb-3 sm:mb-4"></i>
-                        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 mb-4 sm:mb-6" dangerouslySetInnerHTML={{ __html: t('forgotPasswordPage.passwordResetEmailSent', { email }) }} />
+                        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 mb-4 sm:mb-6" dangerouslySetInnerHTML={{ __html: t('forgotPasswordPage.passwordResetEmailSent', { email: escapeHtml(email) }) }} />
                         <ReactRouterDOM.Link
-                            to={`${langPrefix}/${pathTranslations[language].login}`}
+                            to={loginPath}
                             onClick={() => setSuccess(false)}
                             className="inline-block bg-brand-green text-white font-semibold px-5 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base rounded-md hover:bg-opacity-90 transition-all shadow-sm"
                         >

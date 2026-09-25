@@ -5,13 +5,15 @@ import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../Spinner';
-import { useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useI18n, localizedPath } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
     const { user, loading } = useAuth();
     // FIX: Using namespace import from react-router-dom v6
     const location = ReactRouterDOM.useLocation();
     const { language } = useI18n();
+    const { country } = useCountry();
 
     if (loading) {
         return (
@@ -22,7 +24,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     }
 
     if (!user) {
-        const loginPath = `/${language}/${pathTranslations[language].login}`;
+        const loginPath = localizedPath('login', language, country);
         // FIX: Using namespace import from react-router-dom v6
         return <ReactRouterDOM.Navigate to={loginPath} state={{ from: location }} replace />;
     }

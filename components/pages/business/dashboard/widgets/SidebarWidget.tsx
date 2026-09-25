@@ -1,15 +1,17 @@
 import React from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
-export const SidebarPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const SidebarPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
 
@@ -18,6 +20,7 @@ export const SidebarPreview: React.FC<PreviewProps> = ({ business, theme, lang }
             <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '12px', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)', maxWidth: '300px', margin: 'auto', textAlign: 'center' }}>
                 <a href="#" style={{ textDecoration: 'none' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--opynio-green)' }}>Opynio</div>
+                    <ProductPillSlot label={s.productBadge} name={productName} />
                     <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-color)', marginTop: '1rem' }}>{s.reviewsFor} {business.name}</h3>
                 </a>
                 <div style={{ background: 'var(--bg-color)', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>

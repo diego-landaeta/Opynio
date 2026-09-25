@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
-import type { Review, Database, Plan } from '../../../../types';
+import type { Review, Database, Plan, ReviewSubject } from '../../../../types';
 import Spinner from '../../../Spinner';
 import ReviewCard from '../../../ReviewCard';
-import { getReviewsForBusiness, submitReviewResponse, updateReviewResponse, deleteReviewResponse, incrementAiCredits } from '../../../../services/supabaseService';
-import { getSuggestedReplies } from '../../../../services/geminiService';
+import {
+    getReviewsForBusiness,
+    submitReviewResponse,
+    updateReviewResponse,
+    deleteReviewResponse,
+    incrementAiCredits,
+    getBusinessProducts,
+    getReviewProductLinks,
+    assignReviewToProduct,
+    unassignReviewFromProduct,
+    assignReviewsToProduct,
+    unassignReviews,
+} from '../../../../services/supabaseService';
+import { getSuggestedReplies, AI_ENABLED } from '../../../../services/geminiService';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { useConfirm } from '../../../../contexts/ConfirmContext';
 import { useTranslation } from '../../../../contexts/i18nContext';
+import { usePluralT } from '../../../../utils/plural';
+import { useUserErrorNotifier } from '../../../../utils/userFacingError';
 
 const PAGE_SIZE = 20;
 
@@ -29,8 +43,10 @@ const DashboardReviews: React.FC = () => {
     const { profile, setProfile } = useAuth();
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const { confirm } = useConfirm();
     const t = useTranslation();
+    const tn = usePluralT();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
     const [respondingTo, setRespondingTo] = useState<number | null>(null);
@@ -46,6 +62,18 @@ const DashboardReviews: React.FC = () => {
     const [suggestedReplies, setSuggestedReplies] = useState<{ reviewId: number; suggestions: string[] } | null>(null);
     const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
+    // Asignacion de resenas a productos. Los productos se cargan una vez; los
+    // enlaces, para las resenas que hay en pantalla en cada momento.
+    const [products, setProducts] = useState<ReviewSubject[]>([]);
+    // Tambien los desactivados: una resena enlazada a un producto retirado
+    // salia como "Sin asignar" y, al tocar el selector, se perdia el enlace.
+    const [inactiveProducts, setInactiveProducts] = useState<ReviewSubject[]>([]);
+    const [productLinks, setProductLinks] = useState<Record<string, string>>({});
+    const [assigningId, setAssigningId] = useState<string | null>(null);
+    // Selección múltiple: asignar de una en una no es viable con miles.
+    const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+    const [asignandoLote, setAsignandoLote] = useState(false);
+
     const fetchReviewsPage = useCallback(async (currentPage: number) => {
         if (!business) return;
         if (currentPage === 1) setLoading(true);
@@ -55,6 +83,15 @@ const DashboardReviews: React.FC = () => {
             const data = await getReviewsForBusiness(business.id, currentPage, PAGE_SIZE);
             setReviews(prev => currentPage === 1 ? data : [...prev, ...data]);
             setHasMore(data.length === PAGE_SIZE);
+
+            // Que producto tiene asignado cada resena de esta pagina. Si falla,
+            // las resenas se siguen viendo: el selector aparece vacio.
+            try {
+                const links = await getReviewProductLinks(data.map(r => String(r.id)));
+                setProductLinks(prev => currentPage === 1 ? links : { ...prev, ...links });
+            } catch (linkError) {
+                console.error('No se pudieron cargar las asignaciones a productos:', linkError);
+            }
         } catch (error) {
             console.error("Failed to fetch business reviews:", error);
         } finally {
@@ -68,6 +105,95 @@ const DashboardReviews: React.FC = () => {
             fetchReviewsPage(1);
         }
     }, [business, fetchReviewsPage]);
+
+    useEffect(() => {
+        if (!business?.id) return;
+        let cancelled = false;
+        getBusinessProducts(business.id)
+            .then(list => {
+                if (cancelled) return;
+                setProducts(list.filter(p => p.is_active));
+                setInactiveProducts(list.filter(p => !p.is_active));
+            })
+            // Sin productos el selector no se pinta, asi que un fallo aqui solo
+            // significa que esta pantalla se comporta como siempre.
+            .catch(err => {
+                // Si las tablas aun no estan aplicadas, esta pantalla se comporta
+                // como antes de que existieran los productos: sin selector.
+                const faltaLaTabla = err?.code === 'PGRST205' || err?.code === '42P01';
+                if (faltaLaTabla) console.info('Productos no disponibles en esta base de datos todavía.');
+                else console.error('No se pudieron cargar los productos:', err);
+            });
+        return () => { cancelled = true; };
+    }, [business?.id]);
+
+    const handleAssignProduct = async (reviewId: string, productId: string) => {
+        setAssigningId(reviewId);
+        try {
+            if (productId) {
+                await assignReviewToProduct(reviewId, productId);
+                setProductLinks(prev => ({ ...prev, [reviewId]: productId }));
+                const name = products.find(p => p.id === productId)?.name || '';
+                showNotification(t('businessDashboard.reviewAssignedToast', { name }), 'success');
+            } else {
+                await unassignReviewFromProduct(reviewId);
+                setProductLinks(prev => {
+                    const next = { ...prev };
+                    delete next[reviewId];
+                    return next;
+                });
+                showNotification(t('businessDashboard.reviewUnassignedToast'), 'success');
+            }
+        } catch (error: any) {
+            await notifyError(error, { fallbackKey: 'businessDashboard.reviewProductAssignError' });
+        } finally {
+            setAssigningId(null);
+        }
+    };
+
+    const alternarSeleccion = (reviewId: string) => {
+        setSeleccion(prev => {
+            const siguiente = new Set(prev);
+            if (siguiente.has(reviewId)) siguiente.delete(reviewId);
+            else siguiente.add(reviewId);
+            return siguiente;
+        });
+    };
+
+    const seleccionarTodasLasVisibles = () => {
+        setSeleccion(new Set(reviews.map(r => String(r.id))));
+    };
+
+    const asignarLote = async (productId: string) => {
+        const ids = [...seleccion];
+        if (ids.length === 0) return;
+        setAsignandoLote(true);
+        try {
+            if (productId) {
+                await assignReviewsToProduct(ids, productId);
+                setProductLinks(prev => {
+                    const siguiente = { ...prev };
+                    ids.forEach(id => { siguiente[id] = productId; });
+                    return siguiente;
+                });
+                const nombre = products.find(p => p.id === productId)?.name || '';
+                showNotification(tn('businessDashboard.bulkAssignedToast', ids.length, { name: nombre }), 'success');
+            } else {
+                await unassignReviews(ids);
+                setProductLinks(prev => {
+                    const siguiente = { ...prev };
+                    ids.forEach(id => { delete siguiente[id]; });
+                    return siguiente;
+                });
+                showNotification(tn('businessDashboard.bulkUnassignedToast', ids.length), 'success');
+            }
+            setSeleccion(new Set());
+        } catch (error: any) {
+            await notifyError(error, { fallbackKey: 'businessDashboard.bulkAssignError' });
+        } finally {
+            setAsignandoLote(false);
+        }
+    };
 
     const handleSuggestReplies = async (review: Review) => {
         // Plan y créditos viven en `profiles`.
@@ -105,8 +231,9 @@ const DashboardReviews: React.FC = () => {
             }
 
         } catch (error) {
-            setSuggestionError(t('businessDashboard.errorGeneratingSuggestions'));
-            showNotification(t('businessDashboard.errorGeneratingSuggestions'), 'error');
+            console.error('AI suggestions failed:', error);
+            setSuggestionError(t('businessDashboard.aiRepliesUnavailable'));
+            showNotification(t('businessDashboard.aiRepliesUnavailable'), 'error');
         } finally {
             setIsSuggesting(null);
         }
@@ -116,20 +243,14 @@ const DashboardReviews: React.FC = () => {
         e.preventDefault();
         if (!responseText.trim() || !business || !profile) return;
         setIsSubmitting(true);
-        const responsePayload: Database['public']['Tables']['review_responses']['Insert'] = {
-            review_id: reviewId,
-            business_id: business.id,
-            user_id: profile.id,
-            response_text: responseText,
-        };
         try {
-            await submitReviewResponse(responsePayload);
+            await submitReviewResponse(String(reviewId), responseText.trim());
             setPage(1);
             await fetchReviewsPage(1);
             setResponseText('');
             setRespondingTo(null);
         } catch (error) {
-            showNotification('Hubo un error al enviar la respuesta.', 'error');
+            await notifyError(error, { fallbackKey: 'businessDashboard.errorSendingResponse' });
         } finally {
             setIsSubmitting(false);
         }
@@ -137,10 +258,10 @@ const DashboardReviews: React.FC = () => {
 
     const handleDeleteResponse = async (responseId: number) => {
         const ok = await confirm({
-            title: 'Eliminar respuesta',
-            message: '¿Estás seguro de que quieres eliminar esta respuesta? Esta acción no se puede deshacer.',
-            confirmText: 'Eliminar',
-            cancelText: 'Cancelar',
+            title: t('businessDashboard.deleteResponseTitle'),
+            message: t('businessDashboard.deleteResponseConfirm'),
+            confirmText: t('common.delete'),
+            cancelText: t('common.cancel'),
             danger: true,
         });
         if (!ok) return;
@@ -149,7 +270,7 @@ const DashboardReviews: React.FC = () => {
             setPage(1);
             await fetchReviewsPage(1);
         } catch (error) {
-            showNotification('No se pudo eliminar la respuesta.', 'error');
+            await notifyError(error, { fallbackKey: 'businessDashboard.errorDeletingResponse' });
         }
     };
 
@@ -168,7 +289,7 @@ const DashboardReviews: React.FC = () => {
             setPage(1);
             await fetchReviewsPage(1);
         } catch (error) {
-            showNotification('No se pudo guardar la respuesta editada.', 'error');
+            await notifyError(error, { fallbackKey: 'businessDashboard.errorSavingEditedResponse' });
         } finally {
             setIsSavingEdit(false);
         }
@@ -186,7 +307,14 @@ const DashboardReviews: React.FC = () => {
 
     return (
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.manageReviewsTitle')}</h1>
+            <div>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.manageReviewsTitle')}</h1>
+                {products.length > 0 && (
+                    <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
+                        {t('businessDashboard.assignProductsHint')}
+                    </p>
+                )}
+            </div>
 
             <section>
                 {suggestionError && <div className="bg-red-100 text-red-700 p-3 sm:p-4 mb-3 sm:mb-4 rounded-md text-sm sm:text-base">{suggestionError}</div>}
@@ -204,6 +332,53 @@ const DashboardReviews: React.FC = () => {
                                 <div key={review.id} className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm border dark:border-zinc-700">
                                     <ReviewCard review={review} hideResponse={true} />
                                     <div className="p-3 sm:p-4 bg-gray-50/50 dark:bg-zinc-900/50 rounded-b-lg">
+                                        {/* Asignacion a producto. Solo aparece si la empresa tiene
+                                            productos activos: si no, esta pantalla es la de siempre. */}
+                                        {products.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-3 pb-3 border-b dark:border-zinc-700">
+                                                {/* Marcar varias y asignarlas de golpe: con miles de
+                                                    reseñas, una por una no es un flujo viable. */}
+                                                <label className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer select-none mr-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={seleccion.has(String(review.id))}
+                                                        onChange={() => alternarSeleccion(String(review.id))}
+                                                        aria-label={t('businessDashboard.selectReviewAria', { title: review.title || '' })}
+                                                        className="w-4 h-4 rounded border-gray-300 dark:border-zinc-600 text-brand-green focus:ring-brand-green"
+                                                    />
+                                                </label>
+                                                <label htmlFor={`product-for-${review.id}`} className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                    <i className="fa-solid fa-box-open text-gray-400 dark:text-gray-500" aria-hidden="true"></i>
+                                                    {t('businessDashboard.assignToProductLabel')}
+                                                </label>
+                                                <select
+                                                    id={`product-for-${review.id}`}
+                                                    value={productLinks[String(review.id)] || ''}
+                                                    disabled={assigningId === String(review.id)}
+                                                    onChange={(e) => handleAssignProduct(String(review.id), e.target.value)}
+                                                    className="min-h-[36px] max-w-full text-xs sm:text-sm rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-green disabled:opacity-50"
+                                                >
+                                                    <option value="">{t('businessDashboard.unassignedOption')}</option>
+                                                    {products.map(product => (
+                                                        <option key={product.id} value={product.id}>{product.name}</option>
+                                                    ))}
+                                                    {(() => {
+                                                        const retirado = inactiveProducts.find(p => p.id === productLinks[String(review.id)]);
+                                                        return retirado ? (
+                                                            <option value={retirado.id} disabled>
+                                                                {retirado.name} ({t('businessDashboard.productStatusInactive')})
+                                                            </option>
+                                                        ) : null;
+                                                    })()}
+                                                </select>
+                                                {assigningId === String(review.id) && (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                                        <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                                                        {t('common.saving')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                         {/* Response management UI */}
                                          {review.review_responses && review.review_responses.length > 0 ? (
                                             review.review_responses.map(response => (
@@ -219,7 +394,7 @@ const DashboardReviews: React.FC = () => {
                                                         </form>
                                                     ) : (
                                                         <div className="group relative">
-                                                            <p className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">Tu respuesta</p>
+                                                            <p className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">{t('businessDashboard.yourResponseLabel')}</p>
                                                             <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mt-1.5 sm:mt-2 pr-16 sm:pr-0">{response.response_text}</p>
                                                             <div className="absolute top-0 right-0 flex gap-2 sm:gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                                 <button onClick={() => handleEditClick(response)} className="text-xs font-semibold text-brand-blue hover:underline">{t('common.edit').toUpperCase()}</button>
@@ -240,15 +415,15 @@ const DashboardReviews: React.FC = () => {
                                         ) : (
                                             <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
                                                 <button onClick={() => setRespondingTo(review.id)} className="bg-green-100 text-brand-green font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{t('businessDashboard.respond')}</button>
-                                                <button
+                                                {AI_ENABLED && <button
                                                     onClick={() => handleSuggestReplies(review)}
                                                     disabled={isSuggesting === review.id || !review.review_text || profile?.plan === 'free'}
                                                     className="bg-purple-100 text-purple-800 font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                                    title={profile?.plan === 'free' ? 'Mejora tu plan para usar sugerencias con IA' : 'Generar respuestas sugeridas'}
+                                                    title={profile?.plan === 'free' ? t('businessDashboard.upgradeForAISuggestions') : t('businessDashboard.generateSuggestedRepliesTitle')}
                                                 >
                                                     {profile?.plan === 'free' && <i className="fa-solid fa-lock text-xs mr-1.5 sm:mr-2"></i>}
                                                     {isSuggesting === review.id ? t('common.creating') : t('businessDashboard.suggestWithAI')}
-                                                </button>
+                                                </button>}
                                             </div>
                                         )}
                                         {suggestedReplies?.reviewId === review.id && (
@@ -270,6 +445,53 @@ const DashboardReviews: React.FC = () => {
                         )}
                     </div>
                 )}
+                {/* Barra de lote: aparece solo con algo seleccionado y se queda
+                    pegada abajo, que es donde esta la vista cuando revisas. */}
+                {products.length > 0 && seleccion.size > 0 && (
+                    <div className="sticky bottom-3 z-30 mt-4 p-3 rounded-xl bg-white dark:bg-zinc-800 border-2 border-brand-green shadow-lg flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <p className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-100 flex-shrink-0">
+                            {tn('businessDashboard.selectedCount', seleccion.size)}
+                        </p>
+                        <select
+                            defaultValue=""
+                            disabled={asignandoLote}
+                            onChange={(e) => { const v = e.target.value; e.target.value = ''; if (v) asignarLote(v === '__quitar__' ? '' : v); }}
+                            aria-label={t('businessDashboard.bulkAssignTo')}
+                            className="flex-1 min-w-0 min-h-[40px] text-xs sm:text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-green disabled:opacity-50"
+                        >
+                            <option value="">{t('businessDashboard.bulkAssignTo')}</option>
+                            {products.map(product => (
+                                <option key={product.id} value={product.id}>{product.name}</option>
+                            ))}
+                            <option value="__quitar__">{t('businessDashboard.bulkUnassign')}</option>
+                        </select>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={seleccionarTodasLasVisibles}
+                                disabled={asignandoLote}
+                                className="min-h-[40px] px-3 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 transition-colors disabled:opacity-50"
+                            >
+                                {t('businessDashboard.selectAllVisible')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSeleccion(new Set())}
+                                disabled={asignandoLote}
+                                className="min-h-[40px] px-3 rounded-lg text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                            >
+                                {t('businessDashboard.clearSelection')}
+                            </button>
+                        </div>
+                        {asignandoLote && (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                                {t('common.saving')}
+                            </span>
+                        )}
+                    </div>
+                )}
+
                 {hasMore && (
                     <div className="pt-6 sm:pt-8 text-center">
                         <button onClick={handleLoadMore} disabled={isLoadingMore} className="bg-brand-dark text-white font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-md text-sm sm:text-base">{isLoadingMore ? t('common.loading') : t('explorePage.loadMore')}</button>

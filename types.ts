@@ -22,11 +22,20 @@ export interface Sede {
   flag?: string; // Bandera del país (para UI)
 }
 
+export type LogoTone = 'light' | 'dark';
+
 export interface SimpleBusiness {
   id: string;
   name: string;
   country: string | null;
   logo_url?: string | null;
+  /**
+   * Luminancia del contenido del logo, medida offline (el canvas no puede leer
+   * imagenes de otros dominios sin CORS). 'light' = contenido claro, necesita chip
+   * oscuro; 'dark' = contenido oscuro, necesita chip claro; ausente = sin medir o
+   * no concluyente, se usa el fondo por defecto.
+   */
+  logo_tone?: LogoTone | null;
   average_rating?: number | null;
   avg_rating?: number | null;
   review_count?: number | null;
@@ -50,6 +59,8 @@ export interface BusinessHours {
 }
 
 export interface Business extends SimpleBusiness {
+  // Identificador canonico de la URL publica (/empresa/<slug>).
+  slug?: string | null;
   description?: string | null;
   website?: string | null;
   website_url?: string | null;
@@ -99,7 +110,13 @@ export interface Profile {
   ai_credit_limit?: number | null;
   business_limit?: number | null;
   feature_permissions?: Json | null;
+  // Preferencias (20260925100000_profile_preferences). NULL = sin preferencia.
+  preferred_language?: string | null;
+  preferred_country?: string | null;
+  theme?: ThemePreference | null;
 }
+
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface ReviewResponse {
   id: string;
@@ -140,6 +157,29 @@ export interface Review {
   review_responses?: ReviewResponse[] | null;
 }
 
+// Entidades reseñables dentro de una empresa. Hoy solo se usan productos; el
+// tipo está abierto para servicios, empleados y sedes sin rehacer el modelo.
+export type ReviewSubjectType = 'product' | 'service' | 'employee' | 'location';
+
+export interface ReviewSubject {
+  id: string;
+  business_id: string;
+  type: ReviewSubjectType;
+  name: string;
+  /** Referencia interna del negocio (código de curso, SKU). No se muestra al visitante. */
+  code: string | null;
+  slug: string | null;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+  // Agregados de business_subject_stats. No son columnas de la tabla: llegan
+  // solo cuando se piden las estadísticas junto al listado.
+  review_count?: number;
+  avg_rating?: number;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -178,6 +218,10 @@ export interface BugReport {
   user_id: string;
   title?: string | null;
   description: string;
+  // Columna real de la pagina donde ocurrio el error. `page_url` es el nombre
+  // que usaba el panel antes; se mantiene por si hay filas antiguas con el.
+  url?: string | null;
+  page_url?: string | null;
   steps_to_reproduce?: string | null;
   expected_behavior?: string | null;
   actual_behavior?: string | null;

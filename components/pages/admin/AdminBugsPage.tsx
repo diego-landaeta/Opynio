@@ -2,15 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getAdminBugReports, updateBugReport } from '../../../services/supabaseService';
 import type { BugReport } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
 
 type ActiveTab = 'open' | 'in_progress' | 'resolved' | 'all';
 
 const AdminBugsPage: React.FC = () => {
     const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
     const t = useTranslation();
     const [bugs, setBugs] = useState<BugReport[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,8 +47,9 @@ const AdminBugsPage: React.FC = () => {
             await updateBugReport(selectedBug.id, {
                 status: newStatus,
                 admin_notes: adminNotes,
+                resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null,
             });
-            showNotification(t('adminBugsPage.bugUpdatedSuccess', { id: selectedBug.id, status: newStatus }), 'success');
+            showNotification(t('adminBugsPage.bugUpdatedSuccess', { id: selectedBug.id, status: t(`adminBugsPage.${newStatus}`) }), 'success');
             setBugs(prev => prev.filter(b => b.id !== selectedBug.id));
             setIsActionModalOpen(false);
         } catch (error: any) {
@@ -57,6 +61,15 @@ const AdminBugsPage: React.FC = () => {
 
     const handleDeleteBug = async () => {
         if (!selectedBug) return;
+        // Borraba sin preguntar aunque la clave del aviso existia.
+        const ok = await confirm({
+            title: t('common.delete'),
+            message: t('adminBugsPage.confirmDelete'),
+            confirmText: t('common.delete'),
+            cancelText: t('common.cancel'),
+            danger: true,
+        });
+        if (!ok) return;
         setIsSubmitting(true);
         try {
             await updateBugReport(selectedBug.id, { status: 'closed' });
@@ -103,6 +116,7 @@ const AdminBugsPage: React.FC = () => {
     return (
         <>
             <Meta title={t('adminBugsPage.title') + " - Admin"} description="Revisa y gestiona los reportes de bugs enviados por los usuarios." />
+            <AdminBackLink />
             <div className="space-y-6">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminBugsPage.title')}</h1>
                 
@@ -140,7 +154,7 @@ const AdminBugsPage: React.FC = () => {
                                         <tr key={bug.id} className="bg-white dark:bg-zinc-800 border-b dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700/50">
                                             <td className="px-6 py-4 font-bold text-gray-900 dark:text-gray-100">#{bug.id}</td>
                                             <td className="px-6 py-4">{bug.profiles?.name || t('adminBugsPage.userNotFound')}</td>
-                                            <td className="px-6 py-4"><a href={bug.page_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate max-w-xs block">{bug.page_url || 'N/A'}</a></td>
+                                            <td className="px-6 py-4"><a href={bug.url || bug.page_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate max-w-xs block">{bug.url || bug.page_url || t('adminBugsPage.notProvided')}</a></td>
                                             <td className="px-6 py-4 truncate max-w-sm" title={bug.description}>{bug.description}</td>
                                             <td className="px-6 py-4">{new Date(bug.created_at).toLocaleDateString()}</td>
                                             <td className="px-6 py-4"><StatusBadge status={bug.status} /></td>
@@ -171,9 +185,9 @@ const AdminBugsPage: React.FC = () => {
                                         <p><span className="text-gray-600 dark:text-gray-400">{t('adminBugsPage.user')}:</span> <span className="text-gray-900 dark:text-gray-100">{bug.profiles?.name || t('adminBugsPage.userNotFound')}</span></p>
                                         <p className="text-gray-900 dark:text-gray-100 line-clamp-2">{bug.description}</p>
                                         <p><span className="text-gray-600 dark:text-gray-400">{t('adminBugsPage.date')}:</span> <span className="text-gray-900 dark:text-gray-100">{new Date(bug.created_at).toLocaleDateString()}</span></p>
-                                        {bug.page_url && (
-                                            <a href={bug.page_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs truncate block">
-                                                {bug.page_url}
+                                        {(bug.url || bug.page_url) && (
+                                            <a href={bug.url || bug.page_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs truncate block">
+                                                {bug.url || bug.page_url}
                                             </a>
                                         )}
                                     </div>
@@ -194,7 +208,7 @@ const AdminBugsPage: React.FC = () => {
                 <Modal title={t('adminBugsPage.reviewBugReport', { id: selectedBug.id })} onClose={() => setIsActionModalOpen(false)}>
                     <div className="py-4 space-y-4 text-left">
                         <div className="text-sm space-y-3">
-                            <p><strong>{t('adminBugsPage.user')}:</strong> {selectedBug.profiles?.name} (@{selectedBug.profiles?.username})</p>
+                            <p><strong>{t('adminBugsPage.user')}:</strong> {selectedBug.profiles?.name || t('adminBugsPage.userNotFound')}{selectedBug.profiles?.username && ` (@${selectedBug.profiles.username})`}</p>
                             <p><strong>{t('adminBugsPage.errorPageURL')}:</strong> <a href={selectedBug.page_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{selectedBug.page_url || t('adminBugsPage.notProvided')}</a></p>
                              <div className="p-3 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border dark:border-zinc-600">
                                 <h4 className="font-semibold mb-1">{t('adminBugsPage.bugDescription')}</h4>

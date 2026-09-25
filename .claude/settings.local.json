@@ -34,6 +34,8 @@
       "Bash(git stash:*)",
       "Bash(ls:*)",
       "Bash(node scripts/fetch-sitemap.js:*)",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@72.60.90.135:*)",
+      "Bash(scp -i ~/.ssh/id_ed25519:*)",
       "PowerShell(code *)",
       "PowerShell(& \"$env:LOCALAPPDATA\\\\Programs\\\\Microsoft VS Code\\\\bin\\\\code.cmd\" --uninstall-extension anthropic.claude-code)"
     ],

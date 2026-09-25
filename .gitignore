@@ -12,10 +12,10 @@ dist
 dist-ssr
 *.local
 
-# Environment variables
-.env
-.env.local
-.env.production
+# Environment variables: cualquier .env* (.env.development, .env.staging,
+# .env.test, .env.docker...) salvo la plantilla sin secretos.
+.env*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -29,10 +29,18 @@ dist-ssr
 *.sw?
 nul
 
+# Capturas y trazas de Playwright MCP (se generan al verificar en navegador)
+.playwright-mcp/
+
 # Local scripts and test files
 scripts/reviews-injection/
 scripts/_*
 test-widgets.html
+# Copia del widget apuntando al Supabase local; la genera
+# scripts/local/preparar-widget.py a partir de public/widget.js
+scripts/local/widget-local.js
+scripts/local/ids.js
+scripts/local/capturas/
 
 # Supabase CLI temp files
 supabase/.temp/
@@ -41,3 +49,4 @@ supabase/.temp/
 .tmp-*.mjs
 .tmp-*.json
 .tmp-*.txt
+scripts/local/comparar/

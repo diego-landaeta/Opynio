@@ -32,3 +32,18 @@ export const matchesSearch = (text: string, searchTerm: string): boolean => {
   const normalizedSearch = removeAccents(searchTerm);
   return normalizedText.includes(normalizedSearch);
 };
+
+/**
+ * Escapes HTML special characters.
+ * Required for any user-provided value interpolated into a translation that is
+ * rendered with dangerouslySetInnerHTML (a profile name like
+ * `<img src=x onerror=...>` would otherwise run in the admin's session).
+ */
+export const escapeHtml = (value: unknown): string => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};

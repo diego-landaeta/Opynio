@@ -12,6 +12,8 @@ Documentación técnica de Opynio — plataforma de reseñas verificadas.
 | 04 | [Integración Stripe](./04-STRIPE-INTEGRATION.md) | Suscripciones, checkout, webhooks, modelo de facturación. |
 | 05 | [Widget](./05-WIDGET.md) | Widget `stars-carousel` (SEO + bot path) y plan futuro de Shadow DOM. |
 | 06 | [SEO y rendimiento](./06-SEO-AND-PERFORMANCE.md) | Política de noindex, Soft 404, optimización de bundle, Lighthouse. |
+| 07 | [Release: productos reseñables](./07-RELEASE-PRODUCTOS.md) | Qué lleva la rama de productos, qué se verificó y qué no. |
+| — | [Despliegue septiembre 2026](./DESPLIEGUE-2026-09.md) | Runbook del despliegue de la rama de productos: bloqueos, orden exacto, comandos, verificación y vuelta atrás por paso. |
 
 ## Playbooks
 

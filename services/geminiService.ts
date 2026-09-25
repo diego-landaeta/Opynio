@@ -1,11 +1,29 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 import type { AiInsight } from '../types';
 
-// IMPORTANT: This uses process.env.API_KEY. 
-// This environment variable must be set in the execution environment.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+// IA DESACTIVADA EN EL CLIENTE, a proposito y de forma fija.
+//
+// Antes AI_ENABLED dependia de una variable VITE_ con la clave de Gemini y el SDK se
+// instanciaba con esa clave: todo lo VITE_* se compila al bundle publico, asi
+// que definirla habria publicado la clave de Gemini a cualquier visitante.
+// Ya no se lee ninguna clave aqui.
+//
+// Para reactivar la IA (resumen de la ficha, "Generar con IA", sugerencias de
+// respuesta, busqueda IA) hay que llamarla via una Edge Function de Supabase que
+// use GEMINI_API_KEY del servidor (ese secret ya existe en produccion y lo usan
+// process-scraping-queue y approve-and-process-now), y solo entonces cambiar
+// esto. La UI oculta esas funciones mientras AI_ENABLED sea false.
+export const AI_ENABLED: boolean = false;
 
-const insightSchema = {
+// Tipos del SDK solo para las firmas (import type: no entra en el bundle).
+type GenAIType = typeof import("@google/genai").Type;
+const IA_SOLO_EN_SERVIDOR = 'La IA se ejecuta solo en el servidor (Edge Function con GEMINI_API_KEY); no hay cliente de Gemini en el navegador.';
+// Nunca crea un GoogleGenAI en el navegador: las funciones de abajo fallan con
+// su error habitual (la UI no las llama porque AI_ENABLED es false).
+const cargarGenAI = (): Promise<{ ai: GoogleGenAI; Type: GenAIType }> =>
+    Promise.reject(new Error(IA_SOLO_EN_SERVIDOR));
+
+const insightSchema = (Type: GenAIType) => ({
     type: Type.OBJECT,
     properties: {
         good_points: {
@@ -28,7 +46,7 @@ const insightSchema = {
         }
     },
     required: ["good_points", "improvement_points", "emotional_tone", "recommendation_level"]
-};
+});
 
 
 export const getBusinessInsights = async (businessDescription: string, reviews: string[]): Promise<AiInsight> => {
@@ -51,12 +69,13 @@ export const getBusinessInsights = async (businessDescription: string, reviews: 
     `;
 
     try {
+        const { ai, Type } = await cargarGenAI();
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
-                responseSchema: insightSchema,
+                responseSchema: insightSchema(Type),
                 temperature: 0.2,
             },
         });
@@ -72,7 +91,7 @@ export const getBusinessInsights = async (businessDescription: string, reviews: 
     }
 };
 
-const replySchema = {
+const replySchema = (Type: GenAIType) => ({
     type: Type.OBJECT,
     properties: {
         replies: {
@@ -82,7 +101,7 @@ const replySchema = {
         }
     },
     required: ["replies"]
-};
+});
 
 
 export const getSuggestedReplies = async (reviewText: string, rating: number): Promise<string[]> => {
@@ -99,12 +118,13 @@ export const getSuggestedReplies = async (reviewText: string, rating: number): P
     `;
 
     try {
+        const { ai, Type } = await cargarGenAI();
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
-                responseSchema: replySchema,
+                responseSchema: replySchema(Type),
                 temperature: 0.7, // A bit more creative for replies
             },
         });
@@ -121,7 +141,7 @@ export const getSuggestedReplies = async (reviewText: string, rating: number): P
 };
 
 
-const reviewDraftSchema = {
+const reviewDraftSchema = (Type: GenAIType) => ({
     type: Type.OBJECT,
     properties: {
         title: {
@@ -134,7 +154,7 @@ const reviewDraftSchema = {
         }
     },
     required: ["title", "reviewText"]
-};
+});
 
 export const generateReviewDraft = async (keyPoints: string, businessName: string, rating: number): Promise<{ title: string; reviewText: string }> => {
     const prompt = `
@@ -154,12 +174,13 @@ export const generateReviewDraft = async (keyPoints: string, businessName: strin
     `;
 
     try {
+        const { ai, Type } = await cargarGenAI();
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
-                responseSchema: reviewDraftSchema,
+                responseSchema: reviewDraftSchema(Type),
                 temperature: 0.8, // More creative for review writing
             },
         });
@@ -175,7 +196,7 @@ export const generateReviewDraft = async (keyPoints: string, businessName: strin
     }
 };
 
-const searchQuerySchema = {
+const searchQuerySchema = (Type: GenAIType) => ({
     type: Type.OBJECT,
     properties: {
         searchTerm: {
@@ -188,7 +209,7 @@ const searchQuerySchema = {
         }
     },
     required: ["searchTerm", "category"]
-};
+});
 
 export const generateSearchQueryFromPrompt = async (prompt: string): Promise<{ searchTerm: string; category: string; }> => {
     const fullPrompt = `
@@ -203,12 +224,13 @@ export const generateSearchQueryFromPrompt = async (prompt: string): Promise<{ s
     `;
 
     try {
+        const { ai, Type } = await cargarGenAI();
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: fullPrompt,
             config: {
                 responseMimeType: "application/json",
-                responseSchema: searchQuerySchema,
+                responseSchema: searchQuerySchema(Type),
                 temperature: 0.1,
             },
         });
@@ -238,94 +260,5 @@ export const generateSearchQueryFromPrompt = async (prompt: string): Promise<{ s
     }
 };
 
-const memoryCache = new Map<string, string>();
-
-const GOOGLE_LANG_CODES: { [key: string]: string } = {
-    'en': 'en',
-    'gb': 'en',
-    'au': 'en',
-    'sg': 'en',
-    'ie': 'en',
-    'ko': 'ko',
-    'ar': 'ar',
-    'nl': 'nl',
-    'ru': 'ru',
-    'id': 'id',
-    'ms': 'ms',
-    'tw': 'zh-TW',
-    'th': 'th',
-    'fa': 'fa',
-    'vi': 'vi',
-    'bn': 'bn',
-    'hi': 'hi',
-    'tl': 'tl',
-    'br': 'pt',
-    'pt': 'pt',
-    'fr': 'fr',
-    'de': 'de',
-    'at': 'de',
-    'it': 'it',
-    'ca': 'ca',
-    'cn': 'zh-CN',
-    'sv': 'sv',
-    'pl': 'pl',
-    'ja': 'ja',
-    'es': 'es',
-    'tr': 'tr',
-};
-
-// Simple hash for cache keys (fast, collision-resistant enough for translations)
-function hashText(text: string): string {
-    let h = 0;
-    for (let i = 0; i < text.length; i++) {
-        h = ((h << 5) - h + text.charCodeAt(i)) | 0;
-    }
-    return h.toString(36);
-}
-
-export const translateText = async (text: string, targetLanguage: string = 'en'): Promise<string> => {
-    if (!text) return text;
-
-    const targetCode = GOOGLE_LANG_CODES[targetLanguage] || targetLanguage;
-    const memKey = `${text}_${targetCode}`;
-
-    // L1: Memory cache (instant)
-    if (memoryCache.has(memKey)) return memoryCache.get(memKey)!;
-
-    const textHash = hashText(text);
-
-    // L2: Supabase cache (persistent across sessions/users)
-    try {
-        const { getCachedTranslation } = await import('./supabaseService');
-        const cached = await getCachedTranslation(textHash, targetCode);
-        if (cached) {
-            memoryCache.set(memKey, cached);
-            return cached;
-        }
-    } catch { /* Supabase unavailable, continue to Google */ }
-
-    // L3: Google Translate
-    try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
-        const segments = data?.[0];
-        if (!Array.isArray(segments)) throw new Error('Unexpected response format');
-
-        const translated = segments.map((seg: any[]) => seg[0]).join('').trim();
-        if (!translated) throw new Error('Empty translation');
-
-        memoryCache.set(memKey, translated);
-
-        // Persist to Supabase in background (best effort)
-        import('./supabaseService')
-            .then(({ setCachedTranslation }) => setCachedTranslation(textHash, text, targetCode, translated))
-            .catch(() => {});
-
-        return translated;
-    } catch {
-        return text;
-    }
-};
+// Re-export por compatibilidad: la traduccion vive en translateService.ts.
+export { translateText } from './translateService';
