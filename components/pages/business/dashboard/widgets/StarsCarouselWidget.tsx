@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
 const DEMO_REVIEWS = [
@@ -15,7 +17,7 @@ const DEMO_REVIEWS = [
     { id: 3, original_author_name: "Laura Gómez", rating: 5 },
 ];
 
-export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
     const reviewCount = business.review_count || 123;
@@ -94,6 +96,7 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
                         onClick={(e) => e.preventDefault()}
                     >
                         <div className="opynio-stars-carousel-cta">
+                            <ProductPillSlot label={s.productBadge} name={productName} />
                             <div className="opynio-stars-carousel-score">{score}</div>
                             <div className="opynio-stars-carousel-score-stars">
                                 <StaticStarRating rating={business.avg_rating || 5} />

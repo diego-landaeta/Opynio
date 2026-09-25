@@ -9,9 +9,10 @@ interface PreviewProps {
     theme: 'light' | 'dark';
     lang: string;
     isProduct?: boolean;
+    productName?: string;
 }
 
-export const FloatingPreview: React.FC<PreviewProps> = ({ business, theme, lang, isProduct }) => {
+export const FloatingPreview: React.FC<PreviewProps> = ({ business, theme, lang, isProduct, productName }) => {
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
 
     return (
@@ -24,7 +25,7 @@ export const FloatingPreview: React.FC<PreviewProps> = ({ business, theme, lang,
                     <span style={{ fontSize: '0.75rem', color: 'var(--subtext-color)', marginLeft: '4px' }}>({business.review_count || 0})</span>
                 </div>
                 {/* Como en widget.js: el flotante es un boton, el distintivo va dentro. */}
-                {isProduct && <ProductPill label={getPreviewStrings(lang).productBadge} name={business.name} />}
+                {isProduct && <ProductPill label={getPreviewStrings(lang).productBadge} name={productName} />}
             </div>
         </div>
     );

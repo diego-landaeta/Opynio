@@ -18,7 +18,7 @@ export interface WidgetConfig {
     description: string;
     // isProduct: widget de producto (data-product-id). Solo lo usan las vistas
     // que llevan el distintivo dentro (escaparate y flotante).
-    component: React.FC<{ business: Business, theme: 'light' | 'dark', lang: string, isProduct?: boolean }>;
+    component: React.FC<{ business: Business, theme: 'light' | 'dark', lang: string, isProduct?: boolean, productName?: string }>;
     type: string;
 }
 
@@ -105,14 +105,9 @@ export const WIDGET_CSS = `
     .opynio-platform-badge svg { width: 100%; height: 100%; }
     a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
 
-    /* Cabecera del widget de producto: identica a la de public/widget.js. */
-    .opynio-subject-header { margin: 0 0 14px 0; padding: 0; text-align: left; }
-    .opynio-subject-label { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtext-color); margin-bottom: 2px; }
-    .opynio-subject-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; color: var(--text-color); }
-    .opynio-subject-header.opynio-subject-compact .opynio-subject-name { font-size: 1rem; }
-    /* Distintivo «Producto» (v6.10.7): identico al de public/widget.js. */
-    .opynio-subject-label-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
-    .opynio-subject-label-row .opynio-subject-label { margin-bottom: 0; }
+    /* Distintivo «Producto» dentro del widget: identico al de public/widget.js. */
+    .opynio-pill-slot { display: flex; justify-content: center; margin: 0 0 10px 0; }
+    .opynio-pill-slot.opynio-pill-slot-start { justify-content: flex-start; }
     .opynio-product-pill { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px solid rgba(0, 182, 122, 0.35); background: rgba(0, 182, 122, 0.1); color: #047857 !important; font-size: 0.6875rem; font-weight: 700; line-height: 1.35; letter-spacing: 0.02em; text-transform: none; white-space: nowrap; vertical-align: middle; }
     .opynio-product-pill svg { width: 12px; height: 12px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
     .opynio-product-pill svg circle { fill: currentColor; stroke: none; }
@@ -822,7 +817,7 @@ export function useTranslatedReviews<T extends Record<string, any>>(
 // The `?v=` query param in the script URL acts as cache-buster: a new bump
 // forces visitors' browsers to redownload widget.js on first load instead of
 // serving a stale cached copy from previous versions.
-const EMBED_VERSION = 'v6.10.7';
+const EMBED_VERSION = 'v6.10.8';
 
 // `productId` es opcional. Sin él, el snippet es exactamente el de siempre y el
 // widget muestra la empresa entera. Con él, el widget muestra la nota y las

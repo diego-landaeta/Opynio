@@ -4,8 +4,7 @@ import { ReviewSubject } from '../../../../types';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import Spinner from '../../../Spinner';
-import { getWidgetScript, getPreviewStrings, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
-import { ProductPill } from './widgets/ProductPill';
+import { getWidgetScript, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
 import { getBusinessProducts } from '../../../../services/supabaseService';
 import { useTranslation, useI18n } from '../../../../contexts/i18nContext';
 import SectionLock from './SectionLock';
@@ -190,11 +189,10 @@ const DashboardWidgets: React.FC = () => {
     // un producto elegido, sus cifras. Si no, un preview que dice una cosa y un
     // snippet que hace otra.
     const previewTarget = selectedProduct
-        ? { ...business, name: selectedProduct.name, avg_rating: selectedProduct.avg_rating ?? 0, average_rating: selectedProduct.avg_rating ?? 0, review_count: selectedProduct.review_count ?? 0 }
+        ? { ...business, avg_rating: selectedProduct.avg_rating ?? 0, average_rating: selectedProduct.avg_rating ?? 0, review_count: selectedProduct.review_count ?? 0 }
         : business;
 
     const previewLang = widgetLang !== 'auto' ? widgetLang : language;
-    const previewStrings = getPreviewStrings(previewLang);
 
     const productLabel = selectedProduct
         ? (selectedProduct.code ? `${selectedProduct.name} [${selectedProduct.code}]` : selectedProduct.name)
@@ -357,24 +355,7 @@ const DashboardWidgets: React.FC = () => {
                             </p>
                         )}
                         <div className={`p-3 sm:p-4 rounded-lg overflow-x-auto ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
-                            {/* Misma cabecera que pinta el widget publicado (v6.7.0),
-                                con su distintivo «Producto» (v6.10.7) y en el idioma
-                                del widget: si la previsualizacion no la enseña,
-                                promete menos de lo que el cliente va a pegar.
-                                'floating' y 'showcase' no la llevan, como en
-                                widget.js: el distintivo va dentro de su vista. */}
-                            {selectedProduct && selectedWidget.type !== 'floating' && selectedWidget.type !== 'showcase' && (
-                                <div className={`opynio-widget opynio-theme-${theme}`}>
-                                    <div className={`opynio-subject-header${selectedWidget.type === 'badge' || selectedWidget.type === 'sidebar' ? ' opynio-subject-compact' : ''}`}>
-                                        <div className="opynio-subject-label-row">
-                                            <ProductPill label={previewStrings.productBadge} name={selectedProduct.name} />
-                                            <span className="opynio-subject-label">{previewStrings.reviewsOf}</span>
-                                        </div>
-                                        <span className="opynio-subject-name">{selectedProduct.name}</span>
-                                    </div>
-                                </div>
-                            )}
-                            <selectedWidget.component business={previewTarget} theme={theme} lang={previewLang} isProduct={!!selectedProduct} />
+                            <selectedWidget.component business={previewTarget} theme={theme} lang={previewLang} isProduct={!!selectedProduct} productName={selectedProduct?.name} />
                         </div>
                     </div>
 

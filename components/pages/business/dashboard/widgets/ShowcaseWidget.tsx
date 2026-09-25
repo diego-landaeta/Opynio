@@ -9,6 +9,7 @@ interface PreviewProps {
     theme: 'light' | 'dark';
     lang: string;
     isProduct?: boolean;
+    productName?: string;
 }
 
 const DEMO_REVIEWS = [
@@ -16,7 +17,7 @@ const DEMO_REVIEWS = [
     { id: 2, name: "Carlos S.", rating: 5, text: "El resultado final superó mis expectativas. Gran profesionalidad y comunicación fluida.", source: 'opynio', title: "Diseño limpio y profesional" },
 ];
 
-export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang, isProduct }) => {
+export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang, isProduct, productName }) => {
     const s = getPreviewStrings(lang);
     const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'text']);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
@@ -29,7 +30,7 @@ export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang,
                         {isProduct ? (
                             <div className="opynio-showcase-title-row">
                                 <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '0.25rem' }}>{business.name}</h2>
-                                <ProductPill label={s.productBadge} name={business.name} />
+                                <ProductPill label={s.productBadge} name={productName} />
                             </div>
                         ) : (
                             <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '0.25rem' }}>{business.name}</h2>

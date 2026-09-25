@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.10.7
+ * Opynio Widget Loader v6.10.8
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -40,6 +40,11 @@
  *    Si el widget-proxy no responde (red caida o mas de 10 s), se reintenta
  *    una vez y, si vuelve a fallar, el widget no se pinta (aviso en consola)
  *    en lugar de ensenar al visitante «Error Opynio: signal is aborted...».
+ *  - v6.10.8: sin cabecera externa «Resenas de» + nombre: el distintivo va DENTRO de
+ *    cada widget (panel de la nota en los carruseles, tarjeta en insignia y
+ *    barra lateral, encima de las tarjetas en cuadricula y muro) y el nombre
+ *    del producto solo sale en su tooltip. El widget conserva el nombre de la
+ *    empresa, que tambien arregla el enlace de empresas sin slug.
  *
  * Isolation (v6.4.0):
  *  - Human path renders inside a Shadow DOM attached to each widget element.
@@ -73,7 +78,7 @@
     // Version de ESTE fichero. Tiene que coincidir con la cabecera de arriba,
     // con EMBED_VERSION (widgetShared.ts) y con la del widget-proxy.
     // `npm run check:widget` lo comprueba; no te fies de la memoria.
-    var WIDGET_VERSION = 'v6.10.7';
+    var WIDGET_VERSION = 'v6.10.8';
 
     // URL desde la que se cargo este script. Hace falta para poder recargarse a
     // si mismo si el servidor esta sirviendo una version mas nueva.
@@ -177,18 +182,11 @@
         .opynio-platform-badge svg { width: 100%; height: 100%; }
         a.opynio-widget-link { text-decoration: none; color: inherit; display: block; }
 
-    /* Cabecera del widget de producto: dice de que es la nota. */
-    .opynio-subject-header { margin: 0 0 14px 0; padding: 0; text-align: left; }
-    .opynio-subject-label { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtext-color); margin-bottom: 2px; }
-    .opynio-subject-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; color: var(--text-color); }
-    .opynio-subject-header.opynio-subject-compact .opynio-subject-name { font-size: 1rem; }
-    @media (max-width: 480px) {
-        .opynio-subject-name { font-size: 1.1rem; }
-    }
     /* Distintivo «Producto» (v6.10.7): deja claro que la nota es de un
-       producto y no de la empresa. Solo se pinta con data-product-id. */
-    .opynio-subject-label-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
-    .opynio-subject-label-row .opynio-subject-label { margin-bottom: 0; }
+       producto y no de la empresa. Solo se pinta con data-product-id, dentro
+       del widget; el nombre del producto sale en su tooltip. */
+    .opynio-pill-slot { display: flex; justify-content: center; margin: 0 0 10px 0; }
+    .opynio-pill-slot.opynio-pill-slot-start { justify-content: flex-start; }
     .opynio-product-pill { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px solid rgba(0, 182, 122, 0.35); background: rgba(0, 182, 122, 0.1); color: #047857 !important; font-size: 0.6875rem; font-weight: 700; line-height: 1.35; letter-spacing: 0.02em; text-transform: none; white-space: nowrap; vertical-align: middle; }
     .opynio-product-pill svg { width: 12px; height: 12px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
     .opynio-product-pill svg circle { fill: currentColor; stroke: none; }
@@ -699,6 +697,13 @@
     // `name` es el nombre del producto (lo escribe el cliente): se escapa. Va en
     // aria-label, en title (respaldo si el tooltip no llega a montarse) y en
     // data-opynio-name, de donde lo lee el tooltip con textContent.
+    // Hueco del distintivo dentro de un widget; vacio si no es de producto.
+    function productPillSlot(business, s, align) {
+        if (!business || !business.producto_id) return '';
+        return '<div class="opynio-pill-slot' + (align === 'start' ? ' opynio-pill-slot-start' : '') + '">'
+            + productPillHtml(s, business.producto_nombre) + '</div>';
+    }
+
     function productPillHtml(s, name) {
         var rawLabel = (s && s.productBadge) || UI_STRINGS.en.productBadge;
         var label = escapeHtml(rawLabel);
@@ -1225,7 +1230,7 @@
     //   el:   the original host element — kept for dataset reads and host-level events
     var renderers = {
         'badge': function(root, el, business, reviews, s) {
-            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' ' + s.reviews + '</div></div></div></div></a>';
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div>' + productPillSlot(business, s, 'start') + '<div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + (business.avg_rating || 0).toFixed(1) + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + (business.review_count || 0) + ' ' + s.reviews + '</div></div></div></div></a>';
         },
 
         'floating': function(root, el, business, reviews, s) {
@@ -1243,7 +1248,7 @@
                     '<span class="opynio-floating-count">(' + (business.review_count || 0) + ')</span>' +
                     // Es un boton que enlaza fuera, no abre panel: el distintivo
                     // va en el propio boton (en movil, solo el icono).
-                    (business.producto_id ? productPillHtml(s, business.name) : '') +
+                    (business.producto_id ? productPillHtml(s, business.producto_nombre) : '') +
                   '</a>' +
                 '</div>';
 
@@ -1277,7 +1282,7 @@
         },
 
         'sidebar': function(root, el, business, reviews, s) {
-            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div><h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + getWriteReviewUrl(business) + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-sidebar"><div class="opynio-sidebar-brand">Opynio</div>' + productPillSlot(business, s) + '<h3>' + s.reviews + '</h3><div class="opynio-sidebar-summary"><div class="opynio-sidebar-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><p class="opynio-sidebar-total">' + (business.review_count || 0) + ' ' + s.reviews + '</p></div><span class="opynio-sidebar-cta" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + getWriteReviewUrl(business) + '\',\'_blank\',\'noopener,noreferrer\')">' + s.writeReview + '</span></div></a>';
         },
 
         'grid': function(root, el, business, reviews, s) {
@@ -1289,7 +1294,7 @@
                 }).join('');
                 root.querySelector('.opynio-grid').innerHTML = html;
             }
-            root.innerHTML = '<div><div class="opynio-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            root.innerHTML = '<div>' + productPillSlot(business, s, 'start') + '<div class="opynio-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
                 root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
@@ -1306,7 +1311,7 @@
                 }).join('');
                 root.querySelector('.opynio-wall').innerHTML = html;
             }
-            root.innerHTML = '<div><div class="opynio-wall"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            root.innerHTML = '<div>' + productPillSlot(business, s, 'start') + '<div class="opynio-wall"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
                 root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
@@ -1328,7 +1333,7 @@
             // marcado es exactamente el de siempre.
             var nameHtml = '<h2 class="opynio-showcase-biz-name">' + escapeHtml(business.name) + '</h2>';
             if (business.producto_id) {
-                nameHtml = '<div class="opynio-showcase-title-row">' + nameHtml + productPillHtml(s, business.name) + '</div>';
+                nameHtml = '<div class="opynio-showcase-title-row">' + nameHtml + productPillHtml(s, business.producto_nombre) + '</div>';
             }
             root.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div>' + nameHtml + '<p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
@@ -1340,7 +1345,7 @@
 
         'large-carousel': function(root, el, business, reviews, s) {
             if (reviews.length === 0) { root.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext-color);">' + s.noReviews + '</div>'; return; }
-            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-large-carousel"><div class="opynio-large-carousel-track">' + reviews.map(function(r) {
+            root.innerHTML = '<a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-large-carousel">' + productPillSlot(business, s) + '<div class="opynio-large-carousel-track">' + reviews.map(function(r) {
                 return '<div class="opynio-large-carousel-slide"><div class="opynio-large-carousel-quote-icon">"</div><h4 class="opynio-large-carousel-title">' + (r.title || '') + '</h4><div class="opynio-stars">' + generateStars(r.rating) + '</div><p>"' + (r.review_text || '') + '"</p><p class="author">— ' + (r.original_author_name || s.anonymous) + '</p></div>';
             }).join('') + '</div><div class="opynio-large-carousel-nav"><button class="opynio-large-carousel-btn prev">‹</button><button class="opynio-large-carousel-btn next">›</button></div></div></a>';
             var track = root.querySelector('.opynio-large-carousel-track'), idx = 0;
@@ -1369,7 +1374,7 @@
                 return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + initialHtml(r.raw.original_author_name || 'A') + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + seeMoreBtn + '</div>';
             }).join('');
 
-            root.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
+            root.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel">' + productPillSlot(business, s) + '<div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
 
             var track = root.querySelector('#track-' + business.id);
             var next = root.querySelector('.opynio-nav-next');
@@ -1426,6 +1431,7 @@
             var ratingText = !(business.review_count > 0) || validRating <= 0 ? '' : validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var ctaHTML = '<a href="' + businessUrl + '" target="_blank" rel="noopener nofollow" class="opynio-stars-carousel-cta-link">'
                         + '<div class="opynio-stars-carousel-cta">'
+                        +   productPillSlot(business, s)
                         +   '<div class="opynio-stars-carousel-score">' + rating + '</div>'
                         +   '<div class="opynio-stars-carousel-score-stars opynio-stars">' + generateStars(validRating) + '</div>'
                         +   '<div class="opynio-stars-carousel-count"><strong>' + count + '</strong> ' + s.reviews + '</div>'
@@ -1538,14 +1544,16 @@
             // relevo y repinta: este se retira sin dibujar nada a medias.
             if (maybeSelfUpdate(data)) return;
 
-            // Vista que consumen los 9 renderers. Con data-product-id, el nombre
-            // y las cifras son las del producto; la identidad de la empresa
+            // Vista que consumen los 9 renderers. Con data-product-id, las
+            // cifras son las del producto; la identidad de la empresa
             // (slug, pais, logo) y por tanto el enlace se mantienen: el producto
             // no tiene ficha propia en Opynio, se enlaza la de la empresa.
             var view = data.business;
             if (data.product) {
                 view = Object.assign({}, data.business, {
-                    name: data.product.name,
+                    // El nombre sigue siendo el de la empresa; el del producto
+                    // solo se ve en el tooltip del distintivo.
+                    producto_nombre: data.product.name,
                     avg_rating: data.product.avg_rating,
                     review_count: data.product.review_count,
                     // Solo lo usa getWriteReviewUrl: el formulario llega con el
@@ -1579,33 +1587,10 @@
             // titulo ejecutaba codigo en la web de cada cliente con el widget.
             reviews = reviews.map(escapeReviewForHtml);
 
-            // Widget de producto: se presenta con el nombre, porque una nota
-            // suelta no dice de que es. Se excluye 'floating', que es un boton
-            // fijo en una esquina y no tiene sitio para una cabecera.
+            // Widget de producto: el distintivo lo pinta cada renderer dentro
+            // del widget; aqui solo se engancha su tooltip con el nombre.
             var target = root;
-            // Tooltip del distintivo con el nombre del producto (9 tipos).
             if (data.product) wireProductTips(root);
-            // 'showcase' tampoco: su cabecera ya muestra el nombre (salia repetido)
-            // y lleva el distintivo al lado. Salvo si no hay resenas: entonces no
-            // se pinta el escaparate, solo el aviso, y sin cabecera no se sabria
-            // de que producto es.
-            if (data.product && type !== 'floating' && (type !== 'showcase' || reviews.length === 0)) {
-                root.innerHTML = '';
-                var header = document.createElement('div');
-                header.className = 'opynio-subject-header' + (type === 'badge' || type === 'sidebar' ? ' opynio-subject-compact' : '');
-                // El nombre lo escribe el cliente: se escapa siempre.
-                // Distintivo «Producto» + «Resenas de» en la misma linea: apenas
-                // suma alto a la cabecera (ver SUBJECT_HEADER_HEIGHT).
-                header.innerHTML = '<div class="opynio-subject-label-row">' + productPillHtml(s, data.product.name)
-                    + '<span class="opynio-subject-label">' + escapeHtml(s.reviewsOf || '') + '</span></div>'
-                    // title: el nombre completo sigue disponible aunque el CSS lo acote.
-                    + '<span class="opynio-subject-name" title="' + escapeHtml(data.product.name || '') + '">'
-                    + escapeHtml(data.product.name || '') + '</span>';
-                root.appendChild(header);
-                target = document.createElement('div');
-                root.appendChild(target);
-            }
-
             // Widgets that only need metrics
             if (['badge', 'floating', 'sidebar'].indexOf(type) !== -1) {
                 renderers[type](target, el, view, [], s);
@@ -1615,7 +1600,9 @@
             // Widgets that need reviews — these handle the empty case themselves (SEO-safe fallback).
             var SELF_HANDLED_EMPTY = ['stars-carousel'];
             if (reviews.length === 0 && SELF_HANDLED_EMPTY.indexOf(type) === -1) {
-                target.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + s.noReviewsText + '</div>';
+                // Con producto, el aviso lleva el distintivo: sin el no se sabria
+                // que el vacio es de ese producto y no de la empresa.
+                target.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--subtext-color);">' + productPillSlot(view, s) + s.noReviewsText + '</div>';
                 return;
             }
 
@@ -1725,16 +1712,11 @@
         return true;
     }
 
-    // Alto maximo de la cabecera del widget de producto: etiqueta + nombre a dos
-    // lineas + margen inferior. El nombre esta acotado por CSS a dos lineas
-    // justamente para que este numero sea un techo y no una estimacion: medido
-    // en 76px con un nombre de 124 caracteres a 375px de ancho. Se reserva 80
-    // para tener holgura. Pasarse solo deja hueco en blanco; quedarse corto
-    // empuja el contenido del cliente, que es lo que hay que evitar.
-    // v6.10.7: el distintivo «Producto» comparte linea con «Resenas de» pero es
-    // mas alto que el texto: el techo medido pasa a 89px (nombre de 140
-    // caracteres a dos lineas en un contenedor de 420px de ancho). Se reserva 90.
-    var SUBJECT_HEADER_HEIGHT = 90;
+    // Alto que suma el distintivo «Producto» dentro del widget: una linea de
+    // pastilla (~22px) mas su margen. En cuadricula y muro va encima de las
+    // tarjetas; en el resto crece el panel de la nota. Pasarse solo deja algo
+    // de hueco; quedarse corto empuja el contenido del cliente.
+    var SUBJECT_HEADER_HEIGHT = 34;
 
     function reserveSpace(el) {
         if (el.dataset.reserved) return;
@@ -1743,8 +1725,8 @@
         // 'floating' is position:fixed, so it neither pushes host content nor depends
         // on the container width; skip both reservations.
         if (type === 'floating') return;
-        // Un widget de producto pinta cabecera encima del cuerpo: si no se reserva,
-        // el widget crece al cargar y desplaza lo que el cliente tenga debajo.
+        // El distintivo de producto suma alto: si no se reserva, el widget
+        // crece al cargar y desplaza lo que el cliente tenga debajo.
         var minHeight = minHeightForType(type) + (el.dataset.productId ? SUBJECT_HEADER_HEIGHT : 0);
         el.__opynioMinHeightSet = applyIfUnset(el, 'minHeight', minHeight + 'px') === true;
         // Every value is <= 300px on purpose: it fits a 320px phone without forcing

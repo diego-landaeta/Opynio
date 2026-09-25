@@ -107,3 +107,14 @@ export const ProductPill: React.FC<{ label: string; name?: string }> = ({ label,
         </>
     );
 };
+
+// Hueco del distintivo dentro del widget, como productPillSlot() en
+// public/widget.js. Sin producto no pinta nada.
+export const ProductPillSlot: React.FC<{ label: string; name?: string; align?: 'center' | 'start' }> = ({ label, name, align = 'center' }) => {
+    if (!name) return null;
+    return (
+        <div className={`opynio-pill-slot${align === 'start' ? ' opynio-pill-slot-start' : ''}`}>
+            <ProductPill label={label} name={name} />
+        </div>
+    );
+};
