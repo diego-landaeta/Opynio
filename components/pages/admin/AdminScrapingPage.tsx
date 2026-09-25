@@ -8,6 +8,7 @@ import Spinner from '../../Spinner';
 import { CATEGORIES, COUNTRIES } from '../../../constants';
 import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
 
 const ITEMS_PER_PAGE = 25;
 
@@ -456,6 +457,7 @@ const AdminScrapingPage: React.FC = () => {
     return (
         <>
             <Meta title={t('adminScrapingPage.title') + " - Admin - Opynio"} description={t('adminScrapingPage.title')} />
+            <AdminBackLink />
             <div className="space-y-10">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminScrapingPage.title')}</h1>
 
@@ -916,14 +918,14 @@ const AdminScrapingPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                {instantScrapeProgress.errors.length > 0 && (
+                                {(instantScrapeProgress.errors?.length ?? 0) > 0 && (
                                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
                                         <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
                                             <i className="fa-solid fa-triangle-exclamation mr-2"></i>
-                                            Errores ({instantScrapeProgress.errors.length}):
+                                            Errores ({(instantScrapeProgress.errors?.length ?? 0)}):
                                         </h4>
                                         <ul className="text-xs text-red-700 dark:text-red-400 list-disc list-inside max-h-40 overflow-y-auto">
-                                            {instantScrapeProgress.errors.map((err: string, idx: number) => (
+                                            {(instantScrapeProgress.errors ?? []).map((err: string, idx: number) => (
                                                 <li key={idx}>{err}</li>
                                             ))}
                                         </ul>

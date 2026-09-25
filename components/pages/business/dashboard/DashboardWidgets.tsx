@@ -1,14 +1,20 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
-import { useAuth } from '../../../../contexts/AuthContext';
-import { Plan, ReviewSubject } from '../../../../types';
+import { ReviewSubject } from '../../../../types';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import Spinner from '../../../Spinner';
-import { getWidgetScript, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
+import { getWidgetScript, getPreviewStrings, WidgetConfig, WIDGET_CSS } from './widgets/widgetShared';
+import { ProductPill } from './widgets/ProductPill';
 import { getBusinessProducts } from '../../../../services/supabaseService';
-import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
+import { useTranslation, useI18n } from '../../../../contexts/i18nContext';
+import SectionLock from './SectionLock';
 
+// `code` va tal cual al snippet como data-lang, y lo interpreta public/widget.js
+// (no la app): tiene que ser un codigo que el widget entienda. Los de pais que
+// usa la app (gb, au, sg, ie, at, cn, br) el widget los resuelve a su idioma;
+// 'tw' NO: para Google es twi (Ghana). Por eso el chino tradicional es 'zh-TW'.
+// Con textos propios en UI_STRINGS de widget.js: todos los de esta lista.
 const WIDGET_LANGUAGES = [
     { code: 'auto', name: '', flag: '' },
     { code: 'es', name: 'Español', flag: 'https://flagcdn.com/es.svg' },
@@ -23,7 +29,7 @@ const WIDGET_LANGUAGES = [
     { code: 'it', name: 'Italiano', flag: 'https://flagcdn.com/it.svg' },
     { code: 'pt', name: 'Português', flag: 'https://flagcdn.com/pt.svg' },
     { code: 'ca', name: 'Català', flag: 'https://flagcdn.com/ad.svg' },
-    { code: 'zh-CN', name: '中文', flag: 'https://flagcdn.com/cn.svg' },
+    { code: 'zh-CN', name: '简体中文', flag: 'https://flagcdn.com/cn.svg' },
     { code: 'sv', name: 'Svenska', flag: 'https://flagcdn.com/se.svg' },
     { code: 'pl', name: 'Polski', flag: 'https://flagcdn.com/pl.svg' },
     { code: 'ja', name: '日本語', flag: 'https://flagcdn.com/jp.svg' },
@@ -31,11 +37,10 @@ const WIDGET_LANGUAGES = [
     { code: 'nl', name: 'Nederlands', flag: 'https://flagcdn.com/nl.svg' },
     { code: 'ru', name: 'Русский', flag: 'https://flagcdn.com/ru.svg' },
     { code: 'ar', name: 'العربية', flag: 'https://flagcdn.com/sa.svg' },
-    { code: 'nl', name: 'Nederlands', flag: 'https://flagcdn.com/nl.svg' },
-    { code: 'ru', name: 'Русский', flag: 'https://flagcdn.com/ru.svg' },
+    { code: 'tr', name: 'Türkçe', flag: 'https://flagcdn.com/tr.svg' },
     { code: 'id', name: 'Bahasa Indonesia', flag: 'https://flagcdn.com/id.svg' },
     { code: 'ms', name: 'Bahasa Melayu', flag: 'https://flagcdn.com/my.svg' },
-    { code: 'tw', name: '繁體中文', flag: 'https://flagcdn.com/tw.svg' },
+    { code: 'zh-TW', name: '繁體中文', flag: 'https://flagcdn.com/tw.svg' },
     { code: 'th', name: 'ไทย', flag: 'https://flagcdn.com/th.svg' },
     { code: 'fa', name: 'فارسی', flag: 'https://flagcdn.com/ir.svg' },
     { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/vn.svg' },
@@ -110,14 +115,6 @@ import { BadgePreview } from './widgets/BadgeWidget';
 import { WallPreview } from './widgets/WallWidget';
 import { StarsCarouselPreview } from './widgets/StarsCarouselWidget';
 
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
 
 type WidgetCardConfig = WidgetConfig & { icon: string };
 
@@ -133,26 +130,6 @@ const WIDGETS: WidgetCardConfig[] = [
     { name: 'badge', description: 'businessDashboard.widgetDescriptions.badge', component: BadgePreview, type: 'badge', icon: 'fa-award' },
 ];
 
-const FeatureLock: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { profile } = useAuth();
-    const { language } = useI18n();
-    const t = useTranslation();
-    if (!profile) return null;
-    const currentPlanLevel = PLAN_HIERARCHY[profile.plan];
-    const requiredPlanLevel = PLAN_HIERARCHY['starter'];
-    if (currentPlanLevel >= requiredPlanLevel) {
-        return <>{children}</>;
-    }
-    return (
-        <div className="text-center p-6 sm:p-8 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border-2 border-dashed dark:border-zinc-700">
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300 rounded-full w-14 h-14 sm:w-16 sm:h-16 inline-flex items-center justify-center shadow-sm border-4 border-white dark:border-zinc-800 mb-3 sm:mb-4"><i className="fa-solid fa-lock text-2xl sm:text-3xl"></i></div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{t('businessDashboard.widgetsLockFeatureName')}</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">{t('businessDashboard.widgetsLockSubtitle')}</p>
-            <ReactRouterDOM.Link to={`/${pathTranslations[language].pricing}`} className="mt-4 sm:mt-6 inline-block bg-brand-green text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-brand-green/30 text-base sm:text-lg">{t('businessDashboard.upgradePlanButton')}</ReactRouterDOM.Link>
-        </div>
-    );
-};
-
 const DashboardWidgets: React.FC = () => {
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
@@ -160,6 +137,10 @@ const DashboardWidgets: React.FC = () => {
     const { language } = useI18n();
     const [selectedWidget, setSelectedWidget] = useState<WidgetCardConfig>(WIDGETS[0]);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    // Buscador del selector de producto: con cientos de cursos el desplegable
+    // solo no se puede usar. El producto elegido se mantiene visible aunque no
+    // coincida con la busqueda.
+    const [productQuery, setProductQuery] = useState('');
     const [widgetLang, setWidgetLang] = useState<string>('auto');
     // '' = la empresa entera, que es el comportamiento de siempre.
     const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -212,6 +193,9 @@ const DashboardWidgets: React.FC = () => {
         ? { ...business, name: selectedProduct.name, avg_rating: selectedProduct.avg_rating ?? 0, average_rating: selectedProduct.avg_rating ?? 0, review_count: selectedProduct.review_count ?? 0 }
         : business;
 
+    const previewLang = widgetLang !== 'auto' ? widgetLang : language;
+    const previewStrings = getPreviewStrings(previewLang);
+
     const productLabel = selectedProduct
         ? (selectedProduct.code ? `${selectedProduct.name} [${selectedProduct.code}]` : selectedProduct.name)
         : undefined;
@@ -252,7 +236,7 @@ const DashboardWidgets: React.FC = () => {
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
             <style>{WIDGET_CSS}</style>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.webWidgetsTitle')}</h1>
-            <FeatureLock>
+            <SectionLock section="widgets" title={t('businessDashboard.widgetsLockFeatureName')} subtitleKey="businessDashboard.widgetsLockSubtitle">
                 <div className="space-y-5 sm:space-y-6">
                     {/* Paso 1: Galería visual de tarjetas */}
                     <div>
@@ -305,6 +289,16 @@ const DashboardWidgets: React.FC = () => {
                                         <i className="fa-solid fa-box-open mr-1.5 text-brand-green" aria-hidden="true"></i>
                                         {t('businessDashboard.widgetScopeTitle')}
                                     </h2>
+                                    {products.length > 10 && (
+                                        <input
+                                            type="search"
+                                            value={productQuery}
+                                            onChange={(e) => setProductQuery(e.target.value)}
+                                            placeholder={t('writeReviewPage.productSearchPlaceholder')}
+                                            aria-label={t('writeReviewPage.productSearchPlaceholder')}
+                                            className="w-full mb-2 min-h-[40px] text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                                        />
+                                    )}
                                     <select
                                         value={selectedProductId}
                                         onChange={(e) => setSelectedProductId(e.target.value)}
@@ -312,7 +306,12 @@ const DashboardWidgets: React.FC = () => {
                                         className="w-full min-h-[44px] text-sm rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green"
                                     >
                                         <option value="">{t('businessDashboard.widgetScopeWholeBusiness')}</option>
-                                        {products.map(product => (
+                                        {products.filter(product => {
+                                            if (product.id === selectedProductId) return true;
+                                            const normalizar = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                                            const texto = normalizar(`${product.code || ''} ${product.name}`);
+                                            return normalizar(productQuery.trim()).split(/\s+/).filter(Boolean).every(w => texto.includes(w));
+                                        }).map(product => (
                                             <option key={product.id} value={product.id}>
                                                 {product.code ? `[${product.code}] ` : ''}{product.name} ({(product.review_count ?? 0) > 0
                                                     ? `${(product.avg_rating ?? 0).toFixed(1)} · ${product.review_count}`
@@ -358,19 +357,24 @@ const DashboardWidgets: React.FC = () => {
                             </p>
                         )}
                         <div className={`p-3 sm:p-4 rounded-lg overflow-x-auto ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
-                            {/* Misma cabecera que pinta el widget publicado (v6.7.0):
-                                si la previsualizacion no la enseña, promete menos
-                                de lo que el cliente va a pegar en su web.
-                                'floating' es un boton fijo y no la lleva. */}
-                            {selectedProduct && selectedWidget.type !== 'floating' && (
+                            {/* Misma cabecera que pinta el widget publicado (v6.7.0),
+                                con su distintivo «Producto» (v6.10.7) y en el idioma
+                                del widget: si la previsualizacion no la enseña,
+                                promete menos de lo que el cliente va a pegar.
+                                'floating' y 'showcase' no la llevan, como en
+                                widget.js: el distintivo va dentro de su vista. */}
+                            {selectedProduct && selectedWidget.type !== 'floating' && selectedWidget.type !== 'showcase' && (
                                 <div className={`opynio-widget opynio-theme-${theme}`}>
                                     <div className={`opynio-subject-header${selectedWidget.type === 'badge' || selectedWidget.type === 'sidebar' ? ' opynio-subject-compact' : ''}`}>
-                                        <span className="opynio-subject-label">{t('businessDashboard.widgetSubjectLabel')}</span>
+                                        <div className="opynio-subject-label-row">
+                                            <ProductPill label={previewStrings.productBadge} name={selectedProduct.name} />
+                                            <span className="opynio-subject-label">{previewStrings.reviewsOf}</span>
+                                        </div>
                                         <span className="opynio-subject-name">{selectedProduct.name}</span>
                                     </div>
                                 </div>
                             )}
-                            <selectedWidget.component business={previewTarget} theme={theme} lang={widgetLang !== 'auto' ? widgetLang : language} />
+                            <selectedWidget.component business={previewTarget} theme={theme} lang={previewLang} isProduct={!!selectedProduct} />
                         </div>
                     </div>
 
@@ -409,7 +413,7 @@ const DashboardWidgets: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            </FeatureLock>
+            </SectionLock>
         </div>
     );
 };

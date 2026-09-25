@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.10.2
+ * Opynio Widget Loader v6.10.7
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -24,6 +24,22 @@
  *    y la resena queda asociada a el al publicarse.
  *  - v6.10.0: el widget de producto enlaza a la FICHA DEL PRODUCTO en Opynio
  *    (con su propia nota y su schema.org/Product), no a la de la empresa.
+ *  - v6.10.5: las resenas con comillas, «&» o emojis ya no salen con restos de
+ *    entidades («&quo…») al recortarse, ni con «&» como inicial del avatar.
+ *    Chino tradicional (data-lang="zh-TW"), indonesio, malayo, tailandes y
+ *    persa tienen textos propios en vez de traducirse al vuelo.
+ *  - v6.10.6: el widget de producto vuelve a enlazar a la ficha de la EMPRESA,
+ *    sin parametros: los productos ya no tienen URL propia (ni /producto/ ni
+ *    ?producto=). Sus resenas se ven con el filtro de productos de la ficha.
+ *  - v6.10.7: el widget de producto lleva un distintivo «Producto» (etiqueta
+ *    verde con icono) en los 9 tipos, traducido: junto a «Resenas de», junto
+ *    al nombre en el escaparate y dentro del boton flotante (en movil, solo
+ *    el icono). El de empresa no cambia.
+ *    Al pasar el raton, con el foco del teclado o al tocarlo, el distintivo
+ *    muestra el nombre del producto en un tooltip. Tocarlo no navega.
+ *    Si el widget-proxy no responde (red caida o mas de 10 s), se reintenta
+ *    una vez y, si vuelve a fallar, el widget no se pinta (aviso en consola)
+ *    en lugar de ensenar al visitante «Error Opynio: signal is aborted...».
  *
  * Isolation (v6.4.0):
  *  - Human path renders inside a Shadow DOM attached to each widget element.
@@ -57,7 +73,7 @@
     // Version de ESTE fichero. Tiene que coincidir con la cabecera de arriba,
     // con EMBED_VERSION (widgetShared.ts) y con la del widget-proxy.
     // `npm run check:widget` lo comprueba; no te fies de la memoria.
-    var WIDGET_VERSION = 'v6.10.2';
+    var WIDGET_VERSION = 'v6.10.7';
 
     // URL desde la que se cargo este script. Hace falta para poder recargarse a
     // si mismo si el servidor esta sirviendo una version mas nueva.
@@ -168,6 +184,38 @@
     .opynio-subject-header.opynio-subject-compact .opynio-subject-name { font-size: 1rem; }
     @media (max-width: 480px) {
         .opynio-subject-name { font-size: 1.1rem; }
+    }
+    /* Distintivo «Producto» (v6.10.7): deja claro que la nota es de un
+       producto y no de la empresa. Solo se pinta con data-product-id. */
+    .opynio-subject-label-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
+    .opynio-subject-label-row .opynio-subject-label { margin-bottom: 0; }
+    .opynio-product-pill { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px solid rgba(0, 182, 122, 0.35); background: rgba(0, 182, 122, 0.1); color: #047857 !important; font-size: 0.6875rem; font-weight: 700; line-height: 1.35; letter-spacing: 0.02em; text-transform: none; white-space: nowrap; vertical-align: middle; }
+    .opynio-product-pill svg { width: 12px; height: 12px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+    .opynio-product-pill svg circle { fill: currentColor; stroke: none; }
+    .opynio-theme-dark .opynio-product-pill { color: #6ee7b7 !important; background: rgba(0, 182, 122, 0.16); border-color: rgba(0, 182, 122, 0.45); }
+    .opynio-showcase-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+    .opynio-floating .opynio-product-pill { margin-left: -2px; }
+    /* Tooltip del distintivo: nombre del producto al pasar el raton, con foco
+       de teclado o al tocarlo. position:fixed calculada en JS (ver
+       showProductTip): no ocupa sitio en el flujo y no la recorta ningun
+       overflow:hidden. Solo anima la opacidad, para poder medirla. */
+    .opynio-product-pill { cursor: help; }
+    .opynio-product-pill:focus { outline: none; }
+    .opynio-product-pill:focus-visible { outline: 2px solid #00b67a; outline-offset: 2px; }
+    .opynio-product-tip { position: fixed; left: 0; top: 0; z-index: 2147483000; box-sizing: border-box; max-width: 280px; margin: 0; padding: 8px 12px; border-radius: 10px; background: #111827 !important; color: #f9fafb !important; font-size: 0.8125rem; font-weight: 600; font-style: normal; line-height: 1.4; letter-spacing: normal; text-transform: none; text-align: left; white-space: normal; overflow-wrap: anywhere; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s ease, visibility 0s linear 0.12s; }
+    .opynio-product-tip.opynio-tip-visible { opacity: 1; visibility: visible; transition: opacity 0.12s ease; }
+    .opynio-product-tip::after { content: ''; position: absolute; left: var(--opynio-tip-arrow, 50%); width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+    .opynio-product-tip[data-placement="top"]::after { bottom: -4px; }
+    .opynio-product-tip[data-placement="bottom"]::after { top: -4px; }
+    .opynio-theme-dark .opynio-product-tip { background: #f9fafb !important; color: #111827 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+    @media (prefers-reduced-motion: reduce) {
+        .opynio-product-tip, .opynio-product-tip.opynio-tip-visible { transition: none; }
+    }
+    /* En movil el boton flotante no tiene sitio para el texto: queda el icono,
+       y el texto sigue ahi para lectores de pantalla. */
+    @media (max-width: 400px) {
+        .opynio-floating .opynio-product-pill { padding: 3px; }
+        .opynio-floating .opynio-product-pill-text { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     }
 
         /* Horizontal Carousel */
@@ -614,7 +662,185 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // `raw` conserva el texto sin escapar: recortar o sacar la inicial de un
+    // texto YA escapado partia entidades («&quo…») y daba «&» como inicial.
+    // Se recorta el crudo y se escapa despues (excerptHtml / initialHtml).
+    function escapeReviewForHtml(r) {
+        return Object.assign({}, r, {
+            title: r.title == null ? r.title : escapeHtml(r.title),
+            review_text: r.review_text == null ? r.review_text : escapeHtml(r.review_text),
+            original_author_name: r.original_author_name == null ? r.original_author_name : escapeHtml(r.original_author_name),
+            raw: { title: r.title, review_text: r.review_text, original_author_name: r.original_author_name }
+        });
+    }
+
+    // Primeros `max` caracteres del texto crudo, escapados, con '...' si se
+    // corto. Array.from cuenta caracteres enteros: no parte un emoji en dos.
+    function excerptHtml(raw, max) {
+        var chars = Array.from(raw == null ? '' : String(raw));
+        return chars.length > max ? escapeHtml(chars.slice(0, max).join('')) + '...' : escapeHtml(chars.join(''));
+    }
+
+    // Inicial del avatar a partir del nombre crudo, escapada.
+    function initialHtml(raw) {
+        return escapeHtml((Array.from(raw == null ? '' : String(raw))[0] || '').toUpperCase());
+    }
+
+    // Distintivo «Producto» con icono de etiqueta. Solo para widgets con
+    // data-product-id; el texto sale de UI_STRINGS (productBadge).
+    var TAG_ICON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        + '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>'
+        + '<circle cx="7" cy="7" r="1.6"/></svg>';
+
+    // `name` es el nombre del producto (lo escribe el cliente): se escapa. Va en
+    // aria-label, en title (respaldo si el tooltip no llega a montarse) y en
+    // data-opynio-name, de donde lo lee el tooltip con textContent.
+    function productPillHtml(s, name) {
+        var rawLabel = (s && s.productBadge) || UI_STRINGS.en.productBadge;
+        var label = escapeHtml(rawLabel);
+        var safeName = escapeHtml(name || '');
+        var aria = escapeHtml(name ? rawLabel + ': ' + name : rawLabel);
+        return '<span class="opynio-product-pill" tabindex="0" aria-label="' + aria + '"'
+            + (name ? ' title="' + safeName + '" data-opynio-name="' + safeName + '"' : '') + '>'
+            + TAG_ICON_SVG
+            + '<span class="opynio-product-pill-text" aria-hidden="true">' + label + '</span></span>';
+    }
+
+    // ---------------------------------------------------------------
+    // Tooltip del distintivo (v6.10.7)
+    // ---------------------------------------------------------------
+    // Uno por widget, colgado del root (no de la pastilla: el boton flotante
+    // se escala al pasar el raton y arrastraria el tooltip). Delegacion de
+    // eventos en el root, asi sobrevive a los repintados de los renderers.
+    //   - Raton: aparece al entrar en la pastilla y se va al salir.
+    //   - Teclado: aparece con el foco (solo :focus-visible) y Escape lo cierra.
+    //   - Tactil: tocar la pastilla lo muestra y NO navega, aunque este dentro
+    //     de un enlace (flotante, escaparate). Tocar fuera lo cierra.
+    function productTipFor(root) {
+        var tip = root.__opynioTip;
+        if (!tip || !tip.isConnected) {
+            tip = document.createElement('div');
+            tip.className = 'opynio-product-tip';
+            // El nombre ya esta en el aria-label de la pastilla: no se repite.
+            tip.setAttribute('aria-hidden', 'true');
+            root.appendChild(tip);
+            root.__opynioTip = tip;
+        }
+        return tip;
+    }
+
+    function showProductTip(root, pill) {
+        var name = pill.getAttribute('data-opynio-name');
+        if (!name) return;
+        var tip = productTipFor(root);
+        if (root.__opynioTipPill && root.__opynioTipPill !== pill) hideProductTip(root);
+        // Sin title mientras se ve el propio, para no pintar dos tooltips.
+        if (pill.hasAttribute('title')) pill.removeAttribute('title');
+        tip.textContent = name;
+        root.__opynioTipPill = pill;
+
+        var vw = document.documentElement.clientWidth || window.innerWidth;
+        var vh = document.documentElement.clientHeight || window.innerHeight;
+        var M = 8, GAP = 8;
+        tip.style.maxWidth = Math.min(280, vw - 2 * M) + 'px';
+        tip.style.left = '0px';
+        tip.style.top = '0px';
+        // Medir con el tooltip en (0,0): da su tamano y, si algun ancestro del
+        // host tiene transform, cuanto se desplaza su "fixed" respecto al viewport.
+        var t = tip.getBoundingClientRect();
+        var r = pill.getBoundingClientRect();
+        var left = r.left + r.width / 2 - t.width / 2;
+        left = Math.max(M, Math.min(left, vw - M - t.width));
+        var above = r.top - GAP - t.height >= M;
+        var top = above ? r.top - GAP - t.height : r.bottom + GAP;
+        if (!above && top + t.height > vh - M) top = Math.max(M, vh - M - t.height);
+        var arrow = Math.max(12, Math.min(t.width - 12, r.left + r.width / 2 - left));
+        tip.setAttribute('data-placement', above ? 'top' : 'bottom');
+        tip.style.setProperty('--opynio-tip-arrow', arrow + 'px');
+        tip.style.left = (left - t.left) + 'px';
+        tip.style.top = (top - t.top) + 'px';
+        tip.classList.add('opynio-tip-visible');
+    }
+
+    function hideProductTip(root) {
+        var pill = root.__opynioTipPill;
+        if (pill && !pill.hasAttribute('title')) {
+            pill.setAttribute('title', pill.getAttribute('data-opynio-name') || '');
+        }
+        root.__opynioTipPill = null;
+        if (root.__opynioTip) root.__opynioTip.classList.remove('opynio-tip-visible');
+    }
+
+    function pillFromEvent(root, e) {
+        var n = e.target;
+        while (n && n !== root && n.nodeType === 1) {
+            if (n.classList && n.classList.contains('opynio-product-pill')) return n;
+            n = n.parentNode;
+        }
+        return null;
+    }
+
+    function wireProductTips(root) {
+        if (root.__opynioTipsWired) return;
+        root.__opynioTipsWired = true;
+        var lastPointer = 'mouse';
+
+        root.addEventListener('pointerdown', function(e) { lastPointer = e.pointerType || 'mouse'; }, true);
+        root.addEventListener('pointerover', function(e) {
+            if (e.pointerType !== 'mouse') return;
+            var pill = pillFromEvent(root, e);
+            if (pill) showProductTip(root, pill);
+        });
+        root.addEventListener('pointerout', function(e) {
+            if (e.pointerType !== 'mouse') return;
+            var pill = pillFromEvent(root, e);
+            if (!pill || pill !== root.__opynioTipPill) return;
+            if (e.relatedTarget && pill.contains(e.relatedTarget)) return;
+            var focused = false;
+            try { focused = pill.matches(':focus-visible'); } catch (err) { /* navegador viejo */ }
+            if (!focused) hideProductTip(root);
+        });
+        root.addEventListener('focusin', function(e) {
+            var pill = pillFromEvent(root, e);
+            if (!pill) return;
+            var visible = true;
+            try { visible = pill.matches(':focus-visible'); } catch (err) { /* navegador viejo */ }
+            if (visible) showProductTip(root, pill);
+        });
+        root.addEventListener('focusout', function(e) {
+            var pill = pillFromEvent(root, e);
+            if (pill && pill === root.__opynioTipPill) hideProductTip(root);
+        });
+        root.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && root.__opynioTipPill) hideProductTip(root);
+        });
+        // Captura: se adelanta al enlace que envuelve la pastilla.
+        root.addEventListener('click', function(e) {
+            var pill = pillFromEvent(root, e);
+            if (!pill) return;
+            if (lastPointer === 'touch' || lastPointer === 'pen') {
+                e.preventDefault();
+                e.stopPropagation();
+                showProductTip(root, pill);
+            }
+        }, true);
+
+        // Tocar fuera, hacer scroll o cambiar el tamano lo cierra: su posicion
+        // es fija y dejaria de apuntar a la pastilla.
+        function outside(e) {
+            var pill = root.__opynioTipPill;
+            if (!pill) return;
+            var path = e.composedPath ? e.composedPath() : [];
+            if (path.indexOf(pill) === -1) hideProductTip(root);
+        }
+        function close() { if (root.__opynioTipPill) hideProductTip(root); }
+        document.addEventListener('pointerdown', outside, true);
+        window.addEventListener('scroll', close, { passive: true, capture: true });
+        window.addEventListener('resize', close, { passive: true });
     }
 
     function renderError(el, msg) {
@@ -643,40 +869,17 @@
         'SE': '/se/foretag', 'PL': '/pl/firma', 'JP': '/jp/会社'
     };
 
-    // Segmento de la ficha de producto por pais. Tiene que coincidir con
-    // `paths.productPage` de los locales: es lo que registra las rutas reales.
-    var COUNTRY_TO_PRODUCT_SEGMENT = {
-        'ES': 'producto', 'MX': 'producto', 'AR': 'producto', 'CO': 'producto',
-        'CL': 'producto', 'PE': 'producto', 'VE': 'producto', 'EC': 'producto',
-        'GT': 'producto', 'CR': 'producto', 'PA': 'producto', 'UY': 'producto',
-        'US': 'product', 'GB': 'product',
-        'BR': 'produto', 'PT': 'produto',
-        'FR': 'produit', 'DE': 'produkt', 'IT': 'prodotto',
-        'AD': 'producto', 'CN': '产品',
-        'SE': 'produkt', 'PL': 'produkt', 'JP': '商品'
-    };
-
     function getBusinessUrl(business) {
         // Identificador: slug canónico si existe (evita redirect 301 al name URL-encoded)
         var identifier = (business && business.slug)
-            ? business.slug
+            ? encodeURIComponent(business.slug)
             : encodeURIComponent(((business && business.name) ? business.name : 'business').replace(/ /g, '_'));
         var country = (business && business.country) ? String(business.country).toUpperCase() : 'ES';
         var pathPrefix = COUNTRY_TO_URL_PATH[country] || '/es/empresa';
-        var url = BASE_URL + pathPrefix + '/' + identifier;
-
-        // Widget de producto: se enlaza a la ficha DEL PRODUCTO, que tiene su
-        // propia nota y su propio schema.org/Product. Hace falta el slug; si el
-        // producto no lo tiene (fila antigua), se cae al filtro por id sobre la
-        // ficha de la empresa, que sigue funcionando.
-        if (business && business.producto_slug) {
-            var segmento = COUNTRY_TO_PRODUCT_SEGMENT[country] || 'producto';
-            return url + '/' + segmento + '/' + encodeURIComponent(business.producto_slug);
-        }
-        if (business && business.producto_id) {
-            url += '?producto=' + encodeURIComponent(business.producto_id);
-        }
-        return url;
+        // Tambien el widget de producto enlaza aqui, a la ficha de la EMPRESA y
+        // sin parametros: los productos no tienen URL propia en Opynio (SEO).
+        // Sus resenas se filtran dentro de la ficha, sin tocar la URL.
+        return BASE_URL + pathPrefix + '/' + identifier;
     }
 
     // Enlace para escribir resena. Si el widget es de un producto, se lleva el
@@ -740,26 +943,32 @@
 
     // Widget UI strings (static text translations)
     var UI_STRINGS = {
-        es: { reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
-        en: { reviewsOf: 'Reviews of', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
-        fr: { reviewsOf: 'Avis sur', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
-        de: { reviewsOf: 'Bewertungen zu', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
-        it: { reviewsOf: 'Recensioni di', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
-        pt: { reviewsOf: 'Avaliações de', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
-        ca: { reviewsOf: 'Ressenyes de', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
-        zh: { reviewsOf: '关于', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
-        ja: { reviewsOf: 'レビュー対象', reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
-        ko: { reviewsOf: '리뷰 대상', reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
-        nl: { reviewsOf: 'Beoordelingen van', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
-        ru: { reviewsOf: 'Отзывы о', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
-        ar: { reviewsOf: 'تقييمات', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
-        sv: { reviewsOf: 'Omdömen om', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
-        pl: { reviewsOf: 'Opinie o', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
-        vi: { reviewsOf: 'Đánh giá về', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
-        bn: { reviewsOf: 'পর্যালোচনা', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
-        hi: { reviewsOf: 'समीक्षाएँ', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
-        tl: { reviewsOf: 'Mga review ng', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
-        tr: { reviewsOf: 'Değerlendirmeler', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
+        es: { productBadge: 'Producto', reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
+        en: { productBadge: 'Product', reviewsOf: 'Reviews of', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
+        fr: { productBadge: 'Produit', reviewsOf: 'Avis sur', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
+        de: { productBadge: 'Produkt', reviewsOf: 'Bewertungen zu', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
+        it: { productBadge: 'Prodotto', reviewsOf: 'Recensioni di', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
+        pt: { productBadge: 'Produto', reviewsOf: 'Avaliações de', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
+        ca: { productBadge: 'Producte', reviewsOf: 'Ressenyes de', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
+        zh: { productBadge: '产品', reviewsOf: '关于', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
+        ja: { productBadge: '商品', reviewsOf: 'レビュー対象', reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
+        ko: { productBadge: '제품', reviewsOf: '리뷰 대상', reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
+        nl: { productBadge: 'Product', reviewsOf: 'Beoordelingen van', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
+        ru: { productBadge: 'Товар', reviewsOf: 'Отзывы о', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
+        ar: { productBadge: 'منتج', reviewsOf: 'تقييمات', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
+        sv: { productBadge: 'Produkt', reviewsOf: 'Omdömen om', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
+        pl: { productBadge: 'Produkt', reviewsOf: 'Opinie o', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
+        vi: { productBadge: 'Sản phẩm', reviewsOf: 'Đánh giá về', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
+        bn: { productBadge: 'পণ্য', reviewsOf: 'পর্যালোচনা', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
+        hi: { productBadge: 'उत्पाद', reviewsOf: 'समीक्षाएँ', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
+        tl: { productBadge: 'Produkto', reviewsOf: 'Mga review ng', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
+        tr: { productBadge: 'Ürün', reviewsOf: 'Değerlendirmeler', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
+        // Chino tradicional. Clave con region: 'zh' a secas es el simplificado.
+        'zh-TW': { productBadge: '產品', reviewsOf: '關於', reviews: '評論', outOf5: '/ 5 星', customerRatings: '客戶評價', basedOn: '根據 {n} 則評論', basedOnAlt: '根據 <strong>{n} 則評論</strong>', seeMore: '查看更多', seeAllReviews: '查看所有評論', writeReview: '撰寫評論', anonymous: '匿名', noReviews: '尚無評論。', noReviewsText: '尚無文字評論。', multimediaReview: '多媒體評論。', ratingExcellent: '優秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 評論', opynioReview: 'Opynio 評論', close: '關閉' },
+        id: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'dari 5 bintang', customerRatings: 'Peringkat pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat selengkapnya', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Anonim', noReviews: 'Belum ada ulasan.', noReviewsText: 'Belum ada ulasan dengan teks untuk ditampilkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'LUAR BIASA', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
+        ms: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'daripada 5 bintang', customerRatings: 'Penilaian pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat lagi', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Tanpa nama', noReviews: 'Tiada ulasan.', noReviewsText: 'Tiada ulasan bertulis untuk dipaparkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'CEMERLANG', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
+        th: { productBadge: 'สินค้า', reviewsOf: 'รีวิวของ', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', seeMore: 'ดูเพิ่มเติม', seeAllReviews: 'ดูรีวิวทั้งหมด', writeReview: 'เขียนรีวิว', anonymous: 'ไม่ระบุชื่อ', noReviews: 'ยังไม่มีรีวิว', noReviewsText: 'ยังไม่มีรีวิวที่มีข้อความ', multimediaReview: 'รีวิวมัลติมีเดีย', ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', close: 'ปิด' },
+        fa: { productBadge: 'محصول', reviewsOf: 'نظرات درباره', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', seeMore: 'بیشتر ببینید', seeAllReviews: 'مشاهده همه نظرات', writeReview: 'نوشتن نظر', anonymous: 'ناشناس', noReviews: 'هنوز نظری ثبت نشده است.', noReviewsText: 'نظر متنی برای نمایش وجود ندارد.', multimediaReview: 'نظر چندرسانه‌ای.', ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', close: 'بستن' },
     };
 
     // Alias regional variants (gb, au, sg, ie, at, en-*, de-*) to their canonical
@@ -861,12 +1070,32 @@
 
     var LANG_MAP = { en: 'en', gb: 'en', au: 'en', sg: 'en', ie: 'en', pt: 'pt', fr: 'fr', de: 'de', at: 'de', it: 'it', ca: 'ca', zh: 'zh-CN', ja: 'ja', ko: 'ko', nl: 'nl', ru: 'ru', ar: 'ar', sv: 'sv', pl: 'pl', tr: 'tr', cn: 'zh-CN', br: 'pt' };
 
+    // Idioma base de una etiqueta BCP 47 ('fr-CA' -> 'fr'), salvo el chino
+    // tradicional: 'zh-TW', 'zh-HK', 'zh-MO' y 'zh-Hant-*' usan otra escritura
+    // que 'zh' (simplificado) y se quedan como 'zh-TW'.
+    function baseLang(tag) {
+        var t = String(tag).toLowerCase().replace(/_/g, '-');
+        if (/^zh-(tw|hk|mo|hant)\b/.test(t)) return 'zh-TW';
+        return t.split('-')[0];
+    }
+
+    // data-lang que ha emitido el panel de Opynio. Hasta v6.10.4 el chino
+    // tradicional salia como data-lang="tw", que para Google es twi (Ghana):
+    // esos snippets ya estan pegados en webs de clientes y hay que entenderlos.
+    var DATA_LANG_ALIASES = { tw: 'zh-TW' };
+    function normalizeDataLang(lang) {
+        if (!lang) return '';
+        var alias = DATA_LANG_ALIASES[String(lang).toLowerCase()];
+        if (alias) return alias;
+        return baseLang(lang) === 'zh-TW' ? 'zh-TW' : lang;
+    }
+
     function detectTargetLang() {
         // 1. Page's <html lang="fr"> (set by i18n frameworks)
         var htmlLang = document.documentElement.lang;
-        if (htmlLang) return htmlLang.split('-')[0].toLowerCase();
+        if (htmlLang) return baseLang(htmlLang);
         // 2. Fallback to browser language
-        return (navigator.language || navigator.userLanguage || 'es').split('-')[0].toLowerCase();
+        return baseLang(navigator.language || navigator.userLanguage || 'es');
     }
 
     // No third party gets to hold the host's page hostage. Every network call the
@@ -938,6 +1167,23 @@
         ]);
     }
 
+    // Fallo pasajero (red, timeout o 5xx del proxy): se reintenta y, si persiste,
+    // no se ensena al visitante. Los errores de configuracion si se ven.
+    function isTransientError(err) {
+        return !!err && (err.name === 'AbortError' || err.name === 'TypeError'
+            || err.message === 'timeout' || (err.status >= 500));
+    }
+
+    async function fetchDataWithRetry(businessId, productId) {
+        try {
+            return await fetchData(businessId, productId);
+        } catch (err) {
+            if (!isTransientError(err)) throw err;
+            await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+            return await fetchData(businessId, productId);
+        }
+    }
+
     // Fetch widget data
     async function fetchData(businessId, productId) {
         var payload = { businessId: businessId };
@@ -948,8 +1194,10 @@
             body: JSON.stringify(payload)
         }, DATA_TIMEOUT_MS);
         if (!response.ok) {
-            var err = await response.json().catch(function() { return { error: 'HTTP ' + response.status }; });
-            throw new Error(err.error || 'Error del servidor');
+            var body = await response.json().catch(function() { return { error: 'HTTP ' + response.status }; });
+            var err = new Error(body.error || 'Error del servidor');
+            err.status = response.status;
+            throw err;
         }
         return await response.json();
     }
@@ -993,6 +1241,9 @@
                     '<span class="opynio-floating-avg">' + (business.avg_rating || 0).toFixed(1) + '</span>' +
                     '<div class="opynio-stars">' + generateStars(business.avg_rating) + '</div>' +
                     '<span class="opynio-floating-count">(' + (business.review_count || 0) + ')</span>' +
+                    // Es un boton que enlaza fuera, no abre panel: el distintivo
+                    // va en el propio boton (en movil, solo el icono).
+                    (business.producto_id ? productPillHtml(s, business.name) : '') +
                   '</a>' +
                 '</div>';
 
@@ -1034,7 +1285,7 @@
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
-                    return '<div class="opynio-grid-card"><div class="opynio-grid-header"><span class="opynio-grid-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-grid-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 100) + ((r.review_text || '').length > 100 ? '...' : '')) + '"</p></div>';
+                    return '<div class="opynio-grid-card"><div class="opynio-grid-header"><span class="opynio-grid-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-grid-title">' + (r.title || '') + '</h4><p>"' + excerptHtml(r.raw.review_text, 100) + '"</p></div>';
                 }).join('');
                 root.querySelector('.opynio-grid').innerHTML = html;
             }
@@ -1051,7 +1302,7 @@
             function render() {
                 var start = page * ITEMS, items = reviews.slice(start, start + ITEMS);
                 var html = items.map(function(r) {
-                    return '<div class="opynio-wall-card"><div class="opynio-wall-header"><span class="opynio-wall-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-wall-title">' + (r.title || '') + '</h4><p>"' + ((r.review_text || '').substring(0, 180) + ((r.review_text || '').length > 180 ? '...' : '')) + '"</p></div>';
+                    return '<div class="opynio-wall-card"><div class="opynio-wall-header"><span class="opynio-wall-author">' + (r.original_author_name || s.anonymous) + '</span><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><h4 class="opynio-wall-title">' + (r.title || '') + '</h4><p>"' + excerptHtml(r.raw.review_text, 180) + '"</p></div>';
                 }).join('');
                 root.querySelector('.opynio-wall').innerHTML = html;
             }
@@ -1073,7 +1324,13 @@
                 }).join('');
                 root.querySelector('.opynio-showcase-grid').innerHTML = html;
             }
-            root.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div><h2 class="opynio-showcase-biz-name">' + business.name + '</h2><p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
+            // Con producto, el distintivo va junto al nombre. Sin producto el
+            // marcado es exactamente el de siempre.
+            var nameHtml = '<h2 class="opynio-showcase-biz-name">' + escapeHtml(business.name) + '</h2>';
+            if (business.producto_id) {
+                nameHtml = '<div class="opynio-showcase-title-row">' + nameHtml + productPillHtml(s, business.name) + '</div>';
+            }
+            root.innerHTML = '<div class="opynio-showcase-widget"><div class="opynio-showcase-header"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div>' + nameHtml + '<p class="opynio-showcase-subtitle">' + s.customerRatings + '</p></div></a><div class="opynio-showcase-summary"><div class="opynio-showcase-summary-stars"><div class="opynio-showcase-summary-avg">' + (business.avg_rating || 0).toFixed(1) + '</div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div></div><div class="opynio-showcase-summary-total">' + s.basedOn.replace('{n}', business.review_count || 0) + '</div></div></div><div class="opynio-showcase-grid"></div>' + (reviews.length > ITEMS ? '<div class="opynio-controls"><button class="opynio-control-btn prev">‹</button><button class="opynio-control-btn next">›</button></div>' : '') + '</div>';
             render();
             if (total > 1) {
                 root.querySelector('.next').onclick = function(e) { e.preventDefault(); page = (page + 1) % total; render(); };
@@ -1098,16 +1355,18 @@
 
         'horizontal-carousel': function(root, el, business, reviews, s) {
             var validRating = (business.avg_rating && !isNaN(business.avg_rating)) ? Math.max(0, Math.min(5, business.avg_rating)) : 0;
-            var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
+            // Sin resenas no hay calificacion: antes salia "0.0 BUENO".
+            var ratingText = !(business.review_count > 0) || validRating <= 0 ? '' : validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var businessUrl = getBusinessUrl(business);
             var cardsHTML = reviews.map(function(r) {
                 var source = (r.source || 'opynio').toString().toLowerCase().trim();
                 var badge = source === 'google' ? '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">' + s.googleReview + '</span></div>' : '';
                 var icon = source === 'google' ? '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#4285f4"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' : '<div class="opynio-platform-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#00b67a"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
                 var reviewText = r.review_text || s.multimediaReview;
-                var isLongText = reviewText.length > 200;
+                // Longitud del texto crudo: el escapado cuenta «&amp;» como 5.
+                var isLongText = (r.raw.review_text || s.multimediaReview).length > 200;
                 var seeMoreBtn = isLongText ? '<a href="' + businessUrl + '" target="_blank" rel="noopener nofollow" style="color: #00b67a; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-decoration: underline; display: inline-block; margin-top: 0.5rem;">' + s.seeMore + '</a>' : '';
-                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + (r.original_author_name || 'A').charAt(0).toUpperCase() + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + seeMoreBtn + '</div>';
+                return '<div class="opynio-review-card"><div class="opynio-review-header"><div class="opynio-review-user"><div class="opynio-avatar-placeholder">' + initialHtml(r.raw.original_author_name || 'A') + '</div><div class="opynio-user-content"><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div>' + badge + '</div></div>' + icon + '</div><div class="opynio-review-stars"><div class="opynio-stars">' + generateStars(r.rating) + '</div></div><p class="opynio-review-text" style="' + (isLongText ? 'max-height: 120px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;' : 'word-break: break-word;') + '">' + reviewText + '</p>' + seeMoreBtn + '</div>';
             }).join('');
 
             root.innerHTML = '<div class="opynio-horizontal-widget"><div class="opynio-horizontal-wrapper"><div class="opynio-rating-panel-wrapper"><a href="' + getBusinessUrl(business) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;"><div class="opynio-rating-panel"><div class="opynio-rating-badge">' + ratingText + '</div><div class="opynio-stars-display">' + generateStars(validRating) + '</div><p class="opynio-rating-count">' + s.basedOnAlt.replace('{n}', business.review_count || 0) + '</p><div class="opynio-logo"><div class="opynio-logo-text">Opynio</div></div></div></a></div><div class="opynio-cards-container"><div class="opynio-cards-track" id="track-' + business.id + '">' + cardsHTML + '</div><button class="opynio-nav-arrow opynio-nav-prev" type="button"><svg style="transform:rotate(180deg)" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button><button class="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button></div></div></div>';
@@ -1163,7 +1422,8 @@
 
             // Top 3 reviews — keep it tight and focused.
             var picks = (reviews || []).slice(0, 3);
-            var ratingText = validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
+            // Sin resenas no hay calificacion: antes salia "0.0 BUENO".
+            var ratingText = !(business.review_count > 0) || validRating <= 0 ? '' : validRating >= 4.5 ? s.ratingExcellent : validRating >= 3.5 ? s.ratingVeryGood : s.ratingGood;
             var ctaHTML = '<a href="' + businessUrl + '" target="_blank" rel="noopener nofollow" class="opynio-stars-carousel-cta-link">'
                         + '<div class="opynio-stars-carousel-cta">'
                         +   '<div class="opynio-stars-carousel-score">' + rating + '</div>'
@@ -1183,7 +1443,7 @@
             var cardsHTML = picks.map(function(r) {
                 var fullName = r.original_author_name || s.anonymous;
                 var firstName = fullName.split(' ')[0];
-                var initial = fullName.charAt(0).toUpperCase();
+                var initial = initialHtml(r.raw.original_author_name || s.anonymous);
                 return '<a href="' + businessUrl + '" target="_blank" rel="noopener nofollow" class="opynio-stars-carousel-card" title="' + fullName + '">'
                      +   '<div class="opynio-avatar-placeholder opynio-stars-carousel-card-avatar">' + initial + '</div>'
                      +   '<div class="opynio-stars-carousel-card-name">' + firstName + '</div>'
@@ -1271,7 +1531,7 @@
         renderLoader(root);
 
         try {
-            var data = await fetchData(businessId, productId);
+            var data = await fetchDataWithRetry(businessId, productId);
             if (!data.business) { renderError(root, 'Negocio no encontrado'); return; }
 
             // Si el servidor sirve una version mas nueva, el script nuevo toma el
@@ -1280,21 +1540,21 @@
 
             // Vista que consumen los 9 renderers. Con data-product-id, el nombre
             // y las cifras son las del producto; la identidad de la empresa
-            // (slug, pais, logo) y por tanto el enlace se mantienen, porque el
-            // producto todavia no tiene ficha propia en Opynio.
+            // (slug, pais, logo) y por tanto el enlace se mantienen: el producto
+            // no tiene ficha propia en Opynio, se enlaza la de la empresa.
             var view = data.business;
             if (data.product) {
                 view = Object.assign({}, data.business, {
                     name: data.product.name,
                     avg_rating: data.product.avg_rating,
                     review_count: data.product.review_count,
-                    // Los consume getBusinessUrl para enlazar a la ficha del producto.
-                    producto_id: data.product.id,
-                    producto_slug: data.product.slug || null
+                    // Solo lo usa getWriteReviewUrl: el formulario llega con el
+                    // producto elegido (esa pagina es Disallow en robots.txt).
+                    producto_id: data.product.id
                 });
             }
 
-            var targetLang = el.dataset.lang || detectTargetLang();
+            var targetLang = normalizeDataLang(el.dataset.lang) || detectTargetLang();
             var s = await getStrings(targetLang);
 
             // Bot path — centralized for all 9 widget types. Bots see only
@@ -1313,16 +1573,31 @@
                 reviews = await translateReviews(reviews, targetLang);
             }
 
+            // Todo lo que escribe un usuario se escapa AQUI, una vez, despues de
+            // traducir: los renderers concatenan titulo, texto y autor dentro de
+            // innerHTML. Sin esto, una resena con "<img onerror=...>" en el
+            // titulo ejecutaba codigo en la web de cada cliente con el widget.
+            reviews = reviews.map(escapeReviewForHtml);
+
             // Widget de producto: se presenta con el nombre, porque una nota
             // suelta no dice de que es. Se excluye 'floating', que es un boton
             // fijo en una esquina y no tiene sitio para una cabecera.
             var target = root;
-            if (data.product && type !== 'floating') {
+            // Tooltip del distintivo con el nombre del producto (9 tipos).
+            if (data.product) wireProductTips(root);
+            // 'showcase' tampoco: su cabecera ya muestra el nombre (salia repetido)
+            // y lleva el distintivo al lado. Salvo si no hay resenas: entonces no
+            // se pinta el escaparate, solo el aviso, y sin cabecera no se sabria
+            // de que producto es.
+            if (data.product && type !== 'floating' && (type !== 'showcase' || reviews.length === 0)) {
                 root.innerHTML = '';
                 var header = document.createElement('div');
                 header.className = 'opynio-subject-header' + (type === 'badge' || type === 'sidebar' ? ' opynio-subject-compact' : '');
                 // El nombre lo escribe el cliente: se escapa siempre.
-                header.innerHTML = '<span class="opynio-subject-label">' + escapeHtml(s.reviewsOf || '') + '</span>'
+                // Distintivo «Producto» + «Resenas de» en la misma linea: apenas
+                // suma alto a la cabecera (ver SUBJECT_HEADER_HEIGHT).
+                header.innerHTML = '<div class="opynio-subject-label-row">' + productPillHtml(s, data.product.name)
+                    + '<span class="opynio-subject-label">' + escapeHtml(s.reviewsOf || '') + '</span></div>'
                     // title: el nombre completo sigue disponible aunque el CSS lo acote.
                     + '<span class="opynio-subject-name" title="' + escapeHtml(data.product.name || '') + '">'
                     + escapeHtml(data.product.name || '') + '</span>';
@@ -1350,6 +1625,12 @@
                 renderError(root, 'Tipo de widget no soportado: ' + type);
             }
         } catch (err) {
+            if (isTransientError(err)) {
+                root.innerHTML = '';
+                if (el.__opynioMinHeightSet) el.style.minHeight = '';
+                if (typeof console !== 'undefined') console.warn('[Opynio] widget no disponible ahora mismo:', err.message);
+                return;
+            }
             renderError(root, err.message);
         }
     }
@@ -1441,6 +1722,7 @@
             if (computed && computed !== '0px' && computed !== 'auto' && computed !== 'none') return;
         }
         el.style[prop] = value;
+        return true;
     }
 
     // Alto maximo de la cabecera del widget de producto: etiqueta + nombre a dos
@@ -1449,7 +1731,10 @@
     // en 76px con un nombre de 124 caracteres a 375px de ancho. Se reserva 80
     // para tener holgura. Pasarse solo deja hueco en blanco; quedarse corto
     // empuja el contenido del cliente, que es lo que hay que evitar.
-    var SUBJECT_HEADER_HEIGHT = 80;
+    // v6.10.7: el distintivo «Producto» comparte linea con «Resenas de» pero es
+    // mas alto que el texto: el techo medido pasa a 89px (nombre de 140
+    // caracteres a dos lineas en un contenedor de 420px de ancho). Se reserva 90.
+    var SUBJECT_HEADER_HEIGHT = 90;
 
     function reserveSpace(el) {
         if (el.dataset.reserved) return;
@@ -1461,7 +1746,7 @@
         // Un widget de producto pinta cabecera encima del cuerpo: si no se reserva,
         // el widget crece al cargar y desplaza lo que el cliente tenga debajo.
         var minHeight = minHeightForType(type) + (el.dataset.productId ? SUBJECT_HEADER_HEIGHT : 0);
-        applyIfUnset(el, 'minHeight', minHeight + 'px');
+        el.__opynioMinHeightSet = applyIfUnset(el, 'minHeight', minHeight + 'px') === true;
         // Every value is <= 300px on purpose: it fits a 320px phone without forcing
         // horizontal scroll, so no viewport clamping is needed here.
         applyIfUnset(el, 'minWidth', (TYPE_MIN_WIDTH[type] || 260) + 'px');

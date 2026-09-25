@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 // FIX: Import User and Session types from '@supabase/auth-js' as they may not be exported from the main supabase-js package in this version.
 import type { Session, User } from '@supabase/auth-js';
-import { supabase, getUserProfile, getBusinessesForOwner, getNotifications } from '../services/supabaseService';
+import { supabase, getUserProfile, getBusinessesForOwner, getNotifications, normalizeNotification } from '../services/supabaseService';
 import type { Profile, Review, Business, UserRole, Notification } from '../types';
 
 interface AuthContextType {
@@ -97,7 +97,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     try {
                         const notificationsPromise = getNotifications(currentUser.id);
                         // FIX: Fetch multiple businesses instead of a single one.
-                        const businessPromise = userProfile.role === 'business_owner'
+                        // El admin tambien: entra en Mis negocios (BusinessRoute) y
+                        // tiene que ver las empresas que sean suyas.
+                        const businessPromise = (userProfile.role === 'business_owner' || userProfile.role === 'admin')
                             ? getBusinessesForOwner(userProfile.id)
                             : Promise.resolve([]);
 
@@ -172,7 +174,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     filter: `user_id=eq.${user.id}`,
                 },
                 (payload) => {
-                    setNotifications(currentNotifications => [payload.new as Notification, ...currentNotifications]);
+                    setNotifications(currentNotifications => [normalizeNotification(payload.new), ...currentNotifications]);
                 }
             )
             .subscribe();
@@ -208,7 +210,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     // If the role was just changed to business_owner, we now need to fetch the business
                     // that was assigned. This solves the race condition where the business assignment
                     // notification might arrive before the role change is complete.
-                    if (newProfile.role === 'business_owner') {
+                    if (newProfile.role === 'business_owner' || newProfile.role === 'admin') {
                         // FIX: Fetch multiple businesses.
                         const businessesData = await getBusinessesForOwner(user.id);
                         if (businessesData) {

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, isDashboardRoute, Language } from '../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, isHomeRoute, Language } from '../contexts/i18nContext';
 import { useCountry } from '../contexts/CountryContext';
 import { LANGUAGES } from '../constants';
 
@@ -13,9 +13,9 @@ const Footer: React.FC = () => {
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
-  // En dashboards el cambio de idioma se oculta — la URL está atada al país
-  // de la empresa y cambiar idioma rompería navegación.
-  const hideLanguageSwitcher = isDashboardRoute(location.pathname);
+  // Selector de idioma solo en la pantalla de inicio (/ y /<pais>), como el
+  // de la cabecera y el boton flotante. Antes salia en todo salvo los paneles.
+  const hideLanguageSwitcher = !isHomeRoute(location.pathname);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -83,9 +83,11 @@ const Footer: React.FC = () => {
           <div className="col-span-2 sm:col-span-2 lg:col-span-1">
             <h3 className="font-bold text-white mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.contact')}</h3>
             <p className="text-xs sm:text-sm">
-              <a href="mailto:info@opynio.com" className="hover:text-white transition-colors">
-                <i className="fa-solid fa-envelope mr-2"></i>info@opynio.com
-              </a>
+              {/* El contacto va siempre por Soporte (solicitud con respuesta en
+                  la web), no por correo. */}
+              <Link to={`${countryPrefix}/${paths.support}`} className="hover:text-white transition-colors">
+                <i className="fa-solid fa-headset mr-2" aria-hidden="true"></i>{t('footer.contactViaSupport')}
+              </Link>
             </p>
           </div>
 
@@ -95,7 +97,7 @@ const Footer: React.FC = () => {
           <p className="text-center sm:text-left">&copy; {new Date().getFullYear()} Opynio. {t('footer.allRightsReserved')}</p>
 
           {/* Language Selector - Desktop only (hidden on mobile, shown in mobile menu).
-              Oculto también en dashboards (URL atada a país de la empresa). */}
+              Solo en la pantalla de inicio (ver hideLanguageSwitcher). */}
           <div className={`${hideLanguageSwitcher ? 'hidden' : 'hidden sm:block'} relative`} ref={langDropdownRef}>
             <button
               onClick={() => setLangDropdownOpen(v => !v)}

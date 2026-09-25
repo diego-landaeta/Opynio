@@ -18,6 +18,15 @@ import Modal from '../../../Modal';
 import StarRating from '../../../StarRating';
 import BusinessLogo from '../../../BusinessLogo';
 import { useTranslation, pathTranslations } from '../../../../contexts/i18nContext';
+import { usePluralT } from '../../../../utils/plural';
+import { getSectionAccess } from '../../../../utils/planFeatures';
+import { getUserFacingError, useUserErrorNotifier } from '../../../../utils/userFacingError';
+import SectionLock from './SectionLock';
+
+// Productos que se pintan de una vez. Con 1.000 productos la lista entera
+// eran ~60.000 px y varios segundos de render; el buscador sigue filtrando
+// sobre TODOS y «Mostrar más» añade el siguiente tramo.
+const PRODUCTS_PAGE_SIZE = 50;
 
 // Espejo de enforce_product_limit() en la migracion. Si cambian los numeros
 // alli, cambiarlos aqui: si no, la interfaz promete algo que la BD rechaza.
@@ -30,45 +39,6 @@ const PLAN_PRODUCT_LIMITS: Record<Plan, number> = {
     enterprise: Infinity,
 };
 
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
-
-const FeatureLock: React.FC<{ requiredPlan: Plan, featureName: string, children: React.ReactNode }> = ({ requiredPlan, featureName, children }) => {
-    const { profile } = useAuth();
-    const t = useTranslation();
-
-    if (!profile) {
-        return null;
-    }
-
-    if (PLAN_HIERARCHY[profile.plan] >= PLAN_HIERARCHY[requiredPlan]) {
-        return <>{children}</>;
-    }
-
-    return (
-        <div className="text-center p-6 sm:p-8 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border-2 border-dashed dark:border-zinc-700">
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300 rounded-full w-14 h-14 sm:w-16 sm:h-16 inline-flex items-center justify-center shadow-sm border-4 border-white dark:border-zinc-800 mb-3 sm:mb-4">
-                <i className="fa-solid fa-lock text-2xl sm:text-3xl"></i>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{featureName}</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                {t('businessDashboard.productsLockSubtitle')}
-            </p>
-            <ReactRouterDOM.Link
-                to="/planes"
-                className="mt-4 sm:mt-6 inline-block bg-brand-green text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-brand-green/30 text-base sm:text-lg"
-            >
-                {t('businessDashboard.upgradePlanButton')}
-            </ReactRouterDOM.Link>
-        </div>
-    );
-};
 
 // Misma tarjeta de métrica que usa el Resumen del panel, para que las dos
 // pantallas se lean como la misma aplicación.
@@ -218,7 +188,7 @@ const ProductFormModal: React.FC<{
                                 <span>{subiendo ? t('common.loading') : t('common.upload')}</span>
                                 <input
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/png, image/jpeg, image/webp, image/gif"
                                     className="sr-only"
                                     disabled={subiendo}
                                     onChange={async (e) => {
@@ -231,8 +201,9 @@ const ProductFormModal: React.FC<{
                                             const url = await uploadProductImage(business.id, fichero);
                                             setForm(f => ({ ...f, image_url: url }));
                                         } catch (error: any) {
-                                            console.error('Error subiendo la imagen del producto:', error);
-                                            setImagenError(error?.message || t('common.error'));
+                                            // Traducido: Storage responde en ingles («The object exceeded...»).
+                                            const info = await getUserFacingError(error, { fallbackKey: 'businessDashboard.productImageUploadFailed' });
+                                            setImagenError(t(info.key));
                                         } finally {
                                             setSubiendo(false);
                                         }
@@ -370,8 +341,10 @@ const DashboardProducts: React.FC = () => {
     const { business } = useBusinessDashboard();
     const { profile } = useAuth();
     const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const { confirm } = useConfirm();
     const t = useTranslation();
+    const tn = usePluralT();
 
     // La pestaña de widgets es hermana de esta en la URL. Se calcula sustituyendo
     // el último segmento en vez de con un enlace relativo: así da igual cómo estén
@@ -385,6 +358,7 @@ const DashboardProducts: React.FC = () => {
     // null | 'generic' (fallo pasajero) | 'not-installed' (faltan las tablas)
     const [loadError, setLoadError] = useState<null | 'generic' | 'not-installed'>(null);
     const [search, setSearch] = useState('');
+    const [visibles, setVisibles] = useState(PRODUCTS_PAGE_SIZE);
     const [editing, setEditing] = useState<{ product: ReviewSubject | null } | null>(null);
     const [busyId, setBusyId] = useState<string | null>(null);
     // Reseñas de la empresa que no están asignadas a ningún producto.
@@ -432,6 +406,9 @@ const DashboardProducts: React.FC = () => {
         );
     }, [products, search]);
 
+    // Buscar otra cosa vuelve al primer tramo.
+    useEffect(() => { setVisibles(PRODUCTS_PAGE_SIZE); }, [search]);
+
     // La media global es ponderada por número de reseñas: promediar las medias
     // daría el mismo peso a un producto con 1 reseña que a otro con 200.
     const stats = useMemo(() => {
@@ -474,12 +451,14 @@ const DashboardProducts: React.FC = () => {
             console.error('Error guardando producto:', error);
             // El codigo ya lo usa otro producto de esta empresa: es un dato que
             // acaba de escribir el usuario, asi que se le dice exactamente eso.
-            const mensaje = error?.code === 'DUPLICATE_PRODUCT_CODE'
-                ? t('businessDashboard.productCodeDuplicate')
-                : /PRODUCT_LIMIT_REACHED/.test(error?.message || '')
-                    ? t('businessDashboard.productLimitReached', { limit: limiteDeProductos })
-                    : (error.message || t('common.error'));
-            showNotification(mensaje, 'error');
+            if (error?.code === 'DUPLICATE_PRODUCT_CODE') {
+                showNotification(t('businessDashboard.productCodeDuplicate'), 'error');
+            } else if (/PRODUCT_LIMIT_REACHED/.test(error?.message || '')) {
+                showNotification(t('businessDashboard.productLimitReached', { limit: limiteDeProductos }), 'error');
+            } else {
+                // El resto, traducido y con accion; nunca el texto de PostgREST.
+                await notifyError(error, { fallbackKey: 'businessDashboard.productSaveError' });
+            }
         }
     };
 
@@ -500,12 +479,12 @@ const DashboardProducts: React.FC = () => {
         setBusyId(product.id);
         try {
             const updated = await updateBusinessProduct(product.id, { is_active: !product.is_active });
+            // `...p` primero: el update no devuelve `code` si no lo ha cambiado.
             setProducts(prev => prev.map(p => p.id === product.id
-                ? { ...updated, review_count: p.review_count, avg_rating: p.avg_rating }
+                ? { ...p, ...updated, review_count: p.review_count, avg_rating: p.avg_rating }
                 : p));
         } catch (error: any) {
-            console.error('Error cambiando el estado del producto:', error);
-            showNotification(error.message || t('common.error'), 'error');
+            await notifyError(error, { fallbackKey: 'businessDashboard.productStatusError' });
         } finally {
             setBusyId(null);
         }
@@ -535,8 +514,7 @@ const DashboardProducts: React.FC = () => {
             setProducts(prev => prev.filter(p => p.id !== product.id));
             showNotification(t('businessDashboard.productDeletedToast'), 'success');
         } catch (error: any) {
-            console.error('Error borrando producto:', error);
-            showNotification(error.message || t('common.error'), 'error');
+            await notifyError(error, { fallbackKey: 'businessDashboard.productDeleteError' });
         } finally {
             setBusyId(null);
         }
@@ -546,10 +524,10 @@ const DashboardProducts: React.FC = () => {
         return <div className="flex justify-center items-center h-48 sm:h-64"><Spinner /></div>;
     }
 
-    // El boton de la cabecera queda fuera del FeatureLock, asi que el plan hay
+    // El boton de la cabecera queda fuera del SectionLock, asi que el acceso hay
     // que comprobarlo tambien aqui: si no, un plan sin acceso ve el boton y abre
     // el formulario.
-    const tieneAcceso = !!profile && PLAN_HIERARCHY[profile.plan] >= PLAN_HIERARCHY['starter'];
+    const tieneAcceso = !!profile && !getSectionAccess(profile, 'products').locked;
     const limiteDeProductos = profile ? PLAN_PRODUCT_LIMITS[profile.plan] : 0;
     const limiteAlcanzado = products.length >= limiteDeProductos;
     const hasProducts = tieneAcceso && products.length > 0 && !isLoading && !loadError;
@@ -665,9 +643,11 @@ const DashboardProducts: React.FC = () => {
             );
         }
 
+        const mostrados = filtered.slice(0, visibles);
         return (
+            <>
             <ul className="bg-white dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 shadow-sm divide-y dark:divide-zinc-700 overflow-hidden">
-                {filtered.map((product, index) => (
+                {mostrados.map((product, index) => (
                     <ProductCard
                         key={product.id}
                         index={index}
@@ -681,6 +661,22 @@ const DashboardProducts: React.FC = () => {
                     />
                 ))}
             </ul>
+            {filtered.length > mostrados.length && (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 pt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400" aria-live="polite">
+                        {t('businessDashboard.productsShowingCount', { shown: mostrados.length, total: filtered.length })}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setVisibles(v => v + PRODUCTS_PAGE_SIZE)}
+                        className="min-h-[44px] inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm sm:text-base bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-zinc-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+                    >
+                        <i className="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                        <span>{t('businessDashboard.showMoreProducts')}</span>
+                    </button>
+                </div>
+            )}
+            </>
         );
     };
 
@@ -700,7 +696,9 @@ const DashboardProducts: React.FC = () => {
                                     tarjetas: un bloque entero para tres numeros que
                                     solo dan contexto, delante de lo que se viene a ver. */}
                                 <span className="font-semibold text-gray-700 dark:text-gray-300">
-                                    {t('businessDashboard.productsCountOfLimit', { count: products.length, limit: limiteDeProductos })}
+                                    {Number.isFinite(limiteDeProductos)
+                                        ? t('businessDashboard.productsCountOfLimit', { count: products.length, limit: limiteDeProductos })
+                                        : `(${products.length})`}
                                 </span>
                                 <span aria-hidden="true">·</span>
                                 <span>{stats.assigned} {t('businessDashboard.productsStatAssigned').toLowerCase()}</span>
@@ -714,7 +712,9 @@ const DashboardProducts: React.FC = () => {
                         )}
                         {!hasProducts && tieneAcceso && Number.isFinite(limiteDeProductos) && (
                             <span className="ml-1 font-semibold text-gray-700 dark:text-gray-300">
-                                {t('businessDashboard.productsCountOfLimit', { count: products.length, limit: limiteDeProductos })}
+                                {Number.isFinite(limiteDeProductos)
+                                        ? t('businessDashboard.productsCountOfLimit', { count: products.length, limit: limiteDeProductos })
+                                        : `(${products.length})`}
                             </span>
                         )}
                     </p>
@@ -722,7 +722,7 @@ const DashboardProducts: React.FC = () => {
                 {hasProducts && <div className="flex-shrink-0">{newProductButton}</div>}
             </div>
 
-            <FeatureLock requiredPlan="starter" featureName={t('businessDashboard.productsLockFeatureName')}>
+            <SectionLock section="products" title={t('businessDashboard.productsLockFeatureName')} subtitleKey="businessDashboard.productsLockSubtitle">
                 <div className="space-y-4 sm:space-y-5">
                     {hasProducts && limiteAlcanzado && (
                         <p className="p-3 rounded-lg bg-gray-100 dark:bg-zinc-800 border dark:border-zinc-700 text-xs sm:text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
@@ -735,7 +735,7 @@ const DashboardProducts: React.FC = () => {
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                             <p className="flex-1 text-xs sm:text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
                                 <i className="fa-solid fa-inbox mt-0.5 flex-shrink-0" aria-hidden="true"></i>
-                                <span>{t('businessDashboard.unassignedReviewsNotice', { count: sinAsignar })}</span>
+                                <span>{tn('businessDashboard.unassignedReviewsNotice', sinAsignar)}</span>
                             </p>
                             <ReactRouterDOM.Link
                                 to={reviewsHref}
@@ -761,7 +761,7 @@ const DashboardProducts: React.FC = () => {
                     )}
                     {renderBody()}
                 </div>
-            </FeatureLock>
+            </SectionLock>
 
         </div>
 

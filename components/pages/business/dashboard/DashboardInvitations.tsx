@@ -1,60 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
-import { useAuth } from '../../../../contexts/AuthContext';
-import { Plan } from '../../../../types';
-import * as ReactRouterDOM from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { supabase, getBusinessProducts } from '../../../../services/supabaseService';
+import { useUserErrorNotifier } from '../../../../utils/userFacingError';
 import Spinner from '../../../Spinner';
 import { useTranslation } from '../../../../contexts/i18nContext';
-
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
-
-const FeatureLock: React.FC<{ requiredPlan: Plan, featureName: string, children: React.ReactNode }> = ({ requiredPlan, featureName, children }) => {
-    const { profile } = useAuth();
-    const t = useTranslation();
-
-    if (!profile) {
-        return null;
-    }
-
-    const currentPlanLevel = PLAN_HIERARCHY[profile.plan];
-    const requiredPlanLevel = PLAN_HIERARCHY[requiredPlan];
-
-    if (currentPlanLevel >= requiredPlanLevel) {
-        return <>{children}</>;
-    }
-
-    return (
-        <div className="text-center p-6 sm:p-8 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border-2 border-dashed dark:border-zinc-700">
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300 rounded-full w-14 h-14 sm:w-16 sm:h-16 inline-flex items-center justify-center shadow-sm border-4 border-white dark:border-zinc-800 mb-3 sm:mb-4">
-                <i className="fa-solid fa-lock text-2xl sm:text-3xl"></i>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{featureName}</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                {t('businessDashboard.invitationsLockSubtitle')}
-            </p>
-            <ReactRouterDOM.Link
-                to="/planes"
-                className="mt-4 sm:mt-6 inline-block bg-brand-green text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-brand-green/30 text-base sm:text-lg"
-            >
-                {t('businessDashboard.upgradePlanButton')}
-            </ReactRouterDOM.Link>
-        </div>
-    );
-};
+import { usePluralT } from '../../../../utils/plural';
+import SectionLock from './SectionLock';
 
 const DashboardInvitations: React.FC = () => {
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const t = useTranslation();
+    const tn = usePluralT();
     const [emails, setEmails] = useState('');
     const [customMessage, setCustomMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
@@ -78,7 +37,9 @@ const DashboardInvitations: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const emailList = emails.split(/[\n,;]+/).map(e => e.trim()).filter(e => e);
+        // El texto de ayuda promete "coma, espacio o nueva línea"; el espacio
+        // no separaba y "a@x.com b@y.com" viajaba como un solo email.
+        const emailList = emails.split(/[\s,;]+/).map(e => e.trim()).filter(e => e);
         if(emailList.length === 0) {
             showNotification(t('businessDashboard.pleaseEnterOneEmail'), 'error');
             return;
@@ -99,11 +60,14 @@ const DashboardInvitations: React.FC = () => {
                 }
             });
             if (error) throw error;
-            showNotification(`Invitaciones enviadas a ${emailList.length} destinatarios.`, 'success');
+            showNotification(tn('businessDashboard.invitationsSentToast', emailList.length), 'success');
             setEmails('');
             setCustomMessage('');
-        } catch (error: any) {
-            showNotification(error.details || error.message || 'Error al enviar las invitaciones.', 'error');
+        } catch (error) {
+            // Traducido: plan insuficiente → Planes; limite de 24 h; emails no
+            // validos; fallo del servicio → Soporte. Antes salia el texto de la
+            // funcion en espanol para todos los idiomas.
+            await notifyError(error, { flow: 'invitations' });
         } finally {
             setIsSending(false);
         }
@@ -113,7 +77,7 @@ const DashboardInvitations: React.FC = () => {
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.sendInvitationsTitle')}</h1>
 
-            <FeatureLock requiredPlan="starter" featureName={t('businessDashboard.invitationsLockFeatureName')}>
+            <SectionLock section="invitations" title={t('businessDashboard.invitationsLockFeatureName')} subtitleKey="businessDashboard.invitationsLockSubtitle">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 lg:gap-8">
                     <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700">
                         <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessDashboard.sendNewInvitationsTitle')}</h2>
@@ -174,7 +138,7 @@ const DashboardInvitations: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            </FeatureLock>
+            </SectionLock>
         </div>
     );
 };

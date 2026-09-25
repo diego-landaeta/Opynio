@@ -1,18 +1,35 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useI18n, Language, getLanguageForCountryCode } from '../contexts/i18nContext';
-import { useCountry } from '../contexts/CountryContext';
+import { useI18n, Language, getLanguageForCountryCode, isHomeRoute } from '../contexts/i18nContext';
+import { useCountry, hasSavedCountry } from '../contexts/CountryContext';
 import { LANGUAGES, COUNTRIES } from '../constants';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
+import { useProfilePreferencesSync } from '../hooks/useProfilePreferencesSync';
 
 const FIRST_VISIT_KEY = 'opynio_first_visit';
 const COUNTRY_LANGUAGE_PROMPT_KEY = 'opynio_country_lang_prompt';
 const LAST_URL_COUNTRY_KEY = 'opynio_last_url_country';
 const INTERNAL_NAV_KEY = 'opynio_internal_nav';
 
+// true si el usuario ya tiene idioma (elegido o de una visita anterior). La
+// clave la escribe setLanguage en contexts/i18nContext.tsx.
+export const hasSavedLanguage = (): boolean => {
+    try { return !!localStorage.getItem('opynio_language'); } catch { return false; }
+};
+
 // Helper function to mark navigation as internal (called before navigating to a country)
 export const markInternalNavigation = () => {
     sessionStorage.setItem(INTERNAL_NAV_KEY, 'true');
 };
+
+// Fase de aterrizaje: desde que carga la pagina hasta la primera navegacion
+// del usuario (PUSH: un enlace, un boton). Las redirecciones (REPLACE, p. ej.
+// la URL canonica de una ficha) siguen siendo el aterrizaje. Solo ahi, y solo
+// sin preferencias guardadas, el pais de la URL da el idioma y el pais de
+// busqueda iniciales.
+let userHasNavigated = false;
+
+/** true hasta la primera navegacion del usuario (la usa tambien MainLayout). */
+export const isLandingNavigation = (): boolean => !userHasNavigated;
 
 // Translations for the popup based on browser language
 const popupTranslations: Record<string, {
@@ -188,9 +205,22 @@ const countryNames: Record<string, Record<string, string>> = {
 type PopupMode = 'first_visit' | 'country_change' | null;
 
 const LanguagePopup: React.FC = () => {
-    const { language, setLanguage } = useI18n();
+    // requestedLanguage: el idioma al que va la UI. `language` sigue siendo el
+    // anterior mientras se descarga el nuevo: comparar con el daba el aviso
+    // «Sie haben Opynio Deutschland betreten | Zu Deutsch wechseln» con la UI
+    // ya cambiando a aleman.
+    const { language, requestedLanguage, setLanguage } = useI18n();
     const { setCountry } = useCountry();
     const location = useLocation();
+    // Preferencias guardadas en el perfil (Editar perfil): se aplican una vez
+    // al iniciar sesion en este navegador. Va aqui porque este componente se
+    // monta siempre y ya lleva la logica de preferencias de la primera visita.
+    useProfilePreferencesSync();
+    // Los popups (primera visita y cambio de pais) solo se ENSENAN en la
+    // pantalla de inicio (/ y /<pais>), como los selectores. La logica de
+    // preferencias (idioma y pais de la primera visita, pais elegido) sigue
+    // corriendo en todas las rutas: este componente se monta siempre.
+    const onHome = isHomeRoute(location.pathname);
     const [isVisible, setIsVisible] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const [popupMode, setPopupMode] = useState<PopupMode>(null);
@@ -219,22 +249,26 @@ const LanguagePopup: React.FC = () => {
         return popupTranslations[language] || popupTranslations[browserLang] || popupTranslations.es;
     }, [language, browserLang]);
 
-    // Effect for handling language based on URL country
-    // - Direct entry (URL typed, page refresh, external link) → auto-set language
-    // - Internal navigation (clicking country button in app) → show popup asking to change
+    // Declarado antes que el efecto del pais: en el mismo commit tiene que
+    // quedar marcado que el usuario ya ha navegado.
+    const navigationType = useNavigationType();
     useEffect(() => {
-        if (!urlCountryCode) {
-            // No country in URL - show language selection popup for first visit
-            const hasVisited = localStorage.getItem(FIRST_VISIT_KEY);
-            if (!hasVisited) {
-                const timer = setTimeout(() => {
-                    setPopupMode('first_visit');
-                    setIsVisible(true);
-                }, 500);
-                return () => clearTimeout(timer);
-            }
-            return;
-        }
+        if (navigationType === 'PUSH') userHasNavigated = true;
+    }, [location.key, navigationType]);
+
+    // Preferencias (idioma de la interfaz y pais de busqueda) segun el pais de
+    // la URL. El prefijo es el pais del CONTENIDO, no la preferencia:
+    // - Navegacion interna marcada (selector de pais del movil, banderas de la
+    //   home): el usuario ha elegido ese pais; se guarda y, si el idioma
+    //   difiere, se le PREGUNTA si quiere cambiarlo.
+    // - Cualquier otra entrada (enlace a una ficha extranjera, URL escrita,
+    //   recarga): no cambia nada si ya hay preferencias. Solo en la primera
+    //   visita (aterrizaje sin idioma ni pais guardados) se toman los del pais
+    //   de la URL. Antes se ponia SIEMPRE el pais de la URL como pais del
+    //   usuario: abrir /it/azienda/x dejaba la cabecera en Italia y Explorar
+    //   con negocios de Roma al volver.
+    useEffect(() => {
+        if (!urlCountryCode) return;
 
         const countryLanguage = getLanguageForCountryCode(urlCountryCode);
         const lastUrlCountry = sessionStorage.getItem(LAST_URL_COUNTRY_KEY);
@@ -252,8 +286,10 @@ const LanguagePopup: React.FC = () => {
             localStorage.setItem(FIRST_VISIT_KEY, 'true');
 
             if (isInternalNav) {
-                // Internal navigation (clicked country button) - show popup if language differs
-                if (countryLanguage !== language) {
+                // Internal navigation (clicked country button) - show popup if
+                // language differs. Solo en la home: fuera de ella se guarda el
+                // pais y no se pregunta nada.
+                if (countryLanguage !== requestedLanguage && onHome) {
                     setSuggestedLanguage(countryLanguage);
                     setDetectedCountryCode(urlCountryCode);
                     setPopupMode('country_change');
@@ -261,13 +297,40 @@ const LanguagePopup: React.FC = () => {
                 }
                 // Update country context regardless
                 setCountry(urlCountryCode as any);
-            } else {
-                // Direct entry (URL typed, page load, external link) - auto-set language
+            } else if (!userHasNavigated && !hasSavedLanguage() && !hasSavedCountry()) {
+                // Primera visita. Los buscadores no guardan localStorage: siguen
+                // viendo cada pais en su idioma, asi que el SEO no cambia.
                 setLanguage(countryLanguage);
                 setCountry(urlCountryCode as any);
             }
         }
-    }, [urlCountryCode, setLanguage, setCountry, language]);
+    }, [urlCountryCode, setLanguage, setCountry, requestedLanguage]);
+
+    // Popup de primera visita (elegir idioma): en la home sin pais en la URL
+    // (/, /en...). Si la visita empieza en otra pantalla sin pais (/login), no
+    // sale ahi: sale la primera vez que se llega a la home.
+    useEffect(() => {
+        if (urlCountryCode || !onHome) return;
+        let hasVisited = false;
+        try { hasVisited = !!localStorage.getItem(FIRST_VISIT_KEY); } catch { /* sin almacenamiento */ }
+        if (hasVisited) return;
+        const timer = setTimeout(() => {
+            setPopupMode('first_visit');
+            setIsVisible(true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [urlCountryCode, onHome]);
+
+    // Si se sale de la home con el popup abierto (boton atras), se cierra sin
+    // guardar nada: la primera visita vuelve a preguntar en la home.
+    useEffect(() => {
+        if (onHome) return;
+        setIsVisible(false);
+        setIsClosing(false);
+        setPopupMode(null);
+        setSuggestedLanguage(null);
+        setDetectedCountryCode(null);
+    }, [onHome]);
 
     const handleLanguageSelect = (lang: Language) => {
         setLanguage(lang);
@@ -307,7 +370,7 @@ const LanguagePopup: React.FC = () => {
         closePopup();
     };
 
-    if (!isVisible) return null;
+    if (!isVisible || !onHome) return null;
 
     // Get country info
     const countryInfo = detectedCountryCode ? COUNTRIES.find(c => c.code === detectedCountryCode) : null;

@@ -2,7 +2,9 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI, Type } from 'https://esm.sh/@google/genai@^1.13.0';
+import { GoogleGenAI, Type } from 'https://esm.sh/@google/genai@1.13.0?target=deno';
+import { corsHeadersFor } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/requireAdmin.ts';
 
 // Type declarations for Deno environment
 declare const Deno: {
@@ -11,10 +13,6 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MAX_REVIEW_PAGES = 50; // Limit to 50 pages (approx 1000 reviews)
@@ -223,9 +221,15 @@ async function processItem(item: any, supabase: SupabaseClient, adminId: string,
 
 
 serve(async (req) => {
+    // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+    const corsHeaders = corsHeadersFor(req);
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
+
+    // Solo admin, antes de leer secretos: 401/403 en vez de 500.
+    const denied = await requireAdmin(req, corsHeaders);
+    if (denied) return denied;
 
     try {
         const SERPAPI_KEY = Deno.env.get('SERPAPI_KEY');

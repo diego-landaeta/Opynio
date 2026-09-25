@@ -3,10 +3,13 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { PUSH_NOTIFICATIONS_ENABLED } from '../constants';
+import { useTranslation } from '../contexts/i18nContext';
 
 const RealtimeNotificationHandler: React.FC = () => {
     const { notifications, user } = useAuth();
     const { showNotification } = useNotification();
+    const t = useTranslation();
     const isInitialLoad = useRef(true);
     const prevNotificationsCount = useRef(notifications.length);
 
@@ -22,13 +25,17 @@ const RealtimeNotificationHandler: React.FC = () => {
         if (notifications.length > prevNotificationsCount.current) {
             const newNotification = notifications[0];
             if (newNotification) {
-                 // 1. Show in-app snackbar
-                 showNotification(newNotification.message, 'info');
+                 // 1. Show in-app snackbar. En una respuesta de soporte el
+                 // mensaje es solo el asunto: se antepone que es de soporte.
+                 const snack = newNotification.type === 'support_reply'
+                     ? `${t('header.supportReplyTitle')}: ${newNotification.message}`
+                     : newNotification.message;
+                 showNotification(snack, 'info');
 
                  // 2. Attempt to send a browser push notification
                  const sendPushNotification = async () => {
                     // Only proceed if browser supports push, user is logged in, and permission is granted
-                    if (!user || !('serviceWorker' in navigator) || !('PushManager' in window) || Notification.permission !== 'granted') {
+                    if (!PUSH_NOTIFICATIONS_ENABLED || !user || !('serviceWorker' in navigator) || !('PushManager' in window) || Notification.permission !== 'granted') {
                         return;
                     }
                     try {
@@ -55,7 +62,7 @@ const RealtimeNotificationHandler: React.FC = () => {
         
         prevNotificationsCount.current = notifications.length;
 
-    }, [notifications, showNotification, user]);
+    }, [notifications, showNotification, user, t]);
 
     return null; // This component does not render anything.
 };

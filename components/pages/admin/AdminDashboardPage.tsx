@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAdminDashboardStats, deleteBusinessesWithoutReviews, getPendingReviewCount } from '../../../services/supabaseService';
+import { getAdminDashboardStats, deleteBusinessesWithoutReviews, getPendingReviewCount, adminSupportTicketCounts } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 import Spinner from '../../Spinner';
@@ -77,13 +77,13 @@ const SectionTitle: React.FC<{ icon: string; title: string; color: string }> = (
 const AdminDashboardPage: React.FC = () => {
     const [stats, setStats] = useState({ users: 0, businesses: 0, reviews: 0 });
     const [pendientes, setPendientes] = useState(0);
+    const [soporteAbiertas, setSoporteAbiertas] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isDeletingEmpty, setIsDeletingEmpty] = useState(false);
     const { showNotification } = useNotification();
     const { confirm } = useConfirm();
     const t = useTranslation();
     const { language } = useI18n();
-    const langPrefix = `/${language}`;
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -92,6 +92,13 @@ const AdminDashboardPage: React.FC = () => {
                 setStats(data);
                 // La cola de moderacion no estaba a la vista en ningun sitio.
                 setPendientes(await getPendingReviewCount());
+                // Solicitudes de soporte esperando respuesta. Aparte: si la
+                // migracion de tickets aun no esta, el panel carga igual.
+                try {
+                    setSoporteAbiertas((await adminSupportTicketCounts()).open);
+                } catch (e) {
+                    console.error('Error fetching support counts:', e);
+                }
             } catch (error) {
                 console.error("Error fetching admin stats:", error);
                 showNotification(t('adminDashboard.errorLoadingDashboardData'), 'error');
@@ -192,7 +199,7 @@ const AdminDashboardPage: React.FC = () => {
                             <ToolCard title={t('adminDashboard.moderateReviews')} icon="fa-comments" link={`/${pathTranslations.es.adminReviewModeration}`} description="Aprueba o rechaza nuevas reseñas." color="bg-orange-500" badge={pendientes} />
                             <ToolCard title={t('adminDashboard.reviewAppeals')} icon="fa-flag" link={`/${pathTranslations.es.adminReviewAppeals}`} description="Revisa apelaciones de reseñas rechazadas." color="bg-orange-400" />
                             <ToolCard title={t('adminDashboard.bugs')} icon="fa-bug" link={`/${pathTranslations.es.adminBugs}`} description="Gestiona informes de errores de usuarios." color="bg-red-500" />
-                            <ToolCard title="Soporte" icon="fa-headset" link="#" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" comingSoon />
+                            <ToolCard title="Soporte" icon="fa-headset" link="/admin/soporte" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" badge={soporteAbiertas} />
                         </div>
                     </div>
 

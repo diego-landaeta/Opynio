@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import NotFoundPage from './NotFoundPage';
 import type { Review, Business, AiInsight, BusinessHours, Sede } from '../../types';
-import { getBusinessInsights } from '../../services/geminiService';
-import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, updateBusinessProfile, userHasReviewedBusiness } from '../../services/supabaseService';
+import { getBusinessInsights, AI_ENABLED } from '../../services/geminiService';
+import { getBusinessById, getBusinessByName, getBusinessBySlug, getRedirectByOldSlug, supabase, getReviewRatingDistribution, getReviewSourceCounts, getProductReviewStats, updateBusinessProfile, userHasReviewedBusiness } from '../../services/supabaseService';
 import { getReviewsOptimized, searchReviewsOptimized } from '../../services/optimizedQueries';
 import { getPublicBusinessProducts } from '../../services/supabaseService';
 import ReviewCard from '../ReviewCard';
@@ -20,13 +20,38 @@ import RatingDistribution from '../RatingDistribution';
 import Modal from '../Modal';
 import LazyRender from '../LazyRender';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useI18n, pathTranslations, useTranslation, useAutoTranslations, getLanguageForCountryCode, translations } from '../../contexts/i18nContext';
+import { useI18n, pathTranslations, useTranslation, useAutoTranslations, getLanguageForCountryCode, useLocaleDictionary, localizedPath, type Language } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES, SEDE_COUNTRIES } from '../../constants';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
 import { trackMetaEvent } from '../../utils/metaPixel';
+import { getReviewAuthorName } from '../../utils/reviewDisplay';
+import { useCountryName } from '../../utils/countryName';
+import { useOwnBusiness, getBusinessDashboardPath } from '../../utils/businessOwnership';
+import OwnBusinessBadge from '../OwnBusinessBadge';
 
 const PAGE_SIZE = 20; // Reduced from 50 for better performance
+// Si la carga de la ficha no termina en este tiempo se muestra un error con
+// "Reintentar" en vez de dejar el spinner para siempre.
+const FICHA_TIMEOUT_MS = 15000;
+// Normaliza una ruta para compararla: sin barra final y decodificada.
+const normalizarRuta = (p: string) => {
+    const sinBarra = p.replace(/\/+$/, '');
+    try { return decodeURIComponent(sinBarra); } catch { return sinBarra; }
+};
+// Reproduce el LanguagePathValidator de master (App.tsx): con un pais del
+// selector (COUNTRIES) y una ruta que existe en el idioma de OTRO pais
+// (/gb/empresa/x, /de/empresa/x) master respondia 404. Solo esas URLs se
+// canonicalizan del todo; las que master pintaba o redirigia siguen igual.
+// `segmento` va tal cual viene en location.pathname, como lo comparaba master.
+const baseDeRuta = (p: string) => p.split('/')[0].split(':')[0];
+const dabaError404EnMaster = (prefijo: string | undefined, segmento: string): boolean => {
+    if (!prefijo || !COUNTRIES.some(c => c.code.toLowerCase() === prefijo.toLowerCase())) return false;
+    const rutasDelPais = Object.values(pathTranslations[getLanguageForCountryCode(prefijo)] || {}) as string[];
+    if (rutasDelPais.some(p => baseDeRuta(p) === segmento)) return false;
+    return (Object.values(pathTranslations) as Record<string, string>[])
+        .some(rutas => Object.values(rutas).some(p => baseDeRuta(p) === segmento));
+};
 
 const PlaceholderMessage: React.FC<{ icon: string; title: string; message: string; }> = React.memo(({ icon, title, message }) => (
     <div className="w-full bg-gray-50 dark:bg-zinc-800/50 rounded-lg flex items-center justify-center border border-gray-200 dark:border-zinc-700 p-6 sm:p-8 min-h-[140px] sm:min-h-[160px]">
@@ -61,8 +86,23 @@ const ProductChooser: React.FC<{
     hint: string;
     allLabel: string;
     reviewsWord: (n: number) => string;
-}> = ({ products, value, onChange, title, hint, allLabel, reviewsWord }) => {
+    searchPlaceholder: string;
+    noResults: string;
+}> = ({ products, value, onChange, title, hint, allLabel, reviewsWord, searchPlaceholder, noResults }) => {
     const [abierto, setAbierto] = useState(false);
+    // Buscador dentro del desplegable: hay empresas con mas de mil cursos y
+    // recorrer la lista entera a mano no es viable.
+    const [busqueda, setBusqueda] = useState('');
+    const conBuscador = products.length > 10;
+    const visibles = React.useMemo(() => {
+        const normalizar = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const palabras = normalizar(busqueda.trim()).split(/\s+/).filter(Boolean);
+        if (palabras.length === 0) return products;
+        return products.filter(p => {
+            const nombre = normalizar(p.name || '');
+            return palabras.every(w => nombre.includes(w));
+        });
+    }, [products, busqueda]);
     const cajaRef = useRef<HTMLDivElement>(null);
     const botonRef = useRef<HTMLButtonElement>(null);
     const seleccionado = products.find(p => p.id === value) || null;
@@ -86,6 +126,7 @@ const ProductChooser: React.FC<{
     const elegir = (id: string) => {
         onChange(id);
         setAbierto(false);
+        setBusqueda('');
         botonRef.current?.focus();
     };
 
@@ -141,6 +182,19 @@ const ProductChooser: React.FC<{
 
             {abierto && (
                 <div className="absolute z-30 left-0 right-0 mt-1 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-xl">
+                    {conBuscador && (
+                        <div className="sticky top-0 z-10 p-2 bg-white dark:bg-zinc-800 border-b dark:border-zinc-700">
+                            <input
+                                type="search"
+                                autoFocus
+                                value={busqueda}
+                                onChange={e => setBusqueda(e.target.value)}
+                                placeholder={searchPlaceholder}
+                                aria-label={searchPlaceholder}
+                                className="w-full px-2.5 py-2 text-sm rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                            />
+                        </div>
+                    )}
                     <button
                         type="button"
                         onClick={() => elegir('all')}
@@ -155,8 +209,11 @@ const ProductChooser: React.FC<{
                         {!seleccionado && <i className="fa-solid fa-check text-brand-green text-xs flex-shrink-0" aria-hidden="true"></i>}
                     </button>
 
+                    {visibles.length === 0 && (
+                        <p className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400" role="status">{noResults}</p>
+                    )}
                     <ul className="border-t dark:border-zinc-700">
-                        {products.map(producto => {
+                        {visibles.map(producto => {
                             const n = producto.review_count ?? 0;
                             const activo = producto.id === value;
                             return (
@@ -201,9 +258,13 @@ const BusinessPage: React.FC = () => {
     const { showNotification } = useNotification();
     const { language } = useI18n();
     const { country } = useCountry();
+    const countryNameOf = useCountryName();
     const t = useTranslation();
 
     const [business, setBusiness] = useState<Business | null>(null);
+    // Si quien mira es el dueño: sin "escribir reseña" ni "reclamar", con
+    // acceso al panel. Sale de AuthContext (sin consultas extra).
+    const ownBusiness = useOwnBusiness(business);
     const [reviews, setReviews] = useState<Review[]>([]);
     // Productos de la empresa con nota propia. 'all' = la ficha entera.
     const [products, setProducts] = useState<any[]>([]);
@@ -211,16 +272,9 @@ const BusinessPage: React.FC = () => {
     const reviewsSectionRef = useRef<HTMLDivElement>(null);
     // El producto elegido, si lo hay: lo usa el titulo de la lista.
     const selectedProduct = products.find(p => p.id === productFilter) || null;
-
-    // URL publica de la ficha de un producto. Se usa en la barra de estado de
-    // las resenas; antes se armaba dentro del JSX de cada tarjeta.
-    const urlDelProducto = (producto: { slug?: string | null }) => {
-        if (!producto?.slug || !business) return null;
-        const pais = (activeCountryCode || business.country || 'es').toLowerCase();
-        const rutas = pathTranslations[pageLang] || pathTranslations.es;
-        const slugEmpresa = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
-        return `/${pais}/${rutas.productPage.replace(':identifier', slugEmpresa).replace(':productSlug', producto.slug)}`;
-    };
+    // Los productos NO tienen URL propia (decision SEO): sus reseñas se ven
+    // solo con este filtro, que es estado de la pagina y nunca toca la URL
+    // (ni ruta, ni ?producto=, ni #hash).
     const [insights, setInsights] = useState<AiInsight | null>(null);
     const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -234,7 +288,7 @@ const BusinessPage: React.FC = () => {
     // States for review source filtering
     const [sourceFilter, setSourceFilter] = useState<'all' | 'opynio' | 'google' | 'trustindex'>('all');
     // FIX: Updated the sourceCounts state to include 'trustindex' to correctly handle and display review counts from the new source.
-    const [sourceCounts, setSourceCounts] = useState<{ opynio: number, google: number, trustindex: number } | null>(null);
+    const [sourceCounts, setSourceCounts] = useState<{ opynio: number, google: number, trustindex: number, total: number } | null>(null);
     const [ratingFilter, setRatingFilter] = useState<'all' | '5' | '4+' | '3-'>('all');
     // Review search within this business (by title, text or author)
     const [searchInput, setSearchInput] = useState('');
@@ -245,9 +299,11 @@ const BusinessPage: React.FC = () => {
     const markersLayerRef = useRef<L.LayerGroup | null>(null);
     const [mapError, setMapError] = useState(false);
     
+    // country: si la descripcion es demasiado corta para detectar su idioma, el
+    // del pais de la empresa decide (evita pedir es->es a Google).
     const { content: translatedContent, isTranslating } = useAutoTranslations({
         description: business?.description,
-    });
+    }, { country: business?.country ?? null });
 
     const { totalReviews, averageRating } = useMemo(() => {
         if (!ratingDistribution) {
@@ -267,12 +323,56 @@ const BusinessPage: React.FC = () => {
         return { totalReviews: total, averageRating: avg };
     }, [ratingDistribution]);
 
+    // Cifras del producto elegido (distribucion por estrellas y chips de
+    // fuente). Son un SUBCONJUNTO: la cabecera, el SEO y el total de la empresa
+    // siguen saliendo de ratingDistribution/sourceCounts, que cuentan todas sus
+    // resenas. Una llamada por producto y se guarda para el resto de la visita:
+    // volver a un producto ya visto no repite la consulta.
+    type ProductStats = Awaited<ReturnType<typeof getProductReviewStats>>;
+    const productStatsCacheRef = useRef(new Map<string, ProductStats>());
+    const [productStats, setProductStats] = useState<{ key: string; data: ProductStats | null; failed: boolean } | null>(null);
+    const productStatsKey = business?.id && productFilter !== 'all' ? `${business.id}:${productFilter}` : null;
+    useEffect(() => {
+        if (!productStatsKey || !business?.id) return;
+        const cached = productStatsCacheRef.current.get(productStatsKey);
+        if (cached) {
+            setProductStats({ key: productStatsKey, data: cached, failed: false });
+            return;
+        }
+        let cancelled = false;
+        setProductStats({ key: productStatsKey, data: null, failed: false });
+        getProductReviewStats(business.id, productFilter)
+            .then(data => {
+                productStatsCacheRef.current.set(productStatsKey, data);
+                if (!cancelled) setProductStats({ key: productStatsKey, data, failed: false });
+            })
+            .catch(err => {
+                console.error('No se pudieron cargar las cifras del producto:', err);
+                if (!cancelled) setProductStats({ key: productStatsKey, data: null, failed: true });
+            });
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [productStatsKey]);
+    // Solo vale si es la del producto que se esta viendo ahora mismo.
+    const currentProductStats = selectedProduct && productStats?.key === productStatsKey ? productStats : null;
+    const productDistributionTotal = currentProductStats?.data
+        ? Object.values(currentProductStats.data.distribution).reduce((a, b) => a + b, 0)
+        : 0;
+    const productDistributionAverage = currentProductStats?.data && productDistributionTotal > 0
+        ? Object.entries(currentProductStats.data.distribution).reduce((acc, [star, n]) => acc + Number(star) * n, 0) / productDistributionTotal
+        : 0;
+    // Chips de fuente: con producto, sus cifras; mientras llegan, sin cifra.
+    const chipSourceCounts = selectedProduct ? (currentProductStats?.data?.sourceCounts ?? null) : sourceCounts;
+
     // Función de traducción que usa el idioma del PAÍS de la empresa (no el del usuario)
     // Esto asegura que los metadatos estén en el idioma correcto del país
+    // Los textos de cada idioma se descargan bajo demanda: mientras llega el del
+    // pais (solo pasa si difiere del de la UI), tMeta cae a t().
+    const metaLang: Language = business?.country ? getLanguageForCountryCode(business.country) : 'es';
+    const metaDictionary = useLocaleDictionary(metaLang);
     const tMeta = useCallback((key: string, params?: Record<string, any>) => {
-        if (!business?.country) return t(key, params);
-        const countryLang = getLanguageForCountryCode(business.country);
-        const langTranslations = translations[countryLang] || translations.es;
+        if (!business?.country || !metaDictionary) return t(key, params);
+        const langTranslations = metaDictionary;
         const keys = key.split('.');
         let value: any = langTranslations;
         for (const k of keys) {
@@ -282,9 +382,10 @@ const BusinessPage: React.FC = () => {
         if (typeof value !== 'string') return t(key, params);
         if (!params) return value;
         return Object.entries(params).reduce((str, [k, v]) => str.replace(`{${k}}`, String(v)), value);
-    }, [business?.country, t]);
+    }, [business?.country, metaDictionary, t]);
 
-    // Obtener el idioma para el atributo lang del HTML según el país de la empresa
+    // Idioma del pais de la empresa (rutas de la ficha). <html lang> ya no sale
+    // de aqui: lo pone I18nProvider con el idioma de la UI.
     const pageLang = useMemo(() => {
         if (!business?.country) return 'es';
         return getLanguageForCountryCode(business.country);
@@ -520,7 +621,7 @@ const BusinessPage: React.FC = () => {
         if (reviewsForSchema.length > 0) {
             data.review = reviewsForSchema.map(review => ({
                 "@type": "Review",
-                "author": { "@type": "Person", "name": review.profiles?.name || review.original_author_name || 'Anónimo' },
+                "author": { "@type": "Person", "name": getReviewAuthorName(review, 'Anónimo') },
                 "datePublished": new Date(review.created_at).toISOString().split('T')[0],
                 "reviewBody": review.review_text,
                 "reviewRating": { "@type": "Rating", "ratingValue": review.rating, "bestRating": 5, "worstRating": 1 }
@@ -589,7 +690,7 @@ const BusinessPage: React.FC = () => {
         if (reviewsForSchema.length > 0) {
             productData.review = reviewsForSchema.map(review => ({
                 "@type": "Review",
-                "author": { "@type": "Person", "name": review.profiles?.name || review.original_author_name || 'Anónimo' },
+                "author": { "@type": "Person", "name": getReviewAuthorName(review, 'Anónimo') },
                 "datePublished": new Date(review.created_at).toISOString().split('T')[0],
                 "reviewBody": review.review_text,
                 "reviewRating": { "@type": "Rating", "ratingValue": review.rating, "bestRating": 5, "worstRating": 1 }
@@ -790,18 +891,60 @@ const BusinessPage: React.FC = () => {
         }
     }, []);
 
+    // Guardas de la carga de la ficha (hallazgo #3: spinner infinito sin error).
+    // - cargaIdRef: solo la ultima carga pinta o redirige; la respuesta tardia de
+    //   una carga anterior (otra URL, reintento) se descarta.
+    // - cadenaRedireccionesRef: rutas desde las que ya se redirigio en esta
+    //   carga. Como mucho 2 saltos (slug antiguo -> slug nuevo -> URL canonica) y
+    //   nunca de vuelta a una ruta de la cadena; si no, la ficha se pinta donde esta.
+    // - loadFailed: la carga fallo o supero FICHA_TIMEOUT_MS; se ofrece Reintentar.
+    const cargaIdRef = useRef(0);
+    const cadenaRedireccionesRef = useRef<string[]>([]);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const [reintentos, setReintentos] = useState(0);
+
+    // `t` no es dependencia a proposito: cambiar de idioma no debe recargar la
+    // ficha (antes la vaciaba y relanzaba la carga en mitad de la redireccion).
+    // Los errores se guardan como clave y se traducen al pintar.
     const fetchBusinessData = useCallback(async () => {
+        const miCarga = ++cargaIdRef.current;
+        const vigente = () => cargaIdRef.current === miCarga;
         if (!identifier) {
-            setError(t('businessPage.noBusinessId'));
+            setError('businessPage.noBusinessId');
             setIsLoadingBusiness(false);
             return;
         }
         setIsLoadingBusiness(true);
         setError(null);
+        setLoadFailed(false);
         setBusiness(null);
 
         // Track if we're redirecting to avoid setting loading false
         let isRedirecting = false;
+        // Redirige salvo que forme un bucle o encadene demasiados saltos.
+        // Devuelve false si se bloquea: la ficha se pinta en la URL actual.
+        const redirigir = (destino: string): boolean => {
+            const cadena = cadenaRedireccionesRef.current;
+            const actual = normalizarRuta(location.pathname);
+            const destinoRuta = normalizarRuta(destino.split(/[?#]/)[0]);
+            if (cadena.length >= 2 || cadena.includes(destinoRuta) || destinoRuta === actual) {
+                console.warn('[BusinessPage] Redireccion bloqueada para evitar un bucle:', [...cadena, actual, destinoRuta].join(' -> '));
+                return false;
+            }
+            cadenaRedireccionesRef.current = [...cadena, actual];
+            isRedirecting = true;
+            // El estado viaja con la redireccion: lleva el producto a preseleccionar.
+            navigate(destino, { replace: true, state: location.state });
+            return true;
+        };
+        // Tiempo maximo: si vence, esta carga deja de valer y se muestra el error.
+        const temporizador = setTimeout(() => {
+            if (!vigente()) return;
+            cargaIdRef.current++;
+            cadenaRedireccionesRef.current = [];
+            setLoadFailed(true);
+            setIsLoadingBusiness(false);
+        }, FICHA_TIMEOUT_MS);
 
         try {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
@@ -818,14 +961,13 @@ const BusinessPage: React.FC = () => {
                 // 2. If not found, check for redirects
                 if (!businessData) {
                     const redirect = await getRedirectByOldSlug(decodedIdentifier);
+                    if (!vigente()) return;
                     if (redirect) {
                         // Redirect 301 to the new URL
                         const pathLang = countryCode ? getLanguageForCountryCode(countryCode) : 'es';
                         const paths = pathTranslations[pathLang] || pathTranslations.es;
                         const newPath = `/${countryCode || 'es'}/${paths.business.replace(':identifier', redirect.new_slug)}`;
-                        isRedirecting = true;
-                        navigate(newPath, { replace: true });
-                        return;
+                        if (redirigir(newPath)) return;
                     }
                 }
 
@@ -835,85 +977,104 @@ const BusinessPage: React.FC = () => {
                 }
             }
 
+            // Una carga anterior (otra URL, reintento, tiempo agotado) ni pinta ni redirige.
+            if (!vigente()) return;
+
             if (!businessData) {
-                setError(t('businessPage.businessNotFound'));
-                setIsLoadingBusiness(false);
+                setError('businessPage.businessNotFound');
                 return;
             }
 
-            // --- SLUG CANONICALIZATION ---
-            // If business has a slug and the URL identifier doesn't match exactly,
-            // redirect to the clean URL with the correct slug
-            const businessSlug = (businessData as any).slug;
-            if (businessSlug && !isUuid) {
-                // Check if URL identifier doesn't match the canonical slug
-                // (e.g., URL is "Tarot_IA" but slug is "tarot_ia")
-                if (decodedIdentifier !== businessSlug) {
-                    const pathLang = countryCode ? getLanguageForCountryCode(countryCode) : 'es';
-                    const paths = pathTranslations[pathLang] || pathTranslations.es;
-                    const canonicalPath = `/${countryCode || businessData.country?.toLowerCase() || 'es'}/${paths.business.replace(':identifier', businessSlug)}`;
+            // --- URL CANONICA ---
+            // Regla: ninguna URL que en master pintaba la ficha cambia. Se
+            // redirige EXACTAMENTE cuando master redirigia; si no, la ficha se
+            // pinta en su sitio con su <link rel=canonical> (canonicalUrl), como
+            // /empresa/<slug>, /es/empresa/<uuid>, /ES/empresa/x o
+            // /es/empresa/nombre_en_minusculas de una empresa sin slug.
+            const mainCountry = businessData.country?.toUpperCase();
+            const sedeCountries = (businessData.sedes as Sede[] || [])
+                .map(s => s.country_code?.toUpperCase())
+                .filter(Boolean) as string[];
+            const allValidCountries = new Set([mainCountry, ...sedeCountries].filter(Boolean));
+            const businessSlug = (businessData as any).slug as string | null | undefined;
+            const segmentoFicha = location.pathname.split('/').filter(Boolean)[1] ?? '';
 
-                    if (location.pathname !== canonicalPath) {
-                        // Keep loading state while redirecting to avoid flash of 404
-                        isRedirecting = true;
-                        navigate(canonicalPath, { replace: true });
+            if (dabaError404EnMaster(countryCode, segmentoFicha)) {
+                // URL que master respondia con 404 (/gb/empresa/x): directa a la
+                // URL canonica. Se conserva el pais de la URL si es sede de la
+                // empresa; si no, el pais principal.
+                const urlCountryOk = !!countryCode && allValidCountries.has(countryCode.toUpperCase());
+                const targetCountry = urlCountryOk ? countryCode!.toLowerCase() : (businessData.country || 'es').toLowerCase();
+                const paths = pathTranslations[getLanguageForCountryCode(targetCountry)] || pathTranslations.es;
+                const canonicalIdentifier = businessSlug || encodeURIComponent(businessData.name.replace(/ /g, '_'));
+                const canonicalPath = `/${targetCountry}/${paths.business.replace(':identifier', canonicalIdentifier)}`;
+                if (normalizarRuta(location.pathname) !== normalizarRuta(canonicalPath)
+                    && redirigir(`${canonicalPath}${location.search}${location.hash}`)) {
+                    return;
+                }
+            } else {
+                // 1) Slug (master): la empresa tiene slug y la URL trae otro
+                //    identificador que no es un UUID -> misma URL con el slug.
+                //    Sin prefijo, master usaba el pais de la empresa con la ruta
+                //    en espanol (/de/empresa/x), que acababa en 404: ahi se usa la
+                //    ruta del idioma de ese pais.
+                if (businessSlug && !isUuid && decodedIdentifier !== businessSlug) {
+                    const prefijo = countryCode || businessData.country?.toLowerCase() || 'es';
+                    let paths = pathTranslations[countryCode ? getLanguageForCountryCode(countryCode) : 'es'] || pathTranslations.es;
+                    if (dabaError404EnMaster(prefijo, baseDeRuta(paths.business))) {
+                        paths = pathTranslations[getLanguageForCountryCode(prefijo)] || pathTranslations.es;
+                    }
+                    const destino = `/${prefijo}/${paths.business.replace(':identifier', businessSlug)}`;
+                    if (normalizarRuta(location.pathname) !== normalizarRuta(destino) && redirigir(destino)) {
                         return;
                     }
                 }
-            }
-            // --- END SLUG CANONICALIZATION ---
-
-            // --- REDIRECTION LOGIC ---
-            // Only redirect if there's a country code in the URL
-            if (countryCode) {
-                const mainCountry = businessData.country?.toUpperCase();
-                const sedeCountries = (businessData.sedes as Sede[] || [])
-                    .map(s => s.country_code?.toUpperCase())
-                    .filter(Boolean) as string[];
-                const allValidCountries = new Set([mainCountry, ...sedeCountries].filter(Boolean));
-                const currentCountryFromUrl = countryCode.toUpperCase();
-
-                // If the country in the URL is NOT a valid location for this business, redirect to the main one.
-                if (allValidCountries.size > 0 && !allValidCountries.has(currentCountryFromUrl)) {
+                // 2) Pais (master): solo con prefijo de pais y si ese pais no es
+                //    sede de la empresa -> su pais principal.
+                if (countryCode && allValidCountries.size > 0 && !allValidCountries.has(countryCode.toUpperCase())) {
                     const canonicalCountryPrefix = (businessData.country || 'es').toLowerCase();
-                    const pathLang = getLanguageForCountryCode(businessData.country);
-                    const paths = pathTranslations[pathLang] || pathTranslations.es;
-                    // Use slug if available, otherwise fallback to name
-                    const canonicalIdentifier = (businessData as any).slug || encodeURIComponent(businessData.name.replace(/ /g, '_'));
-                    const canonicalPath = `/${canonicalCountryPrefix}/${paths.business.replace(':identifier', canonicalIdentifier)}`;
-
-                    // Only redirect if we're not already on the canonical path
-                    if (location.pathname !== canonicalPath) {
-                        isRedirecting = true;
-                        navigate(canonicalPath, { replace: true });
+                    const paths = pathTranslations[getLanguageForCountryCode(businessData.country)] || pathTranslations.es;
+                    const canonicalIdentifier = businessSlug || encodeURIComponent(businessData.name.replace(/ /g, '_'));
+                    const destino = `/${canonicalCountryPrefix}/${paths.business.replace(':identifier', canonicalIdentifier)}`;
+                    if (normalizarRuta(location.pathname) !== normalizarRuta(destino) && redirigir(destino)) {
                         return;
                     }
                 }
             }
-            // --- END REDIRECTION LOGIC ---
+            // --- FIN URL CANONICA ---
 
             const [distribution, counts] = await Promise.all([
                 getReviewRatingDistribution(businessData.id),
                 getReviewSourceCounts(businessData.id)
             ]);
+            if (!vigente()) return;
             setBusiness(businessData);
             setRatingDistribution(distribution);
             setSourceCounts(counts);
 
         } catch (e) {
             console.error("Error fetching business data:", e instanceof Error ? e.message : String(e));
-            setError(t('businessPage.errorLoadingBusiness'));
+            // Un fallo de red no es un 404: se ofrece reintentar.
+            if (vigente()) setLoadFailed(true);
         } finally {
-            // Only set loading false if we're not redirecting
-            // This prevents the flash of 404 during redirect
-            if (!isRedirecting) {
+            // Si se redirige, la carga sigue en la URL nueva: se mantiene el spinner
+            // (evita el flash de 404) y el temporizador, que cubre el caso de que
+            // esa carga nueva no llegue a arrancar.
+            if (!isRedirecting) clearTimeout(temporizador);
+            if (!isRedirecting && vigente()) {
+                cadenaRedireccionesRef.current = [];
                 setIsLoadingBusiness(false);
             }
         }
-    }, [identifier, navigate, t, location.pathname, location.search, location.hash, countryCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [identifier, navigate, location.pathname, location.search, location.hash, countryCode]);
 
 
-    useEffect(() => { fetchBusinessData(); }, [fetchBusinessData]);
+    useEffect(() => {
+        fetchBusinessData();
+        // Al cambiar de URL o desmontar, la carga en curso deja de valer.
+        return () => { cargaIdRef.current++; };
+    }, [fetchBusinessData, reintentos]);
 
     // Debounce the search input into the active search term
     useEffect(() => {
@@ -952,6 +1113,10 @@ const BusinessPage: React.FC = () => {
     // Productos activos de la empresa. Si falla, la ficha se comporta como
     // siempre: sin sección de productos y sin filtro.
     useEffect(() => {
+        // Otra empresa (la pagina no se desmonta al ir de una ficha a otra):
+        // el producto elegido en la anterior aqui no existe y dejaria la lista vacia.
+        setProductFilter('all');
+        setProducts([]);
         if (!business?.id) return;
         let cancelled = false;
         getPublicBusinessProducts(business.id)
@@ -960,16 +1125,19 @@ const BusinessPage: React.FC = () => {
         return () => { cancelled = true; };
     }, [business?.id]);
 
-    // Llegada desde un widget de producto (?producto=<id>): la ficha abre ya
-    // filtrada, para que el visitante encuentre lo que el widget le prometió.
-    // Solo se acepta si ese producto existe y está activo; un enlace viejo no
-    // debe dejar la ficha filtrada por algo que ya no está.
+    // Llegada con un producto preseleccionado («ver reseñas de este producto»
+    // desde el panel u otra pantalla de la app). Viaja en el ESTADO de la
+    // navegacion (navigate(url, { state: { productId } })), nunca en la URL.
+    // Se aplica una vez por entrada del historial y solo si el producto existe
+    // y esta activo en esta empresa.
+    const productoPreseleccionadoRef = useRef<string | null>(null);
     useEffect(() => {
-        const requested = new URLSearchParams(location.search).get('producto');
-        if (requested && products.some(p => p.id === requested)) {
-            setProductFilter(requested);
-        }
-    }, [location.search, products]);
+        const pedido = (location.state as { productId?: unknown } | null)?.productId;
+        if (typeof pedido !== 'string' || productoPreseleccionadoRef.current === location.key) return;
+        if (!products.some(p => p.id === pedido)) return;
+        productoPreseleccionadoRef.current = location.key;
+        setProductFilter(pedido);
+    }, [location.key, location.state, products]);
     
     useEffect(() => {
         const generateInsights = async () => {
@@ -1006,7 +1174,7 @@ const BusinessPage: React.FC = () => {
         };
         
         // Only generate insights if the plan allows it (not free plan)
-        if (business && business.plan !== 'free') {
+        if (business && business.plan !== 'free' && AI_ENABLED) {
             generateInsights();
         } else {
             setIsLoadingInsights(false); // Make sure loading stops for free plans
@@ -1027,9 +1195,34 @@ const BusinessPage: React.FC = () => {
         });
     }, [business?.id, business?.name, user?.email, user?.id]);
 
+    // La carga fallo o tardo demasiado: nunca spinner infinito. noindex para
+    // que un buscador no guarde este estado como si fuera la ficha.
+    if (loadFailed) {
+        return (
+            <>
+                <Meta title={t('businessPage.fichaLoadErrorTitle')} description={t('businessPage.fichaLoadErrorMessage')} noindex />
+                <div role="alert" className="max-w-md mx-auto my-12 sm:my-16 text-center bg-white dark:bg-zinc-800 p-6 sm:p-8 rounded-xl shadow-lg border border-gray-200 dark:border-zinc-700">
+                    <div className="text-3xl sm:text-4xl text-gray-300 dark:text-gray-600 mb-3">
+                        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    </div>
+                    <h1 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{t('businessPage.fichaLoadErrorTitle')}</h1>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('businessPage.fichaLoadErrorMessage')}</p>
+                    <button
+                        type="button"
+                        data-testid="ficha-reintentar"
+                        onClick={() => { cadenaRedireccionesRef.current = []; setReintentos(n => n + 1); }}
+                        className="mt-5 min-h-[44px] bg-brand-green text-white font-bold py-2.5 px-6 rounded-lg hover:bg-opacity-90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800"
+                    >
+                        {t('businessPage.fichaLoadErrorRetry')}
+                    </button>
+                </div>
+            </>
+        );
+    }
+
     // FIX: Add missing return statement
     if (isLoadingBusiness) {
-        return <div className="flex justify-center items-center h-96"><Spinner /></div>;
+        return <div className="flex justify-center items-center h-96" role="status" aria-busy="true"><Spinner /></div>;
     }
 
     // SEO: Renderizar NotFoundPage directamente en vez de Navigate
@@ -1042,7 +1235,7 @@ const BusinessPage: React.FC = () => {
         <>
             {/* SEO: noindex si el país de la URL no es válido para esta empresa */}
             {/* El canonical siempre apunta al país correcto */}
-            <Meta title={metaTitle} description={metaDescription} lang={pageLang} canonical={canonicalUrl} noindex={isWrongCountry} />
+            <Meta title={metaTitle} description={metaDescription} canonical={canonicalUrl} noindex={isWrongCountry} />
             {schemaData && <Schema data={schemaData} id="schema-localbusiness" />}
             {productSchemaData && <Schema data={productSchemaData} id="schema-product" />}
             <style>{iconStyle}</style>
@@ -1066,16 +1259,35 @@ const BusinessPage: React.FC = () => {
                                     <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100 break-words">
                                         {business?.name}
                                     </h1>
+                                    {/* Sin enlace: el botón «Gestionar» de debajo ya lleva al panel. */}
+                                    <OwnBusinessBadge business={business} size="md" className="self-start" />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 mt-1.5 sm:mt-2">
                                     <div className="flex items-center gap-1 sm:gap-1.5"><StarRating rating={averageRating} /><span className="font-bold text-xs sm:text-sm md:text-base text-gray-700 dark:text-gray-200">{averageRating.toFixed(1)}</span></div>
-                                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{totalReviews} {t('common.reviews')}</span>
+                                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{totalReviews} {totalReviews === 1 ? t('common.review') : t('common.reviews')}</span>
                                 </div>
+                                {/* Ficha de otro país que el de búsqueda del usuario: se indica
+                                    con discreción. Ni el idioma ni el selector de país cambian. */}
+                                {(() => {
+                                    const fichaCountry = (activeCountryCode || business.country || '').toUpperCase();
+                                    if (!country || !fichaCountry || fichaCountry === country) return null;
+                                    const info = COUNTRIES.find(c => c.code === fichaCountry) || SEDE_COUNTRIES.find(c => c.code === fichaCountry);
+                                    return (
+                                        <span data-testid="foreign-business-badge" className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">
+                                            {info?.flag && <img src={info.flag} alt="" width={16} height={12} className="w-4 h-3 rounded-sm object-cover" />}
+                                            {t('common.businessFromCountry', { country: countryNameOf(fichaCountry, info?.name || fichaCountry) })}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                         </div>
                         {/* Buttons Row */}
                         <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
-                            <button onClick={handleWriteReviewClick} className="w-full xs:flex-1 text-xs sm:text-sm md:text-base bg-brand-green text-white font-bold py-2 sm:py-2.5 px-3 sm:px-4 md:px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap">{t('businessPage.writeReview')}</button>
+                            {ownBusiness ? (
+                                <Link to={getBusinessDashboardPath(ownBusiness, undefined, language)} data-own-business="true" className="w-full xs:flex-1 text-center text-xs sm:text-sm md:text-base bg-brand-green text-white font-bold py-2 sm:py-2.5 px-3 sm:px-4 md:px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap"><i className="fa-solid fa-gauge mr-1.5" aria-hidden="true"></i>{t('businessPage.manageBusiness')}</Link>
+                            ) : (
+                                <button onClick={handleWriteReviewClick} className="w-full xs:flex-1 text-xs sm:text-sm md:text-base bg-brand-green text-white font-bold py-2 sm:py-2.5 px-3 sm:px-4 md:px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap">{t('businessPage.writeReview')}</button>
+                            )}
                             {websiteToDisplay && <a href={websiteToDisplay} target="_blank" rel="noopener noreferrer" className="w-full xs:flex-1 text-center text-xs sm:text-sm md:text-base bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 font-semibold py-2 sm:py-2.5 px-3 sm:px-4 md:px-5 rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-600 whitespace-nowrap">{t('businessPage.visitWebsite')}</a>}
                         </div>
                     </div>
@@ -1148,7 +1360,7 @@ const BusinessPage: React.FC = () => {
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-                    <main className="lg:col-span-2 space-y-3 sm:space-y-4 md:space-y-6">
+                    <section className="lg:col-span-2 space-y-3 sm:space-y-4 md:space-y-6">
                         {isLoadingInsights ? <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700 flex justify-center"><Spinner/></div> : insights && (
                             <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700">
                                 <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.aiSummary')}</h2>
@@ -1192,12 +1404,19 @@ const BusinessPage: React.FC = () => {
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('businessPage.source')}:</span>
                                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
                                         {sourceCounts && [ 'all', 'opynio', 'google', 'trustindex' ].map(s => {
-                                            const count = s === 'all' ? (sourceCounts.opynio + sourceCounts.google + sourceCounts.trustindex) : sourceCounts[s as keyof typeof sourceCounts];
-                                            if (count > 0) {
-                                                // Con un producto seleccionado, ese recuento es el de la
-                                                // empresa entera y no el de lo que se esta viendo: se
-                                                // muestra el chip sin cifra en vez de una cifra falsa.
-                                                const label = selectedProduct ? t(`businessPage.${s}`) : `${t(`businessPage.${s}`)} (${count})`;
+                                            const key = s === 'all' ? 'total' : s as keyof typeof sourceCounts;
+                                            // Con un producto elegido, las cifras son las de ese
+                                            // producto. Mientras llegan (o si fallan) el chip sale
+                                            // sin cifra, con la visibilidad de la empresa, en vez de
+                                            // una cifra que no es la de lo que se esta viendo.
+                                            const scoped = chipSourceCounts;
+                                            const count = (scoped ?? sourceCounts)[key];
+                                            // El chip activo no desaparece aunque el producto no
+                                            // tenga resenas de esa fuente: si no, el filtro seguiria
+                                            // aplicado sin ningun chip que lo muestre ni lo quite.
+                                            // «Todas» se queda con producto elegido aunque sea (0).
+                                            if (count > 0 || (sourceFilter === s && s !== 'all') || (s === 'all' && !!selectedProduct)) {
+                                                const label = selectedProduct && !scoped ? t(`businessPage.${s}`) : `${t(`businessPage.${s}`)} (${count})`;
                                                 return <FilterChip key={s} label={label} isActive={sourceFilter === s} onClick={() => setSourceFilter(s as any)} />;
                                             }
                                             return null;
@@ -1214,14 +1433,10 @@ const BusinessPage: React.FC = () => {
                                         <span className="min-w-0 text-xs sm:text-sm text-gray-800 dark:text-gray-100">
                                             {t('businessPage.reviewsOfProduct', { name: selectedProduct.name })}
                                         </span>
-                                        {urlDelProducto(selectedProduct) && (
-                                            <Link
-                                                to={urlDelProducto(selectedProduct) as string}
-                                                className="text-xs font-semibold text-brand-green hover:underline focus:outline-none focus:ring-2 focus:ring-brand-green rounded"
-                                            >
-                                                {t('businessPage.seeProductPage')}
-                                            </Link>
-                                        )}
+                                        {/* Contador del producto: la cifra de la ficha entera no vale aqui. */}
+                                        <span data-testid="product-filter-count" className="text-xs font-semibold text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                            {(selectedProduct.review_count ?? 0)} {(selectedProduct.review_count ?? 0) === 1 ? t('common.review') : t('common.reviews')}
+                                        </span>
                                         <button
                                             type="button"
                                             onClick={() => setProductFilter('all')}
@@ -1257,7 +1472,7 @@ const BusinessPage: React.FC = () => {
                                 <PlaceholderMessage icon="fa-comment-slash" title={t('businessPage.noReviewsMatchingFilter')} message={t('businessPage.noReviewsMatchingFilterSubtitle')} />
                             )}
                         </div>
-                    </main>
+                    </section>
 
                     <aside className="lg:col-span-1 space-y-3 sm:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
                         {products.length > 0 && (
@@ -1271,6 +1486,8 @@ const BusinessPage: React.FC = () => {
                                     hint={t('businessPage.productsFilterHint')}
                                     allLabel={t('businessPage.allReviewsFor', { businessName: business.name })}
                                     reviewsWord={(n) => (n === 1 ? t('common.review') : t('common.reviews'))}
+                                    searchPlaceholder={t('writeReviewPage.productSearchPlaceholder')}
+                                    noResults={t('writeReviewPage.productSearchNoResults')}
                                     onChange={(id) => {
                                         setProductFilter(id);
                                         if (id !== 'all') {
@@ -1278,25 +1495,38 @@ const BusinessPage: React.FC = () => {
                                         }
                                     }}
                                 />
-                                {selectedProduct && urlDelProducto(selectedProduct) && (
-                                    <Link
-                                        to={urlDelProducto(selectedProduct) as string}
-                                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-green hover:underline focus:outline-none focus:ring-2 focus:ring-brand-green rounded"
-                                    >
-                                        <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                                        {t('businessPage.seeProductPage')}
-                                    </Link>
-                                )}
                             </div>
                         )}
 
                         <div>
-                            <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
-                            {selectedProduct && (
-                                <p className="mt-1.5 px-1 text-[11px] text-gray-500 dark:text-gray-400 flex items-start gap-1.5">
-                                    <i className="fa-solid fa-circle-info mt-0.5 flex-shrink-0" aria-hidden="true"></i>
-                                    <span>{t('businessPage.allReviewsFor', { businessName: business.name })}</span>
-                                </p>
+                            {/* Con un producto elegido, la distribucion es la de sus
+                                resenas (subconjunto). Con «Todas», la de la empresa. */}
+                            {selectedProduct ? (
+                                <RatingDistribution
+                                    distribution={currentProductStats?.data?.distribution ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }}
+                                    totalReviews={productDistributionTotal}
+                                    isLoading={!currentProductStats || (!currentProductStats.data && !currentProductStats.failed)}
+                                    errorMessage={currentProductStats?.failed ? t('businessPage.productStatsError') : null}
+                                    emptyMessage={t('businessPage.productNoReviewsYet')}
+                                    subtitle={
+                                        <>
+                                            <p className="flex items-start gap-1.5 min-w-0">
+                                                <i className="fa-solid fa-tag text-brand-green mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+                                                <span className="min-w-0 break-words">{t('businessPage.ratingDistributionOnlyProduct', { name: selectedProduct.name })}</span>
+                                            </p>
+                                            {currentProductStats?.data && productDistributionTotal > 0 && (
+                                                <div data-testid="rating-distribution-summary" className="mt-1 flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                                                    <StarRating rating={productDistributionAverage} size="small" />
+                                                    <span className="font-semibold text-gray-700 dark:text-gray-200">{productDistributionAverage.toFixed(1)}</span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span>{productDistributionTotal} {productDistributionTotal === 1 ? t('common.review') : t('common.reviews')}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    }
+                                />
+                            ) : (
+                                <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
                             )}
                         </div>
                         <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700 space-y-2.5 sm:space-y-3 overflow-hidden">
@@ -1319,8 +1549,28 @@ const BusinessPage: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Es tu negocio: en lugar de "reclamar", acceso al panel. */}
+                        {business && ownBusiness && (
+                            <div className="bg-green-50 dark:bg-green-900/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-green-200 dark:border-green-800" data-own-business="true">
+                                <div className="flex items-start gap-2 mb-2">
+                                    <i className="fa-solid fa-store text-brand-green text-base sm:text-lg mt-0.5" aria-hidden="true"></i>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100">{t('businessPage.ownBusinessTitle')}</h3>
+                                        <p className="text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 mt-1">{t('businessPage.ownBusinessSubtitle')}</p>
+                                    </div>
+                                </div>
+                                <Link
+                                    to={getBusinessDashboardPath(ownBusiness, undefined, language)}
+                                    className="block w-full text-center bg-brand-green hover:bg-opacity-90 text-white font-semibold text-xs sm:text-sm py-2 px-3 rounded-lg transition-colors shadow-sm"
+                                >
+                                    <i className="fa-solid fa-gauge mr-1.5" aria-hidden="true"></i>
+                                    {t('businessPage.manageBusiness')}
+                                </Link>
+                            </div>
+                        )}
+
                         {/* Claim Business Section - Only show if business is unclaimed */}
-                        {business && !business.owner_id && (
+                        {business && !business.owner_id && !ownBusiness && (
                             <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-blue-200 dark:border-blue-700">
                                 <div className="flex items-start gap-2 mb-2">
                                     <i className="fa-solid fa-store text-blue-600 dark:text-blue-400 text-base sm:text-lg mt-0.5"></i>
@@ -1332,7 +1582,7 @@ const BusinessPage: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         const currentUrl = window.location.href;
-                                        navigate(`/${country?.toLowerCase() || 'es'}/${pathTranslations[language]?.support || 'soporte'}`, {
+                                        navigate(localizedPath('support', language, country || 'es'), {
                                             state: { initialTab: 'claim', claimUrl: currentUrl }
                                         });
                                     }}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../contexts/i18nContext';
 
 interface StarRatingProps {
     rating: number;
@@ -7,6 +8,7 @@ interface StarRatingProps {
 }
 
 const StarRating: React.FC<StarRatingProps> = ({ rating, onRating, size = 'medium' }) => {
+    const t = useTranslation();
     const starSizeClasses = {
         small: 'text-sm',
         medium: 'text-xl',
@@ -36,7 +38,7 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, onRating, size = 'mediu
                         onClick={() => handleStarClick(starValue)}
                         onMouseEnter={() => setHoverRating(starValue)}
                         onMouseLeave={() => setHoverRating(0)}
-                        aria-label={`Rate ${starValue} stars`}
+                        aria-label={t('common.rateStars', { n: starValue })}
                     >
                         <i className={`fa-solid fa-star transition-colors 
                             ${starValue <= (hoverRating || rating) 
@@ -53,7 +55,7 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, onRating, size = 'mediu
     const roundedRating = Math.round(rating * 2) / 2; // Rounds to the nearest 0.5
 
     return (
-        <div className={`flex items-center gap-1 ${starSizeClasses[size]}`} title={`${rating.toFixed(1)} de 5 estrellas`}>
+        <div className={`flex items-center gap-1 ${starSizeClasses[size]}`} title={t('common.ratingOutOfFive', { rating: rating.toFixed(1) })}>
             {[1, 2, 3, 4, 5].map((starIndex) => {
                 let iconClass = 'fa-regular fa-star text-gray-300 dark:text-gray-600'; // Empty star
                 if (roundedRating >= starIndex) {

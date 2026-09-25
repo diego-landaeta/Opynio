@@ -7,6 +7,9 @@ import Spinner from '../../Spinner';
 import ReviewCard from '../../ReviewCard';
 import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
+import { escapeHtml } from '../../../utils/textUtils';
+import { getReviewAuthorName } from '../../../utils/reviewDisplay';
 
 const PAGE_SIZE = 10;
 type ActiveTab = 'pending' | 'approved' | 'rejected';
@@ -33,11 +36,11 @@ const AdminReviewModerationPage: React.FC = () => {
             setReviews(data);
             setHasMore(data.length === PAGE_SIZE);
         } catch (error: any) {
-            showNotification(error.message || `Error al cargar reseñas ${status}.`, 'error');
+            showNotification(error.message || t('adminReviewModeration.errorLoading', { status: t(`adminReviewModeration.${status}`).toLowerCase() }), 'error');
         } finally {
             setLoading(false);
         }
-    }, [showNotification]);
+    }, [showNotification, t]);
 
     useEffect(() => {
         fetchReviews(activeTab, currentPage);
@@ -52,11 +55,11 @@ const AdminReviewModerationPage: React.FC = () => {
         setIsSubmitting(true);
         try {
             await adminUpdateReviewStatus(reviewId, newStatus, reason);
-            showNotification(`Reseña ${newStatus === 'approved' ? 'aprobada' : 'rechazada'}.`, 'success');
+            showNotification(t(newStatus === 'approved' ? 'adminReviewModeration.reviewApprovedNotice' : 'adminReviewModeration.reviewRejectedNotice'), 'success');
             // Optimistic update: remove from list instead of refetching
             setReviews(prev => prev.filter(r => r.id !== reviewId));
         } catch (error: any) {
-            showNotification(error.message || 'Error al actualizar el estado.', 'error');
+            showNotification(error.message || t('adminReviewModeration.updateStatusError'), 'error');
             // On error, refetch to get consistent state
             fetchReviews(activeTab, currentPage);
         } finally {
@@ -97,6 +100,7 @@ const AdminReviewModerationPage: React.FC = () => {
     return (
         <>
             <Meta title={`${t('adminReviewModeration.title')} - Admin`} description="Aprueba o rechaza nuevas reseñas enviadas por los usuarios." />
+            <AdminBackLink />
             <div className="space-y-6">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminReviewModeration.title')}</h1>
                 
@@ -119,6 +123,12 @@ const AdminReviewModerationPage: React.FC = () => {
                         <div className="space-y-6">
                             {reviews.map(review => (
                                 <div key={review.id} className="relative group">
+                                    {(review as any).product_name && (
+                                        <p className="mb-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 max-w-[calc(100%-7rem)] sm:max-w-full rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs font-semibold text-green-800 dark:text-green-200">
+                                            <i className="fa-solid fa-box-open" aria-hidden="true"></i>
+                                            {t('adminReviewModeration.productLabel', { name: (review as any).product_name })}
+                                        </p>
+                                    )}
                                     <ReviewCard review={review} showBusinessName={true} />
                                     <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1.5 sm:gap-2">
                                         {activeTab !== 'approved' && (
@@ -157,7 +167,7 @@ const AdminReviewModerationPage: React.FC = () => {
                                 {t('common.previous')}
                             </button>
                             <span className="text-xs sm:text-sm font-medium dark:text-gray-400">
-                                {t('common.page', { current: currentPage, total: '...' })}
+                                {t('adminReviewModeration.pageLabel', { current: currentPage })}
                             </span>
                             <button
                                 onClick={() => setCurrentPage(p => p + 1)}
@@ -174,7 +184,7 @@ const AdminReviewModerationPage: React.FC = () => {
             {isRejectionModalOpen && selectedReview && (
                 <Modal title={t('adminReviewModeration.rejectModalTitle')} onClose={() => setIsRejectionModalOpen(false)}>
                     <form onSubmit={handleRejectionSubmit} className="py-4 space-y-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('adminReviewModeration.rejectModalSubtitle', { userName: selectedReview.profiles?.name || 'Anónimo', businessName: selectedReview.businesses.name }) }} />
+                        <p className="text-sm text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: t('adminReviewModeration.rejectModalSubtitle', { userName: escapeHtml(getReviewAuthorName(selectedReview, t('common.anonymous'))), businessName: escapeHtml(selectedReview.businesses.name) }) }} />
                         <div>
                             <label htmlFor="rejectionReason" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminReviewModeration.rejectionReasonLabel')}</label>
                             <textarea

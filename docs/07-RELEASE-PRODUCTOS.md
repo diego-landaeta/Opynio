@@ -54,14 +54,25 @@ nada.** Corregido y comprobado: la base local se levanta entera desde él.
 
 ## Orden de despliegue
 
-Comprobado, no supuesto:
+> **Superado.** El orden, los comandos y las verificaciones vigentes están en
+> [DESPLIEGUE-2026-09.md](./DESPLIEGUE-2026-09.md) (24/09/2026): la rama ya lleva
+> 17 migraciones, 19 funciones y el widget v6.10.4, y tres de esas migraciones
+> no se pueden aplicar tal cual en producción. Lo que sigue es el texto del
+> 18/09, corregido donde ya no es cierto.
 
 1. **SQL primero.** Las dos migraciones de producto (`20260917120000`,
    `20260917121000`). El panel de Productos revienta al cargar sin ellas.
-2. **`widget-proxy` y `generate-sitemap`, cuando quieras.** Ambos degradan solos
-   si las tablas no están: lo probé escondiéndolas y el widget de empresa
-   responde idéntico y el sitemap devuelve 200 sin fichas de producto.
-3. **Front y `widget.js` v6.10.1 al final.**
+   **Ojo:** `20260917120000` falla en producción tal como está, porque allí
+   `reviews.id` es `bigint` y la migración lo enlaza como `UUID` (ver B1 en el
+   runbook).
+2. **`widget-proxy` y `generate-sitemap`, después del SQL.** El 18/09 ambos
+   degradaban solos si las tablas no estaban. **Ya no es así para
+   `widget-proxy`**: desde que pide las reseñas a la RPC `widget_business_reviews`
+   (migración `20260923150000`), si esa RPC no existe el widget de empresa
+   responde **sin reseñas** (el error solo se registra en el log). Hay que
+   aplicar antes las migraciones. `generate-sitemap` sigue degradando, pero
+   debe desplegarse con `verify_jwt=false`.
+3. **`widget.js` (hoy v6.10.4) y después el front.**
 
 **Aparte, y con su propio momento**: el arreglo del disparador de `logo_tone`
 (`20260915150000`) es `CREATE OR REPLACE` sobre una tabla existente

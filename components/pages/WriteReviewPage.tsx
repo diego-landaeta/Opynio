@@ -4,8 +4,8 @@ import AudioPlayer from '../AudioPlayer';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Database, Business, BusinessListItem } from '../../types';
 import { CATEGORIES } from '../../constants';
-import { createReview, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, linkOwnReviewToProduct } from '../../services/supabaseService';
-import { generateReviewDraft } from '../../services/geminiService';
+import { createReview, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, getPublicBusinessProducts, linkOwnReviewToProduct } from '../../services/supabaseService';
+import { generateReviewDraft, AI_ENABLED } from '../../services/geminiService';
 import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
 import Meta from '../Meta';
@@ -13,7 +13,10 @@ import Modal from '../Modal';
 // FIX: Changed react-router-dom namespace import to named imports to resolve module resolution issues.
 import { Link, useLocation } from 'react-router-dom';
 import { useNotification } from '../../contexts/NotificationContext';
+import { getUserFacingError } from '../../utils/userFacingError';
 import { useTranslation, useI18n } from '../../contexts/i18nContext';
+import { getBusinessDashboardPath } from '../../utils/businessOwnership';
+import OwnBusinessBadge from '../OwnBusinessBadge';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
 
 type ReviewType = 'text' | 'audio';
@@ -21,6 +24,38 @@ type RecordingStatus = 'idle' | 'recording' | 'stopped';
 type SubmissionStatus = 'idle' | 'uploading' | 'submitting';
 
 const DRAFT_KEY = 'opynio_review_draft';
+// Mismos limites que el bucket review_media (migracion 20260923140000).
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGES = 5;
+// Audio: los mismos tipos que admite el bucket review_media (migracion
+// 20260923140000_storage_bucket_limits.sql). Con `audio/*` se podia elegir un
+// .flac o .aac que Storage rechaza, y la resena se publicaba sin audio.
+const ALLOWED_AUDIO_TYPES = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/x-m4a', 'audio/ogg', 'audio/wav', 'audio/x-wav'];
+// Alias que dan algunos navegadores/sistemas para esos mismos formatos, y el
+// tipo por extension cuando el navegador no da ninguno.
+const AUDIO_TYPE_ALIASES: Record<string, string> = {
+    'audio/mp3': 'audio/mpeg', 'audio/x-mp3': 'audio/mpeg', 'audio/x-mpeg': 'audio/mpeg',
+    'audio/m4a': 'audio/x-m4a', 'audio/vnd.wave': 'audio/wav', 'audio/wave': 'audio/wav',
+    'video/webm': 'audio/webm', 'application/ogg': 'audio/ogg',
+};
+const AUDIO_TYPE_BY_EXTENSION: Record<string, string> = {
+    mp3: 'audio/mpeg', m4a: 'audio/x-m4a', ogg: 'audio/ogg', oga: 'audio/ogg',
+    wav: 'audio/wav', webm: 'audio/webm', weba: 'audio/webm',
+};
+const AUDIO_ACCEPT = [...ALLOWED_AUDIO_TYPES, '.mp3', '.m4a', '.ogg', '.oga', '.wav', '.webm', '.weba'].join(',');
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+// Devuelve el fichero con un tipo que el bucket admite, o null si no vale.
+const normalizarAudio = (file: File): File | null => {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const bruto = (file.type || '').split(';')[0].trim().toLowerCase();
+    const tipo = ALLOWED_AUDIO_TYPES.includes(bruto)
+        ? bruto
+        : AUDIO_TYPE_ALIASES[bruto] || (!bruto || bruto === 'application/octet-stream' ? AUDIO_TYPE_BY_EXTENSION[ext] : undefined);
+    if (!tipo) return null;
+    return tipo === file.type ? file : new File([file], file.name, { type: tipo });
+};
 const DRAFT_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
 
 interface DraftImage {
@@ -47,10 +82,11 @@ interface ReviewDraft {
         images: DraftImage[];
         audio: DraftAudio | null;
         reviewType: ReviewType;
+        productId?: string;
     };
 }
 
-const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect: (business: BusinessListItem) => void }> = ({ business, onSelect }) => {
+const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect: (business: BusinessListItem) => void, isOwn?: boolean }> = ({ business, onSelect, isOwn = false }) => {
     const t = useTranslation();
 
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -88,14 +124,19 @@ const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect:
 
     return (
         <li
-            onClick={() => onSelect(business)}
-            className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer flex items-center gap-3"
+            // Su propio negocio sale en la lista (si no, "no encontrado"
+            // confunde), pero no se puede elegir.
+            onClick={isOwn ? undefined : () => onSelect(business)}
+            aria-disabled={isOwn || undefined}
+            title={isOwn ? t('businessPage.cannotReviewOwnBusiness') : undefined}
+            data-own-business={isOwn ? 'true' : undefined}
+            className={`px-4 py-2 flex items-center gap-3 ${isOwn ? 'cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer'}`}
         >
             <BusinessLogo
                 logoUrl={business.logo_url}
                 businessName={business.name}
                 tone={(business as any).logo_tone}
-                className="w-10 h-10"
+                className={`w-10 h-10 ${isOwn ? 'opacity-60' : ''}`}
                 rounded="rounded-md"
                 iconSize="text-base"
                 fit="cover"
@@ -103,9 +144,11 @@ const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect:
                 width={40}
                 height={40}
             />
-            <div>
+            {/* Atenuado el nombre, no la etiqueta: «Tu negocio» es el motivo y debe leerse. */}
+            <div className={isOwn ? '[&>p]:opacity-60' : undefined}>
                 <p className="font-semibold text-gray-800 dark:text-gray-200">{business.name}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{getCategoryTranslation(business.category)}</p>
+                {isOwn && <OwnBusinessBadge business={business} className="mt-1" />}
             </div>
         </li>
     );
@@ -159,7 +202,12 @@ const WriteReviewPage: React.FC = () => {
     const [createError, setCreateError] = useState<string | null>(null);
 
     const t = useTranslation();
-    const { user, profile } = useAuth();
+    const { user, profile, businesses: misEmpresas, loading: authLoading } = useAuth();
+    const { language } = useI18n();
+    // Empresa elegida que es del propio usuario (llegó preseleccionada por URL,
+    // estado o borrador): se avisa y no se deja enviar.
+    const empresaPropiaElegida = selectedBusinessId ? (misEmpresas.find(b => b.id === selectedBusinessId) ?? null) : null;
+    const esEmpresaPropiaElegida = empresaPropiaElegida !== null;
     const { showNotification } = useNotification();
     const location = useLocation();
     // El widget enlaza con ?businessId=…&producto=…, pero hasta ahora solo se
@@ -179,6 +227,61 @@ const WriteReviewPage: React.FC = () => {
             .catch(() => { /* producto borrado o desactivado: reseña normal */ });
         return () => { cancelado = true; };
     }, [productoSolicitado]);
+
+    // Productos activos de la empresa elegida. Quien escribe la resena elige
+    // aqui sobre que producto opina; antes solo se podia llegando desde el
+    // widget de un producto, y el resto quedaba "sin asignar" hasta que el
+    // dueno la asignaba a mano en su panel.
+    const [productosEmpresa, setProductosEmpresa] = useState<Array<{ id: string; name: string }>>([]);
+    const [productoElegidoId, setProductoElegidoId] = useState<string>('');
+    // Buscador del selector: una empresa puede tener mas de mil cursos (Psiko
+    // Aprende, 1.006) y un desplegable de mil opciones no se puede usar.
+    const [busquedaProducto, setBusquedaProducto] = useState('');
+    const normalizarBusqueda = (texto: string) =>
+        texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const { productosFiltrados, coincidenciasBusqueda } = React.useMemo(() => {
+        const q = normalizarBusqueda(busquedaProducto.trim());
+        if (!q) return { productosFiltrados: productosEmpresa, coincidenciasBusqueda: productosEmpresa.length };
+        const palabras = q.split(/\s+/);
+        const coinciden = productosEmpresa.filter(p => {
+            const nombre = normalizarBusqueda(p.name);
+            return palabras.every(w => nombre.includes(w));
+        });
+        // El elegido se mantiene en la lista aunque no coincida, para que el
+        // desplegable no cambie de valor solo por escribir en el buscador.
+        const elegido = productosEmpresa.find(p => p.id === productoElegidoId);
+        const lista = elegido && !coinciden.some(p => p.id === elegido.id) ? [elegido, ...coinciden] : coinciden;
+        return { productosFiltrados: lista, coincidenciasBusqueda: coinciden.length };
+    }, [productosEmpresa, busquedaProducto, productoElegidoId]);
+    // Producto guardado en el borrador. Se aplica cuando llegan los productos de
+    // la empresa: restaurar el borrador cambia la empresa, y ese cambio limpia
+    // la seleccion antes de cargar la lista.
+    const productoDelBorradorRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        setProductosEmpresa([]);
+        setProductoElegidoId('');
+        setBusquedaProducto('');
+        if (!selectedBusinessId) return;
+        let cancelado = false;
+        getPublicBusinessProducts(selectedBusinessId)
+            .then(productos => {
+                if (cancelado) return;
+                setProductosEmpresa(productos.map(p => ({ id: p.id, name: p.name })));
+                // Si se llego desde el widget de un producto de esta empresa,
+                // viene preseleccionado; el usuario puede cambiarlo.
+                const delBorrador = productoDelBorradorRef.current;
+                productoDelBorradorRef.current = null;
+                if (delBorrador && productos.some(p => p.id === delBorrador)) {
+                    setProductoElegidoId(delBorrador);
+                } else if (productoDeLaResena && productoDeLaResena.business_id === selectedBusinessId
+                    && productos.some(p => p.id === productoDeLaResena.id)) {
+                    setProductoElegidoId(productoDeLaResena.id);
+                }
+            })
+            .catch(() => { /* sin productos: la resena es de la empresa */ });
+        return () => { cancelado = true; };
+    }, [selectedBusinessId, productoDeLaResena]);
 
     // Helper function to translate category string
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -316,6 +419,17 @@ const WriteReviewPage: React.FC = () => {
                     }
                     
                     const { data } = savedDraft;
+                    // Borrador de una empresa propia: no se puede enviar, y
+                    // restaurarlo dejaba al dueño con su empresa fijada, sin
+                    // buscador y con «Hemos cargado un borrador guardado».
+                    if (data.selectedBusinessId && misEmpresas.some(b => b.id === data.selectedBusinessId)) {
+                        localStorage.removeItem(DRAFT_KEY);
+                        return;
+                    }
+                    if (preselectedBusinessId && data.selectedBusinessId !== preselectedBusinessId) {
+                        return;
+                    }
+                    productoDelBorradorRef.current = data.productId || null;
                     setSelectedBusinessId(data.selectedBusinessId);
                     
                     if (data.selectedBusinessId) {
@@ -360,13 +474,34 @@ const WriteReviewPage: React.FC = () => {
             }
         };
 
-        if (!preselectedBusinessId) { // Only load draft if not coming from a pre-selection link
-            loadDraft();
-        }
-    }, [preselectedBusinessId]);
+        // Con empresa preseleccionada en la URL (widget, invitacion) solo se
+        // recupera el borrador si es de esa misma empresa. Es el caso de volver
+        // tras poner el username en el perfil: antes se perdia lo escrito.
+        // Se espera a que AuthContext haya cargado las empresas del usuario:
+        // sin ellas no se sabe si el borrador es de una empresa suya.
+        // misEmpresas no va en las dependencias a proposito: si cambia despues
+        // (realtime), no hay que volver a pisar el formulario con el borrador.
+        if (authLoading) return;
+        loadDraft();
+    }, [preselectedBusinessId, authLoading]);
+
+    // Red de seguridad: si las empresas del usuario llegan despues de restaurar
+    // (sesion recien iniciada), un borrador de su propia empresa se descarta
+    // igual. Con ?businessId= propio, la preseleccion la vuelve a fijar, ya
+    // bloqueada y con el aviso, pero sin borrador.
+    useEffect(() => {
+        if (draftLoaded && esEmpresaPropiaElegida) resetForm();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftLoaded, esEmpresaPropiaElegida]);
 
     // Save draft to localStorage whenever form state changes (debounced)
     useEffect(() => {
+        // Mientras AuthContext carga no se sabe si la empresa es del usuario (y
+        // el formulario vacio borraria el borrador antes de restaurarlo).
+        if (authLoading) return;
+        // Empresa propia: no se guarda borrador. Esa reseña no se puede enviar
+        // y el borrador la volvia a abrir en la siguiente visita.
+        if (esEmpresaPropiaElegida) return;
         // Debounce handler
         const handler = setTimeout(async () => {
             // Don't save an empty form
@@ -406,6 +541,7 @@ const WriteReviewPage: React.FC = () => {
                     images,
                     audio,
                     reviewType,
+                    productId: productoElegidoId || undefined,
                 }
             };
 
@@ -415,7 +551,7 @@ const WriteReviewPage: React.FC = () => {
         return () => {
             clearTimeout(handler);
         };
-    }, [selectedBusinessId, category, rating, title, text, isVerifiedPurchase, imageFiles, audioBlob, reviewType]);
+    }, [selectedBusinessId, category, rating, title, text, isVerifiedPurchase, imageFiles, audioBlob, reviewType, productoElegidoId, authLoading, esEmpresaPropiaElegida]);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
@@ -488,11 +624,22 @@ const WriteReviewPage: React.FC = () => {
             return;
         }
 
+        // Un dueño no puede opinar de su propio negocio (en producción quedó
+        // una reseña "El negocio es mío." de una dueña intentando reclamarlo).
+        if (empresaPropiaElegida) {
+            setSubmitError(t('businessPage.cannotReviewOwnBusiness'));
+            setShowErrorModal(true);
+            setSubmissionStatus('idle');
+            return;
+        }
+
         const missingFields: string[] = [];
         if (!selectedBusinessId) missingFields.push(t('business'));
         if (!category) missingFields.push(t('category'));
         if (rating === 0) missingFields.push(t('rating'));
         if (!title.trim()) missingFields.push(t('title'));
+        // Una resena de audio sin audio saldria vacia (solo titulo y estrellas).
+        if (reviewType === 'audio' && !audioBlob) missingFields.push(t('writeReviewPage.reviewTypeAudio'));
 
         if (missingFields.length > 0) {
             const errorMessage = `${t('pleaseCompleteFields')}: ${missingFields.join(', ')}.`;
@@ -510,7 +657,9 @@ const WriteReviewPage: React.FC = () => {
         const reviewInsert: Database['public']['Tables']['reviews']['Insert'] = {
             rating,
             title,
-            review_text: reviewType === 'text' ? text : null,
+            // review_text es NOT NULL: una resena de audio mandaba null y el
+            // insert fallaba (23502) despues de haber subido el audio.
+            review_text: reviewType === 'text' ? text : '',
             user_id: user.id,
             business_id: selectedBusinessId,
             category,
@@ -528,12 +677,16 @@ const WriteReviewPage: React.FC = () => {
                 imageFiles: imageFiles.length > 0 ? imageFiles : undefined
             });
 
-            // Si viene de un widget de producto, la reseña queda asociada a ese
-            // producto. Va DESPUÉS de crearla y sin bloquear: si el enlace falla,
-            // la reseña está publicada igual, que es lo que le importa al autor.
-            if (productoDeLaResena && (resenaCreada as any)?.id
-                && productoDeLaResena.business_id === selectedBusinessId) {
-                await linkOwnReviewToProduct(String((resenaCreada as any).id), productoDeLaResena.id);
+            // El producto elegido en el formulario (o el del widget, que llega
+            // preseleccionado). Va DESPUÉS de crearla: si el enlace falla, la
+            // reseña está publicada igual, que es lo que le importa al autor.
+            if (productoElegidoId && (resenaCreada as any)?.id
+                && productosEmpresa.some(p => p.id === productoElegidoId)) {
+                try {
+                    await linkOwnReviewToProduct(String((resenaCreada as any).id), productoElegidoId);
+                } catch (linkError) {
+                    console.error('No se pudo asociar la reseña al producto:', linkError);
+                }
             }
 
             setShowSuccessModal(true);
@@ -542,7 +695,13 @@ const WriteReviewPage: React.FC = () => {
         } catch (error: any) {
              const msg = error?.message === 'ALREADY_REVIEWED'
                  ? t('alreadyReviewedThisBusiness')
-                 : (error.message || t('errorPublishingReview'));
+                 : error?.message === 'OWN_BUSINESS_REVIEW'
+                     ? t('businessPage.cannotReviewOwnBusiness')
+                     : error?.message === 'AUDIO_UPLOAD_FAILED'
+                         // La resena NO se ha creado; el formulario conserva todo.
+                         ? t('writeReviewPage.audioUploadFailed')
+                         // El resto, traducido (nunca el texto de PostgREST).
+                         : t((await getUserFacingError(error, { fallbackKey: 'writeReviewPage.errorPublishingReview' })).key);
              setSubmitError(msg);
              setShowErrorModal(true);
              setSubmissionStatus('idle');
@@ -550,9 +709,16 @@ const WriteReviewPage: React.FC = () => {
     };
     
     const processImageFiles = (files: File[]) => {
+        // Lista cerrada de formatos, no `image/*`: arrastrando un fichero se
+        // saltaba el `accept` del input y entraban SVG, que se sirven como
+        // image/svg+xml y ejecutan su <script> al abrir la foto.
         const imageFiles = files
-            .filter(file => file.type.startsWith('image/'))
-            .slice(0, 5); // Limit to 5 images
+            .filter(file => ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_BYTES)
+            .slice(0, MAX_IMAGES);
+
+        if (imageFiles.length < files.length) {
+            showNotification(t('writeReviewPage.photosSkipped'), 'info');
+        }
 
         if (imageFiles.length > 0) {
             setImageFiles(imageFiles);
@@ -591,9 +757,17 @@ const WriteReviewPage: React.FC = () => {
     };
 
     const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        const elegido = e.target.files?.[0];
+        if (elegido) {
+            // El `accept` no basta: en el dialogo se puede cambiar a «Todos los
+            // archivos». Se valida el tipo contra la lista del bucket.
+            const file = normalizarAudio(elegido);
+            if (!file) {
+                showNotification(t('writeReviewPage.audioInvalidType'), 'error');
+                e.target.value = '';
+                return;
+            }
+            if (file.size > MAX_AUDIO_BYTES) {
                 showNotification(t('audioFileTooLarge'), 'error');
                 e.target.value = '';
                 return;
@@ -674,7 +848,11 @@ const WriteReviewPage: React.FC = () => {
             setGeneratedDraft(draft);
             setReviewType('text');
         } catch (err: any) {
-            setGenerationError(err.message || t('errorGeneratingDraft'));
+            // Nunca el mensaje tecnico: salia «Failed to generate AI review
+            // draft.» en ingles. Se explica que el asistente no esta y que
+            // puede escribirla a mano (el formulario sigue disponible).
+            console.error('AI draft failed:', err);
+            setGenerationError(t('writeReviewPage.aiDraftUnavailable'));
         } finally {
             setIsGeneratingDraft(false);
         }
@@ -713,7 +891,9 @@ const WriteReviewPage: React.FC = () => {
             showNotification(t('businessCreatedSuccess'), 'success');
 
         } catch (err: any) {
-            setCreateError(err.message || t('errorCreatingBusiness'));
+            // Traducido; una empresa repetida (23505) lo dice asi.
+            const info = await getUserFacingError(err, { flow: 'businessSignup', fallbackKey: 'writeReviewPage.errorCreatingBusiness' });
+            setCreateError(t(info.key));
         } finally {
             setIsCreatingBusiness(false);
         }
@@ -729,7 +909,7 @@ const WriteReviewPage: React.FC = () => {
         <>
             <Meta
                 title={t('writeReviewPage.writeReviewTitle') + " - Opynio"}
-                description={t('metaWriteReviewDesc')}
+                description={t('writeReviewPage.metaDescription')}
             />
             <div className="max-w-[98vw] sm:max-w-4xl mx-auto bg-white dark:bg-zinc-800 p-3 sm:p-6 md:p-8 rounded-xl shadow-lg">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
@@ -738,7 +918,7 @@ const WriteReviewPage: React.FC = () => {
                         <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">{t('writeReviewPage.writeReviewSubtitle')}</p>
                         {/* Se llegó desde el widget de un producto: se dice, porque
                             asociar la reseña en silencio sería peor que no asociarla. */}
-                        {productoDeLaResena && (
+                        {productoDeLaResena && productoElegidoId === productoDeLaResena.id && (
                             <p className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs sm:text-sm text-green-800 dark:text-green-200">
                                 <i className="fa-solid fa-box-open" aria-hidden="true"></i>
                                 <span>{t('writeReviewPage.reviewingProduct', { name: productoDeLaResena.name })}</span>
@@ -803,7 +983,7 @@ const WriteReviewPage: React.FC = () => {
                                 {t('writeReviewPage.usernameModalBody')}
                             </p>
                             <Link
-                                to="/perfil/editar"
+                                to={`/perfil/editar?volver=${encodeURIComponent(location.pathname + location.search)}`}
                                 onClick={() => setShowUsernameModal(false)}
                                 className="inline-block bg-brand-green text-white font-semibold px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base rounded-md hover:bg-opacity-90 transition-all shadow-sm"
                             >
@@ -824,6 +1004,8 @@ const WriteReviewPage: React.FC = () => {
                                     <i className="fa-solid fa-store text-lg sm:text-xl text-gray-400 dark:text-gray-500 w-8 sm:w-10 text-center"></i>
                                 )}
                                 <span className="text-sm sm:text-base font-medium text-gray-800 dark:text-gray-200 flex-1">{businessSearchTerm}</span>
+                                {/* Sin enlace: el aviso de debajo ya lleva «Gestionar». */}
+                                <OwnBusinessBadge business={empresaPropiaElegida} className="flex-shrink-0" />
                                 {!preselectedBusinessId && (
                                     <button
                                         type="button"
@@ -858,11 +1040,20 @@ const WriteReviewPage: React.FC = () => {
                             )}
                         </div>
                         )}
+                        {empresaPropiaElegida && (
+                            <div role="alert" data-own-business="true" className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-sm text-amber-900 dark:text-amber-100">
+                                <i className="fa-solid fa-store text-amber-600 dark:text-amber-400" aria-hidden="true"></i>
+                                <p className="flex-1">{t('businessPage.cannotReviewOwnBusiness')}</p>
+                                <Link to={getBusinessDashboardPath(empresaPropiaElegida, 'dashboardInvitations', language)} className="font-semibold text-brand-green hover:underline whitespace-nowrap">
+                                    {t('businessPage.manageBusiness')}
+                                </Link>
+                            </div>
+                        )}
                         {isResultsVisible && !selectedBusinessId && (
                              <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {searchResults.length > 0 ? (
                                     searchResults.map(biz => (
-                                        <BusinessSearchResultItem key={biz.id} business={biz} onSelect={handleSelectBusiness} />
+                                        <BusinessSearchResultItem key={biz.id} business={biz} onSelect={handleSelectBusiness} isOwn={misEmpresas.some(b => b.id === biz.id)} />
                                     ))
                                  ) : (
                                     <li className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
@@ -876,7 +1067,7 @@ const WriteReviewPage: React.FC = () => {
                     <div>
                         <label className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1.5 sm:mb-2">{t('writeReviewPage.step2Title')}</label>
                         {category ? (
-                             <div className="bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200 font-semibold px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-full inline-block capitalize">
+                             <div className="bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-gray-200 font-semibold px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-full inline-block">
                                 {getCategoryTranslation(category)}
                             </div>
                         ) : (
@@ -886,6 +1077,43 @@ const WriteReviewPage: React.FC = () => {
                         )}
                     </div>
 
+                    {productosEmpresa.length > 0 && (
+                        <div>
+                            <label htmlFor="review-product" className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1">{t('writeReviewPage.productStepTitle')}</label>
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">{t('writeReviewPage.productStepHint')}</p>
+                            {productosEmpresa.length > 10 && (
+                                <>
+                                    <input
+                                        type="search"
+                                        id="review-product-search"
+                                        value={busquedaProducto}
+                                        onChange={e => setBusquedaProducto(e.target.value)}
+                                        placeholder={t('writeReviewPage.productSearchPlaceholder')}
+                                        aria-label={t('writeReviewPage.productSearchPlaceholder')}
+                                        aria-controls="review-product"
+                                        className="w-full mb-2 p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
+                                    />
+                                    {busquedaProducto.trim() && coincidenciasBusqueda === 0 && (
+                                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2" role="status">
+                                            {t('writeReviewPage.productSearchNoResults')}
+                                        </p>
+                                    )}
+                                </>
+                            )}
+                            <select
+                                id="review-product"
+                                value={productoElegidoId}
+                                onChange={e => setProductoElegidoId(e.target.value)}
+                                className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="">{t('writeReviewPage.productGeneral')}</option>
+                                {productosFiltrados.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1.5 sm:mb-2">{t('writeReviewPage.step3Title')}</label>
                         <StarRating rating={rating} onRating={setRating} size="large" />
@@ -894,14 +1122,14 @@ const WriteReviewPage: React.FC = () => {
                     <div>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-2 sm:mb-3">
                             <label className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">{t('writeReviewPage.step4Title')}</label>
-                            <button
+                            {AI_ENABLED && <button
                                 type="button"
                                 onClick={() => setIsAssistantOpen(true)}
                                 className="flex items-center gap-1.5 sm:gap-2 bg-purple-100 text-purple-800 font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md hover:bg-purple-200 transition-all text-xs sm:text-sm"
                             >
                                 <i className="fa-solid fa-wand-magic-sparkles"></i>
                                 <span>{t('writeReviewPage.generateWithAI')}</span>
-                            </button>
+                            </button>}
                         </div>
                         <div className="flex gap-1.5 sm:gap-2 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg">
                             <button type="button" onClick={() => setReviewType('text')} className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-4 text-sm sm:text-base rounded-md font-semibold transition-all ${reviewType === 'text' ? 'bg-white dark:bg-zinc-700 shadow' : 'bg-transparent text-gray-600 dark:text-gray-400'}`}>{t('writeReviewPage.reviewTypeText')}</button>
@@ -931,7 +1159,7 @@ const WriteReviewPage: React.FC = () => {
                                         ref={fileInputRef}
                                         type="file"
                                         multiple
-                                        accept="image/png, image/jpeg"
+                                        accept="image/png, image/jpeg, image/webp"
                                         onChange={handleFileInputChange}
                                         className="hidden"
                                     />
@@ -970,7 +1198,7 @@ const WriteReviewPage: React.FC = () => {
                                     <div className="mt-3 sm:mt-4">
                                         <label className="text-xs sm:text-sm text-brand-green hover:underline cursor-pointer">
                                             {t('writeReviewPage.uploadAudioFile')}
-                                            <input type="file" accept="audio/*" className="hidden" onChange={handleAudioFileChange} />
+                                            <input type="file" accept={AUDIO_ACCEPT} className="hidden" onChange={handleAudioFileChange} />
                                         </label>
                                     </div>
                                 </>
@@ -996,7 +1224,7 @@ const WriteReviewPage: React.FC = () => {
                                          <span className="text-gray-400">|</span>
                                          <label className="text-sm text-brand-green hover:underline cursor-pointer">
                                             {t('writeReviewPage.uploadAnotherFile')}
-                                            <input type="file" accept="audio/*" className="hidden" onChange={handleAudioFileChange} />
+                                            <input type="file" accept={AUDIO_ACCEPT} className="hidden" onChange={handleAudioFileChange} />
                                         </label>
                                     </div>
                                 </div>
@@ -1017,7 +1245,7 @@ const WriteReviewPage: React.FC = () => {
                     </div>
 
                     <div className="border-t dark:border-zinc-700 pt-4 sm:pt-5 md:pt-6">
-                        <button type="submit" disabled={isSubmitting} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 text-base sm:text-lg rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3">
+                        <button type="submit" disabled={isSubmitting || !!empresaPropiaElegida} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 text-base sm:text-lg rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3">
                             {isSubmitting && <div className="w-5 h-5 sm:w-6 sm:h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>}
                             <span>{buttonText}</span>
                         </button>

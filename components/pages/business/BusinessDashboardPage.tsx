@@ -4,52 +4,37 @@ import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
 import BusinessLogo from '../../BusinessLogo';
 import Meta from '../../Meta';
-import { Plan, Business } from '../../../types';
+import { Business } from '../../../types';
+import { planNameKey } from '../../../utils/planFeatures';
+import { useDashboardSections } from './dashboard/useDashboardSections';
 import { BusinessDashboardProvider, useBusinessDashboard } from '../../../contexts/BusinessDashboardContext';
 import { useI18n, useTranslation, pathTranslations, useAutoTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
-import { getBusinessById, getBusinessByName } from '../../../services/supabaseService';
-
-// 'v2' (premium test) tiene el mismo nivel de gating que enterprise: desbloquea
-// toda la jerarquía de features.
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
+import { getBusinessById, getBusinessByName, getOwnedBusinessByIdentifier } from '../../../services/supabaseService';
 
 // Los enlaces del panel se usan en DOS sitios: el lateral de escritorio y el
-// cajon de movil. Viven aqui para que no se dupliquen ni se desincronicen.
+// cajon de movil. Salen de useDashboardSections (que tambien usa el manual), y
+// el plan que desbloquea cada seccion, de utils/planFeatures.
 const useDashboardNav = () => {
-    const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
+    const { sections, pricingHref } = useDashboardSections();
 
     // Use country directly - don't infer from language
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
-    // Always use Spanish paths for dashboard subroutes since routes are defined in Spanish
-    const dashboardPaths = pathTranslations.es;
+    const navLinks = useMemo(() => sections.map(s => ({
+        to: s.subpath,
+        icon: `fa-solid ${s.icon}`,
+        label: s.label,
+        exact: s.id === 'overview',
+        locked: s.access.locked,
+        lockText: s.lockText,
+    })), [sections]);
 
-    const navLinks = useMemo(() => {
-        return [
-            { to: '.', icon: 'fa-solid fa-chart-pie', label: t('businessDashboard.dashboardOverview'), exact: true, requiredPlan: 'free' as Plan, featureId: 'resumen' },
-            { to: dashboardPaths.dashboardReviews, icon: 'fa-solid fa-comments', label: t('businessDashboard.dashboardReviews'), requiredPlan: 'free' as Plan, featureId: 'reseñas' },
-            { to: dashboardPaths.dashboardAnalytics, icon: 'fa-solid fa-magnifying-glass-chart', label: t('businessDashboard.dashboardAnalytics'), requiredPlan: 'growth' as Plan, featureId: 'analiticas' },
-            { to: dashboardPaths.dashboardInvitations, icon: 'fa-solid fa-paper-plane', label: t('businessDashboard.dashboardInvitations'), requiredPlan: 'starter' as Plan, featureId: 'invitaciones' },
-            { to: dashboardPaths.dashboardProducts, icon: 'fa-solid fa-box-open', label: t('businessDashboard.dashboardProducts'), requiredPlan: 'starter' as Plan, featureId: 'productos' },
-            { to: dashboardPaths.dashboardWidgets, icon: 'fa-solid fa-puzzle-piece', label: t('businessDashboard.dashboardWidgets'), requiredPlan: 'starter' as Plan, featureId: 'widgets' },
-            { to: dashboardPaths.dashboardEdit, icon: 'fa-solid fa-store', label: t('businessDashboard.dashboardProfile'), requiredPlan: 'starter' as Plan, featureId: 'perfil_de_empresa' },
-            { to: dashboardPaths.dashboardUserManual, icon: 'fa-solid fa-book-open', label: t('businessDashboard.dashboardUserManual'), requiredPlan: 'free' as Plan, featureId: 'manual_de_usuario' },
-        ];
-    }, [t, dashboardPaths]);
-
-    return { navLinks, countryPrefix, paths };
+    return { navLinks, countryPrefix, paths, pricingHref };
 };
 
 // Contenido del menu. `onNavigate` solo lo pasa el cajon de movil: al pulsar un
@@ -59,7 +44,7 @@ const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) =
     const { business } = useBusinessDashboard();
     const { profile } = useAuth();
     const t = useTranslation();
-    const { navLinks, countryPrefix, paths } = useDashboardNav();
+    const { navLinks, countryPrefix, paths, pricingHref } = useDashboardNav();
 
     return (
         <>
@@ -78,36 +63,24 @@ const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) =
                 />
                 <div className="truncate min-w-0">
                     <h2 className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-100 truncate">{business?.name}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{profile?.plan} Plan</p>
+                    {profile && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('businessDashboard.planLabel', { plan: t(planNameKey(profile.plan)) })}</p>
+                    )}
                 </div>
             </div>
             <nav className="space-y-1">
                 {navLinks.map(link => {
-                    const requiredPlanLevel = PLAN_HIERARCHY[link.requiredPlan];
-                    const currentPlanLevel = profile ? PLAN_HIERARCHY[profile.plan] : 0;
-
-                    let isLocked = currentPlanLevel < requiredPlanLevel;
-
-                    // For enterprise users, also check their specific permissions
-                    if (profile?.plan === 'enterprise' && profile.feature_permissions) {
-                        const permissions = profile.feature_permissions as Record<string, boolean>;
-                        if (permissions[link.featureId] === false) {
-                            isLocked = true;
-                        }
-                    }
-
-                    const titleText = isLocked
-                        ? (profile?.plan === 'enterprise' ? 'Función desactivada por el administrador' : `Requiere plan ${link.requiredPlan}`)
-                        : '';
-
+                    const isLocked = link.locked;
                     return (
                         <ReactRouterDOM.NavLink
                             key={link.to}
-                            to={isLocked ? `${countryPrefix}/${paths.pricing}` : link.to}
+                            // Bloqueada: lleva a Planes (en el pais y el idioma de la URL).
+                            to={isLocked ? pricingHref : link.to}
                             end={link.exact}
                             onClick={onNavigate}
+                            title={isLocked ? link.lockText : undefined}
                             className={({ isActive }) =>
-                                `flex items-center justify-between px-2.5 sm:px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                                `flex items-center justify-between px-2.5 sm:px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green ${
                                 isActive && !isLocked
                                     ? 'bg-brand-green/10 text-brand-green'
                                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700'
@@ -115,10 +88,15 @@ const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) =
                             }
                         >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                <i className={`${link.icon} w-4 sm:w-5 text-center flex-shrink-0`}></i>
+                                <i className={`${link.icon} w-4 sm:w-5 text-center flex-shrink-0`} aria-hidden="true"></i>
                                 <span className="truncate">{link.label}</span>
                             </div>
-                            {isLocked && <i className="fa-solid fa-lock text-xs text-yellow-500 flex-shrink-0" title={titleText}></i>}
+                            {isLocked && (
+                                <>
+                                    <i className="fa-solid fa-lock text-xs text-amber-600 dark:text-amber-400 flex-shrink-0" aria-hidden="true"></i>
+                                    <span className="sr-only">{`(${link.lockText})`}</span>
+                                </>
+                            )}
                         </ReactRouterDOM.NavLink>
                     );
                 })}
@@ -247,11 +225,40 @@ const BusinessDashboardPage: React.FC = () => {
 
     const [business, setBusiness] = useState<Business | null>(null);
     const [loadingBusiness, setLoadingBusiness] = useState(true);
+    const businessRef = React.useRef<Business | null>(null);
+    businessRef.current = business;
+
+    // Titulo de la pestana del navegador segun la seccion del panel. Antes
+    // decia "Resumen" en todas. La URL puede venir en cualquier idioma.
+    const seccionActual = React.useMemo(() => {
+        const ultimo = decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || '');
+        const secciones = ['dashboardReviews', 'dashboardAnalytics', 'dashboardInvitations', 'dashboardProducts',
+            'dashboardWidgets', 'dashboardEdit', 'dashboardUserManual'] as const;
+        const etiqueta: Record<string, string> = {
+            dashboardReviews: 'businessDashboard.dashboardReviews', dashboardAnalytics: 'businessDashboard.dashboardAnalytics',
+            dashboardInvitations: 'businessDashboard.dashboardInvitations', dashboardProducts: 'businessDashboard.dashboardProducts',
+            dashboardWidgets: 'businessDashboard.dashboardWidgets', dashboardEdit: 'businessDashboard.dashboardProfile',
+            dashboardUserManual: 'businessDashboard.dashboardUserManual',
+        };
+        for (const clave of secciones) {
+            if (Object.values(pathTranslations).some((rutas: any) => rutas?.[clave] === ultimo)) return t(etiqueta[clave]);
+        }
+        return t('businessDashboard.dashboardOverview');
+    }, [location.pathname, t]);
 
     useEffect(() => {
         if (!identifier || !user) {
             setLoadingBusiness(false);
             return;
+        }
+
+        // Tras renombrar, EditBusinessPage cambia la URL al nombre nuevo: la
+        // empresa ya esta cargada y no hace falta volver a buscarla.
+        const yaCargada = businessRef.current;
+        if (yaCargada && yaCargada.owner_id === user.id) {
+            let nombreUrl = identifier;
+            try { nombreUrl = decodeURIComponent(identifier); } catch { /* tal cual */ }
+            if (nombreUrl.replace(/_/g, ' ') === yaCargada.name) return;
         }
 
         const fetchBusiness = async () => {
@@ -278,7 +285,8 @@ const BusinessDashboardPage: React.FC = () => {
 
                 const businessData = isUuid
                     ? await getBusinessById(identifier)
-                    : await getBusinessByName(businessName);
+                    : ((user && await getOwnedBusinessByIdentifier(user.id, decodedName))
+                        || await getBusinessByName(businessName));
 
                 console.log('Business data found:', businessData ? { id: businessData.id, name: businessData.name, owner_id: businessData.owner_id } : null);
                 console.log('Current user ID:', user?.id);
@@ -336,9 +344,12 @@ const BusinessDashboardPage: React.FC = () => {
     }
 
     return (
-        <BusinessDashboardProvider business={business}>
+        <BusinessDashboardProvider
+            business={business}
+            onBusinessChange={(changes) => setBusiness(prev => (prev ? { ...prev, ...changes } : prev))}
+        >
             <Meta
-                title={`${t('businessDashboard.dashboardOverview')} de ${business.name} - Opynio`}
+                title={`${seccionActual} de ${business.name} - Opynio`}
                 description={`Gestiona el perfil de ${business.name} en Opynio. Responde a reseñas, analiza tus estadísticas y mejora tu reputación online.`}
             />
             <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 -mt-6 sm:-mt-8">

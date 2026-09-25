@@ -1,31 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 // FIX: The error "has no exported member 'useHistory'" suggests a react-router-dom version mismatch.
 // Migrating to v6 syntax by using useNavigate instead of useHistory.
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import { signIn, signInWithGoogle } from '../../services/supabaseService';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import PasswordInput from '../PasswordInput';
+import AuthErrorText from '../auth/AuthErrorText';
+import { getAuthErrorInfo, type AuthErrorInfo } from '../../utils/authErrors';
+import { rememberPostLoginReturnTo, forgetPostLoginReturnTo } from '../../utils/postLoginReturnTo';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Error de Supabase Auth ya traducido (nunca err.message tal cual).
+    const [error, setError] = useState<AuthErrorInfo | null>(null);
     const navigate = ReactRouterDOM.useNavigate();
+    const location = ReactRouterDOM.useLocation();
     const t = useTranslation();
     const { language } = useI18n();
+    // Enlaces dentro del pais de la URL, con el segmento en el idioma de ese
+    // pais (mezclar /es con una ruta en ingles da 404).
+    const { country } = useCountry();
+
+    // A donde queria ir el usuario antes de que le pidieran iniciar sesion
+    // (ProtectedRoute lo pasa en state.from). Se guarda en localStorage y no
+    // solo en memoria porque el login con Google sale de la pagina. Sin esto,
+    // quien llegaba desde un widget o una invitacion a /escribir-resena?...
+    // acababa en /perfil y perdia la empresa y el producto preseleccionados.
+    // Caduca a los 10 min y se borra si el login falla (utils/postLoginReturnTo):
+    // si se cancela Google no hay «catch» que valga, y el destino quedaba
+    // guardado para el siguiente login.
+    const rememberReturnTo = () => {
+        const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+        rememberPostLoginReturnTo(from?.pathname ? `${from.pathname}${from.search || ''}` : null);
+    };
+
+    // De vuelta en esta pagina sin haber entrado (se cancelo Google con
+    // «Atras», o se abandono el intento): el destino de ese intento ya no
+    // vale. Se guarda de nuevo al pulsar «Entrar». `pageshow` persistido es
+    // la vuelta desde la cache del navegador, que no vuelve a montar nada.
+    useEffect(() => {
+        forgetPostLoginReturnTo();
+        const onPageShow = (e: PageTransitionEvent) => {
+            if (!e.persisted) return;
+            forgetPostLoginReturnTo();
+            setGoogleLoading(false);
+        };
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
         try {
+            rememberReturnTo();
             await signIn(email, password);
             navigate(`/${pathTranslations[language].postLogin}`);
         } catch (err: any) {
-            setError(t('loginPage.error'));
+            forgetPostLoginReturnTo();
+            setError(getAuthErrorInfo(err, 'login'));
             console.error(err);
         } finally {
             setLoading(false);
@@ -36,9 +76,11 @@ const LoginPage: React.FC = () => {
         setGoogleLoading(true);
         setError(null);
         try {
+            rememberReturnTo();
             await signInWithGoogle();
         } catch (err: any) {
-            setError(t('loginPage.errorGoogle'));
+            forgetPostLoginReturnTo();
+            setError(getAuthErrorInfo(err, 'oauth', 'loginPage.errorGoogle'));
             setGoogleLoading(false);
         }
     };
@@ -56,7 +98,7 @@ const LoginPage: React.FC = () => {
 
                 {error && (
                     <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg relative mb-4 sm:mb-6 text-sm sm:text-base" role="alert">
-                        <span className="block sm:inline">{error}</span>
+                        <span className="block sm:inline"><AuthErrorText info={error} /></span>
                     </div>
                 )}
 
@@ -76,13 +118,13 @@ const LoginPage: React.FC = () => {
                     <div>
                         <div className="flex justify-between items-center mb-1">
                             <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.password')}</label>
-                            <ReactRouterDOM.Link to={`/${pathTranslations[language].forgotPassword}`} className="text-xs sm:text-sm font-semibold text-brand-green hover:underline">
+                            <ReactRouterDOM.Link to={localizedPathOrRoot('forgotPassword', language, country)} className="text-xs sm:text-sm font-semibold text-brand-green hover:underline">
                                 {t('loginPage.forgotPasswordLink')}
                             </ReactRouterDOM.Link>
                         </div>
-                        <input
+                        <PasswordInput
                             id="password"
-                            type="password"
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -126,7 +168,7 @@ const LoginPage: React.FC = () => {
                 <div className="mt-5 sm:mt-6 text-center">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         {t('loginPage.noAccount')}{' '}
-                        <ReactRouterDOM.Link to={`/${pathTranslations[language].register}`} className="font-semibold text-brand-green hover:underline">{t('loginPage.signUpHere')}</ReactRouterDOM.Link>
+                        <ReactRouterDOM.Link to={localizedPathOrRoot('register', language, country)} className="font-semibold text-brand-green hover:underline">{t('loginPage.signUpHere')}</ReactRouterDOM.Link>
                     </p>
                 </div>
             </div>

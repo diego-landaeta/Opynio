@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { slugify } from '../utils/slugify';
-import type { ReviewSubject } from '../types';
+import type { ReviewSubject, Notification } from '../types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
@@ -114,9 +114,12 @@ export const signUp = async (email: string, password: string, fullName: string) 
   return data;
 };
 
-export const resetPassword = async (email: string) => {
+// redirectPath: la ruta de restablecer en el idioma/pais del usuario. Antes
+// era siempre /reset-password (ruta inglesa): cambiaba la web a ingles y al
+// terminar mandaba a /en/login.
+export const resetPassword = async (email: string, redirectPath = '/reset-password') => {
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}${redirectPath}`,
   });
   if (error) throw error;
   return data;
@@ -216,8 +219,8 @@ export const signInWithGoogleForBusiness = async () => {
   return data;
 };
 
-export const sendPasswordResetEmail = async (email: string) => {
-  return resetPassword(email);
+export const sendPasswordResetEmail = async (email: string, redirectPath?: string) => {
+  return resetPassword(email, redirectPath);
 };
 
 export const updateUserPassword = async (newPassword: string) => {
@@ -263,6 +266,46 @@ export const getUserProfile = async (userIdOrUser: string | { id: string }) => {
   return data;
 };
 
+/**
+ * Sube la foto de perfil a avatars/<userId>/... y devuelve su URL publica.
+ * La migracion 20260923180000 limita el bucket a JPG/PNG/WebP de 2 MB y cada
+ * usuario solo puede escribir en su carpeta.
+ */
+export const uploadAvatar = async (userId: string, file: File): Promise<string> => {
+  const extension = (file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+  const path = `${userId}/avatar-${Date.now()}.${extension}`;
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type });
+  if (error) throw error;
+  return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+};
+
+/**
+ * Borra del bucket una foto de perfil a partir de su URL publica. Solo si esta
+ * en avatars/<userId>/ (la politica de storage tampoco deja otra cosa): una
+ * URL externa (Google, Gravatar) o de otra carpeta se ignora.
+ *
+ * Se usa al cambiar de foto: la anterior se subio con cacheControl de un año y
+ * seguia publica para siempre. Nunca lanza: el perfil ya esta guardado y un
+ * fichero huerfano no debe convertirse en un error para el usuario.
+ */
+export const deleteOwnAvatarByUrl = async (userId: string, url: string | null | undefined): Promise<void> => {
+  if (!url) return;
+  const marca = '/storage/v1/object/public/avatars/';
+  const i = url.indexOf(marca);
+  if (i < 0) return;
+  let ruta: string;
+  try {
+    ruta = decodeURIComponent(url.slice(i + marca.length).split('?')[0]);
+  } catch {
+    return;
+  }
+  if (!ruta.startsWith(`${userId}/`) || ruta.includes('..')) return;
+  const { error } = await supabase.storage.from('avatars').remove([ruta]);
+  if (error) console.warn('No se pudo borrar la foto de perfil anterior:', error);
+};
+
 export const updateUserProfile = async (userId: string, updates: any) => {
   const { data, error } = await supabase
     .from('profiles')
@@ -276,26 +319,58 @@ export const updateUserProfile = async (userId: string, updates: any) => {
   return data;
 };
 
+/**
+ * Cambio de rol desde el panel de admin (Usuarios).
+ * - Solo crea empresa si el rol PASA a business_owner y el usuario aun no tiene
+ *   ninguna. Antes el modal venia con el rol actual preseleccionado y cada
+ *   Guardar sobre un business_owner creaba otra empresa con su nombre.
+ * - Un admin no puede quitarse a si mismo el rol de admin (se quedaria fuera
+ *   del panel sin que nadie lo avise). La pagina ya lo impide; esto es la red.
+ * - Si el rol no cambia, no escribe nada.
+ */
 export const updateUserRole = async (userId: string, role: string, businessName?: string) => {
-  // If upgrading to business_owner and businessName is provided, create the business first
-  if (role === 'business_owner' && businessName) {
-    // Generar slug automáticamente
-    const slug = await generateUniqueSlug(businessName);
+  const { data: current, error: currentError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (currentError) throw currentError;
 
-    // Create the business
-    const { data: business, error: businessError } = await supabase
+  if (current.role === 'admin' && role !== 'admin') {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id === userId) {
+      throw new Error('No puedes quitarte a ti mismo el rol de administrador. Pídeselo a otro administrador.');
+    }
+  }
+
+  if (current.role === role) return current;
+
+  const nombre = businessName?.trim();
+  if (role === 'business_owner' && nombre) {
+    const { count, error: countError } = await supabase
       .from('businesses')
-      .insert([{
-        name: businessName,
-        slug: slug || null,
-        category: 'General', // Default category when admin assigns
-        country: 'ES', // Default country - can be updated later
-        owner_id: userId,
-      }])
-      .select()
-      .single();
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userId);
+    if (countError) throw countError;
 
-    if (businessError) throw businessError;
+    if (!count) {
+      // Generar slug automáticamente
+      const slug = await generateUniqueSlug(nombre);
+
+      const { error: businessError } = await supabase
+        .from('businesses')
+        .insert([{
+          name: nombre,
+          slug: slug || null,
+          category: 'Sectores Emergentes y Otros', // categoria valida por defecto ("General" no existe)
+          country: 'ES', // Default country - can be updated later
+          owner_id: userId,
+        }])
+        .select()
+        .single();
+
+      if (businessError) throw businessError;
+    }
   }
 
   // Update the user's role
@@ -394,21 +469,12 @@ export const getBusinessByName = async (name: string) => {
       return ilikeResults[0];
     }
 
-    // Try partial match with wildcards
-    const escapedName = normalizedName.replace(/[%_\\]/g, '\\$&');
-    const { data: partialResults, error: partialError } = await supabase
-      .from('businesses')
-      .select('*')
-      .ilike('name', `%${escapedName}%`)
-      .limit(3);
-
-    if (partialResults && partialResults.length > 0) {
-      // Find best match
-      const lowerName = normalizedName.toLowerCase();
-      const bestMatch = partialResults.find(b => b.name.toLowerCase() === lowerName) || partialResults[0];
-      setCache(cacheKey, bestMatch);
-      return bestMatch;
-    }
+    // Aqui habia una busqueda por coincidencia parcial (ilike '%x%'). Hacia que
+    // cualquier URL inexistente abriera otra empresa (/es/empresa/test ->
+    // "Adm Test Negocio Asignado": soft-404 indexable), que el registro dijera
+    // "ya existe" con cualquier nombre corto y que una URL truncada reclamara la
+    // empresa equivocada. Solo queda la coincidencia exacta y, abajo, el caso
+    // legado de nombres con separador.
 
     // Try partial match with first part of name (for names with separators)
     const firstPart = normalizedName.split(/[|,]/)[0].trim();
@@ -432,6 +498,29 @@ export const getBusinessByName = async (name: string) => {
     console.error('Error in getBusinessByName:', error);
     return null;
   }
+};
+
+/**
+ * Empresa del panel, buscada SOLO entre las del usuario (por nombre exacto sin
+ * distinguir mayusculas, o por slug). El panel va por nombre en la URL y con
+ * dos empresas del mismo nombre la busqueda global devolvia la de otro dueno:
+ * el segundo dueno veia "Negocio no encontrado" en su propio panel.
+ */
+export const getOwnedBusinessByIdentifier = async (userId: string, identifier: string) => {
+  const name = identifier.replace(/_/g, ' ').trim();
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('*')
+    .eq('owner_id', userId);
+  if (error) {
+    console.error('Error en getOwnedBusinessByIdentifier:', error);
+    return null;
+  }
+  const lowerName = name.toLowerCase();
+  const lowerId = identifier.toLowerCase();
+  return (data || []).find(b => (b.name || '').trim().toLowerCase() === lowerName)
+    || (data || []).find(b => (b.slug || '').toLowerCase() === lowerId)
+    || null;
 };
 
 export const getBusinessById = async (id: string) => {
@@ -627,322 +716,133 @@ export const getAllPublicBusinessesForDirectory = async () => {
   }
 };
 
-// Paginated version for directory - loads businesses in batches to avoid timeouts
+// Ids de empresas de OTRO pais con alguna sede en `country`. Las del propio
+// pais ya entran por la columna `country`; estas suelen ser pocas y se pasan
+// por id (el contains de jsonb no se puede meter dentro de un or()).
+const idsConSedeEnPais = async (country: string): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('id')
+    .neq('country', country)
+    .contains('sedes', JSON.stringify([{ country_code: country }]));
+  if (error) {
+    console.error('Error buscando sedes en', country, error);
+    return [];
+  }
+  return (data || []).map((b: any) => b.id);
+};
+
+type DirectoryFilters = {
+  searchTerm?: string;
+  category?: string;
+  countries?: string[];
+  // Pais del directorio (el de la cabecera/URL). Sin el, «Todos los paises».
+  // Con el, serviceType se interpreta respecto a ese pais (ver la cabecera de
+  // la migracion 20260924260000_directory_relevance_order.sql).
+  country?: string;
+  minRating?: number;
+  maxRating?: number;
+  serviceType?: 'all' | 'local' | 'international';
+  sortOrder?: 'relevance' | 'alphabetical' | 'rating' | 'reviews';
+  // Solo ordenan (orden «relevance»), no filtran nada:
+  // - homeCountry: pais de busqueda del usuario. Con «Todos los paises» sus
+  //   empresas van primero (con un pais, ese pais ya es el primer grupo).
+  // - languageCountries: paises que hablan el idioma de la interfaz
+  //   (utils/languageAffinity). Van detras de las del pais del usuario y
+  //   delante del resto.
+  homeCountry?: string;
+  languageCountries?: string[];
+};
+
+/**
+ * Una pagina del directorio, filtrada y ordenada en Postgres por
+ * public.directory_businesses (migracion 20260924260000). Devuelve cada
+ * empresa con review_count / avg_rating (reseñas aprobadas ya publicadas, como
+ * review_stats_batch) y total_count, el total de la consulta sin paginar.
+ *
+ * Orden «relevance» (el de por defecto), resumen de lo que documenta la
+ * migracion:
+ *   1. grupo de afinidad: pais del usuario (o con sede en el) -> paises de su
+ *      idioma -> resto. Una empresa alemana sale al final para un usuario en
+ *      español;
+ *   2. dentro del grupo, las que tienen reseñas antes que las que no;
+ *   3. puntuacion 0-100 = 50·calidad (media bayesiana: (3,5·10 + Σ estrellas)
+ *      / (10 + n), para que 1 reseña de 5* no gane a 200 de 4,6*) + 25·volumen
+ *      (ln(1+n)/ln(501), satura en 500) + 10·actividad (exp(-dias desde la
+ *      ultima reseña / 90)) + 5 reclamada + 5 plan de pago vigente + 2,5 logo
+ *      + 2,5 descripcion de 80+ caracteres;
+ *   4. desempate por id: orden total, la paginacion no repite ni salta.
+ * Con busqueda, antes que todo eso: empieza por el termino > lo contiene en
+ * el nombre > solo en la descripcion (como antes).
+ *
+ * p_limit tiene tope 100 en el servidor.
+ */
+const directoryPage = async (filters: DirectoryFilters | undefined, limit: number, offset: number): Promise<any[]> => {
+  const minRating = filters?.minRating;
+  const maxRating = filters?.maxRating;
+  // Como antes: el rango de valoracion solo filtra si no es el completo (1-5).
+  const hasRatingFilter = (minRating !== undefined && minRating > 1) ||
+                          (maxRating !== undefined && maxRating < 5);
+  const { data, error } = await supabase.rpc('directory_businesses', {
+    p_country: filters?.country || null,
+    p_service_type: filters?.serviceType || 'all',
+    p_category: filters?.category || null,
+    p_countries: filters?.countries?.length ? filters.countries : null,
+    p_search: filters?.searchTerm || null,
+    p_min_rating: hasRatingFilter ? (minRating ?? 0) : null,
+    p_max_rating: hasRatingFilter ? (maxRating ?? 5) : null,
+    p_sort: filters?.sortOrder || 'relevance',
+    p_home_country: filters?.homeCountry || null,
+    p_language_countries: filters?.languageCountries?.length ? filters.languageCountries : null,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw error;
+  return data || [];
+};
+
+// Paginated version for directory: el servidor filtra, ordena y pagina.
 export const getBusinessesForDirectoryPaginated = async (
   page: number = 1,
   pageSize: number = 10,
-  filters?: {
-    searchTerm?: string;
-    category?: string;
-    countries?: string[];
-    minRating?: number;
-    maxRating?: number;
-    serviceType?: 'all' | 'local' | 'international';
-    sortOrder?: 'relevance' | 'alphabetical' | 'rating' | 'reviews';
-  }
+  filters?: DirectoryFilters
 ): Promise<{ businesses: any[]; totalCount: number; hasMore: boolean }> => {
   try {
     const offset = (page - 1) * pageSize;
+    const rows = await directoryPage(filters, pageSize, offset);
 
-    // Helper function for accent-insensitive search
-    const removeAccents = (text: string): string => {
-      return text
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-    };
-
-    // Build query - Note: 'city' doesn't exist as a column, it's derived from sedes
-    let query = supabase
-      .from('businesses')
-      .select(`
-        id, name, country, logo_url, logo_tone, category, description,
-        latitude, longitude, sedes, offers_international_services
-      `, { count: 'exact' });
-
-    // Apply filters
-    // NOTE: searchTerm filter is applied client-side for accent-insensitive search
-    // We don't apply .ilike() here to fetch more results
-
-    if (filters?.category) {
-      query = query.ilike('category', `${filters.category}%`);
-    }
-
-    if (filters?.countries && filters.countries.length > 0) {
-      query = query.in('country', filters.countries);
-    }
-
-    if (filters?.serviceType === 'international') {
-      query = query.eq('offers_international_services', true);
-    }
-
-    // Apply sorting
-    switch (filters?.sortOrder) {
-      case 'alphabetical':
-        query = query.order('name', { ascending: true });
-        break;
-      case 'rating':
-        // Note: avg_rating may not be in the table, will need to handle this
-        query = query.order('name', { ascending: true });
-        break;
-      case 'reviews':
-        query = query.order('name', { ascending: true });
-        break;
-      default:
-        // relevance - order by most reviews (name as fallback since review_count isn't a column)
-        query = query.order('name', { ascending: true });
-    }
-
-    // When searching or filtering by rating, fetch ALL results to filter client-side
-    // This is necessary because avg_rating is calculated from reviews, not stored in businesses table
-    const hasRatingFilterQuery = (filters?.minRating !== undefined && filters.minRating > 1) ||
-                                  (filters?.maxRating !== undefined && filters.maxRating < 5);
-    const needsAllResults = filters?.searchTerm || hasRatingFilterQuery;
-
-    if (!needsAllResults) {
-      // Apply normal pagination only when NOT searching and NOT filtering by rating
-      query = query.range(offset, offset + pageSize - 1);
-    }
-    // If searchTerm or rating filter exists, we fetch all results (no range limit)
-
-    const { data: businesses, error, count } = await query;
-
-    if (error) {
-      console.error('Error fetching paginated businesses:', error);
-      throw error;
-    }
-
-    if (!businesses) {
-      return { businesses: [], totalCount: 0, hasMore: false };
-    }
-
-    // Apply client-side accent-insensitive search filter
-    let filteredBusinesses = businesses;
-    if (filters?.searchTerm) {
-      const normalizedSearch = removeAccents(filters.searchTerm);
-
-      // Filter businesses that match name OR description
-      filteredBusinesses = businesses.filter(b => {
-        const normalizedName = removeAccents(b.name || '');
-        const normalizedDescription = removeAccents(b.description || '');
-        return normalizedName.includes(normalizedSearch) ||
-               normalizedDescription.includes(normalizedSearch);
-      });
-
-      // Sort results: prioritize name matches over description matches
-      filteredBusinesses.sort((a, b) => {
-        const aNameMatch = removeAccents(a.name || '').includes(normalizedSearch);
-        const bNameMatch = removeAccents(b.name || '').includes(normalizedSearch);
-
-        // Name matches come first
-        if (aNameMatch && !bNameMatch) return -1;
-        if (!aNameMatch && bNameMatch) return 1;
-
-        // Among name matches, prioritize those that START with the search term
-        if (aNameMatch && bNameMatch) {
-          const aStartsWith = removeAccents(a.name || '').startsWith(normalizedSearch);
-          const bStartsWith = removeAccents(b.name || '').startsWith(normalizedSearch);
-          if (aStartsWith && !bStartsWith) return -1;
-          if (!aStartsWith && bStartsWith) return 1;
-        }
-
-        return 0;
-      });
-    }
-
-    // Get review stats for these businesses (both Opynio and Google reviews are in the same table)
-    const businessIds = filteredBusinesses.map(b => b.id);
-    const statsMap = new Map<string, { count: number; avg: number }>();
-
-    // Aggregated in Postgres. Reading every review to count them here was capped
-    // at 1000 rows by PostgREST no matter what .limit() asked for, and that one
-    // cap was shared by the whole batch: ISEIE (2246 reviews) ate 937 of the
-    // 1000 and the other businesses in its group came back with truncated counts
-    // and wrong averages too. The RPC returns one row per business, so we still
-    // chunk the ids to stay under the same row cap on the way back.
-    if (businessIds.length > 0) {
-      // 100 ids per call measures ~200ms and never timed out; 500 did once,
-      // intermittently. On failure we halve the batch and retry instead of
-      // skipping it, because skipping leaves those businesses showing zero
-      // reviews — a worse lie than the truncated count we just removed.
-      const STATS_CHUNK = 100;
-
-      const loadStats = async (ids: string[]): Promise<void> => {
-        const { data: statsRows, error: statsError } = await supabase
-          .rpc('review_stats_batch', { p_business_ids: ids, p_include_scheduled: false });
-
-        if (statsError) {
-          if (ids.length > 10) {
-            const mid = Math.ceil(ids.length / 2);
-            await loadStats(ids.slice(0, mid));
-            await loadStats(ids.slice(mid));
-            return;
-          }
-          console.error('Error fetching review stats:', statsError);
-          return;
-        }
-
-        (statsRows || []).forEach((row: any) => {
-          statsMap.set(row.business_id, {
-            count: Number(row.total_reviews) || 0,
-            avg: Number(row.average_rating) || 0
-          });
-        });
-      };
-
-      for (let i = 0; i < businessIds.length; i += STATS_CHUNK) {
-        await loadStats(businessIds.slice(i, i + STATS_CHUNK));
-      }
-    }
-
-    const enrichedBusinesses = filteredBusinesses.map(b => {
-      const stats = statsMap.get(b.id);
-      const reviewCount = stats?.count || 0;
-      const avgRating = stats?.avg || 0;
+    const businesses = rows.map(({ total_count: _total, ...b }: any) => {
+      const avgRating = Number(b.avg_rating) || 0;
       return {
         ...b,
         avg_rating: avgRating,
         average_rating: avgRating,
-        review_count: reviewCount
+        review_count: Number(b.review_count) || 0,
       };
     });
 
-    // Sort by rating or reviews if needed (after enrichment)
-    if (filters?.sortOrder === 'rating') {
-      enrichedBusinesses.sort((a, b) => b.avg_rating - a.avg_rating);
-    } else if (filters?.sortOrder === 'reviews') {
-      enrichedBusinesses.sort((a, b) => b.review_count - a.review_count);
-    }
+    // Sin filas no llega total_count: o no hay resultados (pagina 1) o la
+    // pagina ya no existe porque el total ha bajado; en ese caso se pide.
+    const totalCount = rows.length
+      ? Number(rows[0].total_count) || 0
+      : (offset > 0 ? await getTotalBusinessCount(filters) : 0);
+    const hasMore = offset + businesses.length < totalCount;
 
-    // Apply rating filter AFTER enrichment (since avg_rating comes from reviews)
-    // This must happen BEFORE pagination to get correct counts
-    let ratingFilteredBusinesses = enrichedBusinesses;
-    if (filters?.minRating !== undefined || filters?.maxRating !== undefined) {
-      const minRating = filters?.minRating ?? 0;
-      const maxRating = filters?.maxRating ?? 5;
-      // Only apply filter if it's not the full range (0-5 or 1-5)
-      if (minRating > 1 || maxRating < 5) {
-        ratingFilteredBusinesses = enrichedBusinesses.filter(b => {
-          const rating = b.avg_rating || 0;
-          return rating >= minRating && rating <= maxRating;
-        });
-      }
-    }
-
-    // Apply pagination to filtered results
-    // When we have a searchTerm or rating filter, we need client-side pagination
-    let paginatedBusinesses = ratingFilteredBusinesses;
-    let finalTotalCount = count || 0;
-
-    // Check if rating filter is active (not full range)
-    const hasRatingFilter = (filters?.minRating !== undefined && filters?.minRating > 1) ||
-                            (filters?.maxRating !== undefined && filters?.maxRating < 5);
-    const needsClientSidePagination = filters?.searchTerm || hasRatingFilter;
-
-    if (needsClientSidePagination) {
-      // Use filtered count and apply pagination client-side
-      finalTotalCount = ratingFilteredBusinesses.length;
-      const startIdx = offset;
-      const endIdx = offset + pageSize;
-      paginatedBusinesses = ratingFilteredBusinesses.slice(startIdx, endIdx);
-    }
-
-    const hasMore = needsClientSidePagination
-      ? offset + paginatedBusinesses.length < finalTotalCount
-      : offset + filteredBusinesses.length < (count || 0);
-
-    console.log(`📋 Loaded page ${page}: ${paginatedBusinesses.length} businesses (${offset + 1}-${offset + paginatedBusinesses.length} of ${finalTotalCount})`);
-
-    return { businesses: paginatedBusinesses, totalCount: finalTotalCount, hasMore };
+    return { businesses, totalCount, hasMore };
   } catch (error) {
     console.error('Error in getBusinessesForDirectoryPaginated:', error);
     throw error;
   }
 };
 
-// Get total count of businesses with optional filters (for progress bar)
+// Total del directorio con los mismos filtros (la misma consulta que el
+// listado: el contador siempre coincide con lo que se puede paginar).
 export const getTotalBusinessCount = async (
-  filters?: {
-    searchTerm?: string;
-    category?: string;
-    countries?: string[];
-    serviceType?: 'all' | 'local' | 'international';
-  }
+  filters?: Omit<DirectoryFilters, 'sortOrder' | 'homeCountry' | 'languageCountries'>
 ): Promise<number> => {
   try {
-    // Helper function for accent-insensitive search
-    const removeAccents = (text: string): string => {
-      return text
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-    };
-
-    // When searching, we need to fetch and filter client-side
-    if (filters?.searchTerm) {
-      let query = supabase
-        .from('businesses')
-        .select('id, name, description');
-
-      if (filters?.category) {
-        query = query.ilike('category', `${filters.category}%`);
-      }
-
-      if (filters?.countries && filters.countries.length > 0) {
-        query = query.in('country', filters.countries);
-      }
-
-      if (filters?.serviceType === 'international') {
-        query = query.eq('offers_international_services', true);
-      }
-
-      // Fetch ALL results when searching (no limit)
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error getting total business count:', error);
-        return 0;
-      }
-
-      if (!data) return 0;
-
-      // Apply accent-insensitive filter
-      const normalizedSearch = removeAccents(filters.searchTerm);
-      const filtered = data.filter(b => {
-        const normalizedName = removeAccents(b.name || '');
-        const normalizedDescription = removeAccents(b.description || '');
-        return normalizedName.includes(normalizedSearch) ||
-               normalizedDescription.includes(normalizedSearch);
-      });
-
-      return filtered.length;
-    }
-
-    // No search term - use regular count query
-    let query = supabase
-      .from('businesses')
-      .select('id', { count: 'exact', head: true });
-
-    if (filters?.category) {
-      query = query.ilike('category', `${filters.category}%`);
-    }
-
-    if (filters?.countries && filters.countries.length > 0) {
-      query = query.in('country', filters.countries);
-    }
-
-    if (filters?.serviceType === 'international') {
-      query = query.eq('offers_international_services', true);
-    }
-
-    const { count, error } = await query;
-
-    if (error) {
-      console.error('Error getting total business count:', error);
-      return 0;
-    }
-
-    return count || 0;
+    const rows = await directoryPage(filters, 1, 0);
+    return rows.length ? Number(rows[0].total_count) || 0 : 0;
   } catch (error) {
     console.error('Error in getTotalBusinessCount:', error);
     return 0;
@@ -950,6 +850,52 @@ export const getTotalBusinessCount = async (
 };
 
 // New function: Get businesses paginated with their reviews (for ExplorePage)
+/**
+ * Traduce el filtro de fecha de Explorar a un rango { from, to } en ISO.
+ *
+ * La UI manda '30d' | '6m' | '12m' | 'custom', pero cada funcion del servicio
+ * esperaba un vocabulario distinto ('month'/'year' en una, 'last_month'/
+ * 'last_year' en otras). Ninguno coincidia con la UI: la fecha de corte se
+ * quedaba en "ahora" y cualquier opcion de fecha devolvia 0 resenas.
+ * Se aceptan todos los alias para no romper a quien use los antiguos.
+ */
+export const resolveReviewDateRange = (
+  dateFilter?: { type: string; startDate?: string; endDate?: string }
+): { from?: string; to?: string } => {
+  if (!dateFilter || dateFilter.type === 'all') return {};
+  const now = new Date();
+  const monthsAgo = (n: number) => {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - n);
+    return d.toISOString();
+  };
+  switch (dateFilter.type) {
+    case 'today':
+      return { from: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString() };
+    case 'week':
+      return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
+    case '30d':
+    case 'month':
+    case 'last_month':
+      return { from: monthsAgo(1) };
+    case 'last_3_months':
+      return { from: monthsAgo(3) };
+    case '6m':
+      return { from: monthsAgo(6) };
+    case '12m':
+    case 'year':
+    case 'last_year':
+      return { from: monthsAgo(12) };
+    case 'custom':
+      return {
+        from: dateFilter.startDate ? new Date(dateFilter.startDate).toISOString() : undefined,
+        to: dateFilter.endDate ? `${dateFilter.endDate}T23:59:59` : undefined,
+      };
+    default:
+      return {};
+  }
+};
+
 export const getBusinessesWithReviewsPaginated = async (
   filters: {
     category?: string;
@@ -1066,37 +1012,9 @@ export const getBusinessesWithReviewsPaginated = async (
         q = q.gte('rating', filters.minRating);
       }
 
-      if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-        const now = new Date();
-        let startDate: Date | null = null;
-
-        switch (filters.dateFilter.type) {
-          case 'today':
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            break;
-          case 'week':
-            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case 'month':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            break;
-          case 'year':
-            startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-            break;
-          case 'custom':
-            if (filters.dateFilter.startDate) {
-              startDate = new Date(filters.dateFilter.startDate);
-            }
-            if (filters.dateFilter.endDate) {
-              q = q.lte('created_at', filters.dateFilter.endDate + 'T23:59:59');
-            }
-            break;
-        }
-
-        if (startDate) {
-          q = q.gte('created_at', startDate.toISOString());
-        }
-      }
+      const { from: dateFrom, to: dateTo } = resolveReviewDateRange(filters.dateFilter);
+      if (dateFrom) q = q.gte('created_at', dateFrom);
+      if (dateTo) q = q.lte('created_at', dateTo);
 
       if (filters.sortOrder === 'oldest') {
         q = q.order('created_at', { ascending: true });
@@ -1116,7 +1034,7 @@ export const getBusinessesWithReviewsPaginated = async (
       const { data, error } = await applyReviewFilters(
         supabase
           .from('reviews')
-          .select('*, profiles:user_id(id, name, avatar_url)')
+          .select('*')
           .eq('business_id', b.id)
           .eq('status', 'approved')
           .lte('created_at', new Date().toISOString())
@@ -1126,7 +1044,7 @@ export const getBusinessesWithReviewsPaginated = async (
         console.error('Error fetching reviews for business', b.id, error);
         return;
       }
-      reviewsByBusiness.set(b.id, data || []);
+      reviewsByBusiness.set(b.id, await attachProfiles(data || [], 'id, name, username, avatar_url'));
     }));
 
     // Same totals the business page shows, aggregated in Postgres.
@@ -1293,7 +1211,7 @@ export const getFeaturedBusinessesWithStats = async (
     // Step 1: Get featured businesses (limited to avoid timeout)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured')
+      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured, featured_order')
       .eq('is_featured', true)
       .limit(30); // Limit to avoid timeout
 
@@ -1308,7 +1226,13 @@ export const getFeaturedBusinessesWithStats = async (
     }
 
     // Shuffle featured businesses
-    const shuffledFeatured = (featuredBusinesses || []).sort(() => Math.random() - 0.5);
+    // Primero en el orden que fijo el admin en /admin/destacados; los que no
+    // tienen orden van detras, barajados como antes.
+    const conOrden = (featuredBusinesses || []).filter((b: any) => b.featured_order != null)
+      .sort((a: any, b: any) => a.featured_order - b.featured_order);
+    const sinOrden = (featuredBusinesses || []).filter((b: any) => b.featured_order == null)
+      .sort(() => Math.random() - 0.5);
+    const shuffledFeatured = [...conOrden, ...sinOrden];
 
     // If we have enough featured businesses, return them
     if (shuffledFeatured.length >= limit) {
@@ -1409,7 +1333,7 @@ const enrichBusinessesWithStats = async (businesses: any[]) => {
 export const finishBusinessSignup = async (_userId: string, businessData: any) => {
   const { data: businessId, error } = await supabase.rpc('upgrade_user_to_business_owner', {
     p_business_name: businessData.name,
-    p_category: businessData.category ?? 'General',
+    p_category: businessData.category || 'Sectores Emergentes y Otros',
     p_plan: 'free', // ignored server-side; paid plans flow through Stripe webhook
     p_country: businessData.country,
     p_description: businessData.description ?? null,
@@ -1442,19 +1366,38 @@ export const checkGoogleMapsUrlExists = async (googleMapsUrl: string) => {
 // primer tramo de la ruta sea el id del usuario que sube.
 const BUCKET_MEDIA_RESENA = 'review_media';
 
+/**
+ * Resenas que el usuario escribio de verdad (las de «Mis resenas», las que
+ * puede editar o borrar). Filtro de PostgREST para añadir con
+ * `.or(FILTRO_FUENTE_PROPIA).is('original_author_name', null)`.
+ *
+ * El user_id solo no basta: las importadas (Google, Trustindex, scraping, y
+ * las cargadas en nombre de otra persona) guardan el user_id del admin que las
+ * importo -en produccion, 41.863 de Google-. Sin esto el admin veia en su
+ * perfil hasta 1000 resenas de Google con Editar/Eliminar.
+ *
+ * 'manual' son resenas escritas en la web antes de que el guard forzara
+ * source='opynio' (migracion 20260923120000); siguen siendo del autor. Mismo
+ * criterio que optimizedQueries y review_source_counts. En la tarjeta,
+ * ReviewCard aplica la misma regla (isAuthoredBy).
+ */
+const FILTRO_FUENTE_PROPIA = 'source.is.null,source.in.(opynio,manual)';
+
 const extensionDe = (fichero: File | Blob, porDefecto: string) => {
   const nombre = (fichero as File).name || '';
   const ext = nombre.includes('.') ? nombre.split('.').pop() : '';
   return (ext || porDefecto).toLowerCase().replace(/[^a-z0-9]/g, '');
 };
 
+// Devuelve tambien la ruta en el bucket: createReview la necesita para borrar
+// lo subido si la resena no llega a crearse.
 const subirMediaDeResena = async (userId: string, fichero: File | Blob, porDefecto: string) => {
   const ruta = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extensionDe(fichero, porDefecto)}`;
   const { error } = await supabase.storage
     .from(BUCKET_MEDIA_RESENA)
     .upload(ruta, fichero, { cacheControl: '31536000', upsert: false });
   if (error) throw error;
-  return supabase.storage.from(BUCKET_MEDIA_RESENA).getPublicUrl(ruta).data.publicUrl;
+  return { ruta, url: supabase.storage.from(BUCKET_MEDIA_RESENA).getPublicUrl(ruta).data.publicUrl };
 };
 
 /**
@@ -1465,8 +1408,25 @@ const subirMediaDeResena = async (userId: string, fichero: File | Blob, porDefec
  * la resena quedaba etiquetada como «imágenes» sin ninguna imagen. En la base
  * de produccion habia 39 resenas asi y ni una sola con imagen real.
  *
- * Si la subida falla, la resena se publica igual pero SIN la etiqueta: es
- * preferible perder la foto a publicar una resena que promete algo que no tiene.
+ * Orden y limpieza (los ficheros son publicos y se cachean un año):
+ *  1. ANTES de subir nada se comprueba si el usuario ya reseño esta empresa
+ *     (userHasReviewedBusiness): si es asi, ALREADY_REVIEWED sin tocar el
+ *     bucket. Si la comprobacion falla, se sigue: el indice unico lo para en
+ *     el INSERT.
+ *  2. AUDIO: si falla, la resena NO se crea (AUDIO_UPLOAD_FAILED). Una resena
+ *     de audio no tiene texto: publicarla sin el audio dejaba una resena vacia
+ *     (titulo y estrellas) sin que el autor se enterase. Va antes que las fotos
+ *     para no subir fotos que luego no se usan.
+ *  3. FOTOS: cada una por su lado (Promise.allSettled). Se conservan las que
+ *     suben: son independientes, y perderlas todas porque falle una castigaba
+ *     al autor por un fallo parcial. Si no sube ninguna, la resena se publica
+ *     sin la etiqueta «imágenes» (no debe prometer lo que no tiene). El numero
+ *     de fotos que no subieron vuelve en `failedImageUploads` para que el
+ *     formulario pueda avisar.
+ *  4. Si el INSERT falla (ALREADY_REVIEWED, OWN_BUSINESS_REVIEW, RLS, red...)
+ *     se borra del bucket todo lo subido en esta llamada. Con un error sin
+ *     codigo (la respuesta se perdio por la red) se comprueba antes que la
+ *     resena no llegara a crearse, para no dejarla sin sus fotos.
  */
 export const createReview = async (
   reviewData: any,
@@ -1480,39 +1440,210 @@ export const createReview = async (
     }
   };
 
-  if (media?.imageFiles?.length) {
+  if (userId && insert.business_id) {
+    let yaResenada = false;
     try {
-      if (!userId) throw new Error('sin usuario');
-      insert.image_urls = await Promise.all(
-        media.imageFiles.map(f => subirMediaDeResena(userId, f, 'jpg'))
-      );
+      yaResenada = await userHasReviewedBusiness(userId, insert.business_id);
     } catch (e) {
-      console.error('No se pudieron subir las imágenes de la reseña:', e);
-      sinEtiqueta('imágenes');
+      console.warn('No se pudo comprobar si ya había reseñado la empresa:', e);
     }
+    if (yaResenada) throw new Error('ALREADY_REVIEWED');
   }
+
+  // Rutas subidas en esta llamada, para borrarlas si la resena no se crea.
+  const subidas: string[] = [];
+  const borrarSubidas = async () => {
+    if (subidas.length === 0) return;
+    const { error: storageError } = await supabase.storage.from(BUCKET_MEDIA_RESENA).remove(subidas);
+    if (storageError) console.warn('No se pudo borrar la media de una reseña no creada:', storageError);
+  };
 
   if (media?.audioBlob) {
     try {
       if (!userId) throw new Error('sin usuario');
-      insert.audio_url = await subirMediaDeResena(userId, media.audioBlob, 'webm');
+      const { ruta, url } = await subirMediaDeResena(userId, media.audioBlob, 'webm');
+      subidas.push(ruta);
+      insert.audio_url = url;
     } catch (e) {
       console.error('No se pudo subir el audio de la reseña:', e);
-      sinEtiqueta('audio');
+      throw new Error('AUDIO_UPLOAD_FAILED');
     }
   }
 
-  const { data, error } = await supabase
-    .from('reviews')
-    .insert([insert])
-    .select()
-    .single();
+  let fotosFallidas = 0;
+  if (media?.imageFiles?.length) {
+    const urls: string[] = [];
+    if (!userId) {
+      fotosFallidas = media.imageFiles.length;
+    } else {
+      const resultados = await Promise.allSettled(
+        media.imageFiles.map(f => subirMediaDeResena(userId, f, 'jpg'))
+      );
+      resultados.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          subidas.push(r.value.ruta);
+          urls.push(r.value.url);
+        } else {
+          fotosFallidas++;
+          console.error(`No se pudo subir la foto ${i + 1} de la reseña:`, r.reason);
+        }
+      });
+    }
+    if (urls.length > 0) {
+      insert.image_urls = urls;
+    } else {
+      delete insert.image_urls;
+      sinEtiqueta('imágenes');
+    }
+  }
+
+  // ¿Seguro que la resena NO se ha creado? Con codigo (SQLSTATE o PGRSTxxx) el
+  // servidor rechazo el INSERT. Sin codigo, pudo crearse y perderse la respuesta.
+  const insertRechazado = async (err: any): Promise<boolean> => {
+    if (err && typeof err.code === 'string' && err.code) return true;
+    if (!userId || !insert.business_id) return false;
+    try {
+      return !(await userHasReviewedBusiness(userId, insert.business_id));
+    } catch {
+      return false;
+    }
+  };
+
+  let data: any = null;
+  let error: any = null;
+  try {
+    ({ data, error } = await supabase
+      .from('reviews')
+      .insert([insert])
+      .select()
+      .single());
+  } catch (e) {
+    if (await insertRechazado(e)) await borrarSubidas();
+    throw e;
+  }
   if (error) {
+    if (await insertRechazado(error)) await borrarSubidas();
     if (error.code === '23505' && /uniq_review_per_user_business/.test(error.message || '')) {
       throw new Error('ALREADY_REVIEWED');
     }
+    // Trigger trg_reviews_block_owner_self_review (migracion 20260924130000).
+    if (error.code === 'OPY01' || /OWN_BUSINESS_REVIEW/.test(error.message || '')) {
+      throw new Error('OWN_BUSINESS_REVIEW');
+    }
     throw error;
   }
+  return fotosFallidas > 0 ? { ...data, failedImageUploads: fotosFallidas } : data;
+};
+
+// Ruta dentro del bucket a partir de la URL publica que guardamos en la resena.
+const rutaMediaDeResena = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const marca = `/storage/v1/object/public/${BUCKET_MEDIA_RESENA}/`;
+  const i = url.indexOf(marca);
+  if (i < 0) return null;
+  try {
+    return decodeURIComponent(url.slice(i + marca.length).split('?')[0]);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * El autor borra su propia resena (pendiente, publicada o rechazada).
+ *
+ * - La RLS («Users can delete their own reviews.») solo deja borrar filas con
+ *   user_id = auth.uid(); el filtro por user_id aqui es redundante a proposito.
+ * - Si la RLS no deja, PostgREST no da error: devuelve 0 filas. Por eso se pide
+ *   `select('id')` y se trata «0 filas» como fallo, para no decir «eliminada»
+ *   cuando no lo esta.
+ * - Enlaces a producto, votos, respuestas y apelaciones caen solos por
+ *   ON DELETE CASCADE.
+ * - Fotos y audio: se borran del bucket despues, solo los de la carpeta del
+ *   propio usuario. Si falla, la resena ya no existe y el fichero queda
+ *   huerfano pero inaccesible desde la app; no se revierte el borrado por eso.
+ * - Solo resenas escritas por el (FILTRO_FUENTE_PROPIA): la RLS de admin deja
+ *   borrar cualquier fila, y las importadas llevan el user_id del admin.
+ */
+export const deleteOwnReview = async (review: {
+  id: string;
+  user_id: string | null;
+  image_urls?: string[] | null;
+  audio_url?: string | null;
+}): Promise<void> => {
+  if (!review.user_id) throw new Error('REVIEW_WITHOUT_AUTHOR');
+  const { data, error } = await supabase
+    .from('reviews')
+    .delete()
+    .eq('id', review.id)
+    .eq('user_id', review.user_id)
+    .or(FILTRO_FUENTE_PROPIA)
+    .is('original_author_name', null)
+    .select('id');
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('REVIEW_NOT_DELETED');
+
+  const rutas = [...(review.image_urls || []), review.audio_url]
+    .map(rutaMediaDeResena)
+    .filter((r): r is string => !!r && r.startsWith(`${review.user_id}/`));
+  if (rutas.length > 0) {
+    const { error: storageError } = await supabase.storage.from(BUCKET_MEDIA_RESENA).remove(rutas);
+    if (storageError) console.warn('No se pudo borrar la media de la reseña:', storageError);
+  }
+};
+
+/**
+ * El autor edita su resena desde su perfil: valoracion, titulo y texto. Ni el
+ * negocio ni el producto.
+ *
+ * - No se manda `status`: si la resena estaba aprobada, la BD la devuelve a
+ *   'pending' (guard_review_sensitive_columns, migracion 20260924160000); si
+ *   estaba pendiente, sigue pendiente. La fila devuelta trae el estado final.
+ * - RLS: solo resenas propias pendientes o aprobadas. Como en el borrado, si
+ *   la RLS no deja PostgREST devuelve 0 filas sin error -> REVIEW_NOT_UPDATED.
+ * - Solo resenas escritas por el (FILTRO_FUENTE_PROPIA). Imprescindible para
+ *   el admin: su RLS le deja editar todo y el guard no le devuelve la resena a
+ *   'pending', asi que podia reescribir una de Google importada con su user_id.
+ * - El estado lo decide la BD en el momento de guardar; el editor debe releerlo
+ *   con getOwnReview (la lista del perfil puede estar desfasada).
+ */
+export const updateOwnReview = async (
+  review: { id: string; user_id: string | null },
+  changes: { rating: number; title: string; review_text: string },
+): Promise<Record<string, any>> => {
+  if (!review.user_id) throw new Error('REVIEW_WITHOUT_AUTHOR');
+  const { data, error } = await supabase
+    .from('reviews')
+    .update({
+      rating: changes.rating,
+      title: changes.title,
+      review_text: changes.review_text,
+    })
+    .eq('id', review.id)
+    .eq('user_id', review.user_id)
+    .or(FILTRO_FUENTE_PROPIA)
+    .is('original_author_name', null)
+    .select('*');
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('REVIEW_NOT_UPDATED');
+  return data[0];
+};
+
+/**
+ * Estado actual de una resena escrita por el usuario, o null si ya no existe
+ * (la borro un admin) o no es suya. Lo usa el editor del perfil para no
+ * decidir el aviso de moderacion con un estado viejo, y para explicar por que
+ * no se pudo guardar o borrar (REVIEW_NOT_UPDATED / REVIEW_NOT_DELETED).
+ */
+export const getOwnReview = async (reviewId: string, userId: string): Promise<Record<string, any> | null> => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('id', reviewId)
+    .eq('user_id', userId)
+    .or(FILTRO_FUENTE_PROPIA)
+    .is('original_author_name', null)
+    .maybeSingle();
+  if (error) throw error;
   return data;
 };
 
@@ -1894,6 +2025,9 @@ const getVariedReviews = async (
     rating?: { min?: number; max?: number };
     sortBy?: 'newest' | 'oldest' | 'most_helpful' | 'least_helpful';
     country?: string;
+    // \u00abVer rese\u00f1as de otros paises\u00bb en Explorar: todas menos las de este pais
+    // (ni por la columna country ni por sede).
+    excludeCountry?: string;
     dateFilter?: { type: string; startDate?: string; endDate?: string };
     verifiedFilter?: 'all' | 'verified' | 'unverified';
     formatFilters?: string[];
@@ -1915,6 +2049,19 @@ const getVariedReviews = async (
     let businessQuery = supabase
       .from('businesses')
       .select('id, name, country, logo_url, logo_tone, category, sedes, description');
+
+    // El pais se filtra en la consulta, ANTES del limite de 100: antes se
+    // cogian 100 empresas cualesquiera y luego se filtraba por pais, asi que un
+    // pais podia quedarse sin resultados aunque tuviera empresas.
+    if (filters.country) {
+      const conSede = await idsConSedeEnPais(filters.country);
+      businessQuery = conSede.length
+        ? businessQuery.or(`country.eq.${filters.country},id.in.(${conSede.join(',')})`)
+        : businessQuery.eq('country', filters.country);
+    }
+    if (filters.excludeCountry) {
+      businessQuery = businessQuery.neq('country', filters.excludeCountry);
+    }
 
     // Only apply limit when no category filter (general browse)
     if (!filters.category && !filters.searchTerm) {
@@ -1975,11 +2122,18 @@ const getVariedReviews = async (
       });
 
       console.log(`🌍 Country filter "${filters.country}": ${filteredBusinesses.length} of ${searchFilteredBusinesses.length} businesses match`);
-
-      // If no businesses in this country, return empty results (don't fallback to all)
-      if (filteredBusinesses.length === 0) {
-        return { reviews: [], totalCount: 0, hasMore: false, businessCount: 0 };
-      }
+    }
+    if (filters.excludeCountry) {
+      const fuera = filters.excludeCountry;
+      filteredBusinesses = filteredBusinesses.filter(business => {
+        if (business.country === fuera) return false;
+        const sedes = business.sedes as any[] || [];
+        return !sedes.some(sede => sede?.country_code === fuera);
+      });
+    }
+    // If no businesses in this country, return empty results (don't fallback to all)
+    if ((filters.country || filters.excludeCountry) && filteredBusinesses.length === 0) {
+      return { reviews: [], totalCount: 0, hasMore: false, businessCount: 0 };
     }
 
     // Log unique categories found for debugging
@@ -2004,21 +2158,9 @@ const getVariedReviews = async (
     if (filters.rating?.max) {
       countQuery = countQuery.lte('rating', filters.rating.max);
     }
-    if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-      if (filters.dateFilter.type === 'last_month') {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        countQuery = countQuery.gte('created_at', oneMonthAgo.toISOString());
-      } else if (filters.dateFilter.type === 'last_3_months') {
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        countQuery = countQuery.gte('created_at', threeMonthsAgo.toISOString());
-      } else if (filters.dateFilter.type === 'last_year') {
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        countQuery = countQuery.gte('created_at', oneYearAgo.toISOString());
-      }
-    }
+    const dateRange = resolveReviewDateRange(filters.dateFilter);
+    if (dateRange.from) countQuery = countQuery.gte('created_at', dateRange.from);
+    if (dateRange.to) countQuery = countQuery.lte('created_at', dateRange.to);
 
     const { count: totalCount, error: countError } = await countQuery;
 
@@ -2032,18 +2174,6 @@ const getVariedReviews = async (
     const REVIEWS_PER_BUSINESS = 3; // Get up to 3 reviews per business
     const totalNeeded = page * pageSize;
 
-    // Prepare date filter for queries
-    let dateFilter: Date | null = null;
-    if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-      dateFilter = new Date();
-      if (filters.dateFilter.type === 'last_month') {
-        dateFilter.setMonth(dateFilter.getMonth() - 1);
-      } else if (filters.dateFilter.type === 'last_3_months') {
-        dateFilter.setMonth(dateFilter.getMonth() - 3);
-      } else if (filters.dateFilter.type === 'last_year') {
-        dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-      }
-    }
 
     // Apply sorting config
     const sortField = filters.sortBy === 'most_helpful' || filters.sortBy === 'least_helpful'
@@ -2054,13 +2184,16 @@ const getVariedReviews = async (
     // Fetch reviews from each business individually (limited per business)
     console.log(`📥 Fetching up to ${REVIEWS_PER_BUSINESS} reviews from each of ${businessIds.length} businesses...`);
 
-    const reviewPromises = businessIds.map(async (bizId) => {
+    // La MISMA fecha de corte para todos los lotes (antes se calculaba en cada
+    // consulta, pero se lanzaban todas a la vez).
+    const ahora = new Date().toISOString();
+    const fetchBusinessReviews = async (bizId: string) => {
       try {
         let query = supabase
           .from('reviews')
           .select('*')
           .eq('status', 'approved')
-          .lte('created_at', new Date().toISOString())
+          .lte('created_at', ahora)
           .eq('business_id', bizId)
           .order(sortField, { ascending })
           .limit(REVIEWS_PER_BUSINESS);
@@ -2073,10 +2206,8 @@ const getVariedReviews = async (
           query = query.lte('rating', filters.rating.max);
         }
 
-        // Apply date filter
-        if (dateFilter) {
-          query = query.gte('created_at', dateFilter.toISOString());
-        }
+        if (dateRange.from) query = query.gte('created_at', dateRange.from);
+        if (dateRange.to) query = query.lte('created_at', dateRange.to);
 
         const { data, error } = await query;
         if (error) {
@@ -2088,15 +2219,19 @@ const getVariedReviews = async (
         console.error(`Exception fetching reviews for business ${bizId}:`, err);
         return [];
       }
-    });
+    };
 
-    // Execute all queries in parallel (batched to avoid too many concurrent requests)
+    // Lotes de verdad: las consultas de cada lote se CREAN al llegar a el.
+    // Antes se hacia businessIds.map(async ...) de golpe (cientos de peticiones
+    // a la vez con una categoria grande) y el bucle solo agrupaba la espera.
+    // El orden de los resultados es el mismo que antes (el de businessIds).
     const BATCH_SIZE = 20;
     const allReviews: any[] = [];
 
-    for (let i = 0; i < reviewPromises.length; i += BATCH_SIZE) {
-      const batch = reviewPromises.slice(i, i + BATCH_SIZE);
-      const batchResults = await Promise.all(batch);
+    for (let i = 0; i < businessIds.length; i += BATCH_SIZE) {
+      const batchResults = await Promise.all(
+        businessIds.slice(i, i + BATCH_SIZE).map(fetchBusinessReviews)
+      );
       batchResults.forEach(reviews => allReviews.push(...reviews));
     }
 
@@ -2178,7 +2313,7 @@ const getVariedReviews = async (
   }
 };
 
-export const getPublicReviews = async (
+const getPublicReviewsSinAutor = async (
   filters: {
     searchTerm?: string; // Search by business name
     reviewTextSearch?: string; // NEW: Search within review text
@@ -2193,6 +2328,7 @@ export const getPublicReviews = async (
     formatFilters?: string[];
     excludeBusinessIds?: string[]; // Excluir empresas ya cargadas
     skipCountryFilter?: boolean; // Para cargar de otros países
+    excludeCountry?: string; // Feed variado sin las empresas de este país (ver getVariedReviews)
     onePerBusiness?: boolean; // Only return one review per business (for feed variety)
     variedFeed?: boolean; // Load varied reviews from multiple businesses (interleaved)
   } = {},
@@ -2312,10 +2448,11 @@ export const getPublicReviews = async (
       }
     }
 
-    // Now query reviews with all filters
+    // Now query reviews with all filters. count: 'exact' para que Explorar con
+    // una empresa elegida y /buscar den el total real (antes "10 de 10").
     let query = supabase
       .from('reviews')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString());
 
@@ -2340,22 +2477,10 @@ export const getPublicReviews = async (
     }
 
     // Date filter
-    if (filters.dateFilter && filters.dateFilter.type !== 'all') {
-      if (filters.dateFilter.type === 'custom' && filters.dateFilter.startDate && filters.dateFilter.endDate) {
-        query = query.gte('created_at', filters.dateFilter.startDate).lte('created_at', filters.dateFilter.endDate);
-      } else if (filters.dateFilter.type === 'last_month') {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        query = query.gte('created_at', oneMonthAgo.toISOString());
-      } else if (filters.dateFilter.type === 'last_3_months') {
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        query = query.gte('created_at', threeMonthsAgo.toISOString());
-      } else if (filters.dateFilter.type === 'last_year') {
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        query = query.gte('created_at', oneYearAgo.toISOString());
-      }
+    {
+      const { from: dateFrom, to: dateTo } = resolveReviewDateRange(filters.dateFilter);
+      if (dateFrom) query = query.gte('created_at', dateFrom);
+      if (dateTo) query = query.lte('created_at', dateTo);
     }
 
     // Note: verified and format filters disabled - columns don't exist in reviews table
@@ -2367,19 +2492,26 @@ export const getPublicReviews = async (
     }
 
     // Sorting - always apply to avoid errors
+    // "Más útiles" / "Menos útiles" se ignoraban: siempre salia por fecha.
     const sortBy = filters.sortBy || 'newest';
-    if (sortBy === 'oldest') {
+    if (sortBy === 'most_helpful' || sortBy === 'least_helpful') {
+      query = query
+        .order('helpful_votes', { ascending: sortBy === 'least_helpful', nullsFirst: false })
+        .order('created_at', { ascending: false });
+    } else if (sortBy === 'oldest') {
       query = query.order('created_at', { ascending: true });
     } else {
       query = query.order('created_at', { ascending: false });
     }
+    // Desempate estable para que las paginas no repitan ni pierdan resenas.
+    query = query.order('id', { ascending: true });
 
     // Pagination
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
     query = query.range(from, to);
 
-    const { data: reviews, error } = await query;
+    const { data: reviews, error, count: totalCount } = await query;
     if (error) {
       console.error('Supabase error in getPublicReviews:', error);
       console.error('Error code:', error.code);
@@ -2389,7 +2521,7 @@ export const getPublicReviews = async (
     }
 
     if (!reviews || reviews.length === 0) {
-      return [];
+      return { reviews: [], totalCount: totalCount ?? 0, hasMore: false };
     }
 
     // Get unique business IDs from reviews
@@ -2431,33 +2563,47 @@ export const getPublicReviews = async (
       };
     });
 
-    // Apply country-based sorting if country filter is active
-    if (filters.country) {
-      enrichedReviews = enrichedReviews.sort((a, b) => {
-        const aMatchesCountry = a.businesses?.country === filters.country;
-        const bMatchesCountry = b.businesses?.country === filters.country;
-
-        // Primary sort: reviews from selected country first
-        if (aMatchesCountry && !bMatchesCountry) return -1;
-        if (!aMatchesCountry && bMatchesCountry) return 1;
-
-        // Secondary sort: by rating (descending - higher ratings first)
-        const ratingDiff = (b.rating || 0) - (a.rating || 0);
-        if (ratingDiff !== 0) return ratingDiff;
-
-        // Tertiary sort: by date (based on sortBy parameter)
-        const aTime = new Date(a.created_at).getTime();
-        const bTime = new Date(b.created_at).getTime();
-        return filters.sortBy === 'oldest' ? aTime - bTime : bTime - aTime;
-      });
+    // Con filtro de pais, las del pais elegido van primero. Antes se reordenaba
+    // ademas por nota y fecha, lo que pisaba el orden pedido («Más útiles»,
+    // «Más antiguas»...). Ahora el sort es estable y solo mira el pais, asi que
+    // dentro de cada grupo se respeta el orden que devolvio la consulta. Con una
+    // empresa concreta elegida no hay nada que agrupar.
+    if (filters.country && !filters.businessId) {
+      enrichedReviews = enrichedReviews
+        .map((review, index) => ({ review, index }))
+        .sort((a, b) => {
+          const aMatches = a.review.businesses?.country === filters.country ? 0 : 1;
+          const bMatches = b.review.businesses?.country === filters.country ? 0 : 1;
+          return aMatches - bMatches || a.index - b.index;
+        })
+        .map(x => x.review);
     }
 
-    console.log('Enriched reviews with business data:', enrichedReviews.length);
-    return enrichedReviews;
+    const total = totalCount ?? enrichedReviews.length;
+    return { reviews: enrichedReviews, totalCount: total, hasMore: from + enrichedReviews.length < total };
   } catch (error) {
     console.error('Caught error in getPublicReviews:', error);
     throw error;
   }
+};
+
+/**
+ * Resenas de Explorar con su autor. Las tres rutas internas (una por empresa,
+ * feed variado y listado normal) devolvian las resenas sin `profiles`, y la
+ * tarjeta ponia "Anonimo" en todas. Se adjunta aqui una sola vez, sea cual sea
+ * la forma del resultado (array o { reviews, ... }).
+ */
+export const getPublicReviews = async (
+  ...args: Parameters<typeof getPublicReviewsSinAutor>
+) => {
+  const result: any = await getPublicReviewsSinAutor(...args);
+  if (Array.isArray(result)) {
+    return attachProfiles(result, 'id, name, username, avatar_url');
+  }
+  if (result && Array.isArray(result.reviews)) {
+    return { ...result, reviews: await attachProfiles(result.reviews, 'id, name, username, avatar_url') };
+  }
+  return result;
 };
 
 export const voteOnReview = async (reviewId: string, userId: string, voteType: 'helpful' | 'not_helpful') => {
@@ -2477,7 +2623,13 @@ export const voteOnReview = async (reviewId: string, userId: string, voteType: '
       }
     );
 
-  if (voteError) throw voteError;
+  if (voteError) {
+    // Trigger trg_review_votes_block_own_review (migracion 20260924160000).
+    if (voteError.code === 'OPY02' || /OWN_REVIEW_VOTE/.test(voteError.message || '')) {
+      throw new Error('OWN_REVIEW_VOTE');
+    }
+    throw voteError;
+  }
 
   // Fetch the updated vote counts (the trigger has already updated them)
   const { data: reviewData, error: reviewError } = await supabase
@@ -2533,12 +2685,15 @@ export const removeVoteOnReview = async (reviewId: string, userId: string) => {
 
 export const getRejectedReviewsForUser = async (userId: string) => {
   try {
-    // Fetch reviews without the join
+    // Solo las que escribio el: las importadas llevan el user_id del admin que
+    // las importo (ver FILTRO_FUENTE_PROPIA).
     const { data: reviews, error } = await supabase
       .from('reviews')
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'rejected')
+      .or(FILTRO_FUENTE_PROPIA)
+      .is('original_author_name', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -2573,7 +2728,9 @@ export const getRejectedReviewsForUser = async (userId: string) => {
       businesses: businessMap.get(review.business_id) || null
     }));
 
-    return enrichedReviews;
+    // Sin `profiles` la tarjeta decia "resena de Anonimo" en el perfil del
+    // propio autor.
+    return attachProfiles(enrichedReviews, 'id, name, username, avatar_url');
   } catch (error) {
     console.error('Caught error in getRejectedReviewsForUser:', error);
     throw error;
@@ -2582,11 +2739,15 @@ export const getRejectedReviewsForUser = async (userId: string) => {
 
 export const getReviewsForUser = async (userId: string) => {
   try {
-    // Fetch reviews without the join
+    // Solo las que escribio el (ver FILTRO_FUENTE_PROPIA): el perfil del admin
+    // salia lleno de resenas de Google importadas con su user_id, con
+    // Editar/Eliminar, y contaban en «Reseñas escritas» y en la media.
     const { data: reviews, error } = await supabase
       .from('reviews')
       .select('*')
       .eq('user_id', userId)
+      .or(FILTRO_FUENTE_PROPIA)
+      .is('original_author_name', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -2621,7 +2782,9 @@ export const getReviewsForUser = async (userId: string) => {
       businesses: businessMap.get(review.business_id) || null
     }));
 
-    return enrichedReviews;
+    // Sin `profiles` la tarjeta decia "resena de Anonimo" en el perfil del
+    // propio autor.
+    return attachProfiles(enrichedReviews, 'id, name, username, avatar_url');
   } catch (error) {
     console.error('Caught error in getReviewsForUser:', error);
     throw error;
@@ -2649,6 +2812,10 @@ export const getReviewsForBusiness = async (
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString())
       .order('created_at', { ascending: false })
+      // Desempate: hay muchas resenas con el mismo created_at (importaciones en
+      // lote) y sin un orden total el rango de cada pagina no es estable: una
+      // resena se repetia en dos paginas y otra no salia nunca.
+      .order('id', { ascending: false })
       .range(from, from + pageSize - 1);
 
     if (error) {
@@ -2660,36 +2827,43 @@ export const getReviewsForBusiness = async (
       return [];
     }
 
-    // Get unique user IDs, filtering out null values
     const userIds = [...new Set(reviews.map(r => r.user_id).filter(id => id !== null))];
+    const reviewIds = reviews.map(r => r.id);
 
-    // Only fetch profiles if we have valid user IDs
-    if (userIds.length === 0) {
-      return reviews;
+    // Perfiles y respuestas en paralelo. Las respuestas no llegaban al panel, asi
+    // que el dueno no veia las que ya habia escrito y no podia editarlas ni
+    // borrarlas. Se piden aunque no haya autores de Opynio: las resenas de
+    // Google (user_id null) tambien pueden tener respuesta.
+    const [profilesResult, responsesResult] = await Promise.all([
+      userIds.length > 0
+        ? supabase.from('profiles').select('id, name, username, avatar_url').in('id', userIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('review_responses')
+        .select('id, review_id, response_text, created_at, updated_at')
+        .in('review_id', reviewIds),
+    ]);
+
+    if (profilesResult.error) {
+      console.error('Error fetching profiles:', profilesResult.error);
+    }
+    if (responsesResult.error) {
+      console.error('Error fetching review responses:', responsesResult.error);
     }
 
-    // Fetch profile data separately
-    const { data: profiles, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url')
-      .in('id', userIds);
-
-    if (profileError) {
-      console.error('Error fetching profiles:', profileError);
-      // Return reviews without profile data if there's an error
-      return reviews;
+    const profileMap = new Map((profilesResult.data || []).map((p: any) => [p.id, p]));
+    const responsesByReview = new Map<string, any[]>();
+    for (const response of responsesResult.data || []) {
+      const list = responsesByReview.get(response.review_id) || [];
+      list.push(response);
+      responsesByReview.set(response.review_id, list);
     }
 
-    // Create a map of profile data
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-    // Enrich reviews with profile data
-    const enrichedReviews = reviews.map(review => ({
+    return reviews.map(review => ({
       ...review,
-      profiles: profileMap.get(review.user_id) || null
+      profiles: profileMap.get(review.user_id) || null,
+      review_responses: responsesByReview.get(review.id) || [],
     }));
-
-    return enrichedReviews;
   } catch (error) {
     console.error('Caught error in getReviewsForBusiness:', error);
     throw error;
@@ -2723,17 +2897,47 @@ export const getReviewSourceCounts = async (businessId: string) => {
   if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : data;
+  const opynio = Number(row?.opynio ?? 0);
+  const google = Number(row?.google ?? 0);
+  const trustindex = Number(row?.trustindex ?? 0);
   return {
-    opynio: Number(row?.opynio ?? 0),
-    google: Number(row?.google ?? 0),
-    trustindex: Number(row?.trustindex ?? 0),
+    opynio,
+    google,
+    trustindex,
+    // `total` cuenta todas las fuentes (tambien importadas). Si la RPC es la
+    // version antigua y no lo trae, se cae a la suma de las tres.
+    total: row?.total != null ? Number(row.total) : opynio + google + trustindex,
   };
 };
 
-export const submitReviewResponse = async (reviewId: string, responseText: string, businessId: string) => {
+// Lo mismo que getReviewRatingDistribution + getReviewSourceCounts, pero solo
+// para las resenas de UN producto de la empresa (review_subject_links), en una
+// sola llamada. Es un subconjunto: el total de la empresa sigue saliendo de las
+// dos funciones de arriba, que cuentan TODAS sus resenas.
+export const getProductReviewStats = async (businessId: string, productId: string) => {
+  const { data, error } = await supabase
+    .rpc('subject_review_stats', { p_business_id: businessId, p_subject_id: productId });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const n = (v: unknown) => Number(v ?? 0);
+  return {
+    distribution: { 1: n(row?.r1), 2: n(row?.r2), 3: n(row?.r3), 4: n(row?.r4), 5: n(row?.r5) } as Record<number, number>,
+    sourceCounts: {
+      opynio: n(row?.opynio),
+      google: n(row?.google),
+      trustindex: n(row?.trustindex),
+      total: n(row?.total),
+    },
+  };
+};
+
+// review_responses solo tiene review_id y response_text; el permiso lo decide la
+// RLS (dueno de la empresa de la resena). Mandar business_id daba 400 PGRST204.
+export const submitReviewResponse = async (reviewId: string, responseText: string) => {
   const { data, error } = await supabase
     .from('review_responses')
-    .insert([{ review_id: reviewId, response_text: responseText, business_id: businessId }])
+    .insert([{ review_id: reviewId, response_text: responseText }])
     .select()
     .single();
   if (error) throw error;
@@ -2781,15 +2985,25 @@ export const getNotifications = async (userId: string) => {
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
-  return data || [];
+  return (data || []).map(normalizeNotification);
 };
 
+// En produccion la columna es `is_read`; en la BD local, `read`. La UI solo
+// mira `read`: sin esto, en produccion todo contaba como no leido.
+export const normalizeNotification = (n: any): Notification => ({
+  ...n,
+  read: Boolean(n.read ?? n.is_read),
+});
+
 export const markNotificationsAsRead = async (userId: string, notificationIds: string[]) => {
-  const { error } = await supabase
+  const marcar = (columna: 'is_read' | 'read') => supabase
     .from('notifications')
-    .update({ read: true })
+    .update({ [columna]: true })
     .eq('user_id', userId)
     .in('id', notificationIds);
+  let { error } = await marcar('is_read');
+  // 42703 (Postgres) / PGRST204 (cache de esquema): la columna no existe aqui.
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) ({ error } = await marcar('read'));
   if (error) throw error;
 };
 
@@ -2835,28 +3049,47 @@ export const getAdminBusinessesPaginated = async (page: number, pageSize: number
 };
 
 export const adminBulkUpdateBusinesses = async (updates: Array<{ id: string; payload: Partial<any> }>) => {
-  // Transformar el formato { id, payload } a objetos planos para upsert
-  const businessUpdates = updates.map(({ id, payload }) => ({
-    id,
-    ...payload
+  // Un UPDATE por empresa con SOLO sus campos editados. Antes era un upsert del
+  // lote entero: supabase-js une las columnas de todas las filas, y a cada fila
+  // le ponia NULL en las que no traia. Editar la descripcion de A y el telefono
+  // de B dejaba A sin telefono y B sin descripcion (reproducido en local). Con
+  // un solo campo fallaba directamente por NOT NULL en name.
+  const results = await Promise.all(updates.map(async ({ id, payload }) => {
+    const { data, error } = await supabase
+      .from('businesses')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+    return { id, data, error };
   }));
 
-  const { data, error } = await supabase
-    .from('businesses')
-    .upsert(businessUpdates)
-    .select();
-  if (error) throw error;
-  return data;
+  const failed = results.filter(r => r.error);
+  if (failed.length > 0) {
+    const detail = failed.map(f => `${f.id}: ${f.error!.message}`).join('; ');
+    throw new Error(`${failed.length} de ${updates.length} empresas no se guardaron. ${detail}`);
+  }
+  return results.map(r => r.data);
 };
 
-export const getAdminUsersPaginated = async (page: number, pageSize: number) => {
-  const { data, error, count } = await supabase
-    .from('profiles')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range((page - 1) * pageSize, page * pageSize - 1);
+// Busqueda y filtro de rol del panel de usuarios. Antes se ignoraban (la funcion
+// no leia el tercer argumento) y el email salia "No disponible". La RPC
+// admin_list_users (solo admin) busca por nombre, username o email y trae el
+// email de auth.users.
+export const getAdminUsersPaginated = async (
+  page: number,
+  pageSize: number,
+  filters: { searchTerm?: string; role?: string } = {}
+) => {
+  const { data, error } = await supabase.rpc('admin_list_users', {
+    p_search: filters.searchTerm || null,
+    p_role: filters.role || null,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
   if (error) throw error;
-  return { data: data || [], count: count || 0 };
+  const rows = (data || []) as any[];
+  return { data: rows, count: rows.length ? Number(rows[0].total_count) : 0 };
 };
 
 export const adminGetFeaturedCompanies = async () => {
@@ -2864,44 +3097,129 @@ export const adminGetFeaturedCompanies = async () => {
     .from('businesses')
     .select('*')
     .eq('is_featured', true)
+    .order('featured_order', { ascending: true, nullsFirst: false })
     .order('name');
   if (error) throw error;
   return data || [];
 };
 
-export const adminSetFeaturedCompanies = async (businessIds: string[]) => {
-  // First, unfeature all current featured businesses
-  const { error: unfeatureError } = await supabase
-    .from('businesses')
-    .update({ is_featured: false })
-    .eq('is_featured', true);
+// Valoracion media y numero de resenas aprobadas de varias empresas en una sola
+// llamada, con la misma RPC que usan la home y la ficha. businesses no tiene
+// columnas avg_rating/review_count: leerlas de la fila daba 0.0 y 0 siempre.
+export const getReviewStatsForBusinesses = async (businessIds: string[]) => {
+  const stats = new Map<string, { avg_rating: number; review_count: number }>();
+  if (businessIds.length === 0) return stats;
+  const { data, error } = await supabase
+    .rpc('review_stats_batch', { p_business_ids: businessIds, p_include_scheduled: false });
+  if (error) throw error;
+  for (const row of (data || []) as any[]) {
+    stats.set(row.business_id, {
+      avg_rating: Number(row.average_rating ?? 0),
+      review_count: Number(row.total_reviews ?? 0),
+    });
+  }
+  return stats;
+};
 
+// Buscador del modal «Añadir destacada»: por nombre, en el servidor y paginado
+// (getBusinessIdAndNameList solo miraba las 200 primeras por orden alfabetico),
+// y sin las que ya estan destacadas.
+export const adminSearchBusinessesToFeature = async (term: string, page: number, pageSize: number) => {
+  let query = supabase
+    .from('businesses')
+    .select('id, name, country, logo_url', { count: 'exact' })
+    .not('is_featured', 'is', true)
+    .order('name')
+    .range((page - 1) * pageSize, page * pageSize - 1);
+  const limpio = term.trim();
+  if (limpio) {
+    query = query.ilike('name', `%${limpio.replace(/[%_\\]/g, '\\$&')}%`);
+  }
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { data: (data || []) as Array<{ id: string; name: string; country: string | null; logo_url: string | null }>, count: count || 0 };
+};
+
+export const adminSetFeaturedCompanies = async (businessIds: string[]) => {
+  // Una sola transaccion en el servidor (migracion 20260924230000): marca las
+  // elegidas con su posicion y desmarca el resto de golpe, y dos guardados a la
+  // vez van uno detras de otro. Con escrituras sueltas desde aqui, dos guardados
+  // seguidos mezclaban sus featured_order.
+  const { error: rpcError } = await supabase.rpc('admin_save_featured_businesses', { p_business_ids: businessIds });
+  if (!rpcError) return;
+  const rpcMissing = rpcError.code === 'PGRST202' || rpcError.code === '42883'
+    || (/admin_save_featured_businesses/.test(rpcError.message || '') && /could not find|does not exist/i.test(rpcError.message || ''));
+  if (!rpcMissing) {
+    console.error('Error saving featured businesses:', rpcError);
+    throw rpcError;
+  }
+
+  // Sin la RPC (migracion aun no aplicada): escrituras sueltas, como antes.
+  // Primero se marcan las elegidas con su posicion y despues se desmarcan las
+  // demas. Antes era al reves (quitar todas y volver a poner): si el segundo
+  // paso fallaba, la home se quedaba sin ninguna destacada.
+  if (businessIds.length > 0) {
+    const results = await Promise.all(businessIds.map((id, index) => supabase
+      .from('businesses')
+      .update({ is_featured: true, featured_order: index + 1 })
+      .eq('id', id)
+      .select('id')));
+    const failed = results.find(r => r.error);
+    if (failed?.error) {
+      console.error('Error featuring businesses:', failed.error);
+      throw failed.error;
+    }
+    // Sin permiso, PostgREST no da error: simplemente no actualiza ninguna fila.
+    if (results.some(r => !r.data || r.data.length === 0)) {
+      throw new Error('No se pudo marcar alguna empresa como destacada (sin permiso o ya no existe).');
+    }
+  }
+
+  let unfeature = supabase
+    .from('businesses')
+    .update({ is_featured: false, featured_order: null })
+    .eq('is_featured', true);
+  if (businessIds.length > 0) {
+    unfeature = unfeature.not('id', 'in', `(${businessIds.join(',')})`);
+  }
+  const { error: unfeatureError } = await unfeature;
   if (unfeatureError) {
     console.error('Error unfeaturing businesses:', unfeatureError);
     throw unfeatureError;
   }
-
-  // Then feature the selected ones
-  if (businessIds.length > 0) {
-    const { error } = await supabase
-      .from('businesses')
-      .update({ is_featured: true })
-      .in('id', businessIds);
-    if (error) {
-      console.error('Error featuring businesses:', error);
-      throw error;
-    }
-  }
 };
 
-export const getAdminReviewAppeals = async () => {
-  const { data, error } = await supabase
+// Adjunta `profiles` a cada fila con una consulta aparte en vez de un embed de
+// PostgREST. El embed `profiles(...)` solo funciona si la FK de user_id apunta a
+// profiles; en el esquema documentado reviews, bug_reports y review_appeals
+// apuntan a auth.users, y el embed devolvia 400 PGRST200: Moderacion, Bugs y
+// Apelaciones no cargaban nunca. Asi funciona con cualquiera de las dos FKs.
+export const attachProfiles = async <T extends { user_id?: string | null }>(
+  rows: T[],
+  columns = 'id, name, username, avatar_url'
+): Promise<Array<T & { profiles: any }>> => {
+  const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))] as string[];
+  if (userIds.length === 0) return rows.map(r => ({ ...r, profiles: null }));
+  const { data, error } = await supabase.from('profiles').select(columns).in('id', userIds);
+  if (error) console.error('Error fetching profiles:', error);
+  const byId = new Map((data || []).map((p: any) => [p.id, p]));
+  return rows.map(r => ({ ...r, profiles: (r.user_id && byId.get(r.user_id)) || null }));
+};
+
+export const getAdminReviewAppeals = async (options?: { status?: string }) => {
+  // La pagina pasa { status } desde sus pestanas; antes se ignoraba y siempre
+  // salian solo las pendientes.
+  let query = supabase
     .from('review_appeals')
-    .select('*, reviews(*, businesses(name)), profiles!review_appeals_user_id_fkey(name, username)')
-    .eq('status', 'pending')
+    .select('*, reviews(*, businesses(name))')
     .order('created_at', { ascending: false });
+  const status = options?.status ?? 'pending';
+  if (status !== 'all') {
+    query = query.eq('status', status);
+  }
+  const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return attachProfiles(data || [], 'id, name, username');
 };
 
 export const resolveReviewAppeal = async (appealId: string, resolution: string, adminNotes: string) => {
@@ -2912,6 +3230,16 @@ export const resolveReviewAppeal = async (appealId: string, resolution: string, 
     .select()
     .single();
   if (error) throw error;
+
+  // Aprobar la apelacion tiene que rehabilitar la resena; antes solo cambiaba
+  // el estado de la apelacion y la resena seguia rechazada.
+  if (resolution === 'approved' && data?.review_id) {
+    const { error: reviewError } = await supabase
+      .from('reviews')
+      .update({ status: 'approved', rejection_reason: null, published_at: new Date().toISOString() })
+      .eq('id', data.review_id);
+    if (reviewError) throw reviewError;
+  }
   return data;
 };
 
@@ -2924,8 +3252,11 @@ export const getAdminReviews = async (
 
   let query = supabase
     .from('reviews')
-    .select('*, businesses(name), profiles(id, name, avatar_url)')
+    // country: ReviewCard lo usa para no pedir a Google traducir es->es
+    // cuando el texto es demasiado corto para detectar su idioma.
+    .select('*, businesses(name, country)')
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (filters.status) {
@@ -2934,13 +3265,34 @@ export const getAdminReviews = async (
 
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  const withProfiles = await attachProfiles(data || [], 'id, name, username, avatar_url');
+
+  // Producto sobre el que opina el autor (lo elige al escribir). Sin esto el
+  // admin aprobaba sin saber de que curso o servicio era la resena.
+  const ids = withProfiles.map((r: any) => r.id);
+  if (ids.length === 0) return withProfiles;
+  const { data: links, error: linksError } = await supabase
+    .from('review_subject_links')
+    .select('review_id, review_subjects(name)')
+    .in('review_id', ids);
+  if (linksError) {
+    console.error('Error cargando productos de las resenas:', linksError);
+    return withProfiles;
+  }
+  const productByReview = new Map((links || []).map((l: any) => [l.review_id, l.review_subjects?.name ?? null]));
+  return withProfiles.map((r: any) => ({ ...r, product_name: productByReview.get(r.id) ?? null }));
 };
 
 export const adminUpdateReviewStatus = async (reviewId: string, status: string, adminNotes?: string) => {
+  // La columna es rejection_reason (reviews no tiene admin_notes: rechazar con
+  // motivo daba 400 PGRST204). Es el texto que ve el autor al apelar.
   const updates: any = { status };
-  if (adminNotes) {
-    updates.admin_notes = adminNotes;
+  if (status === 'rejected') {
+    updates.rejection_reason = adminNotes || null;
+  }
+  if (status === 'approved') {
+    updates.rejection_reason = null;
+    updates.published_at = new Date().toISOString();
   }
 
   const { data, error } = await supabase
@@ -2957,7 +3309,8 @@ export const getAdminDashboardStats = async () => {
   const [businessesRes, usersRes, reviewsRes] = await Promise.all([
     supabase.from('businesses').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('reviews').select('*', { count: 'exact', head: true }),
+    // Solo publicadas: antes sumaba pendientes y rechazadas (105 frente a 100 reales).
+    supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
   ]);
 
   if (businessesRes.error) throw businessesRes.error;
@@ -3015,7 +3368,7 @@ export const getAdminBugReports = async (status?: string) => {
   console.log('getAdminBugReports called with status:', status);
   let query = supabase
     .from('bug_reports')
-    .select('*, profiles(name, username)')
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (status) {
@@ -3026,7 +3379,7 @@ export const getAdminBugReports = async (status?: string) => {
   const { data, error } = await query;
   console.log('Bug reports query result:', { data, error, count: data?.length });
   if (error) throw error;
-  return data || [];
+  return attachProfiles(data || [], 'id, name, username');
 };
 
 export const updateBugReport = async (bugId: string, updates: any) => {
@@ -3198,6 +3551,21 @@ export async function getBusinessAnalytics(businessId: string, days: 30 | 90 | 3
 
 // ==================== SUPPORT FUNCTIONS ====================
 
+/** Si el usuario ya tiene una reclamacion pendiente sobre esa empresa. */
+export const hasPendingClaim = async (userId: string, businessId: string): Promise<boolean> => {
+  const { count, error } = await supabase
+    .from('claims')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('business_id', businessId)
+    .eq('status', 'pending');
+  if (error) {
+    console.error('Error comprobando reclamaciones pendientes:', error);
+    return false;
+  }
+  return (count ?? 0) > 0;
+};
+
 export const createClaim = async (claimData: any) => {
   const { data, error } = await supabase
     .from('claims')
@@ -3228,13 +3596,181 @@ export const createReviewAppeal = async (appealData: any) => {
   return data;
 };
 
-export const sendSupportEmail = async (emailData: any) => {
-  // This would typically call an edge function or API endpoint
-  const { data, error } = await supabase.functions.invoke('send-support-email', {
-    body: emailData,
+// La Edge Function espera { formType, data }. SupportPage la llamaba como
+// (formType, data) pero la firma solo tenia un parametro: el body era la cadena
+// 'bug' y la funcion respondia 400, asi que ningun aviso llegaba al equipo.
+export const sendSupportEmail = async (formType: 'bug' | 'claim' | 'claim_review' | 'ticket', data: Record<string, unknown>) => {
+  const { data: result, error } = await supabase.functions.invoke('send-support-email', {
+    body: { formType, data },
   });
   if (error) throw error;
-  return data;
+  return result;
+};
+
+// ==================== SUPPORT TICKETS ====================
+// Tablas support_tickets / support_ticket_messages (migracion 20260925110000).
+// RLS: cada usuario ve lo suyo; el admin todo. is_staff, autor y estado los
+// pone el servidor; el estado solo cambia con support_ticket_set_status().
+
+export const SUPPORT_TICKET_TYPES = ['question', 'account', 'billing', 'business', 'account_deletion', 'other'] as const;
+export type SupportTicketType = typeof SUPPORT_TICKET_TYPES[number];
+export const SUPPORT_TICKET_STATUSES = ['open', 'in_progress', 'waiting_user', 'resolved', 'closed'] as const;
+export type SupportTicketStatus = typeof SUPPORT_TICKET_STATUSES[number];
+export const SUPPORT_SUBJECT_MAX = 150;
+export const SUPPORT_BODY_MAX = 5000;
+
+export interface SupportTicket {
+  id: number;
+  user_id: string;
+  type: SupportTicketType;
+  subject: string;
+  status: SupportTicketStatus;
+  business_id: string | null;
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
+}
+
+export interface SupportTicketMessage {
+  id: number;
+  ticket_id: number;
+  author_id: string | null;
+  is_staff: boolean;
+  body: string;
+  created_at: string;
+}
+
+export interface AdminSupportTicketRow extends SupportTicket {
+  user_name: string | null;
+  user_username: string | null;
+  user_email: string | null;
+  business_name: string | null;
+  message_count: number;
+  last_is_staff: boolean | null;
+  total_count: number;
+}
+
+/** El error de la BD es uno de los nuestros (p. ej. 'support_ticket_rate_limited'). */
+export const isSupportError = (error: unknown, code: string) =>
+  String((error as { message?: string })?.message || '').includes(code);
+
+export const createSupportTicket = async (input: { type: SupportTicketType; subject: string; body: string; businessId?: string | null }) => {
+  const { data, error } = await supabase.rpc('create_support_ticket', {
+    p_type: input.type,
+    p_subject: input.subject.trim(),
+    p_body: input.body.trim(),
+    p_business_id: input.businessId || null,
+  });
+  if (error) throw error;
+  return Number(data);
+};
+
+export const getMySupportTickets = async (userId: string): Promise<SupportTicket[]> => {
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('last_message_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data || []) as SupportTicket[];
+};
+
+export const getSupportTicket = async (ticketId: number): Promise<SupportTicket | null> => {
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select('*')
+    .eq('id', ticketId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SupportTicket) || null;
+};
+
+export const getSupportTicketMessages = async (ticketId: number): Promise<SupportTicketMessage[]> => {
+  const { data, error } = await supabase
+    .from('support_ticket_messages')
+    .select('id, ticket_id, author_id, is_staff, body, created_at')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+  if (error) throw error;
+  return (data || []) as SupportTicketMessage[];
+};
+
+// Vale para el usuario y para el admin: is_staff lo decide el trigger.
+export const replyToSupportTicket = async (ticketId: number, authorId: string, body: string) => {
+  const { error } = await supabase
+    .from('support_ticket_messages')
+    .insert({ ticket_id: ticketId, author_id: authorId, body: body.trim() });
+  if (error) throw error;
+};
+
+export const setSupportTicketStatus = async (ticketId: number, status: SupportTicketStatus) => {
+  const { error } = await supabase.rpc('support_ticket_set_status', { p_ticket_id: ticketId, p_status: status });
+  if (error) throw error;
+};
+
+export const adminListSupportTickets = async (opts: { status?: string; type?: string; search?: string; limit?: number; offset?: number } = {}) => {
+  const { data, error } = await supabase.rpc('admin_list_support_tickets', {
+    p_status: opts.status || null,
+    p_type: opts.type || null,
+    p_search: opts.search?.trim() || null,
+    p_limit: opts.limit ?? 25,
+    p_offset: opts.offset ?? 0,
+  });
+  if (error) throw error;
+  const rows = (data || []) as AdminSupportTicketRow[];
+  return { rows, total: rows.length ? Number(rows[0].total_count) : 0 };
+};
+
+export const adminSupportTicketCounts = async (): Promise<Record<SupportTicketStatus, number>> => {
+  const { data, error } = await supabase.rpc('admin_support_ticket_counts');
+  if (error) throw error;
+  const counts = { open: 0, in_progress: 0, waiting_user: 0, resolved: 0, closed: 0 } as Record<SupportTicketStatus, number>;
+  for (const row of (data || []) as { status: SupportTicketStatus; n: number }[]) {
+    if (row.status in counts) counts[row.status] = Number(row.n);
+  }
+  return counts;
+};
+
+// Tramites de los formularios de siempre (errores, reclamaciones, apelaciones)
+// en modo lectura para «Mis solicitudes». Las tres tablas ya dejan al usuario
+// leer sus filas (RLS «view own»). Las columnas cambian entre prod y local
+// (page_url/url, title...), por eso select('*') y se normaliza aqui. No se
+// devuelven admin_notes: son notas internas.
+export interface SupportRequestSummary {
+  kind: 'bug' | 'claim' | 'appeal';
+  id: string;
+  status: string;
+  created_at: string;
+  label: string;
+}
+
+export const getMySupportRequests = async (userId: string): Promise<SupportRequestSummary[]> => {
+  const [bugs, claims, appeals] = await Promise.all([
+    supabase.from('bug_reports').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    supabase.from('claims').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    supabase.from('review_appeals').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+  ]);
+  const out: SupportRequestSummary[] = [];
+  for (const b of (bugs.data || []) as any[]) {
+    const texto = String(b.title || b.description || '').split('\n')[0];
+    out.push({ kind: 'bug', id: String(b.id), status: String(b.status || 'open'), created_at: b.created_at, label: texto.slice(0, 120) });
+  }
+  const claimRows = (claims.data || []) as any[];
+  const bizIds = [...new Set(claimRows.map(c => c.business_id).filter(Boolean))];
+  const bizNames = new Map<string, string>();
+  if (bizIds.length) {
+    const { data: bizs } = await supabase.from('businesses').select('id, name').in('id', bizIds);
+    for (const b of (bizs || []) as any[]) bizNames.set(String(b.id), b.name);
+  }
+  for (const c of claimRows) {
+    out.push({ kind: 'claim', id: String(c.id), status: String(c.status || 'pending'), created_at: c.created_at, label: bizNames.get(String(c.business_id)) || '' });
+  }
+  for (const a of (appeals.data || []) as any[]) {
+    out.push({ kind: 'appeal', id: String(a.id), status: String(a.status || 'pending'), created_at: a.created_at, label: String(a.reason || '').slice(0, 120) });
+  }
+  return out.sort((x, y) => (y.created_at || '').localeCompare(x.created_at || ''));
 };
 
 // ==================== ENTERPRISE FUNCTIONS ====================
@@ -3250,10 +3786,12 @@ export const getEnterpriseUsers = async () => {
 };
 
 export const searchAssignableUsers = async (searchTerm: string) => {
+  // Comas, parentesis y comodines rompen o amplian el filtro .or() de PostgREST.
+  const limpio = searchTerm.replace(/[,()%_*\\]/g, ' ').trim();
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, username')
-    .or(`name.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%`)
+    .or(`name.ilike.%${limpio}%,username.ilike.%${limpio}%`)
     .limit(20);
   if (error) throw error;
   return data || [];
@@ -3278,11 +3816,19 @@ export interface ScrapingSession {
   updated_at: string;
 }
 
+// La Edge Function import-google-reviews no esta en el repo (puede estar solo
+// desplegada). Si no existe responde 404: se traduce a un mensaje claro en vez
+// de "Edge Function returned a non-2xx status code".
 export const importSerpApiGoogleReviews = async (businessId: string, googleMapsUrl: string) => {
   const { data, error } = await supabase.functions.invoke('import-google-reviews', {
     body: { businessId, googleMapsUrl },
   });
-  if (error) throw error;
+  if (error) {
+    const status = (error as any)?.context?.status;
+    throw new Error(status === 404
+      ? 'La importación de reseñas desde Google no está disponible en este momento.'
+      : await functionErrorMessage(error, 'No se pudieron importar las reseñas de Google.'));
+  }
   return data;
 };
 
@@ -3295,14 +3841,38 @@ export const getScrapingQueue = async () => {
   return data || [];
 };
 
-export const startScrapingSearch = async (searchTerm: string, country: string) => {
-  const { data, error } = await supabase
-    .from('scraping_queue')
-    .insert([{ search_term: searchTerm, country, status: 'pending' }])
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+/**
+ * Mensaje legible de un error de Edge Function. supabase-js lanza siempre
+ * "Edge Function returned a non-2xx status code" y deja el cuerpo de la
+ * respuesta en error.context; ahi viene el motivo real ({ error | details |
+ * message }), que es lo que hay que ensenar al usuario.
+ */
+export const functionErrorMessage = async (error: any, fallback: string): Promise<string> => {
+  try {
+    const context = error?.context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.clone().json();
+      const detail = body?.details || body?.error || body?.message;
+      if (typeof detail === 'string' && detail.trim()) return detail;
+    }
+  } catch { /* cuerpo no JSON */ }
+  const message = error?.message;
+  if (typeof message === 'string' && message && !/non-2xx status code/i.test(message)) return message;
+  return fallback;
+};
+
+/**
+ * Encola busquedas de Google Maps para el scraping. Antes insertaba a mano en
+ * scraping_queue (guardando el array de URLs como texto, sin buscar nada) y
+ * avisaba "undefined empresas anadidas". La Edge Function start-scraping-search
+ * hace la busqueda y encola cada negocio encontrado.
+ */
+export const startScrapingSearch = async (searchUrls: string[], country: string) => {
+  const { data, error } = await supabase.functions.invoke('start-scraping-search', {
+    body: { searchUrls, country },
+  });
+  if (error) throw new Error(await functionErrorMessage(error, 'No se pudo iniciar la búsqueda.'));
+  return data as { added_to_queue: number; message?: string };
 };
 
 export const deleteScrapingQueueItems = async (ids: string[]) => {
@@ -3324,19 +3894,26 @@ export const updateScrapingQueueItem = async (id: string, updates: any) => {
   return data;
 };
 
-export const instantFullScrape = async (googleMapsUrl: string): Promise<InstantFullScrapeResult> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('instant-full-scrape', {
-      body: { googleMapsUrl },
-    });
-    if (error) throw error;
-    return data as InstantFullScrapeResult;
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.message || 'Unknown error occurred',
-    };
+/**
+ * Importacion completa. La funcion espera { searchUrls, country, maxBusinesses };
+ * antes se enviaba { googleMapsUrl } y siempre fallaba. Ademas el error se
+ * devolvia como { success: false } sin `errors`, y la pagina se caia al leer
+ * errors.length. Ahora un fallo se lanza y la pagina lo muestra como aviso.
+ */
+export const instantFullScrape = async (
+  searchUrls: string[],
+  country: string,
+  maxBusinesses?: number
+): Promise<InstantFullScrapeResult> => {
+  const { data, error } = await supabase.functions.invoke('instant-full-scrape', {
+    body: { searchUrls, country, maxBusinesses },
+  });
+  if (error) throw new Error(await functionErrorMessage(error, 'No se pudo completar la importación.'));
+  const result = data as InstantFullScrapeResult;
+  if (result && (result as any).success === false) {
+    throw new Error((result as any).error || 'No se pudo completar la importación.');
   }
+  return { ...result, errors: (result as any)?.errors ?? [] } as InstantFullScrapeResult;
 };
 
 export const getScrapingSession = async (sessionId: string): Promise<ScrapingSession | null> => {
@@ -3658,27 +4235,11 @@ export const getRedirectByOldSlug = async (oldSlug: string): Promise<{ business_
  * Incrementar contador de hits de redirección
  */
 export const incrementRedirectHits = async (oldSlug: string): Promise<void> => {
-  try {
-    await supabase.rpc('increment_redirect_hits', { slug_param: oldSlug.toLowerCase() });
-  } catch (error) {
-    // Fallback: actualizar manualmente si la función RPC no existe
-    try {
-      const { data } = await supabase
-        .from('url_redirects')
-        .select('hits')
-        .eq('old_slug', oldSlug.toLowerCase())
-        .single();
-
-      if (data) {
-        await supabase
-          .from('url_redirects')
-          .update({ hits: (data.hits || 0) + 1 })
-          .eq('old_slug', oldSlug.toLowerCase());
-      }
-    } catch {
-      // Silently fail - hits tracking is not critical
-    }
-  }
+  // RPC SECURITY DEFINER (migracion 20260923200000). El antiguo "fallback" de
+  // UPDATE directo no se ejecutaba nunca (rpc() no lanza) y un anonimo no puede
+  // actualizar url_redirects. Contar visitas no es critico: sin reintentos.
+  const { error } = await supabase.rpc('increment_redirect_hits', { slug_param: oldSlug.toLowerCase() });
+  if (error) console.warn('increment_redirect_hits:', error.message);
 };
 
 /**
@@ -3894,17 +4455,19 @@ export default {
 
 // ==================== Translation Cache ====================
 
-async function getCachedTranslation(textHash: string, targetLang: string): Promise<string | null> {
+export async function getCachedTranslation(textHash: string, targetLang: string): Promise<string | null> {
   const { data } = await supabase
     .from('translation_cache')
     .select('translated_text')
     .eq('text_hash', textHash)
     .eq('target_lang', targetLang)
-    .single();
+    // maybeSingle: sin fila no es un error (con .single() cada texto aun no
+    // cacheado dejaba un 406 en la consola).
+    .maybeSingle();
   return data?.translated_text || null;
 }
 
-async function setCachedTranslation(textHash: string, sourceText: string, targetLang: string, translatedText: string): Promise<void> {
+export async function setCachedTranslation(textHash: string, sourceText: string, targetLang: string, translatedText: string): Promise<void> {
   await supabase
     .from('translation_cache')
     .upsert({
@@ -3930,16 +4493,37 @@ async function setCachedTranslation(textHash: string, sourceText: string, target
  * pública. El visitante no tiene por qué ver la referencia de curso del negocio,
  * y el rol anónimo tampoco puede leer esa columna (ver la migración).
  */
+// PostgREST devuelve como maximo 1.000 filas por peticion (max_rows). Psiko
+// Aprende tiene 1.006 programas: sin paginar, 6 desaparecian en silencio del
+// selector del formulario, de la ficha y del panel. Pide bloques hasta agotar.
+// La consulta que se pase tiene que tener un orden total (desempate por id).
+const PAGINA_PRODUCTOS = 1000;
+async function fetchAllRows<T>(
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>
+): Promise<{ data: T[]; error: any }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGINA_PRODUCTOS) {
+    const { data, error } = await buildQuery(from, from + PAGINA_PRODUCTOS - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < PAGINA_PRODUCTOS) return { data: rows, error: null };
+  }
+}
+
 export const getPublicBusinessProducts = async (businessId: string): Promise<ReviewSubject[]> => {
   const [productsRes, statsRes] = await Promise.all([
-    supabase
+    fetchAllRows<any>((from, to) => supabase
       .from('review_subjects')
       .select('id, business_id, type, name, slug, description, image_url, is_active, created_at')
       .eq('business_id', businessId)
       .eq('type', 'product')
       .eq('is_active', true)
-      .order('created_at', { ascending: false }),
-    supabase.rpc('business_subject_stats', { p_business_id: businessId }),
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to)),
+    fetchAllRows<any>((from, to) => supabase
+      .rpc('business_subject_stats', { p_business_id: businessId })
+      .range(from, to)),
   ]);
 
   if (productsRes.error) throw productsRes.error;
@@ -3952,12 +4536,16 @@ export const getPublicBusinessProducts = async (businessId: string): Promise<Rev
     }])
   );
 
-  return (productsRes.data || []).map((p: any) => ({
+  // Orden para el visitante: primero los que tienen mas resenas y, a igualdad,
+  // por nombre. Con cientos de cursos creados a la vez, el orden por fecha de
+  // alta no ayudaba a encontrar nada.
+  return ((productsRes.data || []).map((p: any) => ({
     ...p,
     code: null,
     review_count: stats.get(p.id)?.review_count ?? 0,
     avg_rating: stats.get(p.id)?.avg_rating ?? 0,
-  })) as ReviewSubject[];
+  })) as ReviewSubject[]).sort((a, b) =>
+    (b.review_count ?? 0) - (a.review_count ?? 0) || a.name.localeCompare(b.name, 'es'));
 };
 
 /**
@@ -3999,21 +4587,45 @@ export const uploadProductImage = async (businessId: string, fichero: File): Pro
   return supabase.storage.from('business_logos').getPublicUrl(ruta).data.publicUrl;
 };
 
+/**
+ * Columnas de review_subjects legibles por anon/authenticated. `code` NO esta:
+ * desde 20260924100000_review_subjects_code_privado.sql esa columna no tiene
+ * SELECT para esos roles (pedirla, o `select=*`, da 42501). El dueno y el admin
+ * la leen con la RPC business_subject_codes.
+ */
+const PRODUCT_COLUMNS = 'id, business_id, type, name, slug, description, image_url, is_active, created_at, updated_at';
+
 export const getBusinessProducts = async (businessId: string): Promise<ReviewSubject[]> => {
-  const [productsRes, statsRes] = await Promise.all([
-    supabase
+  const [productsRes, statsRes, codesRes] = await Promise.all([
+    fetchAllRows<any>((from, to) => supabase
       .from('review_subjects')
-      .select('id, business_id, type, name, code, slug, description, image_url, is_active, created_at, updated_at')
+      .select(PRODUCT_COLUMNS)
       .eq('business_id', businessId)
       .eq('type', 'product')
       // Los activos primero: un producto retirado no debe encabezar la pantalla
       // solo por ser el ultimo que se toco. Dentro de cada grupo, el mas reciente.
       .order('is_active', { ascending: false })
-      .order('created_at', { ascending: false }),
-    supabase.rpc('business_subject_stats', { p_business_id: businessId }),
+      .order('created_at', { ascending: false })
+      // Los cargados en lote comparten created_at: a igualdad, por nombre (y
+      // por id para que la paginacion por bloques sea estable).
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to)),
+    fetchAllRows<any>((from, to) => supabase
+      .rpc('business_subject_stats', { p_business_id: businessId })
+      .range(from, to)),
+    // Solo devuelve filas al dueno de la empresa o a un admin.
+    fetchAllRows<any>((from, to) => supabase
+      .rpc('business_subject_codes', { p_business_id: businessId })
+      .range(from, to)),
   ]);
 
   if (productsRes.error) throw productsRes.error;
+  // Sin codigos se muestra el listado igual: son una ayuda para buscar.
+  if (codesRes.error) console.error('business_subject_codes error:', codesRes.error);
+  const codes = new Map<string, string>(
+    (codesRes.data || []).map((row: any) => [row.subject_id, row.code])
+  );
   // Las estadísticas son un extra: si fallan, se muestra el listado sin cifras
   // en vez de dejar al usuario sin sus productos.
   if (statsRes.error) console.error('business_subject_stats error:', statsRes.error);
@@ -4027,6 +4639,7 @@ export const getBusinessProducts = async (businessId: string): Promise<ReviewSub
 
   return (productsRes.data || []).map((p: any) => ({
     ...p,
+    code: codes.get(p.id) ?? null,
     review_count: stats.get(p.id)?.review_count ?? 0,
     avg_rating: stats.get(p.id)?.avg_rating ?? 0,
   })) as ReviewSubject[];
@@ -4056,10 +4669,11 @@ export const createBusinessProduct = async (
         description: fields.description?.trim() || null,
         image_url: fields.image_url?.trim() || null,
       })
-      .select()
+      // Columnas explicitas: `code` no es legible por la API (ver PRODUCT_COLUMNS).
+      .select(PRODUCT_COLUMNS)
       .single();
 
-    if (!error) return data as ReviewSubject;
+    if (!error) return { ...(data as any), code: fields.code?.trim() || null } as ReviewSubject;
     if (error.code !== '23505') throw error; // 23505 = unique_violation
 
     // Hay DOS restricciones únicas: (business_id, slug) y (business_id, code).
@@ -4083,10 +4697,12 @@ export const updateBusinessProduct = async (
     .from('review_subjects')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', productId)
-    .select()
+    // Columnas explicitas: `code` no es legible por la API (ver PRODUCT_COLUMNS).
+    .select(PRODUCT_COLUMNS)
     .single();
   if (error) throw error;
-  return data as ReviewSubject;
+  // `code` solo viaja si se ha cambiado; si no, el llamador conserva el que tenia.
+  return ('code' in updates ? { ...(data as any), code: updates.code ?? null } : data) as ReviewSubject;
 };
 
 /**
@@ -4208,36 +4824,4 @@ export const getPublicProductById = async (productId: string): Promise<{ id: str
     return null;
   }
   return data as any;
-};
-
-/**
- * Un producto por su slug dentro de una empresa. Para la ficha pública del
- * producto, que se direcciona por slug y no por UUID.
- * Sin el código interno: es una página pública.
- */
-export const getPublicProductBySlug = async (businessId: string, slug: string): Promise<ReviewSubject | null> => {
-  const { data: producto, error } = await supabase
-    .from('review_subjects')
-    .select('id, business_id, type, name, slug, description, image_url, is_active, created_at')
-    .eq('business_id', businessId)
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!producto) return null;
-
-  // Las cifras van en una segunda llamada porque hace falta el id del producto,
-  // que solo se conoce despues de resolver el slug.
-  const { data: stats, error: statsError } = await supabase
-    .rpc('widget_subject_stats', { p_subject_id: (producto as any).id });
-  if (statsError) console.error('widget_subject_stats error:', statsError);
-  const fila = Array.isArray(stats) ? stats[0] : stats;
-
-  return {
-    ...(producto as any),
-    code: null,
-    review_count: Number(fila?.review_count ?? 0),
-    avg_rating: Number(fila?.avg_rating ?? 0),
-  } as ReviewSubject;
 };

@@ -123,15 +123,31 @@ SUPABASE_PAT=sbp_xxx   # Settings → Access Tokens en supabase.com
 
 | Script | Qué hace |
 | - | - |
-| `_deploy-edge-multipart.cjs` | **PREFERIDO**. Deploya Edge Function vía `POST /functions/deploy?slug=...` con multipart upload. Acepta TS plano y respeta `verify_jwt`. CLI: `node scripts/_deploy-edge-multipart.cjs <slug> [verify_jwt=true\|false]` |
-| `_deploy-edge-function.cjs` | ⚠️ **DEPRECATED** — usa `PATCH /functions/{slug}` con body TS que el endpoint espera como ESZIP binary. Produce BOOT_ERROR y fuerza `verify_jwt=true`. **NO USAR**, mantener sólo como referencia histórica. |
+| `_deploy-edge-multipart.cjs` | Deploya una Edge Function vía `POST /functions/deploy?slug=...` (multipart). Sube `index.ts` **y todo lo que importa por ruta relativa** (`../_shared/cors.ts`, `../_shared/requireAdmin.ts`, `./x.ts`…), con rutas relativas a la raíz del repo como el CLI. `verify_jwt` se lee de `supabase/config.toml` (si la función no está, `true`). Ver uso abajo. |
+| `_deploy-edge-function.cjs` | ⛔ **DESACTIVADO** — hacía `PATCH /functions/{slug}` con TS plano (el endpoint espera ESZIP), subía solo `index.ts` y forzaba `verify_jwt=true`. Ahora solo imprime un aviso y sale con error. |
 | `_get-deployed-code.cjs` | Descarga el body actualmente desplegado de una Edge Function. CLI: `node scripts/_get-deployed-code.cjs <slug>` |
 
-⚠️ **Gotcha — `verify_jwt`**:
+La vía normal sigue siendo `npx supabase functions deploy <slug> --project-ref <ref>` (lee `config.toml` y empaqueta `_shared`). El script es para cuando el CLI no está disponible.
 
-- Functions llamadas por **frontend autenticado** (con sesión Supabase user) → `verify_jwt: true`
-- Functions llamadas por **widgets embebidos en webs de terceros** (solo con `apikey` anon, sin JWT user) → `verify_jwt: false` (ej: `widget-proxy`)
-- Cambiar verify_jwt en un deploy puede romper clientes que no envían `Authorization: Bearer <jwt>`
+```bash
+# 1. Siempre primero en seco: lista de ficheros, entrypoint y verify_jwt. No llama a la API ni necesita SUPABASE_PAT.
+node scripts/_deploy-edge-multipart.cjs serpapi-proxy --dry-run
+node scripts/_deploy-edge-multipart.cjs --all --dry-run          # todas las funciones (solo en seco)
+
+# 2. Deploy real (una función por llamada)
+node scripts/_deploy-edge-multipart.cjs serpapi-proxy
+
+# Forzar verify_jwt (avisa si contradice config.toml). También vale el formato antiguo `<slug> false`.
+node scripts/_deploy-edge-multipart.cjs <slug> --verify-jwt=false
+```
+
+Si un import relativo no resuelve (fichero que no existe o fuera de `supabase/functions/`), el script lo lista y **no despliega**.
+
+⚠️ **Gotcha — `verify_jwt`** (la fuente de verdad es `supabase/config.toml`):
+
+- Functions llamadas por **frontend** (anon key o sesión Supabase user) o por admins → `verify_jwt: true` (defecto; no hace falta declararlas)
+- Functions llamadas **sin JWT** → `verify_jwt: false`, declaradas en `config.toml`: `widget-proxy` (webs de terceros), `stripe-webhook` (firma de Stripe), `monthly-rescrape-job` (cron con `CRON_SECRET`), `generate-sitemap` (nginx de producción, sin `Authorization`)
+- Cambiar verify_jwt en un deploy puede romper clientes que no envían `Authorization: Bearer <jwt>`. Si añades una función pública, decláralo en `config.toml`, no en el comando
 
 ### Enriquecimiento de datos
 

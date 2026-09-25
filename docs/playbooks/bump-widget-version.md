@@ -73,7 +73,7 @@ solo: hay un freno para que no se repita). Al revés no pasa nada.
    una línea diciendo qué cambió para el cliente, no para ti.
 
 4. Si el cambio añade texto visible, mételo en `UI_STRINGS` **de `widget.js`**
-   (20 idiomas). Ese bloque es independiente de `locales/`: ver
+   (25 idiomas). Ese bloque es independiente de `locales/`: ver
    [add-i18n-keys.md](./add-i18n-keys.md).
 
 ## Verificación

@@ -20,6 +20,18 @@
 -- dejar una sola resena por empresa. Los productos se nutren de resenas ya
 -- existentes que el negocio asigna. Permitir una resena por producto exige
 -- rehacer ese indice, y eso va en su propia migracion con su propio plan.
+--
+-- TIPO DE reviews.id (corregido el 24/09/2026, bloqueo B1 del runbook
+-- docs/DESPLIEGUE-2026-09.md)
+-- En PRODUCCION reviews.id es BIGINT (identity); en la base local construida
+-- desde docs/01-DATABASE-SETUP.md es UUID. La primera version declaraba
+-- review_id UUID y en produccion fallaba entera (FK entre uuid y bigint). Ahora
+-- review_subject_links.review_id e is_review_author() toman el tipo de
+-- reviews.id del propio esquema, asi que la misma migracion vale en los dos.
+--
+-- Idempotente (IF NOT EXISTS / DROP ... IF EXISTS): se puede repetir.
+
+BEGIN;
 
 -- 1. Sujetos reseñables
 -- =====================================================
@@ -64,19 +76,46 @@ COMMENT ON COLUMN review_subjects.type IS 'product | service | employee | locati
 -- =====================================================
 -- Tabla aparte en lugar de una columna en reviews: la tabla de resenas no se
 -- toca, y revertir es un DROP TABLE sin consecuencias sobre los datos reales.
-CREATE TABLE IF NOT EXISTS review_subject_links (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+--
+-- review_id lleva EL MISMO TIPO que reviews.id (bigint en produccion, uuid en
+-- local). CREATE TABLE no admite `reviews.id%TYPE`, por eso se lee del catalogo
+-- y se construye la sentencia. Si la tabla ya existiera con otro tipo, se para.
+DO $do$
+DECLARE
+  v_tipo text;
+  v_actual text;
+BEGIN
+  SELECT format_type(a.atttypid, a.atttypmod) INTO v_tipo
+  FROM pg_attribute a
+  WHERE a.attrelid = 'public.reviews'::regclass AND a.attname = 'id' AND NOT a.attisdropped;
 
-  -- UNIQUE: una resena pertenece como mucho a un sujeto, para que no pueda
-  -- aparecer en dos widgets a la vez ni contarse dos veces.
-  review_id UUID NOT NULL UNIQUE REFERENCES reviews(id) ON DELETE CASCADE,
+  IF v_tipo IS NULL OR v_tipo NOT IN ('bigint', 'integer', 'uuid') THEN
+    RAISE EXCEPTION 'reviews.id tiene un tipo inesperado (%): revisa antes de aplicar.', v_tipo;
+  END IF;
 
-  -- Al borrar un producto desaparece el enlace, nunca la resena.
-  subject_id UUID NOT NULL REFERENCES review_subjects(id) ON DELETE CASCADE,
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.review_subject_links (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
 
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
-);
+      -- UNIQUE: una resena pertenece como mucho a un sujeto, para que no pueda
+      -- aparecer en dos widgets a la vez ni contarse dos veces.
+      review_id %s NOT NULL UNIQUE REFERENCES public.reviews(id) ON DELETE CASCADE,
+
+      -- Al borrar un producto desaparece el enlace, nunca la resena.
+      subject_id UUID NOT NULL REFERENCES public.review_subjects(id) ON DELETE CASCADE,
+
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+    )$sql$, v_tipo);
+
+  SELECT format_type(a.atttypid, a.atttypmod) INTO v_actual
+  FROM pg_attribute a
+  WHERE a.attrelid = 'public.review_subject_links'::regclass AND a.attname = 'review_id' AND NOT a.attisdropped;
+  IF v_actual IS DISTINCT FROM v_tipo THEN
+    RAISE EXCEPTION 'review_subject_links.review_id es % y reviews.id es %: no coinciden.', v_actual, v_tipo;
+  END IF;
+END
+$do$;
 
 CREATE INDEX IF NOT EXISTS idx_review_subject_links_subject_id ON review_subject_links(subject_id);
 
@@ -119,29 +158,35 @@ ALTER TABLE review_subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE review_subject_links ENABLE ROW LEVEL SECURITY;
 
 -- Lectura publica: son datos que el widget muestra en webs de terceros.
+DROP POLICY IF EXISTS "Anyone can view active subjects" ON review_subjects;
 CREATE POLICY "Anyone can view active subjects"
   ON review_subjects FOR SELECT
   USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "Owners can view own subjects" ON review_subjects;
 CREATE POLICY "Owners can view own subjects"
   ON review_subjects FOR SELECT
   USING (EXISTS (SELECT 1 FROM businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Owners can manage own subjects" ON review_subjects;
 CREATE POLICY "Owners can manage own subjects"
   ON review_subjects FOR ALL
   USING (EXISTS (SELECT 1 FROM businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage all subjects" ON review_subjects;
 CREATE POLICY "Admins can manage all subjects"
   ON review_subjects FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
 
+DROP POLICY IF EXISTS "Anyone can view links" ON review_subject_links;
 CREATE POLICY "Anyone can view links"
   ON review_subject_links FOR SELECT
   USING (TRUE);
 
 -- Escritura solo del dueno de la empresa del sujeto. El trigger ya garantiza
 -- que la resena sea de esa misma empresa.
+DROP POLICY IF EXISTS "Owners can manage own links" ON review_subject_links;
 CREATE POLICY "Owners can manage own links"
   ON review_subject_links FOR ALL
   USING (EXISTS (
@@ -155,6 +200,7 @@ CREATE POLICY "Owners can manage own links"
     WHERE s.id = subject_id AND b.owner_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "Admins can manage all links" ON review_subject_links;
 CREATE POLICY "Admins can manage all links"
   ON review_subject_links FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin'));
@@ -245,7 +291,11 @@ COMMENT ON FUNCTION public.enforce_product_limit() IS
 -- consultara `reviews` directamente, dependeria de que el autor PUEDA LEER su
 -- propia resena, y una resena recien creada esta en estado 'pending'. Con esto,
 -- la autorizacion no depende de las politicas de lectura de otra tabla.
-CREATE OR REPLACE FUNCTION public.is_review_author(p_review_id uuid)
+--
+-- p_review_id usa `public.reviews.id%TYPE`: Postgres lo resuelve al crearla
+-- (bigint en produccion, uuid en local; sale un NOTICE "type reference ...
+-- converted to ..."). En COMMENT y GRANT la firma se escribe igual.
+CREATE OR REPLACE FUNCTION public.is_review_author(p_review_id public.reviews.id%TYPE)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -258,11 +308,12 @@ AS $$
     );
 $$;
 
-COMMENT ON FUNCTION public.is_review_author(uuid) IS
+COMMENT ON FUNCTION public.is_review_author(public.reviews.id%TYPE) IS
     'Si quien llama es el autor de esa reseña. La usa la política que le deja asociarla a un producto.';
 
-GRANT EXECUTE ON FUNCTION public.is_review_author(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_review_author(public.reviews.id%TYPE) TO authenticated;
 
+DROP POLICY IF EXISTS "Authors can link their own review" ON review_subject_links;
 CREATE POLICY "Authors can link their own review"
   ON review_subject_links FOR INSERT
   WITH CHECK (
@@ -274,3 +325,5 @@ CREATE POLICY "Authors can link their own review"
       WHERE s.id = subject_id AND s.is_active
     )
   );
+
+COMMIT;

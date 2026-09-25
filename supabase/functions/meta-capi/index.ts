@@ -13,6 +13,36 @@ declare const Deno: {
 const META_PIXEL_ID = "1280166973678477";
 const META_GRAPH_URL = `https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events`;
 
+// Esta funcion la puede llamar cualquiera con la anon key (va en el bundle), y
+// cada evento que reenvia alimenta la optimizacion de campanas de Meta. Limites:
+//   - solo los eventos que envia la app (utils/metaPixel.ts)
+//   - la URL del evento tiene que ser de un dominio de Opynio
+//   - Purchase NUNCA se reenvia desde aqui (ver SERVER_ONLY_EVENTS)
+//   - value/currency del cliente se descartan en el resto de eventos
+const FORWARDED_EVENTS = new Set(["PageView", "ViewContent", "CompleteRegistration", "Lead"]);
+
+// Purchase lo manda stripe-webhook (checkout.session.completed) desde el
+// servidor, con el importe y la moneda reales de Stripe y event_id = session.id;
+// el Pixel del navegador usa ese mismo event_id y Meta los deduplica. Aqui el
+// valor, la moneda y el event_id los ponia el cliente: con una suscripcion
+// cualquiera se podian inflar las conversiones (value: 999999, event_ids
+// distintos). Se responde 200 sin reenviar para no tocar el front
+// (PaymentSuccessPage sigue llamando igual, fire-and-forget) ni ensuciar la
+// consola del cliente con un error en cada compra real.
+const SERVER_ONLY_EVENTS = new Set(["Purchase"]);
+
+// Campos de valor economico: solo los pone el servidor.
+const SERVER_ONLY_CUSTOM_DATA = ["value", "currency", "predicted_ltv"];
+
+const ALLOWED_HOST = /(^|\.)opynio\.com$|^localhost$|^127\.0\.0\.1$/;
+
+function jsonResponse(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -34,14 +64,6 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const token = Deno.env.get("META_CAPI_TOKEN");
-  if (!token) {
-    return new Response(
-      JSON.stringify({ error: "META_CAPI_TOKEN not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
   let body: IncomingEvent;
   try {
     body = await req.json();
@@ -52,11 +74,28 @@ serve(async (req) => {
     });
   }
 
-  if (!body.event_name || !body.event_id) {
-    return new Response(
-      JSON.stringify({ error: "event_name and event_id are required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+  if (!body || typeof body.event_name !== "string" || !body.event_id) {
+    return jsonResponse({ error: "event_name and event_id are required" }, 400);
+  }
+  if (SERVER_ONLY_EVENTS.has(body.event_name)) {
+    return jsonResponse({ ok: true, forwarded: false, reason: "sent_server_side" }, 200);
+  }
+  if (!FORWARDED_EVENTS.has(body.event_name)) {
+    return jsonResponse({ error: "event not allowed" }, 400);
+  }
+  let sourceHost = "";
+  try {
+    sourceHost = new URL(String(body.event_source_url ?? "")).hostname;
+  } catch { /* URL invalida: se rechaza abajo */ }
+  if (!ALLOWED_HOST.test(sourceHost)) {
+    return jsonResponse({ error: "event_source_url not allowed" }, 400);
+  }
+
+  // El secreto se comprueba DESPUES de validar: antes un anonimo podia saber
+  // si estaba configurado mandando cualquier cosa.
+  const token = Deno.env.get("META_CAPI_TOKEN");
+  if (!token) {
+    return jsonResponse({ error: "META_CAPI_TOKEN not configured" }, 500);
   }
 
   // Forward client IP for better match quality
@@ -70,6 +109,11 @@ serve(async (req) => {
     userData.client_ip_address = clientIp;
   }
 
+  const rawCustom = body.custom_data;
+  const customData: Record<string, unknown> =
+    rawCustom && typeof rawCustom === "object" && !Array.isArray(rawCustom) ? { ...rawCustom } : {};
+  for (const key of SERVER_ONLY_CUSTOM_DATA) delete customData[key];
+
   const payload = {
     data: [
       {
@@ -79,7 +123,7 @@ serve(async (req) => {
         action_source: body.action_source || "website",
         event_source_url: body.event_source_url,
         user_data: userData,
-        custom_data: body.custom_data || {},
+        custom_data: customData,
       },
     ],
   };

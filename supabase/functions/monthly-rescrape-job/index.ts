@@ -2,6 +2,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeadersFor } from '../_shared/cors.ts'
 
 // Declaraciones de tipos para el entorno de Deno en Edge Functions.
 declare const Deno: {
@@ -10,27 +11,46 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Comparacion en tiempo constante para no filtrar el secreto por timing.
+function safeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  let diff = ab.length ^ bb.length;
+  for (let i = 0; i < Math.max(ab.length, bb.length); i++) {
+    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  }
+  return diff === 0;
 }
 
+// Lo invoca un cron (verify_jwt = false en config.toml), asi que la unica
+// barrera es `Authorization: Bearer <CRON_SECRET>`. CORS restringido: ningun
+// navegador de terceros debe poder leer su respuesta.
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
+  const json = (body: unknown, status: number) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  try {
-    // 1. Verificación de seguridad: solo permitir la ejecución con un token secreto.
-    const CRON_SECRET = Deno.env.get('CRON_SECRET');
-    if (!CRON_SECRET) {
-      throw new Error('El secreto del cron job (CRON_SECRET) no está configurado.');
-    }
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
-    }
+  // 1. Verificacion de seguridad ANTES de tocar nada. Si el secreto no esta
+  //    configurado se falla cerrado (401) en vez de lanzar un 500 que revele config.
+  const CRON_SECRET = Deno.env.get('CRON_SECRET');
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!CRON_SECRET) {
+    console.error('monthly-rescrape-job: CRON_SECRET no configurado; peticion rechazada.');
+    return json({ error: 'No autorizado' }, 401);
+  }
+  if (!safeEqual(authHeader, `Bearer ${CRON_SECRET}`)) {
+    return json({ error: 'No autorizado' }, 401);
+  }
 
+  try {
     const INTERNAL_SECRET = Deno.env.get('INTERNAL_SECRET');
     if (!INTERNAL_SECRET) {
       throw new Error('El secreto interno (INTERNAL_SECRET) no está configurado.');

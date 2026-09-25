@@ -9,6 +9,7 @@ import Spinner from '../../Spinner';
 import L from 'leaflet';
 import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink, { adminBackState, useUnsavedChangesGuard } from './AdminBackLink';
 
 const PAGE_SIZE = 15;
 
@@ -250,7 +251,7 @@ const AdminBulkEditPage: React.FC = () => {
                 setBusinesses(data);
                 setTotalBusinessCount(count);
             } catch (error: any) {
-                showNotification(error.message || t('errorLoadingBusinesses'), 'error');
+                showNotification(error.message || t('homepage.errorLoadingBusinesses'), 'error');
             } finally {
                 setLoading(false);
             }
@@ -305,7 +306,9 @@ const AdminBulkEditPage: React.FC = () => {
         }
     };
     
-    const hasChanges = Object.keys(editedBusinesses).length > 0;
+    const editedCount = Object.keys(editedBusinesses).length;
+    const hasChanges = editedCount > 0;
+    const { confirmLeave } = useUnsavedChangesGuard(hasChanges);
 
     const toggleEditDrawer = (id: string) => {
         setOpenBusinessIds(prev => {
@@ -322,6 +325,7 @@ const AdminBulkEditPage: React.FC = () => {
     return (
         <>
             <Meta title={t('adminBulkEdit.title') + " - Admin"} description={t('adminBulkEdit.subtitle')} />
+            <AdminBackLink />
             <div className="space-y-6">
                 <div className="sticky top-[73px] bg-gray-50 dark:bg-zinc-900 z-20 py-4 -mx-4 px-4 border-b border-gray-200 dark:border-zinc-800">
                     <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -335,7 +339,7 @@ const AdminBulkEditPage: React.FC = () => {
                             className={`bg-brand-green text-white font-bold py-2 px-6 rounded-lg shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors ${hasChanges ? 'animate-pulse' : ''}`}
                         >
                             {isSaving && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                            <span>{isSaving ? t('common.saving') : `${t('adminBulkEdit.saveChanges')} (${Object.keys(editedBusinesses).length})`}</span>
+                            <span>{isSaving ? t('common.saving') : hasChanges ? t('adminBulkEdit.saveChanges', { count: editedCount }) : t('adminBulkEdit.saveChangesNone')}</span>
                         </button>
                     </div>
                 </div>
@@ -365,9 +369,11 @@ const AdminBulkEditPage: React.FC = () => {
                                             <span className="text-sm text-gray-500">{currentData.country}</span>
                                             <button
                                                 type="button"
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
-                                                    navigate(`/admin/empresa/editar/${biz.id}`);
+                                                    // Salir a la ficha descarta lo editado aqui: se avisa.
+                                                    if (!(await confirmLeave())) return;
+                                                    navigate(`/admin/empresa/editar/${biz.id}`, { state: adminBackState('/admin/empresas/editar-masivo', 'admin.backToBulkEdit') });
                                                 }}
                                                 className="px-3 py-1.5 text-xs font-semibold bg-brand-green text-white rounded-lg hover:bg-opacity-90 transition-colors"
                                                 title="Editar a profundidad"

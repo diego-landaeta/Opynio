@@ -6,6 +6,8 @@ declare const Deno: {
   };
 };
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireAdmin } from '../_shared/requireAdmin.ts';
+import { corsHeadersFor } from '../_shared/cors.ts';
 // Hybrid scraper that tries API first, falls back to HTML parsing
 class TrustIndexHybridScraper {
   async scrapeReviews(url) {
@@ -554,7 +556,11 @@ class TrustIndexHybridScraper {
   isValidTrustIndexUrl(url) {
     try {
       const urlObj = new URL(url);
-      return urlObj.hostname.includes('trustindex.io');
+      // Dominio exacto o subdominio real. Con includes() valia cualquier host
+      // que contuviera la cadena (p.ej. trustindex.io.atacante.com) y la
+      // funcion hacia peticiones del servidor a donde se le pidiera.
+      const host = urlObj.hostname.toLowerCase();
+      return urlObj.protocol === 'https:' && (host === 'trustindex.io' || host.endsWith('.trustindex.io'));
     } catch  {
       return false;
     }
@@ -707,16 +713,17 @@ class TrustIndexHybridScraper {
 }
 // Supabase Edge Function handler
 serve(async (req)=>{
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: corsHeaders
     });
   }
+
+  // Solo admin: consume cuota de una API de pago (ver _shared/requireAdmin.ts).
+  const denied = await requireAdmin(req, corsHeaders);
+  if (denied) return denied;
   try {
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({

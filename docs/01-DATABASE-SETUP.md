@@ -327,9 +327,15 @@ CREATE POLICY "Users can create reviews"
     ON reviews FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own pending reviews"
-    ON reviews FOR UPDATE
-    USING (auth.uid() = user_id AND status = 'pending');
+-- El autor edita sus reseñas pendientes o aprobadas (las rechazadas se apelan,
+-- no se editan). Sustituye a «Users can update own pending reviews», que solo
+-- dejaba editar las pendientes (migración 20260924160000). La fila tiene que
+-- quedar pendiente: una aprobada editada vuelve a moderación (lo hace el guard
+-- guard_review_sensitive_columns; el WITH CHECK es la segunda llave).
+CREATE POLICY "Authors can edit own pending or approved reviews"
+    ON reviews FOR UPDATE TO authenticated
+    USING (auth.uid() = user_id AND status IN ('pending', 'approved'))
+    WITH CHECK (auth.uid() = user_id AND status = 'pending');
 
 CREATE POLICY "Admins can manage all reviews"
     ON reviews FOR ALL
@@ -737,6 +743,27 @@ CREATE TRIGGER update_subscriptions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 ```
+
+### Triggers de reglas de reseñas y votos
+
+Reglas que ya no dependen solo del cliente: aunque alguien llame directamente a
+`/rest/v1/...` con su token, la base las aplica. Lanzan un SQLSTATE propio que
+PostgREST devuelve en `code` (HTTP 400) y el frontend traduce. El SQL completo
+está en las migraciones; aquí, lo que hay que saber antes de tocarlas.
+
+| Código | Trigger (tabla) | Regla | Migración | Qué muestra la app |
+| --- | --- | --- | --- | --- |
+| `OPY01` | `trg_reviews_block_owner_self_review` (`reviews`, BEFORE INSERT OR UPDATE OF business_id, user_id) | El dueño de una empresa no puede reseñarla (`OWN_BUSINESS_REVIEW`). Excepciones: `user_id` NULL (importadas y cargas manuales) e importaciones de terceros (`google`, `scraped`, `trustindex`, `imported`) hechas por service_role, postgres o un admin. | `20260924130000_block_owner_self_review.sql` | `businessPage.cannotReviewOwnBusiness` (vía `createReview` en `services/supabaseService.ts`) |
+| `OPY02` | `trg_review_votes_block_own_review` (`review_votes`, BEFORE INSERT OR UPDATE) | El autor no puede votar la utilidad de su propia reseña (`OWN_REVIEW_VOTE`). Sin excepción para service_role. | `20260924160000_own_review_edit_and_votes.sql` | `common.cannotVoteOwnReview` (vía `voteOnReview`) |
+| `OPY03` | el mismo `trg_review_votes_block_own_review` | Un voto no se puede mover a otra reseña ni a otro usuario con un UPDATE (`VOTE_REASSIGN`): se saltaba el chequeo del INSERT y dejaba el contador de la reseña de origen sin recalcular. Para cambiar de reseña, se borra el voto y se vota la otra. | `20260924160000_own_review_edit_and_votes.sql` | — (la app nunca lo hace) |
+
+Además, en la misma migración 20260924160000:
+
+- `guard_review_sensitive_columns` (trigger `trg_guard_review_sensitive_columns`)
+  pone `status = 'pending'` cuando el autor cambia el contenido de una reseña
+  que no estaba pendiente. El cliente nunca manda `status`; si lo manda, error.
+- `review_votes` tiene `UNIQUE (review_id, user_id)`: un voto por usuario y reseña
+  (el front hace upsert con `onConflict` sobre esas columnas).
 
 ---
 

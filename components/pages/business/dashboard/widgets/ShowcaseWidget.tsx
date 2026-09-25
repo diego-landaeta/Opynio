@@ -2,11 +2,13 @@ import React from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
 import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
+import { ProductPill } from './ProductPill';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    isProduct?: boolean;
 }
 
 const DEMO_REVIEWS = [
@@ -14,7 +16,7 @@ const DEMO_REVIEWS = [
     { id: 2, name: "Carlos S.", rating: 5, text: "El resultado final superó mis expectativas. Gran profesionalidad y comunicación fluida.", source: 'opynio', title: "Diseño limpio y profesional" },
 ];
 
-export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang, isProduct }) => {
     const s = getPreviewStrings(lang);
     const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'text']);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
@@ -24,7 +26,14 @@ export const ShowcasePreview: React.FC<PreviewProps> = ({ business, theme, lang 
             <div style={{ background: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)'}}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
                     <div>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '0.25rem' }}>{business.name}</h2>
+                        {isProduct ? (
+                            <div className="opynio-showcase-title-row">
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '0.25rem' }}>{business.name}</h2>
+                                <ProductPill label={s.productBadge} name={business.name} />
+                            </div>
+                        ) : (
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '0.25rem' }}>{business.name}</h2>
+                        )}
                         <p style={{ fontSize: '0.875rem', color: 'var(--subtext-color)'}}>{s.customerRatings}</p>
                     </div>
                     <div style={{ textAlign: 'right' }}>

@@ -5,16 +5,20 @@ import { getFeaturedBusinessesWithStats, getBusinessIdAndNameList, adminSetFeatu
 import { getLatestBusinessesOptimized, getFeaturedReviewsOptimized } from '../../services/optimizedQueries';
 import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
+import OwnBusinessBadge from '../OwnBusinessBadge';
 import ReviewCard from '../ReviewCard';
 import Meta from '../Meta';
 import { updates as allUpdates } from './WhatsNewPage';
 import { useTranslation, useI18n, pathTranslations, type Language, getLanguageForCountryCode, getLocaleFromLanguage } from '../../contexts/i18nContext';
 import { HOMEPAGE_CATEGORIES, HOMEPAGE_TO_CATEGORY_MAP, COUNTRIES, LANGUAGES } from '../../constants';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import ForeignCountryNotice from '../ForeignCountryNotice';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { extractSubcategory, getSubcategoryKey } from '../../utils/categoryMappings';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 import { markInternalNavigation } from '../LanguagePopup';
+import { useCountryName } from '../../utils/countryName';
 
 
 // Fixed bottom banner that doesn't cause CLS (position: fixed doesn't affect layout)
@@ -89,6 +93,9 @@ const getSedeList = (sedes: Sede[] | Json | null | undefined): Sede[] => {
 // Carousel component for businesses - horizontal scroll showing 2 cards at a time
 const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = React.memo(({ companies, loading }) => {
     const t = useTranslation();
+    // Nombre del pais en el idioma de la UI: COUNTRIES solo trae el nombre en
+    // español («España» en /gb).
+    const countryNameOf = useCountryName();
     const [currentPage, setCurrentPage] = useState(0);
 
     // Cards per page: 2 on desktop/tablet, 1 on mobile
@@ -176,7 +183,7 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                         className={`absolute -left-2 sm:-left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white dark:bg-zinc-800 shadow-lg border border-gray-200 dark:border-zinc-700 flex items-center justify-center transition-all ${
                             currentPage === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-zinc-700 hover:scale-105'
                         }`}
-                        aria-label="Previous"
+                        aria-label={t('common.previous')}
                     >
                         <i className="fa-solid fa-chevron-left text-gray-600 dark:text-gray-300 text-sm"></i>
                     </button>
@@ -186,7 +193,7 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                         className={`absolute -right-2 sm:-right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white dark:bg-zinc-800 shadow-lg border border-gray-200 dark:border-zinc-700 flex items-center justify-center transition-all ${
                             currentPage >= totalPages - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-zinc-700 hover:scale-105'
                         }`}
-                        aria-label="Next"
+                        aria-label={t('common.next')}
                     >
                         <i className="fa-solid fa-chevron-right text-gray-600 dark:text-gray-300 text-sm"></i>
                     </button>
@@ -200,9 +207,19 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                     const avgRating = company.avg_rating || 0;
                     const reviewCount = company.review_count || 0;
                     const countryInfo = COUNTRIES.find(c => c.code === company.country);
+                    const countryName = countryInfo ? countryNameOf(countryInfo.code, countryInfo.name) : '';
                     const subcategory = extractSubcategory(company.category);
                     const categoryKey = getSubcategoryKey(subcategory || '');
-                    const categoryDisplay = categoryKey ? t(`subcategories.${categoryKey}`) : (subcategory || t('common.noCategory'));
+                    // Las empresas del alta o del scraping guardan solo la categoria
+                    // principal ("Educación y Formación") o la sub como clave
+                    // ("Restaurantes y Ocio:restaurantes"): antes salian en español
+                    // tal cual en todos los idiomas.
+                    const translated = (key: string) => { const v = t(key); return v && v !== key ? v : null; };
+                    const mainCategory = (company.category || '').split(':')[0].trim();
+                    const categoryDisplay = (categoryKey && translated(`subcategories.${categoryKey}`))
+                        || (subcategory && translated(`subcategories.${subcategory}`))
+                        || (mainCategory && translated(`categories.${mainCategory}`))
+                        || (subcategory ? subcategory.replace(/_/g, ' ') : t('common.noCategory'));
 
                     // Get website from sedes if available
                     const sedeList = getSedeList(company.sedes);
@@ -236,6 +253,8 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                                     <h3 className="font-bold text-base sm:text-lg text-gray-800 dark:text-gray-100 group-hover:text-brand-green transition-colors line-clamp-2 mb-1.5">
                                         {company.name}
                                     </h3>
+                                    {/* La tarjeta entera es un enlace: badge sin enlace. */}
+                                    <OwnBusinessBadge business={company} className="mb-1.5" />
 
                                     {/* Stars and Rating */}
                                     <div className="flex items-center gap-1.5 mb-1">
@@ -270,10 +289,10 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                         <img
                                             src={countryInfo.flag}
-                                            alt={countryInfo.name}
+                                            alt={countryName}
                                             className="w-4 h-3 object-cover rounded-sm"
                                         />
-                                        <span>{countryInfo.name}</span>
+                                        <span>{countryName}</span>
                                     </div>
                                 )}
 
@@ -308,7 +327,7 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                                     ? 'bg-brand-green w-6'
                                     : 'bg-gray-300 dark:bg-zinc-600 hover:bg-gray-400 dark:hover:bg-zinc-500 w-2'
                             }`}
-                            aria-label={`Go to page ${idx + 1}`}
+                            aria-label={t('common.goToPage', { n: idx + 1 })}
                         />
                     ))}
                 </div>
@@ -330,6 +349,7 @@ const HomePage: React.FC = () => {
 
     const t = useTranslation();
     const { language } = useI18n();
+    const countryNameOf = useCountryName();
     const { country } = useCountry();
     const { profile } = useAuth();
 
@@ -356,7 +376,10 @@ const HomePage: React.FC = () => {
         }
     }, [country]);
 
-    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === country), [country]);
+    // País de la home: el de la URL (/it) o, en la raíz, el de búsqueda del
+    // usuario. Antes /it mostraba los datos del país guardado del usuario.
+    const { contentCountry: homeCountry } = useContentCountry();
+    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === homeCountry), [homeCountry]);
     const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
     const metaTitle = `${brandName} - ${t('homepage.metaTitle').replace('Opynio - ', '')}`;
     const heroTitle = t('homepage.heroTitle').replace('Opynio', brandName);
@@ -366,9 +389,10 @@ const HomePage: React.FC = () => {
     const featuresToShow = latestUpdate.features.slice(0, 3);
 
     // Use country directly - don't infer from language
-    const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-    const pathLang = country ? getLanguageForCountryCode(country) : language;
+    const countryPrefix = homeCountry ? `/${homeCountry.toLowerCase()}` : '';
+    const pathLang = homeCountry ? getLanguageForCountryCode(homeCountry) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
+    const businessCtaPath = useBusinessStartPath();
 
 
     useEffect(() => {
@@ -377,12 +401,12 @@ const HomePage: React.FC = () => {
         let isMounted = true;
 
         const fetchData = async () => {
-            console.log('🔄 HomePage: Starting data fetch for country:', country);
+            console.log('🔄 HomePage: Starting data fetch for country:', homeCountry);
             setLoadingBusinesses(true);
             setLoadingReviews(true);
             setLoadingFeatured(true);
 
-            const countryFilter = country || undefined;
+            const countryFilter = homeCountry || undefined;
 
             try {
                 // Fetch all data in parallel for faster loading
@@ -463,7 +487,7 @@ const HomePage: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, [country]);
+    }, [homeCountry]);
 
     const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -526,14 +550,14 @@ const HomePage: React.FC = () => {
             await adminSetFeaturedCompanies(Array.from(selectedFeaturedIds));
             setIsFeaturedModalOpen(false);
             // Refresh featured companies
-            const featured = await getFeaturedBusinessesWithStats(country || undefined, 10);
+            const featured = await getFeaturedBusinessesWithStats(homeCountry || undefined, 10);
             setFeaturedCompanies(featured as Business[]);
         } catch (error) {
             console.error('Error saving featured companies:', error);
         } finally {
             setSavingFeatured(false);
         }
-    }, [selectedFeaturedIds, country]);
+    }, [selectedFeaturedIds, homeCountry]);
 
     return (
         <>
@@ -542,6 +566,7 @@ const HomePage: React.FC = () => {
                 description={metaDescription}
             />
             <LanguageSelectionBanner isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
+            <ForeignCountryNotice className="mb-6 -mt-2 sm:-mt-4" />
             <div className="space-y-10 sm:space-y-12 md:space-y-16 lg:space-y-20">
                 <section className="text-center py-8 sm:py-10 md:py-12 bg-gradient-to-b from-white to-gray-50 dark:from-zinc-900 dark:to-zinc-800 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-brand-dark dark:text-gray-100 leading-tight md:leading-snug px-2" dangerouslySetInnerHTML={{ __html: heroTitle }} />
@@ -601,7 +626,7 @@ const HomePage: React.FC = () => {
                         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 px-2">{t('common.countrySectionHint')}</p>
                         <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-x-3 sm:gap-x-4 md:gap-x-6 gap-y-5 sm:gap-y-6 md:gap-y-8 max-w-6xl mx-auto">
                             {COUNTRIES.slice(0, showMore ? COUNTRIES.length : 10).map(c => {
-                                const countryName = t(`countries.${c.code}`) || c.name;
+                                const countryName = countryNameOf(c.code, c.name);
                                 return (
                                     <button
                                         key={c.code}
@@ -655,7 +680,7 @@ const HomePage: React.FC = () => {
 
                 <section className="bg-white dark:bg-zinc-800 p-5 sm:p-6 md:p-8 rounded-lg sm:rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center">
-                        <div className="order-2 md:order-1"><p className="font-bold text-sm sm:text-base text-brand-green mb-2">{t('homepage.forBusinessesSection')}</p><h2 className="text-xl sm:text-2xl md:text-3xl font-bold dark:text-gray-100">{t('homepage.forBusinessesTitle').replace('Opynio', brandName)}</h2><p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-3 sm:mt-4 mb-4 sm:mb-6">{t('homepage.forBusinessesSubtitle')}</p><ul className="space-y-2 sm:space-y-3 dark:text-gray-300 text-sm sm:text-base"><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature1')}} /></li><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature2')}} /></li><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature3')}} /></li></ul><Link to={`${countryPrefix}/${paths.register}?type=business`} className="mt-6 sm:mt-8 inline-block bg-brand-green text-white font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-sm text-sm sm:text-base">{t('homepage.registerBusinessFree')}</Link></div>
+                        <div className="order-2 md:order-1"><p className="font-bold text-sm sm:text-base text-brand-green mb-2">{t('homepage.forBusinessesSection')}</p><h2 className="text-xl sm:text-2xl md:text-3xl font-bold dark:text-gray-100">{t('homepage.forBusinessesTitle').replace('Opynio', brandName)}</h2><p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-3 sm:mt-4 mb-4 sm:mb-6">{t('homepage.forBusinessesSubtitle')}</p><ul className="space-y-2 sm:space-y-3 dark:text-gray-300 text-sm sm:text-base"><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature1')}} /></li><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature2')}} /></li><li className="flex items-start gap-2 sm:gap-3"><i className="fa-solid fa-check-circle text-brand-green mt-0.5 sm:mt-1 flex-shrink-0"></i><span dangerouslySetInnerHTML={{__html: t('homepage.forBusinessesFeature3')}} /></li></ul><Link to={businessCtaPath} className="mt-6 sm:mt-8 inline-block bg-brand-green text-white font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-sm text-sm sm:text-base">{t('homepage.registerBusinessFree')}</Link></div>
                         <div className="order-1 md:order-2 aspect-[3/2] md:aspect-auto md:h-80 overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-700"><img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=1932&auto=format&fit=crop" alt="Team working in an office" width={1932} height={1288} loading="lazy" decoding="async" className="w-full h-full object-cover" /></div>
                     </div>
                 </section>
@@ -705,6 +730,7 @@ const HomePage: React.FC = () => {
                         <li key={biz.id} className="py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                             <div className="min-w-0 flex-1">
                                 <Link to={businessPath} className="font-semibold text-base sm:text-lg text-brand-dark dark:text-gray-200 hover:text-brand-green dark:hover:text-brand-green hover:underline line-clamp-2">{biz.name}</Link>
+                                <OwnBusinessBadge business={biz} manage className="mt-1" />
                                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">{t('homepage.addedOn')} {formatDate(biz.created_at)}</p>
                             </div>
                             <Link to={businessPath} className="text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 text-xs sm:text-sm flex items-center gap-2 self-end sm:self-center whitespace-nowrap flex-shrink-0">

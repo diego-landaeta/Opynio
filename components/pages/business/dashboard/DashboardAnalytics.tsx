@@ -1,20 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
-import { useAuth } from '../../../../contexts/AuthContext';
-import * as ReactRouterDOM from 'react-router-dom';
-import { Plan } from '../../../../types';
 import { getBusinessAnalytics, getBusinessProducts } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
+import SectionLock from './SectionLock';
 
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
 
 // --- START: Chart & Stat Components ---
 
@@ -154,12 +144,24 @@ const LineChart: React.FC<{ data: { date: string; count: number }[] }> = ({ data
     );
 };
 
-const DonutChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
+const DonutChart: React.FC<{ data: Record<string, number> }> = ({ data: rawData }) => {
     const t = useTranslation();
+    // 'manual' son resenas escritas en la web antes de que el formulario fijara
+    // source='opynio': se suman a Opynio, igual que en los chips de la ficha.
+    const agrupado: Record<string, number> = {};
+    for (const [clave, valor] of Object.entries(rawData)) {
+        const destino = clave === 'manual' ? 'opynio' : clave;
+        agrupado[destino] = (agrupado[destino] || 0) + valor;
+    }
+    const data = agrupado;
+    const etiquetas: Record<string, string> = {
+        opynio: 'Opynio', google: 'Google', trustindex: 'Trustindex',
+        imported: t('businessDashboard.sourceImported'),
+    };
     const total = Object.values(data).reduce((sum, value) => sum + value, 0);
     if (total === 0) return <div className="text-sm text-center text-gray-500 dark:text-gray-400">{t('businessPage.notEnoughDataForSummary')}</div>;
 
-    const colors: Record<string, string> = { opynio: '#00b67a', google: '#4285F4', trustindex: '#FFA500' };
+    const colors: Record<string, string> = { opynio: '#00b67a', google: '#4285F4', trustindex: '#FFA500', imported: '#9CA3AF' };
 
     // Build conic gradient segments
     let cumulativePercent = 0;
@@ -189,7 +191,7 @@ const DonutChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
                 {Object.entries(data).map(([key, value]) => (
                     <li key={key} className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colors[key] }}></span>
-                        <span className="font-semibold capitalize text-gray-800 dark:text-gray-200">{key}</span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{etiquetas[key] || key}</span>
                         <span className="text-gray-500 dark:text-gray-400">({value} - {((value/total)*100).toFixed(0)}%)</span>
                     </li>
                 ))}
@@ -200,40 +202,6 @@ const DonutChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
 
 // --- END: Chart & Stat Components ---
 
-
-const FeatureLock: React.FC<{ requiredPlan: Plan, featureName: string, children: React.ReactNode }> = ({ requiredPlan, featureName, children }) => {
-    const { profile } = useAuth();
-    const t = useTranslation();
-
-    if (!profile) {
-        return null;
-    }
-
-    const currentPlanLevel = PLAN_HIERARCHY[profile.plan];
-    const requiredPlanLevel = PLAN_HIERARCHY[requiredPlan];
-
-    if (currentPlanLevel >= requiredPlanLevel) {
-        return <>{children}</>;
-    }
-
-    return (
-        <div className="text-center p-6 sm:p-8 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border-2 border-dashed dark:border-zinc-700">
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300 rounded-full w-14 h-14 sm:w-16 sm:h-16 inline-flex items-center justify-center shadow-sm border-4 border-white dark:border-zinc-800 mb-3 sm:mb-4">
-                <i className="fa-solid fa-lock text-2xl sm:text-3xl"></i>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{t('businessDashboard.advancedAnalyticsLockTitle')}: {featureName}</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                {t('businessDashboard.advancedAnalyticsLockSubtitle', { plan: requiredPlan })}
-            </p>
-            <ReactRouterDOM.Link
-                to="/planes"
-                className="mt-4 sm:mt-6 inline-block bg-brand-green text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-brand-green/30 text-base sm:text-lg"
-            >
-                {t('businessDashboard.upgradePlanButton')}
-            </ReactRouterDOM.Link>
-        </div>
-    );
-};
 
 type DateRange = 30 | 90 | 3650; // Using a large number for "All time"
 
@@ -297,7 +265,7 @@ const DashboardAnalytics: React.FC = () => {
                 </div>
             </div>
 
-            <FeatureLock requiredPlan="growth" featureName={t('businessDashboard.dashboardAnalytics')}>
+            <SectionLock section="analytics" title={t('businessDashboard.advancedAnalyticsLockTitle')} subtitleKey="businessDashboard.advancedAnalyticsLockSubtitle">
                 {loading ? (
                      <div className="flex justify-center items-center h-64 sm:h-96"><Spinner /></div>
                 ) : !analyticsData || analyticsData.totalReviews === 0 ? (
@@ -355,7 +323,7 @@ const DashboardAnalytics: React.FC = () => {
                         )}
                     </div>
                 )}
-            </FeatureLock>
+            </SectionLock>
         </div>
     );
 };

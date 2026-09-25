@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
 
@@ -45,7 +45,9 @@ const AboutPage: React.FC = () => {
   const { country } = useCountry();
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -218,13 +220,7 @@ const AboutPage: React.FC = () => {
             {t('aboutPage.contactDesc')}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <a
-              href={`mailto:${t('aboutPage.contactEmail')}`}
-              className="inline-flex items-center justify-center gap-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
-            >
-              <i className="fa-solid fa-envelope"></i>
-              {t('aboutPage.contactEmail')}
-            </a>
+            {/* Sin mailto: el contacto va por Soporte (solicitud en la web). */}
             <Link
               to={`${countryPrefix}/${paths.support}`}
               className="inline-flex items-center justify-center gap-2 bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"

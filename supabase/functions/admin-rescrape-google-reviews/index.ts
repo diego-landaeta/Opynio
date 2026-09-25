@@ -2,6 +2,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeadersFor } from '../_shared/cors.ts'
+import { requireAdmin } from '../_shared/requireAdmin.ts'
 
 declare const Deno: {
   env: {
@@ -9,10 +11,6 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MAX_REVIEW_PAGES_PER_BUSINESS = 50;
@@ -174,8 +172,19 @@ async function rescrapeBusiness(businessId: string, supabase: SupabaseClient, ad
 
 
 serve(async (req) => {
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Salvo la llamada interna del cron (X-Internal-Secret), solo admin; se
+  // comprueba antes de leer secretos para devolver 401/403 y no un 500.
+  const INTERNAL_SECRET_EARLY = Deno.env.get('INTERNAL_SECRET');
+  const internalHeader = req.headers.get('X-Internal-Secret');
+  if (!(internalHeader && INTERNAL_SECRET_EARLY && internalHeader === INTERNAL_SECRET_EARLY)) {
+    const denied = await requireAdmin(req, corsHeaders);
+    if (denied) return denied;
   }
 
   try {

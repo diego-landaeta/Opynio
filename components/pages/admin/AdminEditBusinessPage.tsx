@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { getBusinessById, updateBusinessProfile, isSlugAvailable, getBusinessProducts } from '../../../services/supabaseService';
+import { getBusinessById, updateBusinessProfile, updateBusinessSlug, isSlugAvailable, getBusinessProducts } from '../../../services/supabaseService';
 import Spinner from '../../Spinner';
 import type { Business, BusinessHours, Json, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -9,12 +9,14 @@ import { slugify, isValidSlug } from '../../../utils/slugify';
 import Meta from '../../Meta';
 import { useTranslation } from '../../../contexts/i18nContext';
 import L from 'leaflet';
+import AdminBackLink, { useAdminBackTarget, useUnsavedChangesGuard } from './AdminBackLink';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
 // Helper component for managing a single day's schedule
 const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; close: string } | 'cerrado'; onChange: (day: keyof BusinessHours, value: { open: string; close: string } | 'cerrado') => void; }> = ({ day, value, onChange }) => {
     const isClosed = value === 'cerrado';
+    const t = useTranslation();
 
     const handleOpenToggle = () => {
         onChange(day, isClosed ? { open: '09:00', close: '17:00' } : 'cerrado');
@@ -35,7 +37,7 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                     onChange={handleOpenToggle}
                     className="h-4 w-4 rounded border-gray-300 dark:border-zinc-500 text-brand-green focus:ring-2 focus:ring-offset-2 focus:ring-brand-green"
                 />
-                <span>{day}</span>
+                <span>{t(`businessPage.day_${day}`)}</span>
             </label>
             
             <div className={`grid grid-cols-2 items-center gap-2 transition-opacity ${isClosed ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
@@ -121,6 +123,10 @@ const AdminEditBusinessPage: React.FC = () => {
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
     const initialDataLoaded = useRef(false);
+    // Foto del formulario tal como se cargo (o se guardo) para saber si hay
+    // cambios sin guardar.
+    const [baseline, setBaseline] = useState<string | null>(null);
+    const backTarget = useAdminBackTarget();
 
     useEffect(() => {
         if (!businessId) {
@@ -171,6 +177,7 @@ const AdminEditBusinessPage: React.FC = () => {
             setSedes((business.sedes as Sede[]) || []);
             setOffersInternational(business.offers_international_services || false);
             initialDataLoaded.current = true;
+            setBaseline(null); // se fija en el siguiente render, con el estado ya cargado
         }
     }, [business]);
     
@@ -209,6 +216,16 @@ const AdminEditBusinessPage: React.FC = () => {
             }
         }
     }, [location]);
+
+    const snapshot = useMemo(
+        () => JSON.stringify({ formData, horarios, location, sedes, offersInternational }),
+        [formData, horarios, location, sedes, offersInternational]
+    );
+    useEffect(() => {
+        if (initialDataLoaded.current && baseline === null) setBaseline(snapshot);
+    }, [snapshot, baseline]);
+    const isDirty = baseline !== null && snapshot !== baseline;
+    const { confirmLeave } = useUnsavedChangesGuard(isDirty || loading);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
@@ -307,10 +324,17 @@ const AdminEditBusinessPage: React.FC = () => {
 
             const otherSedes = sedes.filter(s => s.country_code !== business?.country);
 
-            // Only include slug in updates if it's a valid new slug
-            const slugUpdate = formData.slug && isValidSlug(formData.slug) && (slugAvailableState !== false)
-                ? { slug: formData.slug }
-                : {};
+            // El slug nuevo va por updateBusinessSlug, que crea la redireccion desde
+            // el slug anterior. Antes se guardaba como un campo mas y la URL vieja
+            // dejaba de funcionar (solo la "salvaba" la busqueda difusa por nombre,
+            // que ya no existe).
+            const slugCambia = !!formData.slug && isValidSlug(formData.slug) && (slugAvailableState !== false)
+                && formData.slug !== business?.slug;
+            if (slugCambia) {
+                const resultado = await updateBusinessSlug(businessId, formData.slug, true);
+                if (!resultado.success) throw new Error(resultado.error || 'No se pudo cambiar el slug.');
+            }
+            const slugUpdate = {};
 
             const updates = {
                 name: formData.name,
@@ -334,10 +358,11 @@ const AdminEditBusinessPage: React.FC = () => {
             await updateBusinessProfile(businessId, updates);
             
             showNotification('Cambios guardados por el administrador', 'success');
+            setBaseline(snapshot); // ya no hay cambios pendientes
             initialDataLoaded.current = false;
 
             setTimeout(() => {
-                navigate('/admin/panel');
+                navigate(backTarget.to);
             }, 1500);
 
         } catch (err: any) {
@@ -374,6 +399,7 @@ const AdminEditBusinessPage: React.FC = () => {
                 title={`Editar ${business?.name || 'Empresa'} (Admin) - Opynio`}
                 description="Edición de perfil de negocio como administrador."
             />
+            <AdminBackLink />
             <div className="max-w-3xl mx-auto bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">
                 <h1 className="text-3xl font-bold mb-2 dark:text-gray-100">Editar Empresa (Admin)</h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-8">Estás editando la información para: <strong className="text-brand-dark dark:text-gray-200">{business?.name}</strong></p>
@@ -669,7 +695,7 @@ const AdminEditBusinessPage: React.FC = () => {
                     </div>
 
                     <div className="pt-4 flex items-center justify-end gap-4 border-t dark:border-zinc-700">
-                         <button type="button" onClick={() => navigate('/admin/panel')} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
+                         <button type="button" onClick={async () => { if (await confirmLeave()) navigate(backTarget.to); }} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
                             Cancelar
                         </button>
                         <button

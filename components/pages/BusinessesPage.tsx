@@ -1,26 +1,33 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { Business, Sede } from '../../types';
-import { getBusinessesForDirectoryPaginated, getTotalBusinessCount } from '../../services/supabaseService';
+import { getBusinessesForDirectoryPaginated } from '../../services/supabaseService';
 import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
+import OwnBusinessBadge from '../OwnBusinessBadge';
 import StarRating from '../StarRating';
 import { CATEGORIES, COUNTRIES } from '../../constants';
 import Meta from '../Meta';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useI18n, useTranslation, useAutoTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { getDistanceFromLatLonInKm } from '../../utils/geolocation';
-import { useCountry } from '../../contexts/CountryContext';
+import { useContentCountry } from '../../contexts/CountryContext';
+import ForeignCountryNotice from '../ForeignCountryNotice';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
+import { usePluralT } from '../../utils/plural';
+import { useCountryName } from '../../utils/countryName';
+import { useUserErrorNotifier } from '../../utils/userFacingError';
+import { countriesSharingLanguage } from '../../utils/languageAffinity';
 
 type SortOrder = 'relevance' | 'alphabetical' | 'rating' | 'reviews';
 
 const BUSINESSES_PER_PAGE = 10;
 
-const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
+const BusinessCard: React.FC<{ business: Business; homeCountry?: string | null }> = ({ business, homeCountry }) => {
     const t = useTranslation();
     const { language } = useI18n();
+    const countryNameOf = useCountryName();
     const businessPath = generateBusinessPath(business);
     const [imageError, setImageError] = useState(false);
     const { text: translatedDescription, isTranslating: isTranslatingDesc } = useAutoTranslation(business.description);
@@ -69,17 +76,11 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
     };
 
     // Function to translate country name
+    // Clave del locale, si no Intl.DisplayNames, si no el nombre de COUNTRIES.
     const getCountryTranslation = (countryCode: string | null | undefined): string => {
         if (!countryCode) return '';
         const code = countryCode.toUpperCase();
-        const translated = t(`countries.${code}`);
-
-        // If translation not found, fallback to COUNTRIES constant
-        if (translated.startsWith('countries.')) {
-            return COUNTRIES.find(c => c.code === code)?.name || countryCode;
-        }
-
-        return translated;
+        return countryNameOf(code, COUNTRIES.find(c => c.code === code)?.name || countryCode);
     };
 
     // Get city from sedes array (city doesn't exist as a direct column)
@@ -92,6 +93,10 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
     };
 
     const businessCity = getBusinessCity();
+    // Empresa de otro país en el directorio de este (p. ej. una internacional
+    // de Portugal en /es/empresas): bandera + «Empresa de Portugal».
+    const isForeign = !!homeCountry && !!business.country && business.country.toUpperCase() !== homeCountry;
+    const foreignInfo = isForeign ? COUNTRIES.find(c => c.code === business.country!.toUpperCase()) : null;
 
     return (
         <Link to={businessPath} className="group flex flex-col h-full bg-white dark:bg-zinc-800 rounded-2xl shadow-md border border-gray-200 dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
@@ -120,6 +125,8 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
                                 </span>
                             )}
                         </div>
+                        {/* La tarjeta entera ya es un enlace: el badge va sin enlace. */}
+                        <OwnBusinessBadge business={business} className="mt-1.5" />
                         <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1.5 truncate">
                             {getCategoryTranslation(business.category)}
                         </p>
@@ -131,6 +138,12 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
                                     business.country ? getCountryTranslation(business.country) : null
                                 ].filter(Boolean).join(', ')}
                             </p>
+                        )}
+                        {isForeign && (
+                            <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-medium text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">
+                                {foreignInfo && <img src={foreignInfo.flag} alt="" width={16} height={12} loading="lazy" decoding="async" className="w-4 h-3 rounded-sm object-cover" />}
+                                {t('common.businessFromCountry', { country: getCountryTranslation(business.country) })}
+                            </span>
                         )}
                         {business.description && (
                             <p className={`text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2 sm:mt-3 line-clamp-2 leading-relaxed transition-opacity duration-300 ${isTranslatingDesc ? 'opacity-50' : ''}`}>
@@ -146,7 +159,7 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
                         <StarRating rating={business.avg_rating || 0} size="medium" />
                         <span className="font-bold text-lg sm:text-xl text-gray-800 dark:text-gray-200">{(business.avg_rating || 0).toFixed(1)}</span>
                     </div>
-                    <span className="text-sm sm:text-base text-gray-500 dark:text-gray-400">{business.review_count || 0} {t('common.reviews')}</span>
+                    <span className="text-sm sm:text-base text-gray-500 dark:text-gray-400">{business.review_count || 0} {(business.review_count || 0) === 1 ? t('common.review') : t('common.reviews')}</span>
                 </div>
             </div>
         </Link>
@@ -155,8 +168,14 @@ const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
 
 const BusinessesPage: React.FC = () => {
     const t = useTranslation();
+    const tn = usePluralT();
     const { showNotification } = useNotification();
-    const { country } = useCountry();
+    const { notifyError } = useUserErrorNotifier();
+    // País del directorio: el de la URL (/es/empresas) o el de búsqueda del
+    // usuario. El filtro lateral no elige otro país: solo amplía a «todos los
+    // países». Antes arrancaba en «Todas» mientras la cabecera decía España.
+    const { contentCountry } = useContentCountry();
+    const countryNameOf = useCountryName();
 
     // Business data state
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -174,9 +193,15 @@ const BusinessesPage: React.FC = () => {
     // Rating filter: null = all, or {min, max} for range (e.g., {min: 3, max: 4} for 3-4 stars)
     const [ratingFilter, setRatingFilter] = useState<{min: number; max: number} | null>(null);
     const [serviceTypeFilter, setServiceTypeFilter] = useState<'all' | 'local' | 'international'>('all');
-    const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-    const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
-    const countryDropdownRef = useRef<HTMLDivElement>(null);
+    const [scopeAllCountries, setScopeAllCountries] = useState(false);
+    const directoryCountry: string | undefined = scopeAllCountries ? undefined : (contentCountry || undefined);
+    // Orden «Relevancia» por afinidad (solo ordena, no filtra): primero el país
+    // de búsqueda del usuario, luego los países de su idioma de interfaz, luego
+    // el resto. Con un país elegido ese país ya es el primer grupo; con «Todos
+    // los países» hay que decirle al servidor cuál es el del usuario.
+    const { language } = useI18n();
+    const languageCountries = useMemo(() => countriesSharingLanguage(language), [language]);
+    const homeCountry: string | undefined = scopeAllCountries ? (contentCountry || undefined) : undefined;
 
     // Location filter state
     const [radiusKm, setRadiusKm] = useState<number>(10);
@@ -192,8 +217,14 @@ const BusinessesPage: React.FC = () => {
     // Request counter to prevent stale updates from old requests
     const requestIdRef = useRef(0);
 
-    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === country), [country]);
+    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === directoryCountry), [directoryCountry]);
     const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
+    const contentCountryName = contentCountry
+        ? countryNameOf(contentCountry, COUNTRIES.find(c => c.code === contentCountry)?.name || contentCountry)
+        : '';
+
+    // Otra página de país: vuelve al ámbito de ese país.
+    useEffect(() => { setScopeAllCountries(false); }, [contentCountry]);
     const metaTitle = `${t('businessesPage.businessesDirectoryTitle')} - ${brandName}`;
     const metaDescription = t('businessesPage.businessesDirectorySubtitle').replace('Opynio', brandName);
     const businessesTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
@@ -204,12 +235,12 @@ const BusinessesPage: React.FC = () => {
         return !!(
             debouncedSearchTerm ||
             selectedCategory ||
-            selectedCountries.length > 0 ||
+            scopeAllCountries ||
             (ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5)) ||
             serviceTypeFilter !== 'all' ||
             filterCenter
         );
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, ratingFilter, serviceTypeFilter, filterCenter]);
+    }, [debouncedSearchTerm, selectedCategory, scopeAllCountries, ratingFilter, serviceTypeFilter, filterCenter]);
 
     // Debounce search term
     useEffect(() => {
@@ -242,9 +273,11 @@ const BusinessesPage: React.FC = () => {
             const filters = {
                 searchTerm: debouncedSearchTerm || undefined,
                 category: selectedCategory || undefined,
-                countries: selectedCountries.length > 0 ? selectedCountries : undefined,
+                country: directoryCountry,
                 serviceType: serviceTypeFilter,
                 sortOrder: sortOrder,
+                homeCountry,
+                languageCountries,
                 // Pass rating filter to API (only if active)
                 minRating: hasRatingFilter ? debouncedRatingFilter.min : undefined,
                 maxRating: hasRatingFilter ? debouncedRatingFilter.max : undefined,
@@ -284,55 +317,26 @@ const BusinessesPage: React.FC = () => {
             if (currentRequestId !== requestIdRef.current) {
                 return;
             }
-            showNotification(error.message || t('businessesPage.errorLoading') || 'Error loading businesses', 'error');
+            // Traducido (sin red, servicio caido...); nunca el texto de PostgREST.
+            await notifyError(error, { fallbackKey: 'businessesPage.errorLoading' });
         } finally {
             // Only set loading to false if this is still the current request
             if (currentRequestId === requestIdRef.current) {
                 setLoading(false);
             }
         }
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, debouncedRatingFilter, filterCenter, radiusKm, showNotification, t]);
+    }, [debouncedSearchTerm, selectedCategory, directoryCountry, serviceTypeFilter, sortOrder, homeCountry, languageCountries, debouncedRatingFilter, filterCenter, radiusKm, notifyError]);
 
-    // Fetch initial total count (only when no special filters are active)
-    // When rating filter or location filter are active, fetchBusinesses returns the correct count
-    useEffect(() => {
-        // Skip if rating or location filter is active - fetchBusinesses will set the correct count
-        const hasRatingFilter = debouncedRatingFilter && (debouncedRatingFilter.min !== 1 || debouncedRatingFilter.max !== 5);
-        if (hasRatingFilter || filterCenter) return;
-
-        const fetchTotalCount = async () => {
-            try {
-                const count = await getTotalBusinessCount({
-                    searchTerm: debouncedSearchTerm || undefined,
-                    category: selectedCategory || undefined,
-                    countries: selectedCountries.length > 0 ? selectedCountries : undefined,
-                    serviceType: serviceTypeFilter,
-                });
-                setTotalCount(count);
-            } catch (error) {
-                console.error('Error fetching total count:', error);
-            }
-        };
-        fetchTotalCount();
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, debouncedRatingFilter, filterCenter]);
+    // El total llega con cada página (la misma consulta que el listado), así
+    // que no hay un conteo aparte que pueda desfasarse de lo que se pagina.
 
     // Fetch businesses when filters change
     // Uses debouncedRatingFilter to avoid too many API calls while dragging slider
     useEffect(() => {
         setPage(1);
         fetchBusinesses(1, false);
-    }, [debouncedSearchTerm, selectedCategory, selectedCountries, serviceTypeFilter, sortOrder, debouncedRatingFilter, filterCenter, radiusKm]);
+    }, [debouncedSearchTerm, selectedCategory, directoryCountry, serviceTypeFilter, sortOrder, homeCountry, languageCountries, debouncedRatingFilter, filterCenter, radiusKm]);
 
-    // Close country dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
-                setIsCountryDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     // Calculate total pages
     const totalPages = Math.max(1, Math.ceil(totalCount / BUSINESSES_PER_PAGE));
@@ -360,7 +364,7 @@ const BusinessesPage: React.FC = () => {
                     <span className="font-semibold text-gray-800 dark:text-gray-200">{startItem}-{endItem}</span>
                     <span> {t('businessesPage.of')} </span>
                     <span className="font-semibold text-gray-800 dark:text-gray-200">{totalCount}</span>
-                    <span> {t('common.businesses')}</span>
+                    <span> {totalCount === 1 ? t('common.business') : t('common.businesses')}</span>
                 </div>
 
                 {/* Navigation buttons */}
@@ -400,7 +404,7 @@ const BusinessesPage: React.FC = () => {
         setRatingFilter(null);
         setServiceTypeFilter('all');
         setFilterCenter(null);
-        setSelectedCountries([]);
+        setScopeAllCountries(false);
         setSortOrder('relevance');
     };
 
@@ -423,13 +427,6 @@ const BusinessesPage: React.FC = () => {
         );
     };
 
-    const handleCountrySelectionChange = (countryCode: string) => {
-        setSelectedCountries(prev =>
-            prev.includes(countryCode)
-                ? prev.filter(c => c !== countryCode)
-                : [...prev, countryCode]
-        );
-    };
 
     return (
         <>
@@ -456,34 +453,22 @@ const BusinessesPage: React.FC = () => {
                                     className="w-full bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md p-2 text-xs sm:text-sm" />
                             </div>
 
-                            <div ref={countryDropdownRef} className="relative">
-                                <label className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">{t('adminDashboard.country')}</label>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                                    className="w-full bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md p-2 text-left h-[38px] flex justify-between items-center"
+                            <div>
+                                <label htmlFor="directory-country" className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">{t('adminDashboard.country')}</label>
+                                <select
+                                    id="directory-country"
+                                    value={directoryCountry ? 'country' : 'all'}
+                                    onChange={e => setScopeAllCountries(e.target.value === 'all')}
+                                    disabled={!contentCountry}
+                                    aria-describedby="directory-country-hint"
+                                    className="w-full bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md p-2 text-xs sm:text-sm h-[38px] disabled:cursor-not-allowed"
                                 >
-                                    <span className="text-sm truncate">
-                                        {selectedCountries.length === 0 ? t('common.all') : t('businessesPage.countriesSelected', { count: selectedCountries.length })}
-                                    </span>
-                                    <i className={`fa-solid fa-chevron-down transition-transform text-gray-400 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}></i>
-                                </button>
-                                {isCountryDropdownOpen && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg p-2 space-y-1 max-h-60 overflow-y-auto">
-                                        {COUNTRIES.map(c => (
-                                            <label key={c.code} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer text-gray-800 dark:text-white">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedCountries.includes(c.code)}
-                                                    onChange={() => handleCountrySelectionChange(c.code)}
-                                                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-zinc-900 text-brand-green focus:ring-brand-green"
-                                                />
-                                                <img src={c.flag} alt={c.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full" />
-                                                <span className="capitalize text-sm">{c.name}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
+                                    {contentCountry && <option value="country">{contentCountryName}</option>}
+                                    <option value="all">{t('common.allCountries')}</option>
+                                </select>
+                                <p id="directory-country-hint" className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                                    {t('common.changeCountryInHeader')}
+                                </p>
                             </div>
 
 
@@ -591,12 +576,15 @@ const BusinessesPage: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">{t('common.serviceType')}</label>
-                                <div className="flex rounded-md border dark:border-zinc-600">
-                                    <button onClick={() => setServiceTypeFilter('all')} className={`flex-1 p-1.5 text-[10px] sm:text-xs rounded-l-md ${serviceTypeFilter === 'all' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('common.all')}</button>
-                                    <button onClick={() => setServiceTypeFilter('local')} className={`flex-1 p-1.5 text-[10px] sm:text-xs border-l border-r dark:border-zinc-600 ${serviceTypeFilter === 'local' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('businessesPage.local')}</button>
-                                    <button onClick={() => setServiceTypeFilter('international')} className={`flex-1 p-1.5 text-[10px] sm:text-xs rounded-r-md ${serviceTypeFilter === 'international' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('businessesPage.international')}</button>
+                                <span id="service-scope-label" className="block text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">{t('businessesPage.serviceScope')}</span>
+                                <div role="group" aria-labelledby="service-scope-label" aria-describedby="service-scope-help" className="flex rounded-md border dark:border-zinc-600">
+                                    <button type="button" aria-pressed={serviceTypeFilter === 'all'} onClick={() => setServiceTypeFilter('all')} className={`flex-1 p-1.5 text-[10px] sm:text-xs rounded-l-md ${serviceTypeFilter === 'all' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('common.all')}</button>
+                                    <button type="button" aria-pressed={serviceTypeFilter === 'local'} onClick={() => setServiceTypeFilter('local')} className={`flex-1 p-1.5 text-[10px] sm:text-xs border-l border-r dark:border-zinc-600 ${serviceTypeFilter === 'local' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('businessesPage.local')}</button>
+                                    <button type="button" aria-pressed={serviceTypeFilter === 'international'} onClick={() => setServiceTypeFilter('international')} className={`flex-1 p-1.5 text-[10px] sm:text-xs rounded-r-md ${serviceTypeFilter === 'international' ? 'bg-brand-green text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700'}`}>{t('businessesPage.international')}</button>
                                 </div>
+                                <p id="service-scope-help" className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                                    {t('businessesPage.serviceScopeHelp')}
+                                </p>
                             </div>
 
                             <div>
@@ -617,10 +605,11 @@ const BusinessesPage: React.FC = () => {
                 </aside>
 
                 <main className="lg:col-span-9">
+                    <ForeignCountryNotice className="mb-4" />
                     <div className="mb-6 sm:mb-8">
                         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-gray-100">{businessesTitle}</h1>
                         <p className="text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mt-1 sm:mt-2">
-                            {t('businessesPage.businessesFound', { count: totalCount })}
+                            {tn('businessesPage.businessesFound', totalCount)}
                         </p>
                     </div>
 
@@ -649,21 +638,18 @@ const BusinessesPage: React.FC = () => {
                     )}
 
                     {/* Filter badges - show active filters */}
-                    {(selectedCountries.length > 0 || selectedCategory || (ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5)) || serviceTypeFilter !== 'all' || filterCenter) && (
+                    {(scopeAllCountries || selectedCategory || (ratingFilter && (ratingFilter.min !== 1 || ratingFilter.max !== 5)) || serviceTypeFilter !== 'all' || filterCenter) && (
                         <div className="mb-4 sm:mb-6 flex flex-wrap items-center gap-2">
                             <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{t('businessesPage.activeFilters')}:</span>
-                            {selectedCountries.map(code => {
-                                const countryData = COUNTRIES.find(c => c.code === code);
-                                return countryData && (
-                                    <span key={code} className="inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1 rounded-full bg-brand-green/10 text-brand-green">
-                                        <img src={countryData.flag} alt={countryData.name} className="w-4 h-3 rounded-sm" />
-                                        {countryData.name}
-                                        <button onClick={() => handleCountrySelectionChange(code)} className="ml-1 hover:text-red-500">
-                                            <i className="fa-solid fa-times text-xs"></i>
-                                        </button>
-                                    </span>
-                                );
-                            })}
+                            {scopeAllCountries && (
+                                <span className="inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1 rounded-full bg-brand-green/10 text-brand-green">
+                                    <i className="fa-solid fa-earth-europe text-xs" aria-hidden="true"></i>
+                                    {t('common.allCountries')}
+                                    <button type="button" onClick={() => setScopeAllCountries(false)} className="ml-1 hover:text-red-500" aria-label={t('common.clear')}>
+                                        <i className="fa-solid fa-times text-xs" aria-hidden="true"></i>
+                                    </button>
+                                </span>
+                            )}
                             {selectedCategory && (
                                 <span className="inline-flex items-center gap-1 text-xs sm:text-sm px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
                                     {t(`categories.${selectedCategory}`)}
@@ -710,7 +696,7 @@ const BusinessesPage: React.FC = () => {
                             {/* Grid with larger cards - 2 columns on desktop, 1 on mobile */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 md:gap-8">
                                 {businesses.map(biz => (
-                                    <BusinessCard key={biz.id} business={biz} />
+                                    <BusinessCard key={biz.id} business={biz} homeCountry={directoryCountry || null} />
                                 ))}
                             </div>
 

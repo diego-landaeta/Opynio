@@ -11,7 +11,7 @@ en total) con el inyector que se describe aquí.
 - **Úsalo** cuando añadas texto visible nuevo a la app (una pantalla, un botón, un aviso).
 - **No lo uses** para añadir un **idioma** nuevo: eso es [add-language.md](./add-language.md).
 - **No lo uses** para los textos del widget embebido: `public/widget.js` tiene su propio
-  `UI_STRINGS` (20 idiomas) al margen de `locales/`. Si el texto sale en el widget,
+  `UI_STRINGS` (25 idiomas) al margen de `locales/`. Si el texto sale en el widget,
   hay que ponerlo **en los dos sitios**.
 
 ## Pre-requisitos
@@ -28,6 +28,10 @@ en total) con el inyector que se describe aquí.
 - Cada locale tiene **dos** bloques relevantes: `paths` (segmentos de URL, ~línea 20)
   y los bloques de textos (~línea 900+). Una sección nueva del panel necesita clave
   en los dos; un texto normal solo en el segundo.
+- El bloque `paths` de los 31 locales está **copiado** en
+  `contexts/localePaths.generated.ts` (las rutas se necesitan síncronas y los textos
+  se descargan bajo demanda). Si tocas `paths`, regenera con
+  `npm run gen:locale-paths`; si solo tocas textos, no hace falta.
 - Si falta una clave en un idioma, `t()` **cae al español**, no revienta. Si falta en
   español también, se imprime la clave cruda en pantalla (`businessPage.productsTitle`).
   Por eso siempre 31/31.
@@ -73,6 +77,10 @@ grep -l "claveUno" locales/*.ts | wc -l
 
 # que haya caído en el bloque correcto (mira el nombre del bloque anterior)
 awk 'NR<=LINEA && /^  [a-zA-Z]+: \{/ {b=$0} END{print b}' locales/es.ts
+
+# si tocaste `paths`: regenera y comprueba (el build tambien falla si no coincide)
+npm run gen:locale-paths
+npm run check:locale-paths
 
 # y que compile (no hay tsconfig: el build es la comprobación)
 npx vite build

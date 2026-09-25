@@ -5,7 +5,8 @@ import type { Review, BusinessListItem, SimpleBusiness, Json, Sede, LogoTone } f
 import SharedBusinessLogo from '../BusinessLogo';
 import { CATEGORIES, COUNTRIES } from '../../constants';
 import { getPublicReviews, getBusinessesWithLocations, getBusinessCountByFilters, getBusinessesWithReviewsPaginated, searchBusinessList, getTotalReviewCount } from '../../services/supabaseService';
-import { generateSearchQueryFromPrompt } from '../../services/geminiService';
+import { generateSearchQueryFromPrompt, AI_ENABLED } from '../../services/geminiService';
+import { getReviewAuthorName, formatReviewDate } from '../../utils/reviewDisplay';
 import Spinner from '../Spinner';
 import L from 'leaflet';
 import { getDistanceFromLatLonInKm } from '../../utils/geolocation';
@@ -14,9 +15,14 @@ import LazyRender from '../LazyRender';
 import StarRating from '../StarRating';
 import { useTranslation, useI18n, useAutoTranslations, pathTranslations, type Language, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import ForeignCountryNotice from '../ForeignCountryNotice';
+import { useCountryName } from '../../utils/countryName';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../../utils/categoryMappings';
+import OwnBusinessBadge, { ownBusinessBadgeHtml } from '../OwnBusinessBadge';
+import { useOwnBusinessLookup } from '../../utils/businessOwnership';
+import { escapeHtml } from '../../utils/textUtils';
 
 // Define a smaller type for business location data
 type BusinessLocation = {
@@ -122,14 +128,17 @@ const getLocationWithRetry = (
                                     tryGetLocation();
                                 }
                             },
-                            { timeout: 8000, enableHighAccuracy: false, maximumAge: 60000 }
+                            { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 }
                         );
                     }, 500);
                 } else {
                     onError();
                 }
             },
-            { timeout: 5000, enableHighAccuracy: true, maximumAge: 0 }
+            // Sin alta precision: en escritorio (wifi/IP) pedirla con 5 s de margen
+            // agotaba el tiempo y salia «Ubicación no disponible» con el permiso
+            // concedido. Para filtrar por radio basta la precision normal.
+            { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
         );
     };
 
@@ -206,7 +215,7 @@ const LocationNotAvailableModal: React.FC<{
             >
                 <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                        <i className="fa-solid fa-location-dot-slash text-3xl text-yellow-600 dark:text-yellow-400"></i>
+                        <i className="fa-solid fa-location-crosshairs text-3xl text-yellow-600 dark:text-yellow-400" aria-hidden="true"></i>
                     </div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2">
                         {t('locationPermission.notAvailableTitle')}
@@ -302,14 +311,40 @@ const TranslatedReviewPreview: React.FC<{ title: string | null | undefined; text
     );
 });
 
+// Bandera + «Empresa de Italia» en las tarjetas de empresas de otro país.
+const BusinessCountryTag: React.FC<{ code: string }> = ({ code }) => {
+    const t = useTranslation();
+    const countryNameOf = useCountryName();
+    const info = COUNTRIES.find(c => c.code === code.toUpperCase());
+    const name = countryNameOf(code.toUpperCase(), info?.name || code);
+    return (
+        <span className="inline-flex items-center gap-1.5 mt-1 text-[11px] sm:text-xs font-medium text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">
+            {info && <img src={info.flag} alt="" width={16} height={12} loading="lazy" decoding="async" className="w-4 h-3 rounded-sm object-cover" />}
+            {t('common.businessFromCountry', { country: name })}
+        </span>
+    );
+};
+
 const ExplorePage: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const { showNotification } = useNotification();
     const { country } = useCountry();
+    // País de lo que se lista: el de la URL (/it/esplora) o, sin prefijo, el
+    // país de búsqueda del usuario. Nada en esta página lo cambia: ni el
+    // scroll, ni la paginación, ni abrir una reseña de otro país.
+    const { contentCountry } = useContentCountry();
+    const countryNameOf = useCountryName();
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
+    // «Tu negocio» en los popups del mapa (HTML de Leaflet, no React). La
+    // función sale de las empresas de AuthContext: sin consultas por marcador.
+    const ownBusinessOf = useOwnBusinessLookup();
+    const ownBadgeHtml = useMemo(
+        () => ownBusinessBadgeHtml(t('businessPage.ownBusinessBadge'), t('businessPage.ownBusinessTitle')),
+        [t],
+    );
 
     // Helper function to translate category from "Parent: Subcategory" format
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -366,7 +401,18 @@ const ExplorePage: React.FC = () => {
     const businessSearchInputRef = useRef<HTMLInputElement>(null);
     const businessSuggestionsRef = useRef<HTMLDivElement>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [selectedCountry, setSelectedCountry] = useState<string | null>(country || null);
+    // Ámbito del listado: el país de la página o todos. El filtro lateral no
+    // elige OTRO país (eso es el selector de la cabecera): así los dos
+    // controles no pueden decir cosas distintas.
+    const [scopeAllCountries, setScopeAllCountries] = useState(false);
+    const selectedCountry: string | null = scopeAllCountries ? null : (contentCountry || null);
+    // «Ver reseñas de otros países»: bloque aparte, a petición del usuario, al
+    // agotar las del país. Antes no existía y las de fuera se colaban sin
+    // marcar en el feed del país.
+    const [otherCountries, setOtherCountries] = useState<{
+        open: boolean; reviews: Review[]; page: number; hasMore: boolean; loading: boolean; error: boolean;
+    }>({ open: false, reviews: [], page: 0, hasMore: false, loading: false, error: false });
+    const otherCountriesRequestRef = useRef(0);
     // Rating filter: null = all, or {min, max} for range (e.g., {min: 3, max: 4} for 3-4 stars)
     const [ratingFilter, setRatingFilter] = useState<{min: number; max: number} | null>(null);
     const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
@@ -428,8 +474,9 @@ const ExplorePage: React.FC = () => {
 
     const location = useLocation();
 
-    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === country), [country]);
+    const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === contentCountry), [contentCountry]);
     const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
+    const contentCountryName = contentCountry ? countryNameOf(contentCountry, countryInfo?.name || contentCountry) : '';
     const metaTitle = `${t('meta.exploreTitle')} - ${brandName}`;
     const metaDescription = t('meta.exploreDesc').replace('Opynio', brandName);
     const exploreTitle = t('explorePage.exploreTitle').replace('Opynio', brandName);
@@ -541,22 +588,12 @@ const ExplorePage: React.FC = () => {
         };
     }, [location.search, location.hash]);
 
-    // Effect to sync selectedCountry when context country changes
-    // Only sync if it's the initial mount or if user navigates to a different country page
-    // We use a ref to prevent unnecessary re-syncs that would trigger re-fetches
+    // Otra página de país (el usuario cambió de país en la cabecera o siguió un
+    // enlace a /xx/...): se vuelve al ámbito de ese país.
     useEffect(() => {
-        if (country) {
-            // Only update if it's different from current to avoid triggering fetch effect
-            setSelectedCountry(prev => {
-                if (prev !== country) {
-                    // Mark that we've done initial sync
-                    initialCountrySyncRef.current = true;
-                    return country;
-                }
-                return prev;
-            });
-        }
-    }, [country]);
+        initialCountrySyncRef.current = true;
+        setScopeAllCountries(false);
+    }, [contentCountry]);
 
     // Effect to fetch total business count for banner
     useEffect(() => {
@@ -650,7 +687,8 @@ const ExplorePage: React.FC = () => {
             } = {
                 searchTerm: searchTerm.trim() || undefined,
                 category: selectedCategory || undefined,
-                country: options?.skipCountryFilter ? undefined : (selectedCountry || undefined),
+                // Una empresa elegida en el mapa se muestra sea del país que sea.
+                country: (options?.skipCountryFilter || selectedBusinessId) ? undefined : (selectedCountry || undefined),
                 businessIds: selectedBusinessId ? [selectedBusinessId] : (businessIdsInRadius ?? undefined),
                 rating: ratingFilter ? { min: ratingFilter.min, max: ratingFilter.max } : undefined,
                 dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
@@ -702,7 +740,8 @@ const ExplorePage: React.FC = () => {
                 setReviews([]);
                 loadedBusinessIdsRef.current = [];
                 setHasMore(false);
-                setManualSearchError(error instanceof Error ? error.message : t("explorePage.searchErrorBody"));
+                // El detalle tecnico va a la consola (arriba); en pantalla, el texto traducido.
+                setManualSearchError(t("explorePage.searchErrorBody"));
             }
         } finally {
             fetchInProgressRef.current = false;
@@ -733,14 +772,17 @@ const ExplorePage: React.FC = () => {
             const result = await getPublicReviews({
                 searchTerm: searchParams.searchTerm,
                 category: searchParams.category,
-                country: country || undefined,
+                country: selectedCountry || undefined,
             }, 1, 10);
             // Handle both formats: object { reviews, totalCount, hasMore } or array
             const reviewsData = (result && typeof result === 'object' && 'reviews' in result) ? result.reviews : (result as any[]);
             setAiSearchResults(reviewsData);
 
         } catch (err: any) {
-            setAiError(err.message || t('aiError'));
+            // El mensaje tecnico (en ingles) va a la consola; al usuario, uno
+            // traducido que le dice que use el buscador normal.
+            console.error('AI search failed:', err);
+            setAiError(t('explorePage.aiSearchUnavailable'));
         } finally {
             setIsAiSearching(false);
         }
@@ -838,7 +880,8 @@ const ExplorePage: React.FC = () => {
                 if (business.latitude && business.longitude) {
                     const marker = L.marker([business.latitude, business.longitude], { icon: defaultIcon })
                         .addTo(markersLayerRef.current!)
-                        .bindPopup(`<b>${business.name}</b>`);
+                        // El nombre, escapado (el popup es HTML); y «Tu negocio» si es suya.
+                        .bindPopup(`<b>${escapeHtml(business.name)}</b>${ownBusinessOf(business) ? `<div class="mt-1">${ownBadgeHtml}</div>` : ''}`);
 
                     markersRef.current.set(business.id, marker);
 
@@ -852,8 +895,27 @@ const ExplorePage: React.FC = () => {
         return () => {
             if (invalidateSizeTimeout) clearTimeout(invalidateSizeTimeout);
         };
-    }, [businesses, filterCenter, radiusKm, activeTab]);
+    }, [businesses, filterCenter, radiusKm, activeTab, ownBusinessOf, ownBadgeHtml]);
     
+    // El mapa abre sobre las empresas del país de la página (antes siempre
+    // sobre España, aunque la cabecera o la URL dijeran Italia). Una vez por
+    // país; si el usuario ya ha fijado ubicación o empresa, no se mueve.
+    const mapCenteredForRef = useRef<string | null>(null);
+    useEffect(() => {
+        const map = mapRef.current;
+        if (activeTab !== 'map' || !map || filterCenter || selectedBusinessId) return;
+        const key = contentCountry || 'ALL';
+        if (mapCenteredForRef.current === key) return;
+        const puntos = businesses.filter(b => b.latitude && b.longitude && (!contentCountry || b.country === contentCountry));
+        if (puntos.length === 0) return;
+        mapCenteredForRef.current = key;
+        if (puntos.length === 1) {
+            map.setView([puntos[0].latitude!, puntos[0].longitude!], 11);
+        } else {
+            map.fitBounds(L.latLngBounds(puntos.map(b => [b.latitude!, b.longitude!] as [number, number])), { padding: [30, 30], maxZoom: 11 });
+        }
+    }, [activeTab, businesses, contentCountry, filterCenter, selectedBusinessId]);
+
     // Effect to handle visual selection of markers
     useEffect(() => {
         markersRef.current.forEach((marker, businessId) => {
@@ -901,8 +963,20 @@ const ExplorePage: React.FC = () => {
     useEffect(() => {
         if (activeTab === 'map' && !hasRequestedLocationRef.current && !filterCenter && navigator.geolocation) {
             hasRequestedLocationRef.current = true;
-            // Show permission modal instead of directly requesting
-            setShowLocationPermissionModal(true);
+            // Si el navegador ya tiene el permiso concedido, pedir la ubicacion sin
+            // el modal previo; si esta denegado, no insistir. Solo en 'prompt' (o
+            // sin Permissions API) se explica antes con el modal propio.
+            const permissions = (navigator as Navigator).permissions;
+            if (!permissions?.query) {
+                setShowLocationPermissionModal(true);
+                return;
+            }
+            permissions.query({ name: 'geolocation' as PermissionName })
+                .then((status) => {
+                    if (status.state === 'granted') requestLocationRef.current();
+                    else if (status.state === 'prompt') setShowLocationPermissionModal(true);
+                })
+                .catch(() => setShowLocationPermissionModal(true));
         }
     }, [activeTab, filterCenter]);
 
@@ -923,6 +997,7 @@ const ExplorePage: React.FC = () => {
     const handleAllowLocation = useCallback(() => {
         setShowLocationPermissionModal(false);
         setGeolocating(true);
+        setShowLocationNotAvailableModal(false);
 
         getLocationWithRetry(
             (position) => {
@@ -938,12 +1013,15 @@ const ExplorePage: React.FC = () => {
             }
         );
     }, [updateUserLocationMarker]);
+    // El efecto de la pestana Mapa se declara antes que este handler.
+    const requestLocationRef = useRef<() => void>(() => {});
+    requestLocationRef.current = handleAllowLocation;
 
-    // Handler for when user denies location from modal - show info about manual location
+    // «Ahora no» en el modal propio: el usuario ha elegido no compartirla, no es
+    // que no este disponible. Solo se cierra (sigue pudiendo clicar en el mapa o
+    // usar el boton de ubicacion).
     const handleDenyLocation = useCallback(() => {
         setShowLocationPermissionModal(false);
-        // Show the not available modal so user knows how to enable manually
-        setShowLocationNotAvailableModal(true);
     }, []);
 
     // State for prefetching next page of reviews
@@ -974,7 +1052,8 @@ const ExplorePage: React.FC = () => {
                 businessId: isSpecificBusiness ? selectedBusinessFilter.id : undefined,
                 reviewTextSearch: reviewTextSearch.trim() || undefined,
                 category: selectedCategory || undefined,
-                country: selectedCountry || undefined,
+                // Con una empresa elegida manda la empresa, sea del país que sea.
+                country: isSpecificBusiness ? undefined : (selectedCountry || undefined),
                 rating: ratingFilter ? { min: ratingFilter.min, max: ratingFilter.max } : undefined,
                 sortBy: sortOrder,
                 dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
@@ -1024,7 +1103,7 @@ const ExplorePage: React.FC = () => {
                     businessId: isSpecificBusiness ? selectedBusinessFilter.id : undefined,
                     reviewTextSearch: reviewTextSearch.trim() || undefined,
                     category: selectedCategory || undefined,
-                    country: selectedCountry || undefined,
+                    country: isSpecificBusiness ? undefined : (selectedCountry || undefined),
                     rating: ratingFilter ? { min: ratingFilter.min, max: ratingFilter.max } : undefined,
                     sortBy: sortOrder,
                     dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
@@ -1050,7 +1129,8 @@ const ExplorePage: React.FC = () => {
                 console.error("Failed to fetch reviews:", error);
                 setReviews([]);
                 setHasMore(false);
-                setManualSearchError(error instanceof Error ? error.message : t("explorePage.searchErrorBody"));
+                // El detalle tecnico va a la consola (arriba); en pantalla, el texto traducido.
+                setManualSearchError(t("explorePage.searchErrorBody"));
             }
         } finally {
             // Only update loading state if this request wasn't aborted
@@ -1060,6 +1140,49 @@ const ExplorePage: React.FC = () => {
             }
         }
     }, [searchTerm, reviewTextSearch, selectedCategory, selectedCountry, ratingFilter, sortOrder, dateFilter, verifiedFilter, formatFilter, selectedBusinessFilter, t]);
+
+    // Reseñas de otros países (todas menos las del país de la página), con los
+    // mismos filtros. Solo se piden cuando el usuario pulsa el botón; no tocan
+    // el país de búsqueda ni el ámbito del listado principal.
+    const fetchOtherCountryReviews = useCallback(async (nextPage: number) => {
+        if (!contentCountry) return;
+        const requestId = ++otherCountriesRequestRef.current;
+        setOtherCountries(prev => ({ ...prev, open: true, loading: true, error: false }));
+        try {
+            const result: any = await getPublicReviews({
+                searchTerm: searchTerm.trim() || undefined,
+                reviewTextSearch: reviewTextSearch.trim() || undefined,
+                category: selectedCategory || undefined,
+                excludeCountry: contentCountry,
+                rating: ratingFilter ? { min: ratingFilter.min, max: ratingFilter.max } : undefined,
+                sortBy: sortOrder,
+                dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
+                variedFeed: true,
+            }, nextPage, PAGE_SIZE);
+            if (requestId !== otherCountriesRequestRef.current) return;
+            const list: Review[] = result && typeof result === 'object' && 'reviews' in result ? result.reviews : (result || []);
+            const more = result && typeof result === 'object' && 'hasMore' in result ? !!result.hasMore : list.length === PAGE_SIZE;
+            setOtherCountries(prev => ({
+                open: true,
+                reviews: nextPage === 1 ? list : [...prev.reviews, ...list],
+                page: nextPage,
+                hasMore: more,
+                loading: false,
+                error: false,
+            }));
+        } catch (error) {
+            if (requestId !== otherCountriesRequestRef.current) return;
+            console.error('Failed to fetch reviews from other countries:', error);
+            setOtherCountries(prev => ({ ...prev, open: true, loading: false, error: true }));
+        }
+    }, [contentCountry, searchTerm, reviewTextSearch, selectedCategory, ratingFilter, sortOrder, dateFilter]);
+
+    // Si cambian los filtros o el país, el bloque de otros países se cierra: lo
+    // que mostraba ya no corresponde a lo que se está viendo.
+    useEffect(() => {
+        otherCountriesRequestRef.current++;
+        setOtherCountries({ open: false, reviews: [], page: 0, hasMore: false, loading: false, error: false });
+    }, [contentCountry, scopeAllCountries, searchTerm, reviewTextSearch, selectedCategory, ratingFilter, sortOrder, dateFilter, verifiedFilter, formatFilter, selectedBusinessFilter]);
 
     // Keep refs updated with latest functions
     useEffect(() => {
@@ -1145,7 +1268,9 @@ const ExplorePage: React.FC = () => {
         setSearchTerm('');
         setReviewTextSearch('');
         setSelectedCategory(null);
-        setSelectedCountry(null);
+        // Limpiar filtros vuelve al país de la página (antes pasaba a «todos
+        // los países» sin que la cabecera cambiara).
+        setScopeAllCountries(false);
         setRatingFilter(null);
         setSortOrder('newest');
         setSelectedBusinessId(null);
@@ -1185,18 +1310,10 @@ const ExplorePage: React.FC = () => {
         setSelectedCategory(newCategory);
     };
 
-    // Handler for country change with confirmation when business is selected
-    const handleCountryChange = (newCountry: string | null) => {
-        // If there's a selected business and we're changing to a different country
-        if (selectedBusinessFilter && newCountry !== selectedCountry) {
-            // Check if the new country is incompatible with the selected business
-            if (newCountry !== null && selectedBusinessFilter.country !== newCountry) {
-                setPendingFilterChange({ type: 'country', value: newCountry });
-                setShowFilterChangeModal(true);
-                return;
-            }
-        }
-        setSelectedCountry(newCountry);
+    // Ámbito del listado: solo el país de la página o todos. Con una empresa
+    // elegida el selector está bloqueado (manda la empresa).
+    const handleCountryScopeChange = (allCountries: boolean) => {
+        setScopeAllCountries(allCountries);
     };
 
     // Confirm filter change - deselect business and apply filter
@@ -1210,7 +1327,7 @@ const ExplorePage: React.FC = () => {
             if (pendingFilterChange.type === 'category') {
                 setSelectedCategory(pendingFilterChange.value);
             } else if (pendingFilterChange.type === 'country') {
-                setSelectedCountry(pendingFilterChange.value);
+                setScopeAllCountries(pendingFilterChange.value === null);
             }
         }
         setShowFilterChangeModal(false);
@@ -1289,7 +1406,7 @@ const ExplorePage: React.FC = () => {
     const groupedReviews = useMemo(() => {
         // If we have pre-grouped business data, use it directly
         if (businessGroups && businessGroups.length > 0) {
-            const countryCode = country;
+            const countryCode = contentCountry;
 
             // Sort the grouped businesses based on the new criteria
             const sortedGroups = [...businessGroups].sort((a, b) => {
@@ -1354,7 +1471,7 @@ const ExplorePage: React.FC = () => {
         });
 
         return Object.values(groups);
-    }, [businessGroups, reviews, country, filterCenter]);
+    }, [businessGroups, reviews, contentCountry, filterCenter]);
 
     const groupedAiSearchResults = useMemo(() => {
         if (!aiSearchResults) return [];
@@ -1421,7 +1538,7 @@ const ExplorePage: React.FC = () => {
                     <span className="font-semibold text-gray-800 dark:text-gray-200 mx-1">{currentShowing}</span>
                     <span>{t('common.of') || 'de'}</span>
                     <span className="font-bold text-brand-green mx-1">{totalReviewCount}</span>
-                    <span>{t('common.reviews') || 'reseñas'}</span>
+                    <span>{totalReviewCount === 1 ? t('common.review') : (t('common.reviews') || 'reseñas')}</span>
                     {/* Show business count when available */}
                     {businessCountInCategory > 0 && (
                         <span className="ml-2 text-xs sm:text-sm">
@@ -1507,6 +1624,7 @@ const ExplorePage: React.FC = () => {
                                 <span className="flex-1 text-sm font-medium text-gray-800 dark:text-white truncate">
                                     {selectedBusinessFilter.name}
                                 </span>
+                                <OwnBusinessBadge business={selectedBusinessFilter} className="flex-shrink-0" />
                                 <button
                                     onClick={() => {
                                         setSelectedBusinessFilter(null);
@@ -1584,10 +1702,10 @@ const ExplorePage: React.FC = () => {
                                                         }
                                                     }
 
-                                                    // Auto-select country if business has one
-                                                    if (business.country) {
-                                                        setSelectedCountry(business.country);
-                                                    }
+                                                    // El país no se toca: con una empresa elegida
+                                                    // se muestran sus reseñas sea del país que sea
+                                                    // (antes se cambiaba el filtro de país al de la
+                                                    // empresa y quedaba así al quitarla).
                                                 }}
                                                 className="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-zinc-700/50 last:border-0"
                                             >
@@ -1598,6 +1716,7 @@ const ExplorePage: React.FC = () => {
                                                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                                         {business.name}
                                                     </p>
+                                                    <OwnBusinessBadge business={business} className="my-0.5" />
                                                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                         {getCategoryTranslation(business.category)}
                                                         {business.country && ` • ${COUNTRIES.find(c => c.code === business.country)?.name || business.country}`}
@@ -1625,15 +1744,20 @@ const ExplorePage: React.FC = () => {
                         </label>
                         <select
                             id="country-filter"
-                            value={selectedCountry || 'all'}
-                            onChange={e => handleCountryChange(e.target.value === 'all' ? null : e.target.value)}
-                            className={`w-full bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md p-2 text-sm text-gray-800 dark:text-white focus:ring-1 focus:ring-brand-green focus:border-brand-green h-[38px] ${
+                            value={selectedCountry ? 'country' : 'all'}
+                            onChange={e => handleCountryScopeChange(e.target.value === 'all')}
+                            disabled={!!selectedBusinessFilter || !contentCountry}
+                            aria-describedby="country-filter-hint"
+                            className={`w-full bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md p-2 text-sm text-gray-800 dark:text-white focus:ring-1 focus:ring-brand-green focus:border-brand-green h-[38px] disabled:cursor-not-allowed ${
                                 selectedBusinessFilter ? 'opacity-75' : ''
                             }`}
                         >
+                            {contentCountry && <option value="country">{contentCountryName}</option>}
                             <option value="all">{t('common.allCountries')}</option>
-                            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                         </select>
+                        <p id="country-filter-hint" className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                            {t('common.changeCountryInHeader')}
+                        </p>
                     </div>
 
                     {/* Category filter - chips/badges */}
@@ -1811,10 +1935,170 @@ const ExplorePage: React.FC = () => {
         const endIndex = startIndex + REVIEWS_PER_PAGE;
         const paginatedReviews = reviews.slice(startIndex, endIndex);
 
+        // Fin del feed del país: sin más páginas y en la última. Ahí (o si el
+        // país no tiene reseñas con estos filtros) se ofrece, como bloque
+        // explícito, ver las de otros países. Nada se carga ni cambia solo.
+        const isLastPage = !hasMore && endIndex >= reviews.length;
+        const canOfferOtherCountries = !!contentCountry && !!selectedCountry && !selectedBusinessFilter
+            && !loading && !manualSearchError && isLastPage;
+
+        const renderReviewCard = (review: Review) => {
+            const isExpanded = expandedReviewId === review.id;
+            const businessPath = review.businesses ? generateBusinessPath(review.businesses) : '#';
+            const businessCountry = (review.businesses as any)?.country as string | null | undefined;
+            const isForeignBusiness = !!businessCountry && businessCountry !== contentCountry;
+
+            return (
+                <div
+                    key={review.id}
+                    className={`bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden transition-all duration-300 ${isExpanded ? 'lg:col-span-2 shadow-xl border-brand-green' : 'hover:border-brand-green hover:shadow-lg'}`}
+                >
+                    {/* Clickable card header - expands/collapses */}
+                    <div
+                        onClick={() => setExpandedReviewId(isExpanded ? null : review.id)}
+                        className="p-4 sm:p-5 cursor-pointer"
+                    >
+                        {/* Business info header */}
+                        {review.businesses && (
+                            <div className="flex items-start gap-3 mb-3">
+                                <BusinessLogo
+                                    logoUrl={review.businesses.logo_url}
+                                    businessName={review.businesses.name}
+                                    tone={(review.businesses as any).logo_tone}
+                                    className="w-12 h-12 sm:w-14 sm:h-14"
+                                    iconSize="text-xl"
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-base sm:text-lg truncate">
+                                        {review.businesses.name}
+                                    </h3>
+                                    {/* Reseña de su empresa: acceso directo a responderla desde el panel. */}
+                                    <OwnBusinessBadge business={review.businesses} manage="dashboardReviews" className="my-1" />
+                                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                        {getCategoryTranslation(review.businesses.category)}
+                                    </p>
+                                    {/* Empresa de otro país: se marca con su bandera. */}
+                                    {isForeignBusiness && businessCountry && <BusinessCountryTag code={businessCountry} />}
+                                    {/* Rating stars */}
+                                    <div className="flex items-center gap-1 mt-1">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <i
+                                                key={star}
+                                                className={`fa-${star <= (review.rating || 0) ? 'solid' : 'regular'} fa-star text-yellow-400 text-sm`}
+                                            ></i>
+                                        ))}
+                                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">
+                                            {review.rating?.toFixed(1) || '-'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="text-gray-400 dark:text-gray-500">
+                                    <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} text-sm transition-transform`}></i>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Review preview */}
+                        <TranslatedReviewPreview title={review.title} text={review.review_text} isExpanded={isExpanded} />
+
+                        {/* Review meta */}
+                        <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-gray-400">
+                            <span>
+                                <i className="fa-regular fa-user mr-1"></i>
+                                {getReviewAuthorName(review, t('common.anonymous'))}
+                            </span>
+                            <span>
+                                <i className="fa-regular fa-calendar mr-1"></i>
+                                {formatReviewDate(review.created_at, language)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Expanded content - button to go to business */}
+                    {isExpanded && review.businesses && (
+                        <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
+                            <Link
+                                to={businessPath}
+                                className="flex items-center justify-center gap-2 w-full bg-brand-green text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-600 transition-all shadow-md"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <i className="fa-solid fa-store"></i>
+                                {t('explorePage.viewBusinessProfile')}
+                                <i className="fa-solid fa-arrow-right ml-2"></i>
+                            </Link>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const otherCountriesBlock = canOfferOtherCountries && (
+            <div className="space-y-4 sm:space-y-5" data-testid="other-countries-block">
+                {!otherCountries.open ? (
+                    <div className="text-center p-5 sm:p-6 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
+                        {reviews.length > 0 && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                <i className="fa-solid fa-circle-check text-brand-green mr-1.5" aria-hidden="true"></i>
+                                {t('explorePage.allCountryReviewsSeen', { country: contentCountryName })}
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => fetchOtherCountryReviews(1)}
+                            className="inline-flex items-center gap-2 bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-gray-100 font-semibold px-4 sm:px-5 py-2.5 rounded-lg text-sm sm:text-base hover:border-brand-green hover:text-brand-green dark:hover:border-brand-green transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-green"
+                        >
+                            <i className="fa-solid fa-earth-europe" aria-hidden="true"></i>
+                            {t('explorePage.seeOtherCountriesReviews')}
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-zinc-800">
+                            <i className="fa-solid fa-earth-europe text-brand-green" aria-hidden="true"></i>
+                            {t('explorePage.otherCountriesReviewsTitle')}
+                        </h2>
+                        {otherCountries.reviews.length > 0 && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+                                {otherCountries.reviews.map(renderReviewCard)}
+                            </div>
+                        )}
+                        {otherCountries.loading ? (
+                            <div className="flex justify-center py-6"><Spinner /></div>
+                        ) : otherCountries.error ? (
+                            <div className="text-center text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                                <p>{t('explorePage.searchErrorTitle')}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchOtherCountryReviews(Math.max(1, otherCountries.page + 1))}
+                                    className="mt-2 font-semibold underline"
+                                >
+                                    {t('businessDashboard.retryButton')}
+                                </button>
+                            </div>
+                        ) : otherCountries.reviews.length === 0 ? (
+                            <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">
+                                {t('explorePage.noOtherCountriesReviews')}
+                            </p>
+                        ) : otherCountries.hasMore && (
+                            <div className="text-center">
+                                <button
+                                    type="button"
+                                    onClick={() => fetchOtherCountryReviews(otherCountries.page + 1)}
+                                    className="bg-brand-green text-white font-semibold px-5 py-2.5 rounded-lg text-sm sm:text-base hover:bg-green-600 transition-colors shadow-sm"
+                                >
+                                    {t('explorePage.loadMore')}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        );
+
         return (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 mt-6 sm:mt-8">
                 {sidebar}
-                <main className="lg:col-span-9">
+                <section className="lg:col-span-9">
                     {manualSearchError ? (
                         <div className="text-center py-16 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg border-2 border-dashed border-red-200 dark:border-red-800/50">
                             <i className="fa-solid fa-triangle-exclamation text-6xl mb-4 text-red-500"></i>
@@ -1827,10 +2111,13 @@ const ExplorePage: React.FC = () => {
                             <p className="font-semibold">{t('explorePage.searchingReviews')}</p>
                         </div>
                     ) : reviews.length === 0 ? (
-                        <div className="text-center py-16 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-zinc-700">
-                            <i className="fa-solid fa-comments text-6xl mb-4 text-gray-400 dark:text-gray-600"></i>
-                            <p className="font-semibold text-lg text-gray-700 dark:text-gray-300">{t('explorePage.noReviewsFound')}</p>
-                            <p className="text-sm mt-2 max-w-sm mx-auto">{t('explorePage.noReviewsFoundSubtitle')}</p>
+                        <div className="space-y-5 sm:space-y-6">
+                            <div className="text-center py-16 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-zinc-700">
+                                <i className="fa-solid fa-comments text-6xl mb-4 text-gray-400 dark:text-gray-600"></i>
+                                <p className="font-semibold text-lg text-gray-700 dark:text-gray-300">{t('explorePage.noReviewsFound')}</p>
+                                <p className="text-sm mt-2 max-w-sm mx-auto">{t('explorePage.noReviewsFoundSubtitle')}</p>
+                            </div>
+                            {otherCountriesBlock}
                         </div>
                     ) : (
                         <div className="space-y-5 sm:space-y-6">
@@ -1839,100 +2126,20 @@ const ExplorePage: React.FC = () => {
 
                             {/* Reviews grid - 2 columns on desktop, 1 on mobile */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
-                                {paginatedReviews.map(review => {
-                                    const isExpanded = expandedReviewId === review.id;
-                                    const businessPath = review.businesses ? generateBusinessPath(review.businesses) : '#';
-
-                                    return (
-                                        <div
-                                            key={review.id}
-                                            className={`bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden transition-all duration-300 ${isExpanded ? 'lg:col-span-2 shadow-xl border-brand-green' : 'hover:border-brand-green hover:shadow-lg'}`}
-                                        >
-                                            {/* Clickable card header - expands/collapses */}
-                                            <div
-                                                onClick={() => setExpandedReviewId(isExpanded ? null : review.id)}
-                                                className="p-4 sm:p-5 cursor-pointer"
-                                            >
-                                                {/* Business info header */}
-                                                {review.businesses && (
-                                                    <div className="flex items-start gap-3 mb-3">
-                                                        <BusinessLogo
-                                                            logoUrl={review.businesses.logo_url}
-                                                            businessName={review.businesses.name}
-                                                            tone={(review.businesses as any).logo_tone}
-                                                            className="w-12 h-12 sm:w-14 sm:h-14"
-                                                            iconSize="text-xl"
-                                                        />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="font-bold text-gray-800 dark:text-gray-100 text-base sm:text-lg truncate">
-                                                                {review.businesses.name}
-                                                            </h3>
-                                                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                                                {getCategoryTranslation(review.businesses.category)}
-                                                            </p>
-                                                            {/* Rating stars */}
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                {[1, 2, 3, 4, 5].map(star => (
-                                                                    <i
-                                                                        key={star}
-                                                                        className={`fa-${star <= (review.rating || 0) ? 'solid' : 'regular'} fa-star text-yellow-400 text-sm`}
-                                                                    ></i>
-                                                                ))}
-                                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">
-                                                                    {review.rating?.toFixed(1) || '-'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-gray-400 dark:text-gray-500">
-                                                            <i className={`fa-solid fa-chevron-${isExpanded ? 'up' : 'down'} text-sm transition-transform`}></i>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Review preview */}
-                                                <TranslatedReviewPreview title={review.title} text={review.review_text} isExpanded={isExpanded} />
-
-                                                {/* Review meta */}
-                                                <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-gray-400">
-                                                    <span>
-                                                        <i className="fa-regular fa-user mr-1"></i>
-                                                        {review.author_name || t('common.anonymous')}
-                                                    </span>
-                                                    <span>
-                                                        <i className="fa-regular fa-calendar mr-1"></i>
-                                                        {review.created_at ? new Date(review.created_at).toLocaleDateString(language) : ''}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Expanded content - button to go to business */}
-                                            {isExpanded && review.businesses && (
-                                                <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100 dark:border-zinc-800 pt-4">
-                                                    <Link
-                                                        to={businessPath}
-                                                        className="flex items-center justify-center gap-2 w-full bg-brand-green text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-600 transition-all shadow-md"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <i className="fa-solid fa-store"></i>
-                                                        {t('explorePage.viewBusinessProfile')}
-                                                        <i className="fa-solid fa-arrow-right ml-2"></i>
-                                                    </Link>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                {paginatedReviews.map(renderReviewCard)}
                             </div>
 
                             {/* Pagination controls - BOTTOM */}
                             <ReviewPaginationControls />
+
+                            {otherCountriesBlock}
                         </div>
                     )}
-                </main>
+                </section>
             </div>
         );
     };
-    
+
     const renderAiExploration = () => (
         <div className="max-w-4xl mx-auto mt-6 sm:mt-8">
             {/* Maintenance Banner */}
@@ -2117,6 +2324,7 @@ const ExplorePage: React.FC = () => {
                                                 <i className="fa-solid fa-times"></i>
                                             </button>
                                         </div>
+                                        <OwnBusinessBadge business={selectedBusinessForDisplay} manage className="mt-1" />
                                         {reviewCount > 0 && (
                                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5">
                                                 <i className="fa-solid fa-comments mr-1.5 text-amber-500"></i>
@@ -2143,7 +2351,7 @@ const ExplorePage: React.FC = () => {
                             </div>
                             );
                         })()}
-                        {renderResultsList(groupedReviews, loading, handleLoadMore, loadingMore, hasMore, businessCount, selectedCountry, selectedCategory, { hideBusinessInfo: true })}
+                        {renderResultsList(groupedReviews, loading, handleLoadMore, loadingMore, hasMore, businessCount, null, selectedCategory, { hideBusinessInfo: true })}
 
                         {/* Otras empresas cercanas (basado en ubicación del usuario o empresa seleccionada) */}
                         {nearbyBusinesses.filter(b => b.id !== selectedBusinessId).length > 0 && (
@@ -2163,6 +2371,7 @@ const ExplorePage: React.FC = () => {
                                                 <BusinessLogo logoUrl={business.logo_url} businessName={business.name} tone={business.logo_tone} className="w-8 h-8" iconSize="text-sm" />
                                                 <div className="flex-1 min-w-0">
                                                     <h5 className="font-medium text-gray-800 dark:text-gray-100 truncate text-xs">{business.name}</h5>
+                                                    <OwnBusinessBadge business={business} className="my-0.5" />
                                                     <p className="text-xs text-green-600 dark:text-green-400">
                                                         <i className="fa-solid fa-route mr-1"></i>
                                                         {business.distance < 1
@@ -2195,6 +2404,7 @@ const ExplorePage: React.FC = () => {
                                     <BusinessLogo logoUrl={business.logo_url} businessName={business.name} tone={business.logo_tone} className="w-10 h-10" iconSize="text-lg" />
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-semibold text-gray-800 dark:text-gray-100 truncate text-sm">{business.name}</h4>
+                                        <OwnBusinessBadge business={business} className="my-0.5" />
                                         <p className="text-xs text-green-600 dark:text-green-400 font-medium">
                                             <i className="fa-solid fa-route mr-1"></i>
                                             {business.distance < 1
@@ -2367,6 +2577,8 @@ const ExplorePage: React.FC = () => {
                                         <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-brand-green transition-colors line-clamp-2">
                                             {group.business.name}
                                         </h3>
+                                        {/* La tarjeta entera es un enlace: badge sin enlace. */}
+                                        <OwnBusinessBadge business={group.business} className="mt-1" />
                                         {/* Rating y reseñas */}
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="flex items-center text-yellow-400">
@@ -2455,6 +2667,7 @@ const ExplorePage: React.FC = () => {
         `}</style>
         <div>
             <div className="text-center mb-6 sm:mb-8 md:mb-10 -mt-2 sm:-mt-4">
+                <ForeignCountryNotice className="mb-4 text-left" />
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-brand-dark dark:text-gray-100">{exploreTitle}</h1>
                 <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">{exploreSubtitle}</p>
             </div>
@@ -2462,9 +2675,9 @@ const ExplorePage: React.FC = () => {
                 <button onClick={() => setActiveTab('manual')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'manual' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-sliders"></i> <span className="hidden sm:inline">{t('explorePage.exploreManual')}</span>
                 </button>
-                <button onClick={() => setActiveTab('ai')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'ai' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+                {AI_ENABLED && <button onClick={() => setActiveTab('ai')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'ai' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-wand-magic-sparkles"></i> <span className="hidden sm:inline">{t('explorePage.exploreAI')}</span>
-                </button>
+                </button>}
                 <button onClick={() => setActiveTab('map')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'map' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-map-location-dot"></i> <span className="hidden sm:inline">{t('explorePage.exploreMap')}</span>
                 </button>

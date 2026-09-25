@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 
 interface ModalProps {
     title: string;
@@ -7,6 +7,13 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
+    // Escape cierra, como la X y el clic fuera.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [onClose]);
+
     return (
         <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-modal-overlay"

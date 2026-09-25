@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
+import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 
 // Step card component
 const StepCard: React.FC<{
@@ -63,7 +65,14 @@ const HowItWorksPage: React.FC = () => {
   const { country } = useCountry();
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
+  // Sin sesión se mantiene el registro de siempre; con sesión, crear otra
+  // cuenta no tiene sentido: panel, "Mis negocios" o asistente de alta.
+  const { user } = useAuth();
+  const businessStartPath = useBusinessStartPath();
+  const ctaPath = user ? businessStartPath : `${countryPrefix}/${paths.register}`;
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -212,7 +221,7 @@ const HowItWorksPage: React.FC = () => {
               {t('howItWorksPage.ctaDesc')}
             </p>
             <Link
-              to={`${countryPrefix}/${paths.register}`}
+              to={ctaPath}
               className="inline-flex items-center gap-2 bg-white text-brand-green px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               {t('howItWorksPage.ctaButton')}

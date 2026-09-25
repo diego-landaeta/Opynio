@@ -8,7 +8,7 @@
 //   • Live preview de la empresa en columna lateral
 //   • Eyebrow uppercase + tipografía mismo lenguaje
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { finishBusinessSignup, getUserProfile, getBusinessesForOwner, clearCache } from '../../../services/supabaseService';
 import Meta from '../../Meta';
@@ -18,6 +18,9 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useI18n, pathTranslations, useTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
 import { triggerPlanActivatedModal } from '../../PlanActivatedModal';
+import { useCountryName } from '../../../utils/countryName';
+import { getUserFacingError, useUserErrorNotifier } from '../../../utils/userFacingError';
+import type { NotificationAction } from '../../../contexts/NotificationContext';
 
 
 const CompleteBusinessRegistrationPage: React.FC = () => {
@@ -29,9 +32,13 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     const [wizardStep, setWizardStep] = useState<'business' | 'personalization'>('business');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Enlace recomendado (Soporte, Planes...) del error del servidor. Va atado al
+    // texto: si otra validacion cambia `error`, el enlace deja de mostrarse.
+    const [errorAction, setErrorAction] = useState<{ text: string; action: NotificationAction } | null>(null);
 
     const categoryOptions = Object.keys(CATEGORIES);
     const { showNotification } = useNotification();
+    const { actionFor } = useUserErrorNotifier();
     const navigate = ReactRouterDOM.useNavigate();
     const location = ReactRouterDOM.useLocation();
     const { user, profile, setProfile, setBusinesses } = useAuth();
@@ -43,9 +50,15 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
-    // Guard de acceso (sin cambios funcionales).
+    // Se marca justo antes de actualizar el perfil al terminar: sin esto, el guard
+    // de abajo veia role=business_owner y mandaba a /mis-negocios antes de que la
+    // navegacion al panel llegara (rebote /panel -> /mis-negocios).
+    const acabaDeTerminarRef = useRef(false);
+
+    // Guard de acceso.
     useEffect(() => {
         if (!profile) return;
+        if (acabaDeTerminarRef.current) return;
         if (profile.role === 'business_owner') {
             navigate(`${countryPrefix}/${paths.myBusinesses}`, { replace: true });
             return;
@@ -88,7 +101,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         e.preventDefault();
         if (wizardStep === 'business') {
             if (!businessName.trim()) {
-                setError('Indica el nombre de tu empresa para continuar.');
+                setError(t('businessWizard.errNameRequired'));
                 return;
             }
             setError(null);
@@ -96,11 +109,11 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             return;
         }
         if (!user) {
-            setError('No hay una sesión activa. Vuelve a iniciar sesión e inténtalo de nuevo.');
+            setError(t('businessWizard.errNoSession'));
             return;
         }
         if (!businessName.trim()) {
-            setError('El nombre de la empresa no puede estar vacío.');
+            setError(t('businessWizard.errNameEmpty'));
             return;
         }
         setLoading(true);
@@ -109,19 +122,33 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             await finishBusinessSignup(user.id, {
                 name: businessName.trim(),
                 country: businessCountry,
-                category: businessCategory.trim() || 'General',
+                category: businessCategory.trim() || 'Sectores Emergentes y Otros', // "General" no es una categoria (se veia cruda)
                 description: businessDescription.trim() || undefined,
                 google_maps_url: businessMapsUrl.trim() || undefined,
             });
             localStorage.removeItem('opynio_pending_business_data');
             localStorage.removeItem('opynio_business_signup_flow');
             triggerPlanActivatedModal('free');
-            showNotification('¡Tu empresa ha sido registrada! Redirigiendo...', 'success');
+            showNotification(t('businessWizard.registered'), 'success');
 
             clearCache(`profile_${user.id}`);
+            acabaDeTerminarRef.current = true;
             if (profile) {
                 setProfile({ ...profile, role: 'business_owner' });
             }
+            // Prefijo del pais que eligio en el asistente. Sin pais en el contexto la
+            // URL salia sin /es y aparecia el selector de idioma encima del modal
+            // de bienvenida.
+            const paisElegido = (businessCountry || country || 'ES').toLowerCase();
+            const rutasPais = pathTranslations[getLanguageForCountryCode(paisElegido.toUpperCase())] || pathTranslations.es;
+            const prefijo = `/${paisElegido}`;
+
+            // Venia de elegir un plan de pago en /planes: a completar el pago.
+            let planPendiente: { plan: string; billingCycle: string } | null = null;
+            try {
+                planPendiente = JSON.parse(localStorage.getItem('opynio_pending_plan') || 'null');
+            } catch { planPendiente = null; }
+            localStorage.removeItem('opynio_pending_plan');
 
             let newBusinessName: string | null = null;
             try {
@@ -139,17 +166,26 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                 console.warn('[completeBusinessRegistration] re-fetch failed:', refetchErr);
             }
 
-            if (newBusinessName) {
-                const dashboardPath = `${countryPrefix}/${paths.businessDashboard.replace(
+            if (planPendiente?.plan) {
+                showNotification(t('registerPage.completePlanPayment', { plan: planPendiente.plan }), 'info');
+                navigate(`${prefijo}/${rutasPais.pricing}?plan=${encodeURIComponent(planPendiente.plan)}&billingCycle=${encodeURIComponent(planPendiente.billingCycle)}`, { replace: true });
+            } else if (newBusinessName) {
+                const dashboardPath = `${prefijo}/${rutasPais.businessDashboard.replace(
                     ':businessName',
                     encodeURIComponent(newBusinessName.replace(/ /g, '_'))
                 )}`;
                 navigate(dashboardPath, { replace: true });
             } else {
-                navigate(`${countryPrefix}/${paths.myBusinesses}`, { replace: true });
+                navigate(`${prefijo}/${rutasPais.myBusinesses}`, { replace: true });
             }
-        } catch (err: any) {
-            setError(err.message || 'Error al completar el registro. Inténtalo de nuevo.');
+        } catch (err) {
+            // Antes salia el texto de Postgres («duplicate key value violates
+            // unique constraint...», «Has alcanzado el límite...» solo en espanol).
+            const info = await getUserFacingError(err, { flow: 'businessSignup' });
+            const text = t(info.key);
+            const action = actionFor(info.action);
+            setError(text);
+            setErrorAction(action ? { text, action } : null);
             setLoading(false);
         }
     };
@@ -176,6 +212,15 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         );
     };
 
+    // Pais y categoria traducidos. Pais: clave del locale, si no
+    // Intl.DisplayNames, si no el nombre de constants.
+    const nombrePais = useCountryName();
+    const nombreCategoria = (c: string) => {
+        const k = `categories.${c}`;
+        const v = t(k);
+        return v && v !== k ? v : c;
+    };
+
     const userDisplayName =
         (user?.user_metadata?.full_name as string | undefined) ||
         (user?.user_metadata?.name as string | undefined) ||
@@ -184,18 +229,18 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     const firstName = userDisplayName.split(' ')[0] || '';
 
     const STEPS = [
-        { label: 'Cuenta', icon: 'fa-user-check', done: true, current: false },
-        { label: 'Verificación', icon: 'fa-envelope-circle-check', done: true, current: false },
-        { label: 'Tu empresa', icon: 'fa-building', done: wizardStep !== 'business', current: wizardStep === 'business' },
-        { label: 'Personalización', icon: 'fa-palette', done: false, current: wizardStep === 'personalization' },
-        { label: 'Listo', icon: 'fa-rocket', done: false, current: false },
+        { label: t('businessWizard.stepAccount'), icon: 'fa-user-check', done: true, current: false },
+        { label: t('businessWizard.stepVerification'), icon: 'fa-envelope-circle-check', done: true, current: false },
+        { label: t('businessWizard.stepBusiness'), icon: 'fa-building', done: wizardStep !== 'business', current: wizardStep === 'business' },
+        { label: t('businessWizard.stepPersonalization'), icon: 'fa-palette', done: false, current: wizardStep === 'personalization' },
+        { label: t('businessWizard.stepDone'), icon: 'fa-rocket', done: false, current: false },
     ];
 
     return (
         <>
             <Meta
-                title="Completa el registro de tu empresa - Opynio"
-                description="Finaliza el registro de tu empresa en Opynio para empezar a gestionar tu reputación online."
+                title={t('businessWizard.metaTitle')}
+                description={t('businessWizard.metaDesc')}
             />
 
             {/* Wrapper con margenes negativos para que el hero verde llegue a los bordes */}
@@ -215,13 +260,13 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
 
                     <div className="relative max-w-4xl mx-auto text-center">
                         <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.18em] text-white/80 mb-3">
-                            Registro de empresa
+                            {t('businessWizard.eyebrow')}
                         </p>
                         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-tight">
-                            {firstName ? `¡Casi listo, ${firstName}!` : '¡Vamos a registrar tu empresa!'}
+                            {firstName ? t('businessWizard.titleWithName', { name: firstName }) : t('businessWizard.title')}
                         </h1>
                         <p className="mt-3 text-sm sm:text-base text-white/85 max-w-xl mx-auto">
-                            Solo nos faltan unos datos. En menos de 2 minutos tendrás tu negocio en Opynio.
+                            {t('businessWizard.subtitle')}
                         </p>
                     </div>
 
@@ -286,23 +331,36 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     </div>
                                     <div className="flex-grow min-w-0">
                                         <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.14em] text-brand-green">
-                                            Paso {wizardStep === 'business' ? '1 de 2' : '2 de 2'}
+                                            {t('businessWizard.stepCounter', { current: wizardStep === 'business' ? 1 : 2, total: 2 })}
                                         </p>
                                         <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mt-0.5">
-                                            {wizardStep === 'business' ? 'Datos esenciales' : 'Personaliza tu empresa'}
+                                            {wizardStep === 'business' ? t('businessWizard.essentialsTitle') : t('businessWizard.personalizeTitle')}
                                         </h2>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                                             {wizardStep === 'business'
-                                                ? 'Empezamos por lo más importante: nombre y país.'
-                                                : 'Añade lo que tengas a mano. Todo es editable después.'}
+                                                ? t('businessWizard.essentialsSubtitle')
+                                                : t('businessWizard.personalizeSubtitle')}
                                         </p>
                                     </div>
                                 </div>
 
                                 {error && (
                                     <div className="mb-5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl flex items-start gap-3 animate-fade-up" role="alert">
-                                        <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
-                                        <span className="text-sm">{error}</span>
+                                        <i className="fa-solid fa-circle-exclamation mt-0.5" aria-hidden="true"></i>
+                                        <span className="text-sm">
+                                            {error}
+                                            {errorAction && errorAction.text === error && (
+                                                <>
+                                                    {' '}
+                                                    <ReactRouterDOM.Link
+                                                        to={errorAction.action.to}
+                                                        className="font-semibold underline underline-offset-2 whitespace-nowrap rounded hover:text-red-900 dark:hover:text-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                                    >
+                                                        {errorAction.action.label}
+                                                    </ReactRouterDOM.Link>
+                                                </>
+                                            )}
+                                        </span>
                                     </div>
                                 )}
 
@@ -312,7 +370,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             {/* Nombre */}
                                             <div>
                                                 <label htmlFor="businessName" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                                    Nombre de tu empresa <span className="text-red-500">*</span>
+                                                    {t('businessWizard.nameLabel')} <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 group-focus-within:text-brand-green transition-colors pointer-events-none">
@@ -334,7 +392,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             {/* País */}
                                             <div>
                                                 <label htmlFor="businessCountry" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                                    País <span className="text-red-500">*</span>
+                                                    {t('businessWizard.countryLabel')} <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true">
@@ -348,7 +406,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         className="w-full pl-12 pr-9 py-3.5 text-sm sm:text-base appearance-none border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900/40 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all"
                                                     >
                                                         {COUNTRIES.map(c => (
-                                                            <option key={c.code} value={c.code}>{c.name}</option>
+                                                            <option key={c.code} value={c.code}>{nombrePais(c.code, c.name)}</option>
                                                         ))}
                                                     </select>
                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
@@ -375,21 +433,21 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{businessName}</p>
                                                         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
                                                             <CountryFlag code={businessCountry} size="sm" />
-                                                            <span>{COUNTRIES.find(c => c.code === businessCountry)?.name || businessCountry}</span>
+                                                            <span>{nombrePais(businessCountry, COUNTRIES.find(c => c.code === businessCountry)?.name)}</span>
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <span className="text-xs font-semibold text-brand-green group-hover:underline flex items-center gap-1 flex-shrink-0">
                                                     <i className="fa-solid fa-pen text-[10px]"></i>
-                                                    Editar
+                                                    {t('businessWizard.edit')}
                                                 </span>
                                             </button>
 
                                             {/* Categoría */}
                                             <div>
                                                 <label htmlFor="businessCategory" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                                    Categoría principal
-                                                    <span className="ml-2 text-xs font-normal text-gray-400">(opcional)</span>
+                                                    {t('businessWizard.categoryLabel')}
+                                                    <span className="ml-2 text-xs font-normal text-gray-400">{t('businessWizard.optional')}</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 group-focus-within:text-brand-green transition-colors pointer-events-none">
@@ -401,9 +459,9 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         onChange={(e) => setBusinessCategory(e.target.value)}
                                                         className="w-full pl-11 pr-9 py-3.5 text-sm sm:text-base appearance-none border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900/40 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all"
                                                     >
-                                                        <option value="">Selecciona una categoría</option>
+                                                        <option value="">{t('businessWizard.selectCategory')}</option>
                                                         {categoryOptions.map(c => (
-                                                            <option key={c} value={c}>{c}</option>
+                                                            <option key={c} value={c}>{nombreCategoria(c)}</option>
                                                         ))}
                                                     </select>
                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
@@ -415,8 +473,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             {/* Descripción */}
                                             <div>
                                                 <label htmlFor="businessDescription" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                                    Descripción corta
-                                                    <span className="ml-2 text-xs font-normal text-gray-400">(opcional)</span>
+                                                    {t('businessWizard.descriptionLabel')}
+                                                    <span className="ml-2 text-xs font-normal text-gray-400">{t('businessWizard.optional')}</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500 group-focus-within:text-brand-green transition-colors pointer-events-none">
@@ -427,12 +485,12 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         value={businessDescription}
                                                         onChange={(e) => setBusinessDescription(e.target.value.slice(0, 280))}
                                                         rows={3}
-                                                        placeholder="¿A qué se dedica tu empresa? ¿Qué la hace especial?"
+                                                        placeholder={t('businessWizard.descriptionPlaceholder')}
                                                         className="w-full pl-11 pr-3 py-3.5 text-sm border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900/40 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all resize-none"
                                                     />
                                                 </div>
                                                 <div className="mt-1.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                                    <span>Aparecerá en tu perfil público.</span>
+                                                    <span>{t('businessWizard.descriptionHint')}</span>
                                                     <span className={businessDescription.length > 240 ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}>
                                                         {businessDescription.length}/280
                                                     </span>
@@ -442,8 +500,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             {/* Maps URL */}
                                             <div>
                                                 <label htmlFor="businessMapsUrl" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                                    Enlace de Google Maps
-                                                    <span className="ml-2 text-xs font-normal text-gray-400">(opcional)</span>
+                                                    {t('businessWizard.mapsLabel')}
+                                                    <span className="ml-2 text-xs font-normal text-gray-400">{t('businessWizard.optional')}</span>
                                                 </label>
                                                 <div className="relative group">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 group-focus-within:text-brand-green transition-colors pointer-events-none">
@@ -469,7 +527,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             disabled={!businessName.trim()}
                                             onClick={() => {
                                                 if (!businessName.trim()) {
-                                                    setError('Indica el nombre de tu empresa para continuar.');
+                                                    setError(t('businessWizard.errNameRequired'));
                                                     return;
                                                 }
                                                 setError(null);
@@ -477,7 +535,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             }}
                                             className="group w-full bg-gradient-to-r from-emerald-500 to-brand-green text-white font-bold py-4 rounded-xl text-base sm:text-lg shadow-lg shadow-brand-green/30 hover:shadow-xl hover:shadow-brand-green/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:from-gray-400 disabled:to-gray-400 disabled:shadow-none disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2 mt-2"
                                         >
-                                            <span>Continuar</span>
+                                            <span>{t('businessWizard.continue')}</span>
                                             <i className="fa-solid fa-arrow-right text-sm transition-transform group-hover:translate-x-1"></i>
                                         </button>
                                     ) : (
@@ -492,7 +550,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                 className="sm:w-1/3 py-4 rounded-xl text-base font-semibold border-2 border-gray-200 dark:border-zinc-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
                                             >
                                                 <i className="fa-solid fa-arrow-left text-sm"></i>
-                                                <span>Atrás</span>
+                                                <span>{t('businessWizard.back')}</span>
                                             </button>
                                             <button
                                                 type="submit"
@@ -502,12 +560,12 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                 {loading ? (
                                                     <>
                                                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                        <span>Creando empresa…</span>
+                                                        <span>{t('businessWizard.creating')}</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <i className="fa-solid fa-rocket text-sm transition-transform group-hover:-translate-y-0.5"></i>
-                                                        <span>Finalizar registro</span>
+                                                        <span>{t('businessWizard.finish')}</span>
                                                     </>
                                                 )}
                                             </button>
@@ -523,16 +581,16 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             }}
                                             className="block mx-auto text-sm text-gray-500 dark:text-gray-400 hover:text-brand-green transition-colors underline-offset-4 hover:underline"
                                         >
-                                            Saltar y rellenarlo después
+                                            {t('businessWizard.skip')}
                                         </button>
                                     )}
 
                                     {/* Trust badges */}
                                     <div className="pt-5 mt-2 border-t border-gray-100 dark:border-zinc-700/50 grid grid-cols-3 gap-3 text-center">
                                         {[
-                                            { icon: 'fa-lock', label: 'Conexión segura' },
-                                            { icon: 'fa-shield-halved', label: 'Datos protegidos' },
-                                            { icon: 'fa-bolt', label: 'Listo en segundos' },
+                                            { icon: 'fa-lock', label: t('businessWizard.trustSecure') },
+                                            { icon: 'fa-shield-halved', label: t('businessWizard.trustProtected') },
+                                            { icon: 'fa-bolt', label: t('businessWizard.trustFast') },
                                         ].map(b => (
                                             <div key={b.label} className="flex flex-col items-center gap-1.5">
                                                 <div className="w-9 h-9 rounded-full bg-brand-green/10 flex items-center justify-center">
@@ -558,7 +616,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     <div className="bg-gradient-to-br from-brand-green to-emerald-600 px-5 py-3 flex items-center gap-2">
                                         <i className="fa-solid fa-eye text-white/90 text-xs"></i>
                                         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/90">
-                                            Vista previa
+                                            {t('businessWizard.preview')}
                                         </span>
                                     </div>
                                     <div className="p-5">
@@ -568,17 +626,17 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                             </div>
                                             <div className="min-w-0 flex-grow">
                                                 <p className="font-bold text-gray-800 dark:text-gray-100 truncate">
-                                                    {businessName || 'Tu empresa'}
+                                                    {businessName || t('businessWizard.previewNamePlaceholder')}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                                                    {businessCategory || 'Sin categoría'} · {COUNTRIES.find(c => c.code === businessCountry)?.name || businessCountry}
+                                                    {businessCategory ? nombreCategoria(businessCategory) : t('businessWizard.previewNoCategory')} · {nombrePais(businessCountry, COUNTRIES.find(c => c.code === businessCountry)?.name)}
                                                 </p>
                                                 {/* Star rating placeholder */}
                                                 <div className="flex items-center gap-0.5 mt-1.5">
                                                     {[1,2,3,4,5].map(n => (
                                                         <i key={n} className="fa-solid fa-star text-gray-300 dark:text-zinc-600 text-xs"></i>
                                                     ))}
-                                                    <span className="text-[11px] text-gray-400 ml-1.5">Aún sin reseñas</span>
+                                                    <span className="text-[11px] text-gray-400 ml-1.5">{t('businessWizard.previewNoReviews')}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -603,16 +661,16 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-gray-100">
                                         <i className="fa-solid fa-gift text-brand-green"></i>
-                                        Plan Free incluido
+                                        {t('businessWizard.freeIncluded')}
                                     </h3>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-green text-white px-2 py-0.5 rounded-full">Gratis</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-green text-white px-2 py-0.5 rounded-full">{t('businessWizard.freeBadge')}</span>
                                 </div>
                                 <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                                     {[
-                                        '1 perfil de empresa público',
-                                        'Reseñas ilimitadas',
-                                        'Responder a tus reseñas',
-                                        'Estadísticas básicas',
+                                        t('businessWizard.freeFeature1'),
+                                        t('businessWizard.freeFeature2'),
+                                        t('businessWizard.freeFeature3'),
+                                        t('businessWizard.freeFeature4'),
                                     ].map(f => (
                                         <li key={f} className="flex items-start gap-2">
                                             <i className="fa-solid fa-check text-brand-green mt-1 text-xs"></i>
@@ -624,7 +682,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     to={`${countryPrefix}/${paths.pricing}`}
                                     className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-green hover:underline"
                                 >
-                                    Ver planes premium
+                                    {t('businessWizard.seePremiumPlans')}
                                     <i className="fa-solid fa-arrow-right text-[10px]"></i>
                                 </ReactRouterDOM.Link>
                                 </div>
@@ -637,9 +695,9 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                         <i className="fa-solid fa-lightbulb text-blue-500 dark:text-blue-400 text-xs"></i>
                                     </div>
                                     <div className="flex-grow min-w-0">
-                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">¿Sabías que...?</p>
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-200">{t('businessWizard.tipTitle')}</p>
                                         <p className="text-xs text-blue-800/85 dark:text-blue-300/80 mt-1">
-                                            Todo es editable después: logo, horarios, categoría, descripción, redes…
+                                            {t('businessWizard.tipBody')}
                                         </p>
                                     </div>
                                 </div>

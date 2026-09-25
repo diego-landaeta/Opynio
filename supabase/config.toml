@@ -415,3 +415,25 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Funciones a las que se llama SIN sesion de usuario. Sin esto, un
+# `supabase functions deploy` desde el repo las dejaria con verify_jwt=true y
+# responderian 401: Stripe no manda JWT (se valida su firma), el cron manda su
+# propio secreto (CRON_SECRET), el widget se carga en webs de terceros y el
+# sitemap lo pide el nginx de produccion (prerender-seo-package/nginx) sin
+# cabecera Authorization, en nombre de Google.
+#
+# Todas las demas se quedan con el valor por defecto (verify_jwt = true): las
+# llama el front con la anon key o la sesion del usuario, o un admin.
+# scripts/_deploy-edge-multipart.cjs lee esta misma tabla.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.monthly-rescrape-job]
+verify_jwt = false
+
+[functions.widget-proxy]
+verify_jwt = false
+
+[functions.generate-sitemap]
+verify_jwt = false

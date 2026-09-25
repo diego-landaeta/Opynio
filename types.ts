@@ -59,6 +59,8 @@ export interface BusinessHours {
 }
 
 export interface Business extends SimpleBusiness {
+  // Identificador canonico de la URL publica (/empresa/<slug>).
+  slug?: string | null;
   description?: string | null;
   website?: string | null;
   website_url?: string | null;
@@ -108,7 +110,13 @@ export interface Profile {
   ai_credit_limit?: number | null;
   business_limit?: number | null;
   feature_permissions?: Json | null;
+  // Preferencias (20260925100000_profile_preferences). NULL = sin preferencia.
+  preferred_language?: string | null;
+  preferred_country?: string | null;
+  theme?: ThemePreference | null;
 }
+
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface ReviewResponse {
   id: string;
@@ -210,6 +218,10 @@ export interface BugReport {
   user_id: string;
   title?: string | null;
   description: string;
+  // Columna real de la pagina donde ocurrio el error. `page_url` es el nombre
+  // que usaba el panel antes; se mantiene por si hay filas antiguas con el.
+  url?: string | null;
+  page_url?: string | null;
   steps_to_reproduce?: string | null;
   expected_behavior?: string | null;
   actual_behavior?: string | null;

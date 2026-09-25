@@ -19,7 +19,7 @@ const corsHeaders = {
 // Version de widget.js que deberia estar corriendo. El widget la compara
 // con la suya y, si es mas antigua, se recarga. Tiene que coincidir con la
 // cabecera de public/widget.js: `npm run check:widget` lo comprueba.
-const WIDGET_VERSION = 'v6.10.2';
+const WIDGET_VERSION = 'v6.10.7';
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -50,7 +50,10 @@ serve(async (req) => {
     // Fetch business data and reviews in parallel
     const [businessRes, reviewsRes, reviewStatsRes] = await Promise.all([
       supabaseAdmin.from('businesses').select('id, name, slug, country, logo_url').eq('id', businessId).single(),
-      supabaseAdmin.from('reviews').select('title, review_text, rating, original_author_name, source, created_at').eq('business_id', businessId).eq('status', 'approved').lte('created_at', new Date().toISOString()).not('title', 'is', null).not('review_text', 'is', null).neq('title', '').neq('review_text', '').order('created_at', { ascending: false }).limit(20),
+      // Mismos filtros que antes, pero en una RPC que resuelve el nombre del
+      // autor: las resenas escritas en Opynio no tienen original_author_name y
+      // salian como "Anonimo" en la web del cliente.
+      supabaseAdmin.rpc('widget_business_reviews', { p_business_id: businessId, p_limit: 20 }),
       // Stats via RPC: counting rows client-side hit PostgREST's 1000-row cap,
       // so any business above that showed exactly 1000 (ISEIE: 1520 -> 1000).
       // The average had the same flaw, silently computed over a 1000-row sample.
@@ -100,7 +103,7 @@ serve(async (req) => {
     if (productId) {
       const { data: product, error: productError } = await supabaseAdmin
         .from('review_subjects')
-        .select('id, business_id, name, slug, description, image_url, is_active')
+        .select('id, business_id, name, description, image_url, is_active')
         .eq('id', productId)
         .maybeSingle();
 
@@ -138,7 +141,6 @@ serve(async (req) => {
       responseData.product = {
         id: product.id,
         name: product.name,
-        slug: product.slug,
         image_url: product.image_url,
         avg_rating: Number(pStats?.avg_rating ?? 0),
         review_count: Number(pStats?.review_count ?? 0),

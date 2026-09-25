@@ -1,4 +1,4 @@
-import { supabase } from './supabaseService';
+import { supabase, attachProfiles } from './supabaseService';
 
 // Optimized query for latest businesses with minimal data
 export const getLatestBusinessesOptimized = async (limit: number = 5, country?: string) => {
@@ -143,6 +143,10 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
       .lte('created_at', new Date().toISOString())
       .in('business_id', businessIds)
       .order('created_at', { ascending: false })
+      // Desempate: muchas resenas comparten created_at (importaciones en
+      // lote) y sin orden total el rango de cada pagina no es estable: una
+      // resena salia dos veces y otra nunca.
+      .order('id', { ascending: false })
       .limit(limit * 2); // Get extra to filter
 
     if (reviewError) {
@@ -162,8 +166,9 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
       businesses: businessMap.get(review.business_id) || null
     }));
 
-    // Return limited results
-    return enrichedReviews.slice(0, limit);
+    // Autor: sin `profiles` la tarjeta de la portada ponia «Anonimo» a las
+    // resenas de usuarios registrados que en la ficha salian con nombre.
+    return attachProfiles(enrichedReviews.slice(0, limit));
   } catch (error) {
     console.error('Error in getFeaturedReviewsOptimized:', error);
     throw error;
@@ -209,7 +214,11 @@ export const getReviewsOptimized = async (
     }
 
     // Apply source filter
-    if (source !== 'all') {
+    if (source === 'opynio') {
+      // Igual que el chip (review_source_counts): las resenas web antiguas se
+      // guardaron como 'manual' y algunas no tienen source.
+      query = query.or('source.is.null,source.in.(opynio,manual)');
+    } else if (source !== 'all') {
       query = query.eq('source', source);
     }
 
@@ -224,6 +233,10 @@ export const getReviewsOptimized = async (
 
     query = query
       .order('created_at', { ascending: false })
+      // Desempate: muchas resenas comparten created_at (importaciones en
+      // lote) y sin orden total el rango de cada pagina no es estable: una
+      // resena salia dos veces y otra nunca.
+      .order('id', { ascending: false })
       .range(offset, offset + limit - 1);
 
     const { data: reviews, error } = await query.returns<any[]>();
@@ -244,7 +257,7 @@ export const getReviewsOptimized = async (
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url')
+        .select('id, name, username, avatar_url')
         .in('id', userIds);
       
       if (profiles) {
@@ -338,7 +351,9 @@ export const searchReviewsOptimized = async (
         q = q.eq('review_subject_links.subject_id', productId);
       }
 
-      if (source !== 'all') {
+      if (source === 'opynio') {
+        q = q.or('source.is.null,source.in.(opynio,manual)');
+      } else if (source !== 'all') {
         q = q.eq('source', source);
       }
       if (ratingFilter === '5') {
@@ -349,7 +364,7 @@ export const searchReviewsOptimized = async (
         q = q.lte('rating', 3);
       }
 
-      return q.order('created_at', { ascending: false });
+      return q.order('created_at', { ascending: false }).order('id', { ascending: false });
     };
 
     const matchesTerm = (r: any) => removeAccents(
@@ -383,7 +398,7 @@ export const searchReviewsOptimized = async (
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url')
+        .select('id, name, username, avatar_url')
         .in('id', userIds);
       if (profiles) profileMap = new Map(profiles.map(p => [p.id, p]));
     }
