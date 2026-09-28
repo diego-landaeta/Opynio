@@ -569,8 +569,6 @@ const Header: React.FC = () => {
                                 </div>
                             </nav>
                             <div className="flex items-center gap-1.5 xl:gap-2">
-                                {/* Pais, idioma y tema solo desde el engranaje, y solo en la home. */}
-                                {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />}
                                 {loading ? <div className="w-8 h-8"><Spinner /></div> : user ? (
                                     <>
                                         <NotificationDropdown />
@@ -583,6 +581,8 @@ const Header: React.FC = () => {
                                         <Link to={`${countryPrefix}/${paths.forBusinesses}`} className="bg-brand-green text-white font-semibold px-3 xl:px-5 py-2 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs xl:text-sm">{t('header.forBusinesses')}</Link>
                                     </>
                                 )}
+                                {/* Pais, idioma y tema: engranaje a la derecha del todo, solo en la home. */}
+                                {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />}
                             </div>
                         </div>
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
