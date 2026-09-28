@@ -4,6 +4,7 @@ import { useI18n, useTranslation, localizedPathOrRoot } from '../contexts/i18nCo
 import { useCountryName } from '../utils/countryName';
 import { COUNTRIES } from '../constants';
 import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../hooks/usePreferenceActions';
+import SettingsDrawer from './SettingsDrawer';
 
 // Engranaje de la cabecera: tema, idioma y pais para cualquier visitante, con
 // o sin cuenta. Sustituye al boton de la luna y al boton flotante de idioma.
@@ -17,6 +18,8 @@ const SettingsMenu: React.FC<{ buttonClassName: string }> = ({ buttonClassName }
     const countryName = useCountryName();
     const { isLoggedIn, requestedLanguage, country, themePreference, changeLanguage, changeCountry, changeTheme } = usePreferenceActions();
     const [open, setOpen] = useState(false);
+    // «Todos los ajustes»: panel lateral con lo mismo y los accesos de la cuenta.
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const panelId = useId();
@@ -101,6 +104,14 @@ const SettingsMenu: React.FC<{ buttonClassName: string }> = ({ buttonClassName }
                         {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryName(c.code, c.name)}</option>)}
                     </select>
 
+                    <button
+                        type="button"
+                        onClick={() => { setOpen(false); setDrawerOpen(true); }}
+                        className="mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                    >
+                        <i className="fa-solid fa-sliders" aria-hidden="true"></i>
+                        {t('editProfile.settingsAll')}
+                    </button>
                     <p className="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800 text-xs text-gray-500 dark:text-gray-400">
                         {isLoggedIn ? (
                             <Link
@@ -114,6 +125,7 @@ const SettingsMenu: React.FC<{ buttonClassName: string }> = ({ buttonClassName }
                     </p>
                 </div>
             )}
+            {drawerOpen && <SettingsDrawer onClose={() => setDrawerOpen(false)} />}
         </div>
     );
 };

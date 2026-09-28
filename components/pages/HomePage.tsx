@@ -10,7 +10,7 @@ import ReviewCard from '../ReviewCard';
 import Meta from '../Meta';
 import { updates as allUpdates } from './WhatsNewPage';
 import { useTranslation, useI18n, pathTranslations, type Language, getLanguageForCountryCode, getLocaleFromLanguage } from '../../contexts/i18nContext';
-import { HOMEPAGE_CATEGORIES, HOMEPAGE_TO_CATEGORY_MAP, COUNTRIES, LANGUAGES } from '../../constants';
+import { HOMEPAGE_CATEGORIES, HOMEPAGE_TO_CATEGORY_MAP, COUNTRIES } from '../../constants';
 import { useCountry, useContentCountry } from '../../contexts/CountryContext';
 import ForeignCountryNotice from '../ForeignCountryNotice';
 import { generateBusinessPath } from '../../utils/linkUtils';
@@ -22,53 +22,6 @@ import { useCountryName } from '../../utils/countryName';
 
 
 // Fixed bottom banner that doesn't cause CLS (position: fixed doesn't affect layout)
-const LanguageSelectionBanner: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
-    const { setLanguage } = useI18n();
-    const t = useTranslation();
-
-    const handleSelectLanguage = (lang: Language) => {
-        setLanguage(lang);
-        onClose();
-    };
-
-    if (!isOpen) return null;
-
-    // Position fixed doesn't cause CLS because it's taken out of document flow
-    return (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shadow-lg safe-area-bottom">
-            <div className="container mx-auto px-4 py-3">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <i className="fa-solid fa-globe text-brand-green"></i>
-                        <span className="font-medium">{t('homepage.selectLanguageTitle')}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-                        {LANGUAGES.slice(0, 5).map(lang => (
-                            <button
-                                key={lang.code}
-                                onClick={() => handleSelectLanguage(lang.code as Language)}
-                                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 text-xs font-medium"
-                            >
-                                <img src={lang.flag} alt={lang.name} width={16} height={16} className="w-4 h-4 rounded-full object-cover" />
-                                <span className="text-gray-700 dark:text-gray-300">{lang.code.toUpperCase()}</span>
-                            </button>
-                        ))}
-                        <button
-                            onClick={onClose}
-                            className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors text-gray-500"
-                            aria-label="Cerrar"
-                        >
-                            <i className="fa-solid fa-times text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-// Helper function to safely parse the 'sedes' field which might be a JSON string or an array-like object.
 const getSedeList = (sedes: Sede[] | Json | null | undefined): Sede[] => {
     if (!sedes) return [];
     if (Array.isArray(sedes)) return sedes as unknown as Sede[];
@@ -356,7 +309,6 @@ const HomePage: React.FC = () => {
     // Track if data has been loaded to avoid refetch on HMR but allow initial fetch
     const [dataLoaded, setDataLoaded] = useState(false);
     const [showMore, setShowMore] = useState(false);
-    const [isLangModalOpen, setIsLangModalOpen] = useState(false);
 
     // Admin state for managing featured companies
     const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
@@ -367,14 +319,6 @@ const HomePage: React.FC = () => {
 
     const isAdmin = profile?.role === 'admin';
 
-    useEffect(() => {
-        // Show language prompt banner only on the "original" site (country is null)
-        // and only once per session. Using position:fixed so no CLS impact.
-        if (country === null && !sessionStorage.getItem('langPromptShown')) {
-            setIsLangModalOpen(true);
-            sessionStorage.setItem('langPromptShown', 'true');
-        }
-    }, [country]);
 
     // País de la home: el de la URL (/it) o, en la raíz, el de búsqueda del
     // usuario. Antes /it mostraba los datos del país guardado del usuario.
@@ -565,7 +509,6 @@ const HomePage: React.FC = () => {
                 title={metaTitle}
                 description={metaDescription}
             />
-            <LanguageSelectionBanner isOpen={isLangModalOpen} onClose={() => setIsLangModalOpen(false)} />
             <ForeignCountryNotice className="mb-6 -mt-2 sm:-mt-4" />
             <div className="space-y-10 sm:space-y-12 md:space-y-16 lg:space-y-20">
                 <section className="text-center py-8 sm:py-10 md:py-12 bg-gradient-to-b from-white to-gray-50 dark:from-zinc-900 dark:to-zinc-800 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">

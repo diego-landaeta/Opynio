@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useI18n, Language, getLanguageForCountryCode, isHomeRoute } from '../contexts/i18nContext';
-import { useCountry, hasSavedCountry } from '../contexts/CountryContext';
+import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY } from '../contexts/i18nContext';
+import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
+import { useCountryName } from '../utils/countryName';
+import { LANGUAGE_OPTIONS } from '../hooks/usePreferenceActions';
 import { LANGUAGES, COUNTRIES } from '../constants';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { useProfilePreferencesSync } from '../hooks/useProfilePreferencesSync';
@@ -211,7 +213,23 @@ const LanguagePopup: React.FC = () => {
     // ya cambiando a aleman.
     const { language, requestedLanguage, setLanguage } = useI18n();
     const { setCountry } = useCountry();
+    const switchCountry = useSwitchCountry();
+    const t = useTranslation();
+    const countryName = useCountryName();
     const location = useLocation();
+    // Bienvenida (primera visita): idioma y pais precargados con lo que dice el
+    // navegador (es-ES -> espanol y Espana); el usuario los confirma o cambia.
+    const [welcomeLang, setWelcomeLang] = useState<Language>(() => {
+        const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-')[0];
+        return isSupportedLanguage(nav) ? nav : 'es';
+    });
+    const [welcomeCountry, setWelcomeCountry] = useState<string>(() => {
+        const region = (typeof navigator !== 'undefined' ? navigator.language : '').split('-')[1]?.toUpperCase();
+        if (region && COUNTRIES.some(c => c.code === region)) return region;
+        const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-')[0];
+        const porIdioma = isSupportedLanguage(nav) ? LANGUAGE_DEFAULT_COUNTRY[nav]?.toUpperCase() : undefined;
+        return porIdioma && COUNTRIES.some(c => c.code === porIdioma) ? porIdioma : 'ES';
+    });
     // Preferencias guardadas en el perfil (Editar perfil): se aplican una vez
     // al iniciar sesion en este navegador. Va aqui porque este componente se
     // monta siempre y ya lleva la logica de preferencias de la primera visita.
@@ -332,9 +350,12 @@ const LanguagePopup: React.FC = () => {
         setDetectedCountryCode(null);
     }, [onHome]);
 
-    const handleLanguageSelect = (lang: Language) => {
-        setLanguage(lang);
-        localStorage.setItem(FIRST_VISIT_KEY, 'true');
+    // «Continuar» de la bienvenida: pais (navega a su home, como el selector) y
+    // despues el idioma elegido, que manda sobre el del pais.
+    const handleWelcomeContinue = () => {
+        try { localStorage.setItem(FIRST_VISIT_KEY, 'true'); } catch { /* sin almacenamiento */ }
+        switchCountry(welcomeCountry as CountryCode);
+        setLanguage(welcomeLang);
         closePopup();
     };
 
@@ -442,57 +463,56 @@ const LanguagePopup: React.FC = () => {
         );
     }
 
-    // First visit popup (original)
+    // Bienvenida (primera visita): lo esencial, idioma y pais, en un paso.
+    const SELECT = 'w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent';
     return (
         <div
             className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`}
             onClick={handleClose}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="welcome-title"
                 className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
                 <div className="flex-shrink-0 bg-gradient-to-r from-brand-green to-green-600 p-5 sm:p-6 text-center">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full mx-auto flex items-center justify-center mb-3 shadow-lg">
-                        <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl"></i>
+                        <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl" aria-hidden="true"></i>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                        {currentLangTexts.welcome}
-                    </h2>
-                    <p className="text-green-100 text-sm sm:text-base">
-                        {currentLangTexts.selectLanguage}
-                    </p>
+                    <h2 id="welcome-title" className="text-xl sm:text-2xl font-bold text-white mb-1">{t('common.welcomeTitle')}</h2>
+                    <p className="text-green-100 text-sm sm:text-base">{t('common.welcomeSubtitle')}</p>
                 </div>
 
-                {/* Language Grid */}
-                <div className="p-4 sm:p-6 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                        {LANGUAGES.map((lang) => (
-                            <button
-                                key={lang.code}
-                                onClick={() => handleLanguageSelect(lang.code as Language)}
-                                className="flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 border-gray-200 dark:border-zinc-600 hover:border-brand-green hover:bg-brand-green/5 dark:hover:bg-brand-green/10 transition-all duration-200 group"
-                            >
-                                <img
-                                    src={lang.flag}
-                                    alt={lang.name}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-zinc-700"
-                                    loading="lazy"
-                                />
-                                <span className="font-semibold text-gray-700 dark:text-gray-200 group-hover:text-brand-green transition-colors text-sm sm:text-base">
-                                    {lang.name}
-                                </span>
-                            </button>
-                        ))}
+                <form
+                    className="p-5 sm:p-6 space-y-4 overflow-y-auto"
+                    onSubmit={(e) => { e.preventDefault(); handleWelcomeContinue(); }}
+                >
+                    <div>
+                        <label htmlFor="welcome-lang" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{t('editProfile.languageLabel')}</label>
+                        <select id="welcome-lang" value={welcomeLang} onChange={(e) => setWelcomeLang(e.target.value as Language)} className={SELECT}>
+                            {LANGUAGE_OPTIONS.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
+                        </select>
                     </div>
-                </div>
+                    <div>
+                        <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{t('editProfile.countryLabel')}</label>
+                        <select id="welcome-country" value={welcomeCountry} onChange={(e) => setWelcomeCountry(e.target.value)} className={SELECT}>
+                            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryName(c.code, c.name)}</option>)}
+                        </select>
+                    </div>
+                    <button type="submit" className="w-full p-3.5 rounded-xl bg-brand-green text-white font-semibold hover:bg-brand-green/90 transition-colors">
+                        {t('common.welcomeContinue')}
+                    </button>
+                    <button type="button" onClick={handleClose} className="w-full p-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                        {t('common.welcomeSkip')}
+                    </button>
+                </form>
 
-                {/* Footer hint */}
-                <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 sm:py-4 border-t dark:border-zinc-700">
+                <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 border-t dark:border-zinc-700">
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center">
-                        <i className="fa-solid fa-info-circle mr-1.5"></i>
-                        {currentLangTexts.changeLanguageHint}
+                        <i className="fa-solid fa-gear mr-1.5" aria-hidden="true"></i>
+                        {t('common.welcomeHint')}
                     </p>
                 </div>
             </div>
