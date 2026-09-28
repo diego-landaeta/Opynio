@@ -2,8 +2,11 @@
 // Pixel snippet is loaded in index.html. This module wraps fbq() and forwards
 // a duplicate event to our `meta-capi` Edge Function so server-side CAPI can
 // dedupe via event_id.
+// Consentimiento: sin «aceptar» en el aviso de cookies (utils/consent.ts) no
+// se envia nada, ni por el pixel ni por la Conversions API.
 
 import { supabase } from '../services/supabaseService';
+import { hasMarketingConsent } from './consent';
 
 declare global {
   interface Window {
@@ -103,6 +106,7 @@ export async function trackMetaEvent(
   options: TrackOptions = {}
 ): Promise<string> {
   const eventId = options.eventId || uuid();
+  if (!hasMarketingConsent()) return eventId;
 
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     window.fbq('track', eventName, options.customData || {}, { eventID: eventId });
@@ -114,6 +118,7 @@ export async function trackMetaEvent(
 }
 
 export function trackPageView(): void {
+  if (!hasMarketingConsent()) return;
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     window.fbq('track', 'PageView');
   }

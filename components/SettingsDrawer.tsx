@@ -1,9 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useI18n, useTranslation, localizedPathOrRoot } from '../contexts/i18nContext';
 import CountrySelect from './CountrySelect';
 import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../hooks/usePreferenceActions';
+import { useAuth } from '../contexts/AuthContext';
+import { updateUserProfile } from '../services/supabaseService';
+import { setCookieConsent, useCookieConsent } from '../utils/consent';
 
 // Panel lateral de configuracion: lo abre directamente el engranaje de la home.
 // Tema, idioma, pais y los accesos de la cuenta. Sin URL propia: es un panel
@@ -12,11 +15,53 @@ const SELECT = 'w-full p-2.5 text-sm border border-gray-300 dark:border-zinc-600
 const SECTION = 'text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3';
 const LINK = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors';
 
+// Interruptor on/off (role="switch") con su texto y explicacion.
+const Switch: React.FC<{ id: string; label: string; hint: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }> = ({ id, label, hint, checked, disabled, onChange }) => (
+    <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+            <label htmlFor={id} className="block text-sm font-medium text-gray-800 dark:text-gray-100">{label}</label>
+            <p id={`${id}-hint`} className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{hint}</p>
+        </div>
+        <button
+            id={id}
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-describedby={`${id}-hint`}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 disabled:opacity-60 ${checked ? 'bg-brand-green' : 'bg-gray-300 dark:bg-zinc-600'}`}
+        >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+    </div>
+);
+
 const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const t = useTranslation();
     const { language } = useI18n();
     const { isLoggedIn, requestedLanguage, country, themePreference, changeLanguage, changeCountry, changeTheme } = usePreferenceActions();
     const panelRef = useRef<HTMLDivElement>(null);
+    const { user, profile, setProfile } = useAuth();
+    const consent = useCookieConsent();
+    const [guardando, setGuardando] = useState<string | null>(null);
+    const [errorCorreo, setErrorCorreo] = useState(false);
+
+    // Avisos por correo: se guardan en el perfil (send-notification-email los lee).
+    const cambiarCorreo = async (columna: 'notify_email_support' | 'notify_email_reviews', valor: boolean) => {
+        if (!user) return;
+        setGuardando(columna);
+        setErrorCorreo(false);
+        try {
+            const updated = await updateUserProfile(user.id, { [columna]: valor });
+            if (updated) setProfile(updated);
+        } catch (err) {
+            console.error('No se pudo guardar el aviso por correo:', err);
+            setErrorCorreo(true);
+        } finally {
+            setGuardando(null);
+        }
+    };
     const path = (key: Parameters<typeof localizedPathOrRoot>[0]) => localizedPathOrRoot(key, language, country);
 
     // Escape cierra; el foco entra en el panel y no se desplaza la pagina de detras.
@@ -90,6 +135,27 @@ const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('editProfile.countryHint')}</p>
                             </div>
                         </div>
+                    </section>
+
+                    {isLoggedIn && (
+                        <section>
+                            <h3 className={SECTION}>{t('editProfile.settingsEmail')}</h3>
+                            <div className="space-y-4">
+                                <Switch id="drawer-email-support" label={t('editProfile.emailSupport')} hint={t('editProfile.emailSupportHint')}
+                                    checked={profile?.notify_email_support !== false} disabled={guardando === 'notify_email_support'}
+                                    onChange={(v) => cambiarCorreo('notify_email_support', v)} />
+                                <Switch id="drawer-email-reviews" label={t('editProfile.emailReviews')} hint={t('editProfile.emailReviewsHint')}
+                                    checked={profile?.notify_email_reviews !== false} disabled={guardando === 'notify_email_reviews'}
+                                    onChange={(v) => cambiarCorreo('notify_email_reviews', v)} />
+                                {errorCorreo && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t('editProfile.emailSaveError')}</p>}
+                            </div>
+                        </section>
+                    )}
+
+                    <section>
+                        <h3 className={SECTION}>{t('editProfile.settingsPrivacy')}</h3>
+                        <Switch id="drawer-cookies" label={t('editProfile.cookiesMarketing')} hint={t('editProfile.cookiesMarketingHint')}
+                            checked={consent === 'granted'} onChange={(v) => setCookieConsent(v ? 'granted' : 'denied')} />
                     </section>
 
                     <section>

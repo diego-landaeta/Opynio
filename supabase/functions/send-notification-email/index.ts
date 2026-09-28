@@ -58,14 +58,19 @@ serve(async (req: Request) => {
     return json(400, { error: "Cuerpo no válido." });
   }
 
-  const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
-  if (!makeWebhookUrl) return json(500, { error: "Configuración incompleta: falta 'MAKE_WEBHOOK_URL'." });
-
   const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
   let to = "";
   let subject = "";
   let html = "";
+
+  // Preferencia del destinatario (panel de ajustes, migracion 3.34). Si la
+  // columna aun no existe o no se puede leer, se envia como hasta ahora.
+  const quiereCorreo = async (userId: string, columna: "notify_email_support" | "notify_email_reviews") => {
+    const { data, error } = await admin.from("profiles").select(columna).eq("id", userId).maybeSingle();
+    if (error || !data) return true;
+    return (data as Record<string, unknown>)[columna] !== false;
+  };
 
   if (body.kind === "support_reply" && body.ticketId != null) {
     const { data: ticket } = await admin
@@ -74,6 +79,7 @@ serve(async (req: Request) => {
       .eq("id", body.ticketId)
       .maybeSingle();
     if (!ticket) return json(404, { error: "Solicitud no encontrada." });
+    if (!(await quiereCorreo(ticket.user_id, "notify_email_support"))) return json(200, { skipped: true, reason: "opt-out" });
     const { data: u } = await admin.auth.admin.getUserById(ticket.user_id);
     to = u?.user?.email ?? "";
     subject = plain(`Respuesta de soporte: ${ticket.subject}`);
@@ -98,6 +104,7 @@ serve(async (req: Request) => {
       .eq("id", review.business_id)
       .maybeSingle();
     if (!business?.owner_id || business.owner_id === review.user_id) return json(200, { skipped: true });
+    if (!(await quiereCorreo(business.owner_id, "notify_email_reviews"))) return json(200, { skipped: true, reason: "opt-out" });
     const { data: u } = await admin.auth.admin.getUserById(business.owner_id);
     to = u?.user?.email ?? "";
     subject = plain(`Nueva reseña en ${business.name}`);
@@ -115,6 +122,11 @@ serve(async (req: Request) => {
   }
 
   if (!to) return json(200, { skipped: true, reason: "sin email" });
+
+  // Se comprueba aqui y no al principio: lo que no se va a enviar (opt-out,
+  // sin email) no depende de que Make este configurado.
+  const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
+  if (!makeWebhookUrl) return json(500, { error: "Configuración incompleta: falta 'MAKE_WEBHOOK_URL'." });
 
   const res = await fetch(makeWebhookUrl, {
     method: "POST",

@@ -114,6 +114,9 @@ export interface Profile {
   preferred_language?: string | null;
   preferred_country?: string | null;
   theme?: ThemePreference | null;
+  // Avisos por correo (migracion 20260929140000). Sin la migracion no llegan: se tratan como true.
+  notify_email_support?: boolean;
+  notify_email_reviews?: boolean;
 }
 
 export type ThemePreference = 'light' | 'dark' | 'system';

@@ -13,6 +13,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import Snackbar from './components/Snackbar';
 import BackBar from './components/BackBar';
 import WriteReviewFab from './components/WriteReviewFab';
+import CookieBanner from './components/CookieBanner';
 import RealtimeNotificationHandler from './components/RealtimeNotificationHandler';
 import Spinner from './components/Spinner';
 import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode, detectLanguageFromPath } from './contexts/i18nContext';
@@ -238,6 +239,7 @@ const MainLayout = () => {
                     </main>
                     <Footer />
                     <WriteReviewFab />
+                    <CookieBanner />
                 </div>
             </LanguagePathValidator>
         </>
