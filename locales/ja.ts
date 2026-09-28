@@ -69,6 +69,7 @@ export default {
     noNotifications: "通知はありません。",
     responseToYourReview: "あなたのレビューへの返信",
     supportReplyTitle: 'サポートからの返信',
+    newReviewTitle: 'あなたのビジネスに新しいレビュー',
     language: "言語",
     selectCountry: "国を選択",
     widgets: "ウィジェット",

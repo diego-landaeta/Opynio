@@ -258,7 +258,9 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
     // Respuesta de soporte: el mensaje es el asunto que escribio el propio
     // usuario (no se traduce) y el enlace va a «Mis solicitudes» del perfil.
     const isSupportReply = notification.type === 'support_reply';
-    const { text: translatedMessage } = useAutoTranslation(isSupportReply ? null : notification.message);
+    // Resena nueva en tu empresa: el mensaje es empresa · estrellas · titulo.
+    const isNewReview = notification.type === 'new_review';
+    const { text: translatedMessage } = useAutoTranslation(isSupportReply || isNewReview ? null : notification.message);
 
     // Use userCountry directly - don't infer from language
     const countryPrefix = userCountry ? `/${userCountry.toLowerCase()}` : '';
@@ -272,6 +274,8 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
     const empresa = n.data?.business_slug || n.data?.business_id || n.related_business_id || '';
     const targetUrl = isSupportReply
         ? `${countryPrefix}/${paths.profile}#soporte`
+        : isNewReview
+        ? `${countryPrefix}/${paths.myBusinesses}`
         : typeof n.link === 'string' && n.link.startsWith('/')
         ? n.link
         : empresa
@@ -286,10 +290,10 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
             className={`block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 ${!(notification.read ?? (notification as any).is_read) ? 'bg-green-50 dark:bg-green-500/10' : ''}`}
         >
             <p className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <i className={`fa-solid ${isSupportReply ? 'fa-headset' : 'fa-reply'} text-brand-green`} aria-hidden="true"></i>
-                {isSupportReply ? t('header.supportReplyTitle') : t('header.responseToYourReview')}
+                <i className={`fa-solid ${isSupportReply ? 'fa-headset' : isNewReview ? 'fa-star' : 'fa-reply'} text-brand-green`} aria-hidden="true"></i>
+                {isSupportReply ? t('header.supportReplyTitle') : isNewReview ? t('header.newReviewTitle') : t('header.responseToYourReview')}
             </p>
-            <p className="mt-1 text-gray-600 dark:text-gray-300">{isSupportReply ? notification.message : translatedMessage}</p>
+            <p className="mt-1 text-gray-600 dark:text-gray-300">{isSupportReply || isNewReview ? notification.message : translatedMessage}</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{new Date(notification.created_at).toLocaleString(localeForDate)}</p>
         </Link>
     );

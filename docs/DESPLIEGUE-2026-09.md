@@ -422,6 +422,7 @@ muestreo: `uniq_review_per_user_business`, las RPC de `20260824*`,
 | `get-checkout-status` | **No existe** | Nueva: `/pago-exitoso` confirma **esa** sesión de Checkout (del usuario, pagada y aplicada por el webhook) antes del Purchase | **Paso 0** (antes del front nuevo) |
 | `send-invitation-email` | v5 · true · 25/02 | Escapa HTML, máx. 50 destinatarios, cuota diaria, plan mínimo `starter`, `productId` (lee `review_subjects`) | Sí, **después de 3.2 y 3.17** (`20260924140000`: `reserve_invitation_quota` e `invitation_sends`, que hoy no existen). Sin 3.17, cada envío falla |
 | `send-support-email` | v27 · true | Escapa HTML; email del usuario autenticado | Sí |
+| `send-notification-email` | **No existe** | Nueva (29/09): correo al usuario cuando soporte le responde y al dueño cuando se publica una reseña. Solo admin (`requireAdmin`) + CORS. Envía por `MAKE_WEBHOOK_URL` con `formType: 'notification'` y destinatario `to` | Sí, **después de 3.33**. Requiere el paso 8.x de Make (abajo) |
 | `repair-stripe-orphans` | v6 · true | CORS restringido | Sí |
 | `admin-rescrape-google-reviews`, `approve-and-process-now`, `instant-full-scrape`, `process-scraping-queue`, `serpapi-proxy`, `start-scraping-search`, `trustindex-scraper` | true | `requireAdmin` + CORS restringido (`_shared/`) | Sí |
 | `multi-source-reviews` | **No existe con ese nombre**: en prod está `multi-source-review` (singular, v12) | `requireAdmin` + CORS | Decidir: desplegarla crea una función **nueva** y la vieja sigue viva sin la comprobación de admin. El front no llama a ninguna de las dos. |
@@ -690,6 +691,7 @@ La base `opynio_prodlike` se ha dejado creada. Borrarla:
 | 3.30 | `20260929100000_own_review_request_deletion.sql` | Decisión del 28/09: el autor ya **no edita ni borra** su reseña. Quita las políticas de UPDATE/DELETE del autor en `reviews` (incluida la «Users can delete their own reviews.» que ya existe en producción) y el DELETE propio en `review_media`; añade el tipo `review_deletion` a `support_tickets` (el perfil abre una solicitud «Solicitar eliminación» con motivo, que revisa el admin). Probada en local y en `opynio_prodlike_soporte`: solo queda «Admins can update reviews». **Después de la 3.29.** |
 | 3.31 | `20260929110000_bug_reports_screenshot.sql` | «Reportar error» con captura. **En producción `bug_reports` no tiene `title`, `url` ni `browser_info`** y el formulario no guardaba nada (0 reportes en prod): añade `title`, `page_url`, `browser_info` y `screenshot_path` si faltan, y el bucket **privado** `bug_screenshots` (5 MB, imágenes; sube el usuario a su carpeta, leen el autor y el admin). Probada en local y en `opynio_prodlike_soporte`. **Antes del front.** |
 | 3.32 | `20260929120000_contact_messages.sql` | Formulario de contacto propio en «Sobre nosotros» (#contacto), distinto de soporte: tabla `contact_messages` (contacto, trabaja con nosotros, prensa, colaboraciones). anon/authenticated solo insertan; el admin lee en `/admin/soporte`, pestaña «Contacto». Trigger: estado y autor los fija el servidor; máx. 5 mensajes por email y hora. **Antes del front.** |
+| 3.33 | `20260929130000_notify_owner_new_review.sql` | Aviso en la campana al dueño cuando se **publica** una reseña de su empresa (trigger en `reviews`, tipo `new_review`; cubre moderación y aprobación automática). Solo reseñas escritas en la web (`original_author_name IS NULL`): las importadas y la carga mensual **no** avisan. Columnas comunes de `notifications` (`user_id`, `type`, `message`). Probada en local y en `opynio_prodlike_soporte`. **Antes del front.** |
 | 6.1 | `20260924100000_review_subjects_code_privado.sql` | (después del front) `code` solo `postgres`/`service_role` |
 
 3.19 y 3.21 van **seguidas**, en un solo bloque **3.19 → 3.20 → 3.21 sin
@@ -1257,7 +1259,7 @@ npx supabase functions deploy monthly-rescrape-job  --project-ref $ref --no-veri
 # d) Invitaciones: SOLO con 3.2 y 3.17 (20260924140000) aplicadas; si no, cada envío falla
 npx supabase functions deploy send-invitation-email --project-ref $ref
 # e) El resto (verify_jwt = true). meta-capi deja de reenviar el Purchase del navegador (ver abajo)
-foreach ($f in 'meta-capi','send-support-email','repair-stripe-orphans','admin-rescrape-google-reviews',
+foreach ($f in 'meta-capi','send-support-email','send-notification-email','repair-stripe-orphans','admin-rescrape-google-reviews',
                'approve-and-process-now','instant-full-scrape','process-scraping-queue','serpapi-proxy',
                'start-scraping-search','trustindex-scraper') {
   npx supabase functions deploy $f --project-ref $ref
@@ -1714,6 +1716,12 @@ Nada que corregir:
 
 ## 8. Acciones manuales en el Dashboard de Supabase (y Resend)
 
+> **Make (29/09):** la función nueva `send-notification-email` manda al mismo
+> webhook que las invitaciones un JSON `{ formType: 'notification', to, subject, body }`.
+> En el escenario de Make, la ruta de `'notification'` debe hacer lo mismo que la
+> de `'invitation'` (enviar `body` en HTML a `to` con `subject`). Sin ese paso los
+> avisos siguen saliendo en la campana, pero no por correo.
+
 Independientes del resto del despliegue: el punto 1 y el 2 se pueden hacer ya
 (no dependen de migraciones ni del front).
 
@@ -1860,7 +1868,7 @@ ejecución. **Si algo no da lo esperado: parar** y mirar la sección indicada.
 - [ ] 3.6 → 3.16 (`20260923140000` … `20260924130000`)
 - [ ] 3.17 `20260924140000` (invitaciones) · 3.18 `20260924150000` (0 políticas permisivas)
 - [ ] 3.19 `20260924160000` → 3.20 `20260924180000` → 3.21 `20260924190000` **sin pausa**, empezando a hh:05
-- [ ] 3.22 `20260924200000` (sin efecto si 0-bis ya está) · 3.23 `20260924210000` (slug validado) · 3.23b `20260924230000` (destacadas) · 3.24 `20260924240000` · 3.25 `20260924250000` · 3.26 `20260924260000` (directorio; antes del front) · 3.27 `20260924270000` (distribución por producto; antes del front) · 3.28 `20260925100000` (preferencias del perfil; antes del front) · 3.29 `20260925110000` (solicitudes de soporte; antes del front; `notifications` en `supabase_realtime`) · 3.30 `20260929100000` (reseña propia sin editar ni borrar; antes del front) · 3.31 `20260929110000` (captura en reportar error; antes del front) · 3.32 `20260929120000` (formulario de contacto; antes del front)
+- [ ] 3.22 `20260924200000` (sin efecto si 0-bis ya está) · 3.23 `20260924210000` (slug validado) · 3.23b `20260924230000` (destacadas) · 3.24 `20260924240000` · 3.25 `20260924250000` · 3.26 `20260924260000` (directorio; antes del front) · 3.27 `20260924270000` (distribución por producto; antes del front) · 3.28 `20260925100000` (preferencias del perfil; antes del front) · 3.29 `20260925110000` (solicitudes de soporte; antes del front; `notifications` en `supabase_realtime`) · 3.30 `20260929100000` (reseña propia sin editar ni borrar; antes del front) · 3.31 `20260929110000` (captura en reportar error; antes del front) · 3.32 `20260929120000` (formulario de contacto; antes del front) · 3.33 `20260929130000` (aviso al dueño de reseña publicada; antes del front)
 
 **Funciones y widget (4)**
 

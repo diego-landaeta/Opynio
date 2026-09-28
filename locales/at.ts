@@ -69,6 +69,7 @@ export default {
     noNotifications: "Sie haben keine Benachrichtigungen.",
     responseToYourReview: "Antwort auf Ihre Bewertung",
     supportReplyTitle: 'Antwort vom Support',
+    newReviewTitle: 'Neue Bewertung für dein Unternehmen',
     language: "Sprache",
     selectCountry: "Land auswählen",
     widgets: "Widgets",

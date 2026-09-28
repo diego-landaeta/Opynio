@@ -72,6 +72,7 @@ export default {
     noNotifications: "No tienes notificaciones.",
     responseToYourReview: "Respuesta a tu reseña",
     supportReplyTitle: 'Respuesta de soporte',
+    newReviewTitle: 'Nueva reseña en tu empresa',
     language: "Idioma",
     selectCountry: "Seleccionar País",
     // Nuevos enlaces de menú

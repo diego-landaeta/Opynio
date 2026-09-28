@@ -70,6 +70,7 @@ export default {
     noNotifications: "هیچ اعلانی ندارید.",
     responseToYourReview: "پاسخ به نظر شما",
     supportReplyTitle: 'پاسخ پشتیبانی',
+    newReviewTitle: 'نظر جدید درباره کسب‌وکار شما',
     language: "زبان",
     selectCountry: "انتخاب کشور",
     widgets: "ویجت‌ها",

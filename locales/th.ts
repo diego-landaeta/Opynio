@@ -70,6 +70,7 @@ export default {
     noNotifications: "คุณไม่มีการแจ้งเตือน",
     responseToYourReview: "การตอบกลับรีวิวของคุณ",
     supportReplyTitle: 'คำตอบจากฝ่ายสนับสนุน',
+    newReviewTitle: 'รีวิวใหม่ของธุรกิจคุณ',
     language: "ภาษา",
     selectCountry: "เลือกประเทศ",
     widgets: "วิดเจ็ต",

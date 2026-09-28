@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAdminReviews, adminUpdateReviewStatus } from '../../../services/supabaseService';
+import { getAdminReviews, adminUpdateReviewStatus, sendNotificationEmail } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import type { Review } from '../../../types';
 import Meta from '../../Meta';
@@ -55,6 +55,8 @@ const AdminReviewModerationPage: React.FC = () => {
         setIsSubmitting(true);
         try {
             await adminUpdateReviewStatus(reviewId, newStatus, reason);
+            // Publicada: el dueno ya tiene el aviso en la web (trigger); este es el correo.
+            if (newStatus === 'approved') void sendNotificationEmail({ kind: 'review_published', reviewId });
             showNotification(t(newStatus === 'approved' ? 'adminReviewModeration.reviewApprovedNotice' : 'adminReviewModeration.reviewRejectedNotice'), 'success');
             // Optimistic update: remove from list instead of refetching
             setReviews(prev => prev.filter(r => r.id !== reviewId));

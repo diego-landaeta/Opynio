@@ -70,6 +70,7 @@ export default {
     noNotifications: "आपके पास कोई सूचना नहीं है।",
     responseToYourReview: "आपकी समीक्षा का जवाब",
     supportReplyTitle: 'सहायता टीम का जवाब',
+    newReviewTitle: 'आपके व्यवसाय की नई समीक्षा',
     language: "भाषा",
     selectCountry: "देश चुनें",
     widgets: "विजेट",

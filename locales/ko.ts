@@ -69,6 +69,7 @@ export default {
     noNotifications: "알림이 없습니다.",
     responseToYourReview: "당신의 리뷰에 대한 답변",
     supportReplyTitle: '지원팀 답변',
+    newReviewTitle: '내 업체에 새 리뷰',
     language: "언어",
     selectCountry: "국가 선택",
     widgets: "위젯",

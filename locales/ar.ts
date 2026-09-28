@@ -70,6 +70,7 @@ export default {
     noNotifications: "ليس لديك أي إشعارات.",
     responseToYourReview: "رد على تقييمك",
     supportReplyTitle: 'رد الدعم',
+    newReviewTitle: 'مراجعة جديدة لشركتك',
     language: "اللغة",
     selectCountry: "اختر البلد",
     widgets: "الودجات",

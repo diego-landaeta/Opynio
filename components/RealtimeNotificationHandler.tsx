@@ -33,6 +33,8 @@ const RealtimeNotificationHandler: React.FC = () => {
                  // mensaje es solo el asunto: se antepone que es de soporte.
                  const snack = newNotification.type === 'support_reply'
                      ? `${t('header.supportReplyTitle')}: ${newNotification.message}`
+                     : newNotification.type === 'new_review'
+                     ? `${t('header.newReviewTitle')}: ${newNotification.message}`
                      : newNotification.message;
                  showNotification(snack, 'info');
 

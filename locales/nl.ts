@@ -69,6 +69,7 @@ export default {
     noNotifications: "Je hebt geen meldingen.",
     responseToYourReview: "Reactie op je beoordeling",
     supportReplyTitle: 'Antwoord van support',
+    newReviewTitle: 'Nieuwe beoordeling van je bedrijf',
     language: "Taal",
     selectCountry: "Land kiezen",
     widgets: "Widgets",

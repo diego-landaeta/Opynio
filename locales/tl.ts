@@ -70,6 +70,7 @@ export default {
     noNotifications: "Wala kang mga abiso.",
     responseToYourReview: "Tugon sa iyong review",
     supportReplyTitle: 'Sagot mula sa suporta',
+    newReviewTitle: 'Bagong review ng iyong negosyo',
     language: "Wika",
     selectCountry: "Pumili ng Bansa",
     widgets: "Mga Widget",

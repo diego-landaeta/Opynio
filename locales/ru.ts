@@ -69,6 +69,7 @@ export default {
     noNotifications: "У вас нет уведомлений.",
     responseToYourReview: "Ответ на ваш отзыв",
     supportReplyTitle: 'Ответ поддержки',
+    newReviewTitle: 'Новый отзыв о вашей компании',
     language: "Язык",
     selectCountry: "Выбрать страну",
     widgets: "Виджеты",

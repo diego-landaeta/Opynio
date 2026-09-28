@@ -70,6 +70,7 @@ export default {
     noNotifications: "您沒有通知。",
     responseToYourReview: "對您評論的回覆",
     supportReplyTitle: '支援團隊回覆',
+    newReviewTitle: '你的商家有新評論',
     language: "語言",
     selectCountry: "選擇國家",
     widgets: "小工具",

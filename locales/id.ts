@@ -70,6 +70,7 @@ export default {
     noNotifications: "Anda tidak memiliki notifikasi.",
     responseToYourReview: "Tanggapan untuk ulasan Anda",
     supportReplyTitle: 'Balasan dari dukungan',
+    newReviewTitle: 'Ulasan baru untuk bisnis Anda',
     language: "Bahasa",
     selectCountry: "Pilih Negara",
     widgets: "Widget",

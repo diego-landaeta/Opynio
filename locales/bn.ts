@@ -70,6 +70,7 @@ export default {
     noNotifications: "আপনার কোনো বিজ্ঞপ্তি নেই।",
     responseToYourReview: "আপনার পর্যালোচনার জবাব",
     supportReplyTitle: 'সহায়তা দলের উত্তর',
+    newReviewTitle: 'আপনার প্রতিষ্ঠানের নতুন রিভিউ',
     language: "ভাষা",
     selectCountry: "দেশ নির্বাচন করুন",
     widgets: "উইজেট",

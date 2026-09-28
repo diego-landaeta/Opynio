@@ -69,6 +69,7 @@ export default {
     noNotifications: "Du har inga notiser.",
     responseToYourReview: "Svar på din recension",
     supportReplyTitle: 'Svar från supporten',
+    newReviewTitle: 'Nytt omdöme om ditt företag',
     language: "Språk",
     selectCountry: "Välj land",
     widgets: "Widgets",

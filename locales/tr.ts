@@ -70,6 +70,7 @@ export default {
     noNotifications: "Hiç bildiriminiz yok.",
     responseToYourReview: "Yorumunuza gelen yanıt",
     supportReplyTitle: 'Destek yanıtı',
+    newReviewTitle: 'İşletmen hakkında yeni yorum',
     language: "Dil",
     selectCountry: "Ülke Seçin",
     widgets: "Widget'lar",

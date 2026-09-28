@@ -70,6 +70,7 @@ export default {
     noNotifications: "You have no notifications.",
     responseToYourReview: "Response to your review",
     supportReplyTitle: 'Support reply',
+    newReviewTitle: 'New review of your business',
     language: "Language",
     selectCountry: "Select Country",
     widgets: "Widgets",

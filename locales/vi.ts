@@ -70,6 +70,7 @@ export default {
     noNotifications: "Bạn không có thông báo nào.",
     responseToYourReview: "Phản hồi đánh giá của bạn",
     supportReplyTitle: 'Phản hồi từ bộ phận hỗ trợ',
+    newReviewTitle: 'Đánh giá mới về doanh nghiệp của bạn',
     language: "Ngôn ngữ",
     selectCountry: "Chọn quốc gia",
     widgets: "Widgets",

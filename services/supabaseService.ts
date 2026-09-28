@@ -3478,6 +3478,18 @@ export const createBugReport = async (bugData: any) => {
   return data;
 };
 
+// Correo de aviso al usuario (Edge Function send-notification-email, solo
+// admin). Complementa el aviso de la campana; si el envio falla (p. ej. Make
+// sin configurar) no se interrumpe nada: la campana ya avisa.
+export const sendNotificationEmail = async (payload: { kind: 'support_reply'; ticketId: number } | { kind: 'review_published'; reviewId: string | number }) => {
+  try {
+    const { error } = await supabase.functions.invoke('send-notification-email', { body: payload });
+    if (error) console.warn('send-notification-email:', error.message);
+  } catch (err) {
+    console.warn('send-notification-email:', err);
+  }
+};
+
 // Formulario de contacto (no es soporte): cualquiera escribe, solo el admin lee
 // (migracion 20260929120000). Sin .select(): el visitante no puede leer la fila.
 export const CONTACT_KINDS = ['contact', 'careers', 'press', 'partnership'] as const;

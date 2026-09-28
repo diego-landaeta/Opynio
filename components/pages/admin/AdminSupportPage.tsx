@@ -12,6 +12,7 @@ import {
     adminSupportTicketCounts,
     getSupportTicketMessages,
     replyToSupportTicket,
+    sendNotificationEmail,
     setSupportTicketStatus,
     SUPPORT_TICKET_TYPES,
     SUPPORT_TICKET_STATUSES,
@@ -102,10 +103,12 @@ const AdminSupportPage: React.FC = () => {
         setBusy(true);
         try {
             await replyToSupportTicket(selected.id, user.id, reply);
+            // Ademas del aviso en la web (trigger), el correo al usuario.
+            void sendNotificationEmail({ kind: 'support_reply', ticketId: selected.id });
             // El trigger ya la deja en «waiting_user»; solo se cambia si se eligio otro.
             if (statusAfter !== 'waiting_user') await setSupportTicketStatus(selected.id, statusAfter);
             setReply('');
-            showNotification('Respuesta enviada. El usuario recibe el aviso en la web.', 'success');
+            showNotification('Respuesta enviada. El usuario recibe el aviso en la web y por correo.', 'success');
             await Promise.all([loadThread(selected.id), load()]);
         } catch (error: any) {
             showNotification(error?.message || 'No se pudo enviar la respuesta.', 'error');
