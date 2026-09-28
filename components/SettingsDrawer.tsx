@@ -2,8 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useI18n, useTranslation, localizedPathOrRoot } from '../contexts/i18nContext';
-import { useCountryName } from '../utils/countryName';
-import { COUNTRIES } from '../constants';
+import CountrySelect from './CountrySelect';
 import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../hooks/usePreferenceActions';
 
 // Panel lateral de configuracion: lo abre directamente el engranaje de la home.
@@ -16,7 +15,6 @@ const LINK = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
 const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const t = useTranslation();
     const { language } = useI18n();
-    const countryName = useCountryName();
     const { isLoggedIn, requestedLanguage, country, themePreference, changeLanguage, changeCountry, changeTheme } = usePreferenceActions();
     const panelRef = useRef<HTMLDivElement>(null);
     const path = (key: Parameters<typeof localizedPathOrRoot>[0]) => localizedPathOrRoot(key, language, country);
@@ -88,10 +86,7 @@ const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                             <div>
                                 <label htmlFor="drawer-country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editProfile.countryLabel')}</label>
-                                <select id="drawer-country" value={country || ''} onChange={(e) => changeCountry(e.target.value)} className={SELECT}>
-                                    {!country && <option value="" disabled>{t('editProfile.countryPlaceholder')}</option>}
-                                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryName(c.code, c.name)}</option>)}
-                                </select>
+                                <CountrySelect id="drawer-country" value={country || ''} onChange={changeCountry} placeholder={t('editProfile.countryPlaceholder')} className={SELECT} />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('editProfile.countryHint')}</p>
                             </div>
                         </div>

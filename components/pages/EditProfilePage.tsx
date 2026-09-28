@@ -4,7 +4,8 @@ import { updateUserProfile, uploadAvatar, deleteOwnAvatarByUrl, savePushSubscrip
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../Spinner';
-import { VAPID_PUBLIC_KEY, PUSH_NOTIFICATIONS_ENABLED, COUNTRIES } from '../../constants';
+import { VAPID_PUBLIC_KEY, PUSH_NOTIFICATIONS_ENABLED } from '../../constants';
+import CountrySelect from '../CountrySelect';
 import { urlBase64ToUint8Array } from '../../utils/urlBase64ToUint8Array';
 import { Json } from '../../types';
 import Meta from '../Meta';
@@ -491,18 +492,14 @@ const EditProfilePage: React.FC = () => {
                         </div>
                         <div>
                             <label htmlFor="pref-country" className={FIELD_LABEL}>{t('editProfile.countryLabel')}</label>
-                            <select
+                            <CountrySelect
                                 id="pref-country"
                                 value={country || ''}
-                                onChange={(e) => handleCountryChange(e.target.value)}
-                                aria-describedby="pref-country-hint"
+                                onChange={handleCountryChange}
+                                ariaDescribedBy="pref-country-hint"
+                                placeholder={t('editProfile.countryPlaceholder')}
                                 className={FIELD_SELECT}
-                            >
-                                {!country && <option value="" disabled>{t('editProfile.countryPlaceholder')}</option>}
-                                {COUNTRIES.map(c => (
-                                    <option key={c.code} value={c.code}>{c.name}</option>
-                                ))}
-                            </select>
+                            />
                         </div>
                     </div>
                     <p id="pref-country-hint" className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('editProfile.countryHint')}</p>

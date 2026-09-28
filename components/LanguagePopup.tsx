@@ -3,6 +3,7 @@ import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRou
 import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
 import { useCountryName } from '../utils/countryName';
 import { LANGUAGE_OPTIONS } from '../hooks/usePreferenceActions';
+import CountrySelect from './CountrySelect';
 import { LANGUAGES, COUNTRIES } from '../constants';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { useProfilePreferencesSync } from '../hooks/useProfilePreferencesSync';
@@ -500,9 +501,7 @@ const LanguagePopup: React.FC = () => {
                     </div>
                     <div>
                         <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{t('editProfile.countryLabel')}</label>
-                        <select id="welcome-country" value={welcomeCountry} onChange={(e) => setWelcomeCountry(e.target.value)} className={SELECT}>
-                            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryName(c.code, c.name)}</option>)}
-                        </select>
+                        <CountrySelect id="welcome-country" value={welcomeCountry} onChange={setWelcomeCountry} className={SELECT} />
                     </div>
                     <button type="submit" className="w-full p-3.5 rounded-xl bg-brand-green text-white font-semibold hover:bg-brand-green/90 transition-colors">
                         {t('common.welcomeContinue')}
