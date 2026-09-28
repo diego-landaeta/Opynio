@@ -3478,6 +3478,66 @@ export const createBugReport = async (bugData: any) => {
   return data;
 };
 
+// Formulario de contacto (no es soporte): cualquiera escribe, solo el admin lee
+// (migracion 20260929120000). Sin .select(): el visitante no puede leer la fila.
+export const CONTACT_KINDS = ['contact', 'careers', 'press', 'partnership'] as const;
+export type ContactKind = typeof CONTACT_KINDS[number];
+export interface ContactMessage {
+  id: number;
+  created_at: string;
+  kind: ContactKind;
+  name: string;
+  email: string;
+  message: string;
+  status: 'new' | 'read' | 'archived';
+}
+
+export const sendContactMessage = async (input: { kind: ContactKind; name: string; email: string; message: string }) => {
+  const { error } = await supabase.from('contact_messages').insert({
+    kind: input.kind,
+    name: input.name.trim(),
+    email: input.email.trim(),
+    message: input.message.trim(),
+  });
+  if (error) {
+    if (/contact_rate_limited/.test(error.message || '')) throw new Error('CONTACT_RATE_LIMITED');
+    throw error;
+  }
+};
+
+export const adminListContactMessages = async (status: 'new' | 'read' | 'archived' | 'all' = 'all'): Promise<ContactMessage[]> => {
+  let q = supabase.from('contact_messages').select('id, created_at, kind, name, email, message, status').order('created_at', { ascending: false }).limit(200);
+  if (status !== 'all') q = q.eq('status', status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as ContactMessage[];
+};
+
+export const adminSetContactMessageStatus = async (id: number, status: 'new' | 'read' | 'archived') => {
+  const { error } = await supabase.from('contact_messages').update({ status }).eq('id', id);
+  if (error) throw error;
+};
+
+// Captura adjunta a un reporte de error: bucket PRIVADO bug_screenshots, en la
+// carpeta del usuario (migracion 20260929110000). Devuelve la ruta; el admin
+// la ve con una URL firmada (getBugScreenshotUrl).
+export const BUG_SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
+export const BUG_SCREENSHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+export const uploadBugScreenshot = async (userId: string, file: File): Promise<string> => {
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from('bug_screenshots').upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return path;
+};
+
+export const getBugScreenshotUrl = async (path: string): Promise<string | null> => {
+  const { data, error } = await supabase.storage.from('bug_screenshots').createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+};
+
 export const createReviewAppeal = async (appealData: any) => {
   const { data, error} = await supabase
     .from('review_appeals')

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAdminBugReports, updateBugReport } from '../../../services/supabaseService';
+import { getAdminBugReports, updateBugReport, getBugScreenshotUrl } from '../../../services/supabaseService';
 import type { BugReport } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
@@ -10,6 +10,26 @@ import { useTranslation } from '../../../contexts/i18nContext';
 import AdminBackLink from './AdminBackLink';
 
 type ActiveTab = 'open' | 'in_progress' | 'resolved' | 'all';
+
+// Captura del reporte: el bucket bug_screenshots es privado, se muestra con
+// una URL firmada que caduca en una hora.
+const BugScreenshot: React.FC<{ path: string; label: string }> = ({ path, label }) => {
+    const [url, setUrl] = useState<string | null>(null);
+    useEffect(() => {
+        let vigente = true;
+        getBugScreenshotUrl(path).then(u => { if (vigente) setUrl(u); });
+        return () => { vigente = false; };
+    }, [path]);
+    if (!url) return null;
+    return (
+        <div>
+            <h4 className="font-semibold mb-1">{label}</h4>
+            <a href={url} target="_blank" rel="noopener noreferrer">
+                <img src={url} alt={label} className="max-h-64 rounded-lg border dark:border-zinc-600" />
+            </a>
+        </div>
+    );
+};
 
 const AdminBugsPage: React.FC = () => {
     const { showNotification } = useNotification();
@@ -214,6 +234,9 @@ const AdminBugsPage: React.FC = () => {
                                 <h4 className="font-semibold mb-1">{t('adminBugsPage.bugDescription')}</h4>
                                 <p className="whitespace-pre-wrap">{selectedBug.description}</p>
                             </div>
+                            {(selectedBug as any).screenshot_path && (
+                                <BugScreenshot path={(selectedBug as any).screenshot_path} label={t('adminBugsPage.screenshot')} />
+                            )}
                         </div>
                         <div>
                             <label htmlFor="adminNotes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminBugsPage.adminNotes')}</label>

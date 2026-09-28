@@ -83,10 +83,10 @@ const Footer: React.FC = () => {
           <div className="col-span-2 sm:col-span-2 lg:col-span-1">
             <h3 className="font-bold text-white mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.contact')}</h3>
             <p className="text-xs sm:text-sm">
-              {/* El contacto va siempre por Soporte (solicitud con respuesta en
-                  la web), no por correo. */}
-              <Link to={`${countryPrefix}/${paths.support}`} className="hover:text-white transition-colors">
-                <i className="fa-solid fa-headset mr-2" aria-hidden="true"></i>{t('footer.contactViaSupport')}
+              {/* Contacto = formulario de contacto de «Sobre nosotros» (no el de
+                  soporte al cliente, que sigue en «Recursos»). */}
+              <Link to={`${countryPrefix}/${paths.about}#contacto`} className="hover:text-white transition-colors">
+                <i className="fa-regular fa-envelope mr-2" aria-hidden="true"></i>{t('footer.writeToUs')}
               </Link>
             </p>
           </div>

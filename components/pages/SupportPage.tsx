@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Meta from '../Meta';
 import { useNotification } from '../../contexts/NotificationContext';
 import * as ReactRouterDOM from 'react-router-dom';
-import { getBusinessByName, getBusinessBySlug, hasPendingClaim, createClaim, createBugReport, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser, createSupportTicket, isSupportError, SUPPORT_TICKET_TYPES, USER_SELECTABLE_TICKET_TYPES, SUPPORT_SUBJECT_MAX, SUPPORT_BODY_MAX, type SupportTicketType } from '../../services/supabaseService';
+import { getBusinessByName, getBusinessBySlug, hasPendingClaim, createClaim, createBugReport, uploadBugScreenshot, BUG_SCREENSHOT_MAX_BYTES, BUG_SCREENSHOT_TYPES, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser, createSupportTicket, isSupportError, SUPPORT_TICKET_TYPES, USER_SELECTABLE_TICKET_TYPES, SUPPORT_SUBJECT_MAX, SUPPORT_BODY_MAX, type SupportTicketType } from '../../services/supabaseService';
 import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
@@ -65,6 +65,17 @@ const SupportPage: React.FC = () => {
         pageUrl: '',
         description: '',
     });
+    // Captura opcional del error (QA 28/09): ayuda a ver si es fallo del
+    // sistema o de uso.
+    const [bugScreenshot, setBugScreenshot] = useState<File | null>(null);
+    const [bugScreenshotError, setBugScreenshotError] = useState<string | null>(null);
+    const handleBugScreenshot = (file: File | null) => {
+        setBugScreenshotError(null);
+        if (!file) { setBugScreenshot(null); return; }
+        if (!BUG_SCREENSHOT_TYPES.includes(file.type)) { setBugScreenshotError(t('supportPage.bugScreenshotType')); return; }
+        if (file.size > BUG_SCREENSHOT_MAX_BYTES) { setBugScreenshotError(t('supportPage.bugScreenshotTooBig')); return; }
+        setBugScreenshot(file);
+    };
 
     const [claimFormData, setClaimFormData] = useState({
         username: '',
@@ -236,18 +247,28 @@ const SupportPage: React.FC = () => {
         }
         setIsSubmitting(true);
         try {
-            // bug_reports exige `title` (NOT NULL) y tiene su propia columna
-            // `url`; sin title el insert daba 400 y el reporte no se guardaba.
+            // Solo columnas que existen en local Y en produccion (migracion
+            // 20260929110000): antes se escribia `url`, que en produccion no
+            // existe, y el reporte no se guardaba. `title` es NOT NULL en local.
             const description = bugFormData.description.trim();
+            let screenshotPath: string | null = null;
+            if (bugScreenshot) {
+                try {
+                    screenshotPath = await uploadBugScreenshot(user.id, bugScreenshot);
+                } catch (uploadError) {
+                    console.error('No se pudo subir la captura:', uploadError);
+                    showNotification(t('supportPage.bugScreenshotUploadError'), 'error');
+                }
+            }
             const bugData = {
                 user_id: user.id,
                 title: description.split('\n')[0].slice(0, 120) || 'Reporte de error',
                 description,
-                url: bugFormData.pageUrl.trim() || null,
+                page_url: bugFormData.pageUrl.trim() || null,
                 browser_info: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+                screenshot_path: screenshotPath,
                 status: 'open',
             };
-            console.log('Creating bug report with data:', bugData);
             await createBugReport(bugData);
 
             // Try to send email notification, but don't fail if it doesn't work
@@ -265,6 +286,7 @@ const SupportPage: React.FC = () => {
 
             showNotification(t('supportPage.bugReportSentSuccess'), 'success');
             setBugFormData(prev => ({...prev, pageUrl: '', description: ''}));
+            setBugScreenshot(null);
         } catch (error) {
             await notifyError(error, { flow: 'support' });
         } finally {
@@ -581,6 +603,20 @@ const SupportPage: React.FC = () => {
                                 </div>
                                 <div><label htmlFor="pageUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('supportPage.errorPageURL')}</label><input id="pageUrl" type="url" value={bugFormData.pageUrl} onChange={handleBugFormChange} placeholder={t('common.placeholders.appUrl')} className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-200"/></div>
                                 <div><label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('supportPage.describeTheError')}</label><textarea id="description" value={bugFormData.description} onChange={handleBugFormChange} required rows={4} className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-200"></textarea></div>
+                                <div>
+                                    <label htmlFor="bugScreenshot" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('supportPage.bugScreenshotLabel')}</label>
+                                    {bugScreenshot ? (
+                                        <div className="flex items-center gap-3 p-2 rounded-md border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+                                            <img src={URL.createObjectURL(bugScreenshot)} alt="" className="w-16 h-12 object-cover rounded" />
+                                            <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{bugScreenshot.name}</span>
+                                            <button type="button" onClick={() => handleBugScreenshot(null)} className="text-sm font-semibold text-red-600 dark:text-red-400 hover:underline">{t('supportPage.bugScreenshotRemove')}</button>
+                                        </div>
+                                    ) : (
+                                        <input id="bugScreenshot" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => handleBugScreenshot(e.target.files?.[0] || null)} className="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-900/30 file:text-brand-green file:font-semibold" />
+                                    )}
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('supportPage.bugScreenshotHint')}</p>
+                                    {bugScreenshotError && <p className="text-sm text-red-600 dark:text-red-400 mt-1" role="alert">{bugScreenshotError}</p>}
+                                </div>
                                 <button type="submit" disabled={isSubmitting} className="w-full bg-brand-green text-white font-bold py-2.5 px-4 rounded-lg">{isSubmitting ? t('common.sending') : t('supportPage.sendReport')}</button>
                             </form>
                         )}

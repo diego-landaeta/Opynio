@@ -6,6 +6,7 @@ import { useTranslation, pathTranslations } from '../../../contexts/i18nContext'
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import AdminBackLink from './AdminBackLink';
+import AdminContactMessages from './AdminContactMessages';
 import {
     adminListSupportTickets,
     adminSupportTicketCounts,
@@ -29,6 +30,8 @@ type Filtro = 'active' | SupportTicketStatus | 'all';
 const PAGE = 25;
 
 const AdminSupportPage: React.FC = () => {
+    // Solicitudes de soporte (con conversacion) o mensajes del formulario de contacto.
+    const [seccion, setSeccion] = useState<'tickets' | 'contacto'>('tickets');
     const { user } = useAuth();
     const { showNotification } = useNotification();
     const t = useTranslation();
@@ -154,9 +157,29 @@ const AdminSupportPage: React.FC = () => {
                                 : 'No hay solicitudes abiertas esperando respuesta.'}
                         </p>
                     </div>
+                    <div className="inline-flex rounded-lg border dark:border-zinc-700 overflow-hidden" role="tablist" aria-label="Sección">
+                        {([['tickets', 'Solicitudes'], ['contacto', 'Contacto']] as const).map(([id, label]) => (
+                            <button
+                                key={id}
+                                type="button"
+                                role="tab"
+                                aria-selected={seccion === id}
+                                onClick={() => setSeccion(id)}
+                                className={`px-4 py-2 text-sm font-semibold ${seccion === id ? 'bg-brand-green text-white' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-800 p-3 sm:p-6 rounded-xl shadow-md border dark:border-zinc-700 space-y-4">
+                {seccion === 'contacto' && (
+                    <div className="bg-white dark:bg-zinc-800 p-3 sm:p-6 rounded-xl shadow-md border dark:border-zinc-700">
+                        <AdminContactMessages />
+                    </div>
+                )}
+
+                <div className={`bg-white dark:bg-zinc-800 p-3 sm:p-6 rounded-xl shadow-md border dark:border-zinc-700 space-y-4 ${seccion !== 'tickets' ? 'hidden' : ''}`}>
                     <div className="border-b dark:border-zinc-700 overflow-x-auto">
                         <nav className="-mb-px flex gap-2 sm:gap-5" aria-label="Filtrar por estado">
                             {FILTROS.map(f => (
