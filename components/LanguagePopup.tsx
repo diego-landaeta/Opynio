@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY } from '../contexts/i18nContext';
+import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY, toBcp47 } from '../contexts/i18nContext';
 import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
 import { useCountryName } from '../utils/countryName';
 import { LANGUAGE_OPTIONS } from '../hooks/usePreferenceActions';
@@ -220,7 +220,10 @@ const LanguagePopup: React.FC = () => {
     // Bienvenida (primera visita): idioma y pais precargados con lo que dice el
     // navegador (es-ES -> espanol y Espana); el usuario los confirma o cambia.
     const [welcomeLang, setWelcomeLang] = useState<Language>(() => {
-        const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-')[0];
+        const [nav, region] = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-');
+        // Variante regional del mismo idioma si la hay (pt-BR -> br, en-GB -> gb, zh-TW -> tw).
+        const porRegion = region ? getLanguageForCountryCode(region) : null;
+        if (porRegion && toBcp47(porRegion).split('-')[0] === nav) return porRegion;
         return isSupportedLanguage(nav) ? nav : 'es';
     });
     const [welcomeCountry, setWelcomeCountry] = useState<string>(() => {

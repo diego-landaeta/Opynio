@@ -229,7 +229,7 @@ const AdminBugsPage: React.FC = () => {
                     <div className="py-4 space-y-4 text-left">
                         <div className="text-sm space-y-3">
                             <p><strong>{t('adminBugsPage.user')}:</strong> {selectedBug.profiles?.name || t('adminBugsPage.userNotFound')}{selectedBug.profiles?.username && ` (@${selectedBug.profiles.username})`}</p>
-                            <p><strong>{t('adminBugsPage.errorPageURL')}:</strong> <a href={selectedBug.page_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{selectedBug.page_url || t('adminBugsPage.notProvided')}</a></p>
+                            <p><strong>{t('adminBugsPage.errorPageURL').replace(/[:：]\s*$/, '')}:</strong> <a href={selectedBug.page_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{selectedBug.page_url || t('adminBugsPage.notProvided')}</a></p>
                              <div className="p-3 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border dark:border-zinc-600">
                                 <h4 className="font-semibold mb-1">{t('adminBugsPage.bugDescription')}</h4>
                                 <p className="whitespace-pre-wrap">{selectedBug.description}</p>
