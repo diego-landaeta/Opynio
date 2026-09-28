@@ -1560,6 +1560,26 @@ Aplicar ahora, **después de subir el front** y **antes de cargar productos**.
 fija el orden, las consultas de antes/después y la vuelta atrás; se abre y se
 va ejecutando por bloques).
 
+> **Actualización 28/09 · asignación revisada (sustituye a `asignar-prod.sql`).**
+> Reexportadas las reseñas de hoy (3.800 en las 9 empresas): 663 se asignan solas, las
+> 55 de Google/scraping quedan fuera (regla del proyecto: no tienen producto, así que la
+> decisión 04.3 ya no hace falta) y 704 eran dudosas. Una revisión asistida con el texto
+> completo las dejó en 114 asignar (confianza alta) · 185 asignar (media) · 108 sin
+> producto · 297 para decidir. Todo va en `scripts/_catalogo/revision-asignaciones.xlsx`
+> (sugerencias en `sugerencias-dudosas.json`; copia en Descargas), pestaña Dudosas
+> ordenada por empresa y grupo con la decisión ya rellena. **Pasos:**
+> 1. El usuario revisa el Excel (verde = vistazo, amarillo = revisar, sin color = decidir).
+> 2. `node scripts/_catalogo/aplicar-revision.mjs` → `asignar-prod-revisado.sql`,
+>    `desasignar-prod-revisado.sql` e `informe-revision.txt`. Aceptando todas las
+>    sugerencias salen 962 reseñas con producto (antes 663).
+> 3. **El día del despliegue**, si entró una carga mensual después del 28/09: repetir
+>    `exportar-resenas-prod.cjs` → `asignar-resenas-prod.mjs` → `crear-revision.py`
+>    (conserva las sugerencias) → revisar solo las filas nuevas → `aplicar-revision.mjs`.
+> 4. En el orden de abajo, ejecutar **`asignar-prod-revisado.sql`** donde pone
+>    `asignar-prod.sql`, y para volver atrás **`desasignar-prod-revisado.sql`**.
+>    La cifra esperada de 04.2 es la que da `informe-revision.txt`, no 667.
+> Copia de los ficheros del 24/09 en `scripts/_catalogo/v2409/`.
+
 Orden: 3.2 aplicada → front subido → 6.1 → **04.0** (comprobaciones previas) →
 **`scripts/_catalogo/carga.sql`** → comprobación 04.1 →
 **`scripts/_catalogo/asignar-prod.sql`** → comprobación 04.2 → (opcional 04.3).
@@ -1891,7 +1911,7 @@ ejecución. **Si algo no da lo esperado: parar** y mirar la sección indicada.
 
 - [ ] 6.1 `20260924100000` (code_privado) · `code` solo `postgres`/`service_role`
 - [ ] 04.0 → `carga.sql` (psql) → 04.1: 4.143 · decidido 04.3 (15 de Google)
-- [ ] `asignar-prod.sql` → 04.2: 667/667 · huella de reseñas por empresa igual · (04.3)
+- [ ] `asignar-prod-revisado.sql` (tras revisar el Excel, ver la actualización del 28/09 en la sección 6) → 04.2: la cifra de `informe-revision.txt` · huella de reseñas por empresa igual
 
 **Datos (7) → `scripts/_datos-prod/`** — A (mirar) → B → C
 
