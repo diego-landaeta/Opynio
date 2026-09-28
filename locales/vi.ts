@@ -854,6 +854,7 @@ export default {
     verified: 'Đã xác minh',
     rating: 'Xếp hạng',
     ratingRange: 'Phạm vi xếp hạng',
+    resetRating: 'Đặt lại',
     anyRating: 'Bất kỳ xếp hạng nào (nhấn để xóa)',
     reviewLanguage: 'Ngôn ngữ đánh giá',
     automatic: 'Tự động',

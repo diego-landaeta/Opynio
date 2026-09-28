@@ -854,6 +854,7 @@ export default {
     verified: 'ยืนยันแล้ว',
     rating: 'คะแนน',
     ratingRange: 'ช่วงคะแนน',
+    resetRating: 'รีเซ็ต',
     anyRating: 'คะแนนใดก็ได้ (คลิกเพื่อลบ)',
     reviewLanguage: 'ภาษารีวิว',
     automatic: 'อัตโนมัติ',

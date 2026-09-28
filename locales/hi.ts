@@ -853,6 +853,7 @@ export default {
     verified: 'सत्यापित',
     rating: 'रेटिंग',
     ratingRange: 'रेटिंग रेंज',
+    resetRating: 'रीसेट करें',
     anyRating: 'कोई भी रेटिंग (हटाने के लिए क्लिक करें)',
     reviewLanguage: 'समीक्षा की भाषा',
     automatic: 'स्वचालित',

@@ -853,6 +853,7 @@ export default {
     verified: 'Geverifieerd',
     rating: 'Beoordeling',
     ratingRange: 'Beoordelingsbereik',
+    resetRating: 'Herstellen',
     anyRating: 'Elke beoordeling (klik om te verwijderen)',
     reviewLanguage: 'Taal van beoordeling',
     automatic: 'Automatisch',

@@ -855,6 +855,7 @@ export default {
     verified: '已驗證',
     rating: '評分',
     ratingRange: '評分範圍',
+    resetRating: '重設',
     anyRating: '任何評分（點擊移除）',
     reviewLanguage: '評論語言',
     automatic: '自動',

@@ -853,6 +853,7 @@ export default {
     verified: '已验证',
     rating: '评分',
     ratingRange: '评分范围',
+    resetRating: '重置',
     anyRating: '任何评分（点击删除）',
     reviewLanguage: '评论语言',
     automatic: '自动',

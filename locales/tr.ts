@@ -933,6 +933,7 @@ export default {
     verified: 'Doğrulanmış',
     rating: 'Puan',
     ratingRange: 'Puan Aralığı',
+    resetRating: 'Sıfırla',
     anyRating: 'Herhangi bir puan (kaldırmak için tıklayın)',
     reviewLanguage: 'Yorum dili',
     automatic: 'Otomatik',

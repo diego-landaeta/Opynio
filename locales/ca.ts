@@ -854,6 +854,7 @@ export default {
     verified: 'Verificat',
     rating: 'Valoració',
     ratingRange: 'Interval de Valoració',
+    resetRating: 'Restableix',
     anyRating: 'Qualsevol valoració (clic per treure)',
     reviewLanguage: 'Idioma de la ressenya',
     automatic: 'Automàtic',

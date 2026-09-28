@@ -855,6 +855,7 @@ export default {
     verified: 'موثق',
     rating: 'التقييم',
     ratingRange: 'نطاق التقييم',
+    resetRating: 'إعادة تعيين',
     anyRating: 'أي تقييم (انقر للإزالة)',
     reviewLanguage: 'لغة التقييم',
     automatic: 'تلقائي',

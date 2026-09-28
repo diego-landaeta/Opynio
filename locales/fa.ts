@@ -854,6 +854,7 @@ export default {
     verified: 'تایید شده',
     rating: 'امتیاز',
     ratingRange: 'محدوده امتیاز',
+    resetRating: 'بازنشانی',
     anyRating: 'هر امتیازی (برای حذف کلیک کنید)',
     reviewLanguage: 'زبان نظرات',
     automatic: 'خودکار',

@@ -854,6 +854,7 @@ export default {
     verified: 'Terverifikasi',
     rating: 'Penilaian',
     ratingRange: 'Rentang Penilaian',
+    resetRating: 'Atur ulang',
     anyRating: 'Semua penilaian (klik untuk menghapus)',
     reviewLanguage: 'Bahasa ulasan',
     automatic: 'Otomatis',

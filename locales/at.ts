@@ -854,6 +854,7 @@ export default {
     verified: 'Verifiziert',
     rating: 'Bewertung',
     ratingRange: 'Bewertungsbereich',
+    resetRating: 'Zurücksetzen',
     anyRating: 'Beliebige Bewertung (zum Entfernen klicken)',
     reviewLanguage: 'Sprache der Bewertung',
     automatic: 'Automatisch',

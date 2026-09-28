@@ -853,6 +853,7 @@ export default {
     verified: '인증됨',
     rating: '평점',
     ratingRange: '평점 범위',
+    resetRating: '초기화',
     anyRating: '모든 평점 (클릭하여 제거)',
     reviewLanguage: '리뷰 언어',
     automatic: '자동',

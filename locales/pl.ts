@@ -852,6 +852,7 @@ export default {
     verified: 'Zweryfikowany',
     rating: 'Ocena',
     ratingRange: 'Zakres ocen',
+    resetRating: 'Resetuj',
     anyRating: 'Dowolna ocena (kliknij, aby usunąć)',
     reviewLanguage: 'Język opinii',
     automatic: 'Automatyczny',

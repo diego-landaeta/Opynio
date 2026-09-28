@@ -852,6 +852,7 @@ export default {
     verified: 'Verifierad',
     rating: 'Betyg',
     ratingRange: 'Betygsintervall',
+    resetRating: 'Återställ',
     anyRating: 'Vilket betyg som helst (klicka för att ta bort)',
     reviewLanguage: 'Recensionsspråk',
     automatic: 'Automatiskt',

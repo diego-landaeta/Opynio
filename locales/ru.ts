@@ -853,6 +853,7 @@ export default {
     verified: 'Проверенный',
     rating: 'Оценка',
     ratingRange: 'Диапазон оценок',
+    resetRating: 'Сбросить',
     anyRating: 'Любая оценка (нажмите, чтобы убрать)',
     reviewLanguage: 'Язык отзыва',
     automatic: 'Автоматически',

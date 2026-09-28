@@ -854,6 +854,7 @@ export default {
     verified: 'Vérifié',
     rating: 'Évaluation',
     ratingRange: 'Plage d\'Évaluation',
+    resetRating: 'Réinitialiser',
     anyRating: 'N\'importe quelle évaluation (cliquez pour supprimer)',
     reviewLanguage: 'Langue de l\'avis',
     automatic: 'Automatique',

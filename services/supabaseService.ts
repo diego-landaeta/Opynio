@@ -875,6 +875,8 @@ export const resolveReviewDateRange = (
     case 'week':
       return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
     case '30d':
+      // «Últimos 30 días» son 30 días, no un mes natural (31 en agosto).
+      return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() };
     case 'month':
     case 'last_month':
       return { from: monthsAgo(1) };
@@ -904,6 +906,9 @@ export const getBusinessesWithReviewsPaginated = async (
     businessIds?: string[]; // For location-based filtering
     // Review filters
     minRating?: number;
+    // Explorar manda el rango del deslizador; antes solo se leia minRating y
+    // el filtro de valoracion del mapa no hacia nada.
+    rating?: { min?: number; max?: number };
     dateFilter?: { type: string; startDate?: string; endDate?: string };
     verifiedFilter?: 'all' | 'verified' | 'unverified';
     formatFilter?: string[]; // 'text', 'images', 'audio', 'with_response'
@@ -1008,9 +1013,9 @@ export const getBusinessesWithReviewsPaginated = async (
     const businessIds = paginatedBusinesses.map(b => b.id);
 
     const applyReviewFilters = (q: any) => {
-      if (filters.minRating && filters.minRating > 0) {
-        q = q.gte('rating', filters.minRating);
-      }
+      const minimo = filters.rating?.min ?? filters.minRating;
+      if (minimo && minimo > 1) q = q.gte('rating', minimo);
+      if (filters.rating?.max && filters.rating.max < 5) q = q.lte('rating', filters.rating.max);
 
       const { from: dateFrom, to: dateTo } = resolveReviewDateRange(filters.dateFilter);
       if (dateFrom) q = q.gte('created_at', dateFrom);
@@ -1018,6 +1023,8 @@ export const getBusinessesWithReviewsPaginated = async (
 
       if (filters.sortOrder === 'oldest') {
         q = q.order('created_at', { ascending: true });
+      } else if (filters.sortOrder === 'most_helpful') {
+        q = q.order('helpful_votes', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
       } else if (filters.sortOrder === 'highest') {
         q = q.order('rating', { ascending: false });
       } else if (filters.sortOrder === 'lowest') {
@@ -1754,7 +1761,7 @@ const getOneReviewPerBusiness = async (
   },
   page: number,
   pageSize: number
-): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean }> => {
+): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean; businessCount?: number }> => {
   try {
     // Step 1: Get businesses with filters (limit to avoid too many queries)
     let businessQuery = supabase
@@ -1926,7 +1933,7 @@ const getVariedReviews = async (
   },
   page: number,
   pageSize: number
-): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean }> => {
+): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean; businessCount?: number }> => {
   try {
     // Helper function for accent-insensitive search
     const removeAccents = (text: string): string => {
@@ -1955,9 +1962,30 @@ const getVariedReviews = async (
       businessQuery = businessQuery.neq('country', filters.excludeCountry);
     }
 
-    // Only apply limit when no category filter (general browse)
+    // Vista general: antes se cogian 100 empresas cualesquiera del pais (en
+    // España 615 fichas, solo ~60 con reseñas), asi que el feed salia casi
+    // vacio. Ahora, las empresas del pais que tienen reseñas aprobadas.
     if (!filters.category && !filters.searchTerm) {
-      businessQuery = businessQuery.limit(100);
+      const { data: conResenas, error: dirError } = await supabase.rpc('directory_businesses', {
+        p_countries: filters.country ? [filters.country] : null,
+        p_limit: 1000,
+        p_offset: 0,
+      });
+      if (dirError) {
+        console.error('Error fetching businesses with reviews:', dirError);
+        throw dirError;
+      }
+      // directory_businesses con p_countries mira solo la columna country: se
+      // suman las de otro pais con sede aqui (el filtro de pais ya va arriba).
+      const conSede = filters.country ? await idsConSedeEnPais(filters.country) : [];
+      const ids = [...new Set([
+        ...(conResenas || []).filter((b: any) => Number(b.review_count) > 0).map((b: any) => b.id as string),
+        ...conSede,
+      ])];
+      if (ids.length === 0) {
+        return { reviews: [], totalCount: 0, hasMore: false, businessCount: 0 };
+      }
+      businessQuery = businessQuery.in('id', ids);
     }
 
     // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
@@ -2162,6 +2190,13 @@ const getVariedReviews = async (
       }
     }
 
+    // Orden pedido sobre la lista ya limitada (maximo 3 por empresa): antes se
+    // dejaba intercalada por empresa y «Más recientes» no salia por fecha. El
+    // tope por empresa ya evita que una sola (ISEIE) llene la pagina.
+    const valor = (r: any) => sortField === 'helpful_votes' ? (r.helpful_votes ?? 0) : new Date(r.created_at).getTime();
+    interleavedReviews.sort((a, b) => (ascending ? valor(a) - valor(b) : valor(b) - valor(a))
+      || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
     // Step 6: NOW PAGINATE from the interleaved list
     const startIndex = (page - 1) * pageSize;
     const paginatedReviews = interleavedReviews.slice(startIndex, startIndex + pageSize);
@@ -2239,125 +2274,83 @@ const getPublicReviewsSinAutor = async (
       return await getVariedReviews(filters, page, pageSize);
     }
 
-    // If searchTerm, category, or country filter is provided, first get matching business IDs
+    // Filtros de empresa (pais, categoria) en la MISMA consulta de reseñas, con
+    // un join a businesses. Antes se sacaba primero la lista de empresas (que
+    // PostgREST corta en 1000 filas) y a la consulta solo pasaban las 100
+    // primeras: en un pais con cientos de fichas sin reseñas casi todo quedaba
+    // fuera y los filtros de Explorar parecian no hacer nada.
+    const porEmpresa = !filters.businessId && !!(filters.category || filters.country || filters.excludeCountry);
     let filteredBusinessIds: string[] | undefined = filters.businessIds;
 
-    if (filters.searchTerm || filters.category || filters.country) {
-      // Helper function to remove accents
-      const removeAccents = (text: string): string => {
-        return text
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toLowerCase();
-      };
-
-      // Need to fetch full business data to check sedes JSONB array
-      let businessQuery = supabase
-        .from('businesses')
-        .select('id, name, category, country, sedes, description');
-
-      if (filters.category) {
-        // Categories in DB are stored as "Parent Category: Subcategory"
-        // So we filter by categories that START WITH the parent category name
-        businessQuery = businessQuery.ilike('category', `${filters.category}%`);
+    // Busqueda por nombre: la hace el servidor (sin acentos, sin tope de 1000).
+    if (filters.searchTerm && !filters.businessId) {
+      const { data: encontradas, error: searchError } = await supabase.rpc('directory_businesses', {
+        p_search: filters.searchTerm,
+        p_category: filters.category || null,
+        p_limit: 300,
+        p_offset: 0,
+      });
+      if (searchError) {
+        console.error('Error searching businesses:', searchError);
+        throw searchError;
       }
-
-      const { data: matchingBusinesses, error: businessSearchError } = await businessQuery;
-
-      // Filtrar por searchTerm en el cliente para búsqueda sin acentos
-      let filteredBySearch = matchingBusinesses;
-      if (filters.searchTerm && matchingBusinesses) {
-        const normalizedSearch = removeAccents(filters.searchTerm);
-        filteredBySearch = matchingBusinesses.filter(business => {
-          const normalizedName = removeAccents(business.name || '');
-          const normalizedCategory = removeAccents(business.category || '');
-          const normalizedDescription = removeAccents(business.description || '');
-          return normalizedName.includes(normalizedSearch) ||
-                 normalizedCategory.includes(normalizedSearch) ||
-                 normalizedDescription.includes(normalizedSearch);
-        });
+      // Como antes, el termino tambien vale por categoria («formacion» ->
+      // «Educación y Formación»). En el patron cada letra que puede llevar
+      // tilde es un comodin; se confirma luego sin acentos.
+      const plano = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      const termino = plano(filters.searchTerm.trim());
+      const patron = `%${termino.replace(/[%_\\]/g, '').replace(/[aeiounc]/g, '_')}%`;
+      const porCategoria: string[] = [];
+      for (let desde = 0; desde < 3000; desde += 1000) {
+        const { data: cats, error: catError } = await supabase
+          .from('businesses').select('id, category').ilike('category', patron).range(desde, desde + 999);
+        if (catError) { console.error('Error searching categories:', catError); break; }
+        porCategoria.push(...(cats || []).filter((b: any) => plano(b.category || '').includes(termino)).map((b: any) => b.id as string));
+        if (!cats || cats.length < 1000) break;
       }
-
-      // Usar los resultados filtrados
-      const finalMatchingBusinesses = filteredBySearch;
-
-      if (businessSearchError) {
-        console.error('Error searching businesses:', businessSearchError);
-        throw businessSearchError;
-      }
-
-      if (!finalMatchingBusinesses || finalMatchingBusinesses.length === 0) {
-        // No businesses match the search - return empty array
-        return [];
-      }
-
-      // Filter by country/sede if specified (unless skipCountryFilter is true)
-      let countryFilteredBusinesses = finalMatchingBusinesses;
-      if (filters.country && !filters.skipCountryFilter) {
-        const countryMatches = finalMatchingBusinesses.filter(business => {
-          // Check if main country matches
-          if (business.country === filters.country) {
-            return true;
-          }
-          // Check if any sede has this country_code
-          const sedes = business.sedes as any[] || [];
-          return sedes.some(sede => sede.country_code === filters.country);
-        });
-
-        // If there are country matches, use them. Otherwise, fall back to all matches
-        if (countryMatches.length > 0) {
-          countryFilteredBusinesses = countryMatches;
-        }
-      } else if (filters.skipCountryFilter && filters.country) {
-        // When loading from other countries, EXCLUDE the country businesses
-        countryFilteredBusinesses = finalMatchingBusinesses.filter(business => {
-          const sedes = business.sedes as any[] || [];
-          const isInCountry = business.country === filters.country ||
-                              sedes.some(sede => sede.country_code === filters.country);
-          return !isInCountry; // Exclude businesses from the selected country
-        });
-      }
-
-      // Exclude already loaded businesses if specified
-      if (filters.excludeBusinessIds && filters.excludeBusinessIds.length > 0) {
-        countryFilteredBusinesses = countryFilteredBusinesses.filter(
-          b => !filters.excludeBusinessIds!.includes(b.id)
-        );
-      }
-
-      const searchBusinessIds = countryFilteredBusinesses.map(b => b.id);
-
-      // Combine with existing businessIds filter if present
-      if (filteredBusinessIds && filteredBusinessIds.length > 0) {
-        filteredBusinessIds = filteredBusinessIds.filter(id => searchBusinessIds.includes(id));
-      } else {
-        filteredBusinessIds = searchBusinessIds;
-      }
-
-      // If after filtering we have no matching IDs, return empty
+      const ids = [...new Set([...(encontradas || []).map((b: any) => b.id as string), ...porCategoria])];
+      filteredBusinessIds = filteredBusinessIds?.length ? filteredBusinessIds.filter(id => ids.includes(id)) : ids;
       if (filteredBusinessIds.length === 0) {
-        return [];
+        return { reviews: [], totalCount: 0, hasMore: false };
       }
     }
 
-    // Now query reviews with all filters. count: 'exact' para que Explorar con
-    // una empresa elegida y /buscar den el total real (antes "10 de 10").
+    // count: 'exact' para que Explorar y /buscar den el total real.
     let query = supabase
       .from('reviews')
-      .select('*', { count: 'exact' })
+      // (el tipo se fija a '*': el join solo filtra, sus columnas no se usan)
+      .select((porEmpresa ? '*, businesses!inner(id)' : '*') as '*', { count: 'exact' })
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString());
 
-    // Business ID filter (single) - most common filter
     if (filters.businessId) {
       query = query.eq('business_id', filters.businessId);
+    } else if (filteredBusinessIds && filteredBusinessIds.length > 0) {
+      query = query.in('business_id', filteredBusinessIds.slice(0, 300));
     }
-    // Business IDs filter (multiple) - including filtered IDs from search
-    else if (filteredBusinessIds && filteredBusinessIds.length > 0) {
-      // Supabase has a limit on IN clause size - split into chunks if needed
-      // For large lists, we'll limit to first 100 to avoid Bad Request errors
-      const limitedIds = filteredBusinessIds.slice(0, 100);
-      query = query.in('business_id', limitedIds);
+
+    if (porEmpresa) {
+      if (filters.category) {
+        // En la BD la categoria es «Padre: Subcategoria»: se filtra por el prefijo.
+        query = query.ilike('businesses.category', `${filters.category}%`);
+      }
+      const excluir = filters.excludeCountry || (filters.skipCountryFilter ? filters.country : undefined);
+      if (filters.country && !filters.skipCountryFilter) {
+        // Del pais: por la columna country o por una sede alli.
+        const conSede = await idsConSedeEnPais(filters.country);
+        query = conSede.length
+          ? query.or(`country.eq.${filters.country},id.in.(${conSede.join(',')})`, { referencedTable: 'businesses' })
+          : query.eq('businesses.country', filters.country);
+      }
+      if (excluir) {
+        query = query.neq('businesses.country', excluir);
+        const conSede = await idsConSedeEnPais(excluir);
+        if (conSede.length) query = query.not('business_id', 'in', `(${conSede.join(',')})`);
+      }
+    }
+
+    if (filters.excludeBusinessIds && filters.excludeBusinessIds.length > 0) {
+      query = query.not('business_id', 'in', `(${filters.excludeBusinessIds.join(',')})`);
     }
 
     // Rating filter
@@ -2417,7 +2410,7 @@ const getPublicReviewsSinAutor = async (
     }
 
     // Get unique business IDs from reviews
-    const businessIds = [...new Set(reviews.map(r => r.business_id))];
+    const businessIds = [...new Set(reviews.map((r: any) => r.business_id as string))];
     console.log('Fetching business data for IDs:', businessIds);
 
     // Fetch business data separately

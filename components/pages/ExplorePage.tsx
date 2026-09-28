@@ -1046,6 +1046,10 @@ const ExplorePage: React.FC = () => {
 
         try {
             const isSpecificBusiness = !!selectedBusinessFilter;
+            // Siempre la consulta real (filtrada, ordenada y paginada en el
+            // servidor, con el total de verdad). El feed variado de antes (3
+            // reseñas por empresa, intercaladas, de 100 empresas cualesquiera)
+            // hacia que ordenar o filtrar apenas cambiara la lista.
 
             const result = await getPublicReviews({
                 searchTerm: isSpecificBusiness ? undefined : (searchTerm.trim() || undefined),
@@ -1059,7 +1063,6 @@ const ExplorePage: React.FC = () => {
                 dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
                 verifiedFilter: verifiedFilter !== 'all' ? verifiedFilter : undefined,
                 formatFilters: formatFilter.length > 0 ? formatFilter : undefined,
-                variedFeed: !isSpecificBusiness, // Use varied feed for general explore (interleaved reviews from multiple businesses)
             }, currentPage, PAGE_SIZE);
 
             // Check if this request was aborted before updating state
@@ -1109,7 +1112,6 @@ const ExplorePage: React.FC = () => {
                     dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
                     verifiedFilter: verifiedFilter !== 'all' ? verifiedFilter : undefined,
                     formatFilters: formatFilter.length > 0 ? formatFilter : undefined,
-                    variedFeed: !isSpecificBusiness, // Use varied feed for general explore
                 }, nextPage, PAGE_SIZE).then(prefetchResult => {
                     const isPrefetchObject = prefetchResult && typeof prefetchResult === 'object' && 'reviews' in prefetchResult;
                     const prefetchedData = isPrefetchObject ? prefetchResult.reviews : (prefetchResult as any[]);
@@ -1157,7 +1159,6 @@ const ExplorePage: React.FC = () => {
                 rating: ratingFilter ? { min: ratingFilter.min, max: ratingFilter.max } : undefined,
                 sortBy: sortOrder,
                 dateFilter: dateFilter.type !== 'all' ? dateFilter : undefined,
-                variedFeed: true,
             }, nextPage, PAGE_SIZE);
             if (requestId !== otherCountriesRequestRef.current) return;
             const list: Review[] = result && typeof result === 'object' && 'reviews' in result ? result.reviews : (result || []);
@@ -1912,7 +1913,7 @@ const ExplorePage: React.FC = () => {
                                 onClick={() => setRatingFilter(null)}
                                 className="mt-2 text-xs text-red-500 hover:text-red-600 hover:underline font-semibold flex items-center gap-1"
                             >
-                                <i className="fa-solid fa-rotate-left text-[10px]"></i> Restablecer
+                                <i className="fa-solid fa-rotate-left text-[10px]"></i> {t('explorePage.resetRating')}
                             </button>
                         )}
                     </div>

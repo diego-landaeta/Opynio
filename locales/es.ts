@@ -939,6 +939,7 @@ export default {
     filterChangeWarningMessage: 'Al cambiar este filtro se deseleccionará la empresa actual:',
     changeFilter: 'Cambiar filtro',
     ratingRange: 'Valoración',
+    resetRating: 'Restablecer',
     pageLabel: 'Página',
     moreAvailable: 'Más disponibles',
     allMatchingShown: 'Todas las coincidencias mostradas',

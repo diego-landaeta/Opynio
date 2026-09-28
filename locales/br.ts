@@ -855,6 +855,7 @@ export default {
     verified: 'Verificado',
     rating: 'Avaliação',
     ratingRange: 'Faixa de Avaliação',
+    resetRating: 'Redefinir',
     anyRating: 'Qualquer avaliação (clique para remover)',
     reviewLanguage: 'Idioma da avaliação',
     automatic: 'Automático',

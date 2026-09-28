@@ -852,6 +852,7 @@ export default {
     verified: '認証済み',
     rating: '評価',
     ratingRange: '評価範囲',
+    resetRating: 'リセット',
     anyRating: 'すべての評価 (クリックで解除)',
     reviewLanguage: 'レビューの言語',
     automatic: '自動',

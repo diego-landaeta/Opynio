@@ -854,6 +854,7 @@ export default {
     verified: 'Verificato',
     rating: 'Valutazione',
     ratingRange: 'Intervallo di Valutazione',
+    resetRating: 'Reimposta',
     anyRating: 'Qualsiasi valutazione (clicca per rimuovere)',
     reviewLanguage: 'Lingua della recensione',
     automatic: 'Automatico',

@@ -853,6 +853,7 @@ export default {
     verified: 'Na-verify',
     rating: 'Rating',
     ratingRange: 'Rating Range',
+    resetRating: 'I-reset',
     anyRating: 'Anumang rating (i-click upang alisin)',
     reviewLanguage: 'Wika ng review',
     automatic: 'Awtomatiko',

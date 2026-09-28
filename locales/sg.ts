@@ -853,6 +853,7 @@ export default {
     verified: 'Verified',
     rating: 'Rating',
     ratingRange: 'Rating Range',
+    resetRating: 'Reset',
     anyRating: 'Any rating (click to remove)',
     reviewLanguage: 'Review language',
     automatic: 'Automatic',
