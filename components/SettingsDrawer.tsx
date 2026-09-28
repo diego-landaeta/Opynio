@@ -6,9 +6,9 @@ import { useCountryName } from '../utils/countryName';
 import { COUNTRIES } from '../constants';
 import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../hooks/usePreferenceActions';
 
-// Panel lateral de configuracion («Todos los ajustes» desde el engranaje de la
-// home). Lo mismo que la configuracion rapida mas los accesos de la cuenta.
-// Sin URL propia: es un panel encima de la pagina.
+// Panel lateral de configuracion: lo abre directamente el engranaje de la home.
+// Tema, idioma, pais y los accesos de la cuenta. Sin URL propia: es un panel
+// encima de la pagina.
 const SELECT = 'w-full p-2.5 text-sm border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent';
 const SECTION = 'text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3';
 const LINK = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors';
