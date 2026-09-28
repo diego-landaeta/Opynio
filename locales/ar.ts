@@ -50,6 +50,7 @@ export default {
     faq: "faq",
     about: "3anna",
     caseStudies: "qissas-najah",
+    privacy: "al-khususiya",
   },
   header: {
     home: "الرئيسية",

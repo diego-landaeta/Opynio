@@ -50,6 +50,7 @@ export default {
     faq: "soalan-lazim",
     about: "tentang-kami",
     caseStudies: "kajian-kes",
+    privacy: "privasi",
   },
   header: {
     home: "Laman Utama",

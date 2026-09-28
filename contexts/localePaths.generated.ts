@@ -54,6 +54,7 @@ export const localePaths = {
     "faq": "preguntas-frecuentes",
     "about": "sobre-nosotros",
     "caseStudies": "casos-exito",
+    "privacy": "privacidad",
   },
   en: {
     "explore": "explore",
@@ -104,6 +105,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   br: {
     "explore": "explorar",
@@ -154,6 +156,7 @@ export const localePaths = {
     "faq": "perguntas-frequentes",
     "about": "sobre-nos",
     "caseStudies": "casos-de-sucesso",
+    "privacy": "privacidade",
   },
   ca: {
     "explore": "explorar",
@@ -204,6 +207,7 @@ export const localePaths = {
     "faq": "preguntes-frequents",
     "about": "sobre-nosaltres",
     "caseStudies": "casos-exit",
+    "privacy": "privadesa",
   },
   fr: {
     "explore": "explorer",
@@ -254,6 +258,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "a-propos",
     "caseStudies": "cas-clients",
+    "privacy": "confidentialite",
   },
   de: {
     "explore": "entdecken",
@@ -304,6 +309,7 @@ export const localePaths = {
     "faq": "haeufige-fragen",
     "about": "ueber-uns",
     "caseStudies": "erfolgsgeschichten",
+    "privacy": "datenschutz",
   },
   it: {
     "explore": "esplora",
@@ -354,6 +360,7 @@ export const localePaths = {
     "faq": "domande-frequenti",
     "about": "chi-siamo",
     "caseStudies": "casi-di-successo",
+    "privacy": "privacy",
   },
   cn: {
     "explore": "探索",
@@ -405,6 +412,7 @@ export const localePaths = {
     "faq": "常见问题",
     "about": "关于我们",
     "caseStudies": "成功案例",
+    "privacy": "隐私",
   },
   sv: {
     "explore": "utforska",
@@ -455,6 +463,7 @@ export const localePaths = {
     "faq": "vanliga-fragor",
     "about": "om-oss",
     "caseStudies": "kundberattelser",
+    "privacy": "integritet",
   },
   pl: {
     "explore": "odkrywaj",
@@ -505,6 +514,7 @@ export const localePaths = {
     "faq": "najczestsze-pytania",
     "about": "o-nas",
     "caseStudies": "historie-sukcesu",
+    "privacy": "prywatnosc",
   },
   ja: {
     "explore": "探す",
@@ -555,6 +565,7 @@ export const localePaths = {
     "faq": "よくある質問",
     "about": "私たちについて",
     "caseStudies": "導入事例",
+    "privacy": "プライバシー",
   },
   pt: {
     "explore": "explorar",
@@ -605,6 +616,7 @@ export const localePaths = {
     "faq": "perguntas-frequentes",
     "about": "sobre-nos",
     "caseStudies": "casos-de-sucesso",
+    "privacy": "privacidade",
   },
   gb: {
     "explore": "explore",
@@ -655,6 +667,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   au: {
     "explore": "explore",
@@ -705,6 +718,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   ko: {
     "explore": "탐색",
@@ -755,6 +769,7 @@ export const localePaths = {
     "faq": "자주묻는질문",
     "about": "회사소개",
     "caseStudies": "성공사례",
+    "privacy": "개인정보",
   },
   ar: {
     "explore": "istakshif",
@@ -805,6 +820,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "3anna",
     "caseStudies": "qissas-najah",
+    "privacy": "al-khususiya",
   },
   nl: {
     "explore": "ontdek",
@@ -855,6 +871,7 @@ export const localePaths = {
     "faq": "veelgestelde-vragen",
     "about": "over-ons",
     "caseStudies": "casestudies",
+    "privacy": "privacy",
   },
   ru: {
     "explore": "explore",
@@ -905,6 +922,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "o-nas",
     "caseStudies": "kejsy",
+    "privacy": "konfidencialnost",
   },
   id: {
     "explore": "jelajahi",
@@ -955,6 +973,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "tentang-kami",
     "caseStudies": "studi-kasus",
+    "privacy": "privasi",
   },
   ms: {
     "explore": "jelajah",
@@ -1005,6 +1024,7 @@ export const localePaths = {
     "faq": "soalan-lazim",
     "about": "tentang-kami",
     "caseStudies": "kajian-kes",
+    "privacy": "privasi",
   },
   tw: {
     "explore": "探索",
@@ -1056,6 +1076,7 @@ export const localePaths = {
     "faq": "常見問題",
     "about": "關於我們",
     "caseStudies": "成功案例",
+    "privacy": "隱私",
   },
   th: {
     "explore": "samruat",
@@ -1106,6 +1127,7 @@ export const localePaths = {
     "faq": "kham-tham",
     "about": "kiao-kap-rao",
     "caseStudies": "korani-suksaa",
+    "privacy": "khwam-pen-suan-tua",
   },
   fa: {
     "explore": "jostoju",
@@ -1156,6 +1178,7 @@ export const localePaths = {
     "faq": "soalat",
     "about": "darbare-ma",
     "caseStudies": "dastanha-ye-movafaghiyat",
+    "privacy": "harim-khosusi",
   },
   vi: {
     "explore": "kham-pha",
@@ -1206,6 +1229,7 @@ export const localePaths = {
     "faq": "cau-hoi",
     "about": "ve-chung-toi",
     "caseStudies": "cau-chuyen",
+    "privacy": "quyen-rieng-tu",
   },
   bn: {
     "explore": "explore",
@@ -1256,6 +1280,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   hi: {
     "explore": "explore",
@@ -1306,6 +1331,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   tl: {
     "explore": "explore",
@@ -1356,6 +1382,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   sg: {
     "explore": "explore",
@@ -1406,6 +1433,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   ie: {
     "explore": "explore",
@@ -1456,6 +1484,7 @@ export const localePaths = {
     "faq": "faq",
     "about": "about",
     "caseStudies": "case-studies",
+    "privacy": "privacy",
   },
   at: {
     "explore": "entdecken",
@@ -1506,6 +1535,7 @@ export const localePaths = {
     "faq": "haeufige-fragen",
     "about": "ueber-uns",
     "caseStudies": "erfolgsgeschichten",
+    "privacy": "datenschutz",
   },
   tr: {
     "explore": "kesfet",
@@ -1556,5 +1586,6 @@ export const localePaths = {
     "faq": "sss",
     "about": "hakkimizda",
     "caseStudies": "basari-hikayeleri",
+    "privacy": "gizlilik",
   },
 };

@@ -220,15 +220,21 @@ const MobileMenu: React.FC<{
                             </NavLink>
                         ))}
 
-                        <div className="py-2 sm:py-3 px-3 sm:px-4">
-                            <hr className="border-gray-200 dark:border-zinc-700" />
-                        </div>
+                        {/* Como en escritorio: el boton grande solo con sesion. Sin sesion,
+                            escribir una resena esta en el boton flotante del lapiz. */}
+                        {user && (
+                            <>
+                                <div className="py-2 sm:py-3 px-3 sm:px-4">
+                                    <hr className="border-gray-200 dark:border-zinc-700" />
+                                </div>
 
-                        <div className="px-1 sm:px-2">
-                          <Link to={user ? `${countryPrefix}/${paths.writeReview}` : `${countryPrefix}/${paths.login}`} onClick={onClose} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg text-center block text-sm sm:text-base">
-                              {t('header.writeReview')}
-                          </Link>
-                        </div>
+                                <div className="px-1 sm:px-2">
+                                  <Link to={`${countryPrefix}/${paths.writeReview}`} onClick={onClose} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg text-center block text-sm sm:text-base">
+                                      {t('header.writeReview')}
+                                  </Link>
+                                </div>
+                            </>
+                        )}
                     </nav>
 
                     <div className="p-3 sm:p-4 border-t dark:border-zinc-800 space-y-1.5 sm:space-y-2">

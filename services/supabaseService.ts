@@ -3537,6 +3537,12 @@ export const uploadBugScreenshot = async (userId: string, file: File): Promise<s
   return path;
 };
 
+// Solo admin (politica «Admin delete bug screenshots», migracion 3.31).
+export const deleteBugScreenshot = async (path: string): Promise<void> => {
+  const { error } = await supabase.storage.from('bug_screenshots').remove([path]);
+  if (error) throw error;
+};
+
 export const getBugScreenshotUrl = async (path: string): Promise<string | null> => {
   const { data, error } = await supabase.storage.from('bug_screenshots').createSignedUrl(path, 60 * 60);
   if (error) return null;

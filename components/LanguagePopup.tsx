@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY, toBcp47 } from '../contexts/i18nContext';
+import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY, toBcp47, useLocaleDictionary, getNestedTranslation } from '../contexts/i18nContext';
 import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
 import { useCountryName } from '../utils/countryName';
-import { LANGUAGE_OPTIONS } from '../hooks/usePreferenceActions';
-import CountrySelect from './CountrySelect';
+import CountrySelect, { LanguageSelect } from './CountrySelect';
 import { LANGUAGES, COUNTRIES } from '../constants';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { useProfilePreferencesSync } from '../hooks/useProfilePreferencesSync';
@@ -227,6 +226,14 @@ const LanguagePopup: React.FC = () => {
         if (porRegion && toBcp47(porRegion).split('-')[0] === nav) return porRegion;
         return isSupportedLanguage(nav) ? nav : 'es';
     });
+    // La bienvenida habla el idioma elegido en su selector (al abrirse, el del
+    // navegador), no el de la web, que aun es el de por defecto. Si ese idioma
+    // aun no ha cargado o le falta una clave, se usa el texto normal.
+    const welcomeDict = useLocaleDictionary(welcomeLang);
+    const tw = (key: string) => {
+        const v = welcomeDict ? getNestedTranslation(welcomeDict, key) : undefined;
+        return typeof v === 'string' ? v : t(key);
+    };
     const [welcomeCountry, setWelcomeCountry] = useState<string>(() => {
         const region = (typeof navigator !== 'undefined' ? navigator.language : '').split('-')[1]?.toUpperCase();
         if (region && COUNTRIES.some(c => c.code === region)) return region;
@@ -485,8 +492,8 @@ const LanguagePopup: React.FC = () => {
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full mx-auto flex items-center justify-center mb-3 shadow-lg">
                         <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl" aria-hidden="true"></i>
                     </div>
-                    <h2 id="welcome-title" className="text-xl sm:text-2xl font-bold text-white mb-1">{t('common.welcomeTitle')}</h2>
-                    <p className="text-green-100 text-sm sm:text-base">{t('common.welcomeSubtitle')}</p>
+                    <h2 id="welcome-title" className="text-xl sm:text-2xl font-bold text-white mb-1">{tw('common.welcomeTitle')}</h2>
+                    <p className="text-green-100 text-sm sm:text-base">{tw('common.welcomeSubtitle')}</p>
                 </div>
 
                 <form
@@ -494,27 +501,25 @@ const LanguagePopup: React.FC = () => {
                     onSubmit={(e) => { e.preventDefault(); handleWelcomeContinue(); }}
                 >
                     <div>
-                        <label htmlFor="welcome-lang" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{t('editProfile.languageLabel')}</label>
-                        <select id="welcome-lang" value={welcomeLang} onChange={(e) => setWelcomeLang(e.target.value as Language)} className={SELECT}>
-                            {LANGUAGE_OPTIONS.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                        </select>
+                        <label htmlFor="welcome-lang" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{tw('editProfile.languageLabel')}</label>
+                        <LanguageSelect id="welcome-lang" value={welcomeLang} onChange={(v) => setWelcomeLang(v as Language)} className={SELECT} />
                     </div>
                     <div>
-                        <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{t('editProfile.countryLabel')}</label>
+                        <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{tw('editProfile.countryLabel')}</label>
                         <CountrySelect id="welcome-country" value={welcomeCountry} onChange={setWelcomeCountry} className={SELECT} />
                     </div>
                     <button type="submit" className="w-full p-3.5 rounded-xl bg-brand-green text-white font-semibold hover:bg-brand-green/90 transition-colors">
-                        {t('common.welcomeContinue')}
+                        {tw('common.welcomeContinue')}
                     </button>
                     <button type="button" onClick={handleClose} className="w-full p-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                        {t('common.welcomeSkip')}
+                        {tw('common.welcomeSkip')}
                     </button>
                 </form>
 
                 <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 border-t dark:border-zinc-700">
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center">
                         <i className="fa-solid fa-gear mr-1.5" aria-hidden="true"></i>
-                        {t('common.welcomeHint')}
+                        {tw('common.welcomeHint')}
                     </p>
                 </div>
             </div>

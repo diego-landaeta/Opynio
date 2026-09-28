@@ -5,14 +5,14 @@ import { updateUserProfile, uploadAvatar, deleteOwnAvatarByUrl, savePushSubscrip
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../Spinner';
 import { VAPID_PUBLIC_KEY, PUSH_NOTIFICATIONS_ENABLED } from '../../constants';
-import CountrySelect from '../CountrySelect';
+import CountrySelect, { LanguageSelect } from '../CountrySelect';
 import { urlBase64ToUint8Array } from '../../utils/urlBase64ToUint8Array';
 import { Json } from '../../types';
 import Meta from '../Meta';
 import PasswordInput from '../PasswordInput';
 import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
-import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../../hooks/usePreferenceActions';
+import { usePreferenceActions, THEME_OPTIONS } from '../../hooks/usePreferenceActions';
 import { prepareAvatar, AvatarPrepError } from '../../utils/avatarImage';
 import { getUserFacingError } from '../../utils/userFacingError';
 import { getAuthErrorInfo } from '../../utils/authErrors';
@@ -479,16 +479,12 @@ const EditProfilePage: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <div>
                             <label htmlFor="pref-language" className={FIELD_LABEL}>{t('editProfile.languageLabel')}</label>
-                            <select
+                            <LanguageSelect
                                 id="pref-language"
                                 value={requestedLanguage}
-                                onChange={(e) => handleLanguageChange(e.target.value)}
+                                onChange={handleLanguageChange}
                                 className={FIELD_SELECT}
-                            >
-                                {LANGUAGE_OPTIONS.map(l => (
-                                    <option key={l.code} value={l.code}>{l.name}</option>
-                                ))}
-                            </select>
+                            />
                         </div>
                         <div>
                             <label htmlFor="pref-country" className={FIELD_LABEL}>{t('editProfile.countryLabel')}</label>

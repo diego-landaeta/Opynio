@@ -50,6 +50,7 @@ export default {
     faq: "sss",
     about: "hakkimizda",
     caseStudies: "basari-hikayeleri",
+    privacy: "gizlilik",
   },
   header: {
     home: "Ana Sayfa",

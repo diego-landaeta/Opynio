@@ -151,6 +151,7 @@ const ForBusinessesPage = lazy(() => import('./components/pages/ForBusinessesPag
 const HowItWorksPage = lazy(() => import('./components/pages/HowItWorksPage'));
 const FAQPage = lazy(() => import('./components/pages/FAQPage'));
 const AboutPage = lazy(() => import('./components/pages/AboutPage'));
+const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage'));
 const CaseStudiesPage = lazy(() => import('./components/pages/CaseStudiesPage'));
 
 // Lazy load business dashboard panels
@@ -516,6 +517,7 @@ const App = () => {
                                     {uniquePaths.faq?.map(p => <Route key={`root-faq-${p}`} path={p} element={<FAQPage />} />)}
                                     {uniquePaths.about?.map(p => <Route key={`root-about-${p}`} path={p} element={<AboutPage />} />)}
                                     {uniquePaths.caseStudies?.map(p => <Route key={`root-caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
+                                    {uniquePaths.privacy?.map(p => <Route key={`root-privacy-${p}`} path={p} element={<PrivacyPage />} />)}
 
                                     {/* Non-prefixed routes (auth, admin, legacy, etc.) that are independent of country */}
                                     {uniquePaths.resetPassword?.map(p => <Route key={`root-resetPassword-${p}`} path={p} element={<ResetPasswordPage />} />)}
@@ -608,6 +610,7 @@ const App = () => {
                                         {uniquePaths.faq?.map(p => <Route key={`faq-${p}`} path={p} element={<FAQPage />} />)}
                                         {uniquePaths.about?.map(p => <Route key={`about-${p}`} path={p} element={<AboutPage />} />)}
                                         {uniquePaths.caseStudies?.map(p => <Route key={`caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
+                                        {uniquePaths.privacy?.map(p => <Route key={`privacy-${p}`} path={p} element={<PrivacyPage />} />)}
 
                                         {/* PostLogin handles its own auth check - must NOT be inside ProtectedRoute to avoid race condition */}
                                         {uniquePaths.postLogin?.map(p => <Route key={`postLogin-${p}`} path={p} element={<PostLoginRedirect />} />)}

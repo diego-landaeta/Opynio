@@ -50,6 +50,7 @@ export default {
     faq: "常见问题",
     about: "关于我们",
     caseStudies: "成功案例",
+    privacy: "隐私",
   },
   header: {
     home: "首页",

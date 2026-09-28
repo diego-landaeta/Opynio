@@ -49,4 +49,10 @@ CREATE POLICY "Owner or admin read bug screenshots"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'bug_screenshots' AND ((storage.foldername(name))[1] = auth.uid()::text OR public.opynio_is_admin()));
 
+-- Al eliminar un informe en Admin › Errores se borra tambien su captura.
+DROP POLICY IF EXISTS "Admin delete bug screenshots" ON storage.objects;
+CREATE POLICY "Admin delete bug screenshots"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'bug_screenshots' AND public.opynio_is_admin());
+
 COMMIT;

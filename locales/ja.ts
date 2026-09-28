@@ -49,6 +49,7 @@ export default {
     faq: "よくある質問",
     about: "私たちについて",
     caseStudies: "導入事例",
+    privacy: "プライバシー",
   },
   header: {
     home: "ホーム",

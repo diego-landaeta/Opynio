@@ -1,8 +1,9 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { COUNTRIES } from '../constants';
 import { useCountryName } from '../utils/countryName';
+import { LANGUAGE_OPTIONS } from '../hooks/usePreferenceActions';
 
-// Selector de pais con bandera. Un <select> nativo no puede mostrar imagenes y
+// Selectores de pais y de idioma con bandera (FlagSelect + dos envoltorios). Un <select> nativo no puede mostrar imagenes y
 // las banderas emoji no se ven en Windows (salen «ES», «US»...), asi que es una
 // lista propia con las banderas de FlagCDN, como en el alta de empresa.
 // Accesible como un listbox: flechas, Inicio/Fin, Enter, Escape y buscar
@@ -24,7 +25,7 @@ const Flag: React.FC<{ code: string }> = ({ code }) => {
     );
 };
 
-interface CountrySelectProps {
+interface SelectProps {
     id?: string;
     value: string;
     onChange: (code: string) => void;
@@ -33,8 +34,10 @@ interface CountrySelectProps {
     ariaDescribedBy?: string;
 }
 
-const CountrySelect: React.FC<CountrySelectProps> = ({ id, value, onChange, placeholder, className = '', ariaDescribedBy }) => {
-    const countryName = useCountryName();
+// flag: codigo de FlagCDN (ISO 3166 en minusculas o mayusculas).
+type Opcion = { code: string; name: string; flag: string };
+
+const FlagSelect: React.FC<SelectProps & { opciones: Opcion[] }> = ({ id, value, onChange, placeholder, className = '', ariaDescribedBy, opciones }) => {
     const autoId = useId();
     const buttonId = id || `${autoId}-country`;
     const listId = `${buttonId}-list`;
@@ -44,7 +47,6 @@ const CountrySelect: React.FC<CountrySelectProps> = ({ id, value, onChange, plac
     const buttonRef = useRef<HTMLButtonElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
-    const opciones = COUNTRIES.map(c => ({ code: c.code, name: countryName(c.code, c.name) }));
     const actual = opciones.find(o => o.code === value);
 
     const abrir = () => {
@@ -108,7 +110,7 @@ const CountrySelect: React.FC<CountrySelectProps> = ({ id, value, onChange, plac
                 onKeyDown={(e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); abrir(); } }}
                 className={`${className} flex items-center gap-2 text-left`}
             >
-                {actual ? <Flag code={actual.code} /> : null}
+                {actual ? <Flag code={actual.flag} /> : null}
                 <span className={`flex-1 truncate ${actual ? '' : 'text-gray-400'}`}>{actual ? actual.name : placeholder}</span>
                 <i className={`fa-solid fa-chevron-down text-xs text-gray-500 dark:text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true"></i>
             </button>
@@ -136,7 +138,7 @@ const CountrySelect: React.FC<CountrySelectProps> = ({ id, value, onChange, plac
                                 i === active ? 'bg-gray-100 dark:bg-zinc-700' : ''
                             } ${o.code === value ? 'font-semibold text-brand-green' : 'text-gray-800 dark:text-gray-100'}`}
                         >
-                            <Flag code={o.code} />
+                            <Flag code={o.flag} />
                             <span className="flex-1 truncate">{o.name}</span>
                             {o.code === value && <i className="fa-solid fa-check text-xs" aria-hidden="true"></i>}
                         </li>
@@ -146,5 +148,18 @@ const CountrySelect: React.FC<CountrySelectProps> = ({ id, value, onChange, plac
         </div>
     );
 };
+
+const CountrySelect: React.FC<SelectProps> = (props) => {
+    const countryName = useCountryName();
+    const opciones = COUNTRIES.map(c => ({ code: c.code, name: countryName(c.code, c.name), flag: c.code }));
+    return <FlagSelect {...props} opciones={opciones} />;
+};
+
+// Idiomas: la bandera sale de LANGUAGES (https://flagcdn.com/us.svg -> us).
+const OPCIONES_IDIOMA: Opcion[] = LANGUAGE_OPTIONS.map(l => ({
+    code: l.code, name: l.name, flag: (l.flag.match(/flagcdn\.com\/([a-z-]+)\.svg/i) || [])[1] || l.code,
+}));
+
+export const LanguageSelect: React.FC<SelectProps> = (props) => <FlagSelect {...props} opciones={OPCIONES_IDIOMA} />;
 
 export default CountrySelect;

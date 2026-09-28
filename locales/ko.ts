@@ -49,6 +49,7 @@ export default {
     faq: "자주묻는질문",
     about: "회사소개",
     caseStudies: "성공사례",
+    privacy: "개인정보",
   },
   header: {
     home: "홈",

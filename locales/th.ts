@@ -50,6 +50,7 @@ export default {
     faq: "kham-tham",
     about: "kiao-kap-rao",
     caseStudies: "korani-suksaa",
+    privacy: "khwam-pen-suan-tua",
   },
   header: {
     home: "หน้าแรก",

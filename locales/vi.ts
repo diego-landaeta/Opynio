@@ -50,6 +50,7 @@ export default {
     faq: "cau-hoi",
     about: "ve-chung-toi",
     caseStudies: "cau-chuyen",
+    privacy: "quyen-rieng-tu",
   },
   header: {
     home: "Trang chủ",

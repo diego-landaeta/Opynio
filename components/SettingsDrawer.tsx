@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useI18n, useTranslation, localizedPathOrRoot } from '../contexts/i18nContext';
-import CountrySelect from './CountrySelect';
-import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../hooks/usePreferenceActions';
+import CountrySelect, { LanguageSelect } from './CountrySelect';
+import { usePreferenceActions, THEME_OPTIONS } from '../hooks/usePreferenceActions';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../services/supabaseService';
 import { setCookieConsent, useCookieConsent } from '../utils/consent';
@@ -125,9 +125,7 @@ const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="space-y-3">
                             <div>
                                 <label htmlFor="drawer-lang" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editProfile.languageLabel')}</label>
-                                <select id="drawer-lang" value={requestedLanguage} onChange={(e) => changeLanguage(e.target.value)} className={SELECT}>
-                                    {LANGUAGE_OPTIONS.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                                </select>
+                                <LanguageSelect id="drawer-lang" value={requestedLanguage} onChange={changeLanguage} className={SELECT} />
                             </div>
                             <div>
                                 <label htmlFor="drawer-country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editProfile.countryLabel')}</label>

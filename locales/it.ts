@@ -49,6 +49,7 @@ export default {
     faq: "domande-frequenti",
     about: "chi-siamo",
     caseStudies: "casi-di-successo",
+    privacy: "privacy",
   },
   header: {
     home: "Home",

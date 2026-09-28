@@ -49,6 +49,7 @@ export default {
     faq: "vanliga-fragor",
     about: "om-oss",
     caseStudies: "kundberattelser",
+    privacy: "integritet",
   },
   header: {
     home: "Hem",

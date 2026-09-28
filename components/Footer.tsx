@@ -124,13 +124,12 @@ const Footer: React.FC = () => {
             )}
           </div>
 
-          {/* Enlaces legales - descomentar cuando existan las páginas
+          {/* Enlaces legales. Aviso legal y términos, cuando existan sus páginas:
+            <Link to={`${countryPrefix}/${paths.legal}`} ...>{t('footer.legalNotice')}</Link>
+            <Link to={`${countryPrefix}/${paths.terms}`} ...>{t('footer.termsOfUse')}</Link> */}
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-            <Link to={`${countryPrefix}/${paths.legal}`} className="hover:text-white transition-colors">{t('footer.legalNotice')}</Link>
-            <Link to={`${countryPrefix}/${paths.terms}`} className="hover:text-white transition-colors">{t('footer.termsOfUse')}</Link>
             <Link to={`${countryPrefix}/${paths.privacy}`} className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
           </div>
-          */}
         </div>
 
       </div>

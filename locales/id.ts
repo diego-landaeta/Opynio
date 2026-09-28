@@ -50,6 +50,7 @@ export default {
     faq: "faq",
     about: "tentang-kami",
     caseStudies: "studi-kasus",
+    privacy: "privasi",
   },
   header: {
     home: "Beranda",

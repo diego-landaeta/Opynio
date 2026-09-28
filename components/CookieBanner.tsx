@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { useTranslation } from '../contexts/i18nContext';
+import { Link } from 'react-router-dom';
+import { useI18n, useTranslation, localizedPathOrRoot } from '../contexts/i18nContext';
+import { useCountry } from '../contexts/CountryContext';
 import { setCookieConsent, useCookieConsent } from '../utils/consent';
 import SettingsDrawer from './SettingsDrawer';
 
@@ -9,6 +11,8 @@ import SettingsDrawer from './SettingsDrawer';
 const CookieBanner: React.FC = () => {
     const t = useTranslation();
     const consent = useCookieConsent();
+    const { language } = useI18n();
+    const { country } = useCountry();
     const [ajustes, setAjustes] = useState(false);
 
     if (consent !== null && !ajustes) return null;
@@ -35,9 +39,14 @@ const CookieBanner: React.FC = () => {
                             {t('editProfile.cookiesAccept')}
                         </button>
                     </div>
-                    <button type="button" onClick={() => setAjustes(true)} className="mt-2 w-full text-xs font-semibold text-brand-green hover:underline">
-                        {t('editProfile.cookiesSettings')}
-                    </button>
+                    <div className="mt-2 flex justify-center gap-4 text-xs font-semibold">
+                        <button type="button" onClick={() => setAjustes(true)} className="text-brand-green hover:underline">
+                            {t('editProfile.cookiesSettings')}
+                        </button>
+                        <Link to={`${localizedPathOrRoot('privacy', language, country)}#cookies`} className="text-gray-500 dark:text-gray-400 hover:underline">
+                            {t('footer.privacy')}
+                        </Link>
+                    </div>
                 </div>
             )}
             {ajustes && <SettingsDrawer onClose={() => setAjustes(false)} />}

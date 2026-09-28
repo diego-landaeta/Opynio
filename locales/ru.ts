@@ -49,6 +49,7 @@ export default {
     faq: "faq",
     about: "o-nas",
     caseStudies: "kejsy",
+    privacy: "konfidencialnost",
   },
   header: {
     home: "Главная",

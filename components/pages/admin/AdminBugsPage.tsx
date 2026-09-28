@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAdminBugReports, updateBugReport, getBugScreenshotUrl } from '../../../services/supabaseService';
+import { getAdminBugReports, updateBugReport, getBugScreenshotUrl, deleteBugScreenshot } from '../../../services/supabaseService';
 import type { BugReport } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
@@ -92,7 +92,10 @@ const AdminBugsPage: React.FC = () => {
         if (!ok) return;
         setIsSubmitting(true);
         try {
-            await updateBugReport(selectedBug.id, { status: 'closed' });
+            // Con la captura: se borra el fichero del almacen (no se queda huerfano).
+            const captura = (selectedBug as any).screenshot_path as string | null | undefined;
+            if (captura) await deleteBugScreenshot(captura);
+            await updateBugReport(selectedBug.id, captura ? { status: 'closed', screenshot_path: null } : { status: 'closed' });
             showNotification(t('adminBugsPage.bugDeleted', { id: selectedBug.id }), 'success');
             setBugs(prev => prev.filter(b => b.id !== selectedBug.id));
             setIsActionModalOpen(false);

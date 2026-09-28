@@ -50,6 +50,7 @@ export default {
     faq: "faq",
     about: "about",
     caseStudies: "case-studies",
+    privacy: "privacy",
   },
   header: {
     home: "হোম",

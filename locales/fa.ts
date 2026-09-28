@@ -50,6 +50,7 @@ export default {
     faq: "soalat",
     about: "darbare-ma",
     caseStudies: "dastanha-ye-movafaghiyat",
+    privacy: "harim-khosusi",
   },
   header: {
     home: "خانه",

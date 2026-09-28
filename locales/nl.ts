@@ -49,6 +49,7 @@ export default {
     faq: "veelgestelde-vragen",
     about: "over-ons",
     caseStudies: "casestudies",
+    privacy: "privacy",
   },
   header: {
     home: "Home",

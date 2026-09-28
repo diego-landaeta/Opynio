@@ -49,6 +49,7 @@ export default {
     faq: "haeufige-fragen",
     about: "ueber-uns",
     caseStudies: "erfolgsgeschichten",
+    privacy: "datenschutz",
   },
   header: {
     home: "Startseite",
