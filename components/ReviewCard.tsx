@@ -6,10 +6,9 @@ import LazyImage from './LazyImage';
 import Modal from './Modal';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { voteOnReview, getUserVoteOnReview, removeVoteOnReview, deleteOwnReview } from '../services/supabaseService';
+import { voteOnReview, getUserVoteOnReview, removeVoteOnReview } from '../services/supabaseService';
 import { useI18n, useTranslation, useAutoTranslations, localizedPath } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { useConfirm } from '../contexts/ConfirmContext';
 import { useCountry } from '../contexts/CountryContext';
 import { generateBusinessPath } from '../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../utils/categoryMappings';
@@ -26,19 +25,11 @@ interface ReviewCardProps {
      * confirmacion) y, tras borrarla, se llama con su id para quitarla de la
      * lista. Solo lo pasa el perfil del propio usuario.
      */
-    onDeleted?: (reviewId: string) => void;
-    /**
-     * Si se pasa, el AUTOR ve un boton «Editar» en sus resenas pendientes o
-     * aprobadas (las rechazadas se apelan). La pagina abre el editor. Solo lo
-     * pasa el perfil del propio usuario: en el resto de sitios el autor ve un
-     * aviso con enlace a su perfil, que es donde se gestiona.
-     */
-    onEdit?: (review: Review) => void;
-    /**
-     * La resena cambio fuera de aqui (un admin la rechazo o la borro) y la
-     * accion no se pudo hacer: la pagina recarga su lista con el estado real.
-     */
-    onStale?: () => void;
+    // Solo en el perfil: el autor no edita ni borra su resena, solicita su
+    // eliminacion (con motivo) y la revisa el admin.
+    onRequestDeletion?: (review: Review) => void;
+    // Ya hay una solicitud de eliminacion abierta para esta resena.
+    deletionRequested?: boolean;
 }
 
 /**
@@ -56,14 +47,12 @@ const isAuthoredBy = (review: Review, userId: string | undefined): boolean => {
     return !resolveReviewAuthor(review).fromImport;
 };
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = false, hideResponse = false, onDeleted, onEdit, onStale }) => {
+const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = false, hideResponse = false, onRequestDeletion, deletionRequested = false }) => {
     const { user } = useAuth();
     const { language } = useI18n();
     const { country } = useCountry();
     const t = useTranslation();
     const { showNotification } = useNotification();
-    const { confirm } = useConfirm();
-    const [isDeleting, setIsDeleting] = useState(false);
 
     const hasResponse = review.review_responses && review.review_responses.length > 0;
     const originalResponseText = (review.review_responses && review.review_responses[0]?.response_text) || review.original_response_text;
@@ -238,39 +227,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
         return Array.from(tags, ([label, icon]) => ({ label, icon }));
     }, [review.tags, review.review_text, review.audio_url, review.category, review.businesses?.category, t]);
 
-    // Gestion (editar/eliminar) solo donde la pagina la activa: el perfil.
-    const managesHere = !!(onDeleted || onEdit);
-    const canEdit = !!onEdit && isOwnReview && (review.status === 'approved' || review.status === 'pending');
-
-    const handleDelete = async () => {
-        if (isDeleting) return;
-        const ok = await confirm({
-            title: t('common.deleteReviewConfirmTitle'),
-            message: t('common.deleteReviewConfirmMessage'),
-            confirmText: t('common.deleteReview'),
-            cancelText: t('common.cancel'),
-            danger: true,
-        });
-        if (!ok) return;
-        setIsDeleting(true);
-        try {
-            await deleteOwnReview(review);
-            showNotification(t('common.reviewDeleted'), 'success');
-            onDeleted?.(review.id);
-        } catch (error) {
-            console.error('Failed to delete review:', error);
-            // 0 filas: entretanto un admin la borro (o ya no es borrable). Se
-            // explica y se recarga la lista para ensenar el estado real.
-            if (error instanceof Error && error.message === 'REVIEW_NOT_DELETED') {
-                showNotification(t('common.reviewNoLongerDeletable'), 'error');
-                setIsDeleting(false);
-                onStale?.();
-                return;
-            }
-            showNotification(t('common.reviewDeleteError'), 'error');
-            setIsDeleting(false);
-        }
-    };
+    // Gestion (solicitar eliminacion) solo donde la pagina la activa: el perfil.
+    const managesHere = !!onRequestDeletion;
+    const canRequestDeletion = managesHere && isOwnReview && (review.status === 'approved' || review.status === 'pending');
 
     const handleVote = async (voteType: 'helpful' | 'not_helpful') => {
         if (!user) {
@@ -356,29 +315,22 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                     <StarRating rating={review.rating} size="small" />
                     <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                         <time dateTime={review.created_at} className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatReviewDate(review.created_at, language)}</time>
-                        {canEdit && (
+                        {canRequestDeletion && (deletionRequested ? (
+                            <span data-testid="review-deletion-requested" className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                <i className="fa-regular fa-clock" aria-hidden="true"></i>
+                                <span>{t('common.requestDeletionPending')}</span>
+                            </span>
+                        ) : (
                             <button
                                 type="button"
-                                onClick={() => onEdit?.(review)}
-                                data-testid="review-edit"
-                                className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-brand-green hover:underline"
+                                onClick={() => onRequestDeletion?.(review)}
+                                data-testid="review-request-deletion"
+                                className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-red-600 dark:text-red-400 hover:underline"
                             >
-                                <i className="fa-regular fa-pen-to-square" aria-hidden="true"></i>
-                                <span>{t('common.editReview')}</span>
+                                <i className="fa-regular fa-flag" aria-hidden="true"></i>
+                                <span>{t('common.requestReviewDeletion')}</span>
                             </button>
-                        )}
-                        {onDeleted && isOwnReview && (
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                data-testid="review-delete"
-                                className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-red-600 dark:text-red-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <i className={isDeleting ? 'fa-solid fa-spinner fa-spin' : 'fa-regular fa-trash-can'} aria-hidden="true"></i>
-                                <span>{t('common.deleteReview')}</span>
-                            </button>
-                        )}
+                        ))}
                     </div>
                 </div>
 

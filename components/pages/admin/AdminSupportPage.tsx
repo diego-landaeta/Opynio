@@ -288,6 +288,14 @@ const AdminSupportPage: React.FC = () => {
                                             ). Responde aquí para confirmarlo antes de borrar la cuenta: al borrarla, la solicitud desaparece con ella.
                                         </p>
                                     )}
+                                    {selected.type === 'review_deletion' && (
+                                        <p className="text-sm p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100">
+                                            <i className="fa-regular fa-flag mr-2" aria-hidden="true"></i>
+                                            Solicitud de <strong>eliminación de reseña</strong> (el autor ya no puede editarla ni borrarla). La reseña es la del número del asunto: si procede, recházala en{' '}
+                                            <Link to={`/${pathTranslations.es.adminReviewModeration}`} className="underline font-semibold">Moderación</Link>
+                                            {' '}y responde aquí con la decisión.
+                                        </p>
+                                    )}
 
                                     <div className="max-h-[28rem] overflow-y-auto pr-1">
                                         {loadingThread && messages.length === 0 ? (

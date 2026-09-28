@@ -2706,14 +2706,6 @@ const ExplorePage: React.FC = () => {
             onCancel={handleCancelFilterChange}
         />
 
-        {/* Floating Write Review Button */}
-        <Link
-            to={`${countryPrefix}/${paths.writeReview}`}
-            className="fixed bottom-24 right-6 w-14 h-14 bg-brand-green hover:bg-opacity-90 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-40 group"
-            aria-label={t('header.writeReview')}
-        >
-            <i className="fa-solid fa-pencil text-xl group-hover:scale-110 transition-transform"></i>
-        </Link>
         </>
     );
 };

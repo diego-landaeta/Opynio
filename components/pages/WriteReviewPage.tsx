@@ -4,7 +4,7 @@ import AudioPlayer from '../AudioPlayer';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Database, Business, BusinessListItem } from '../../types';
 import { CATEGORIES } from '../../constants';
-import { createReview, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, getPublicBusinessProducts, linkOwnReviewToProduct } from '../../services/supabaseService';
+import { createReview, userHasReviewedBusiness, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, getPublicBusinessProducts, linkOwnReviewToProduct } from '../../services/supabaseService';
 import { generateReviewDraft, AI_ENABLED } from '../../services/geminiService';
 import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
@@ -14,7 +14,8 @@ import Modal from '../Modal';
 import { Link, useLocation } from 'react-router-dom';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getUserFacingError } from '../../utils/userFacingError';
-import { useTranslation, useI18n } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPath } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
 import { getBusinessDashboardPath } from '../../utils/businessOwnership';
 import OwnBusinessBadge from '../OwnBusinessBadge';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
@@ -208,6 +209,19 @@ const WriteReviewPage: React.FC = () => {
     // estado o borrador): se avisa y no se deja enviar.
     const empresaPropiaElegida = selectedBusinessId ? (misEmpresas.find(b => b.id === selectedBusinessId) ?? null) : null;
     const esEmpresaPropiaElegida = empresaPropiaElegida !== null;
+    // Una resena por usuario y empresa (indice unico en la BD): se avisa al
+    // elegir la empresa, no despues de rellenar todo el formulario.
+    const [yaResenada, setYaResenada] = useState(false);
+    const { country: userCountry } = useCountry();
+    useEffect(() => {
+        let vigente = true;
+        setYaResenada(false);
+        if (!user || !selectedBusinessId || esEmpresaPropiaElegida) return;
+        userHasReviewedBusiness(user.id, selectedBusinessId)
+            .then(ya => { if (vigente) setYaResenada(ya); })
+            .catch(() => { /* si falla la consulta, lo sigue parando el envio */ });
+        return () => { vigente = false; };
+    }, [user, selectedBusinessId, esEmpresaPropiaElegida]);
     const { showNotification } = useNotification();
     const location = useLocation();
     // El widget enlaza con ?businessId=…&producto=…, pero hasta ahora solo se
@@ -1049,6 +1063,15 @@ const WriteReviewPage: React.FC = () => {
                                 </Link>
                             </div>
                         )}
+                        {yaResenada && (
+                            <div role="alert" className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-sm text-amber-900 dark:text-amber-100">
+                                <i className="fa-solid fa-circle-check text-amber-600 dark:text-amber-400" aria-hidden="true"></i>
+                                <p className="flex-1">{t('writeReviewPage.alreadyReviewedThisBusiness')}</p>
+                                <Link to={localizedPath('profile', language, userCountry)} className="font-semibold text-brand-green hover:underline whitespace-nowrap">
+                                    {t('header.myProfile')}
+                                </Link>
+                            </div>
+                        )}
                         {isResultsVisible && !selectedBusinessId && (
                              <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {searchResults.length > 0 ? (
@@ -1245,7 +1268,7 @@ const WriteReviewPage: React.FC = () => {
                     </div>
 
                     <div className="border-t dark:border-zinc-700 pt-4 sm:pt-5 md:pt-6">
-                        <button type="submit" disabled={isSubmitting || !!empresaPropiaElegida} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 text-base sm:text-lg rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3">
+                        <button type="submit" disabled={isSubmitting || !!empresaPropiaElegida || yaResenada} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 text-base sm:text-lg rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3">
                             {isSubmitting && <div className="w-5 h-5 sm:w-6 sm:h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>}
                             <span>{buttonText}</span>
                         </button>

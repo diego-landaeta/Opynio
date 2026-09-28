@@ -1535,117 +1535,9 @@ export const createReview = async (
   return fotosFallidas > 0 ? { ...data, failedImageUploads: fotosFallidas } : data;
 };
 
-// Ruta dentro del bucket a partir de la URL publica que guardamos en la resena.
-const rutaMediaDeResena = (url: string | null | undefined): string | null => {
-  if (!url) return null;
-  const marca = `/storage/v1/object/public/${BUCKET_MEDIA_RESENA}/`;
-  const i = url.indexOf(marca);
-  if (i < 0) return null;
-  try {
-    return decodeURIComponent(url.slice(i + marca.length).split('?')[0]);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * El autor borra su propia resena (pendiente, publicada o rechazada).
- *
- * - La RLS («Users can delete their own reviews.») solo deja borrar filas con
- *   user_id = auth.uid(); el filtro por user_id aqui es redundante a proposito.
- * - Si la RLS no deja, PostgREST no da error: devuelve 0 filas. Por eso se pide
- *   `select('id')` y se trata «0 filas» como fallo, para no decir «eliminada»
- *   cuando no lo esta.
- * - Enlaces a producto, votos, respuestas y apelaciones caen solos por
- *   ON DELETE CASCADE.
- * - Fotos y audio: se borran del bucket despues, solo los de la carpeta del
- *   propio usuario. Si falla, la resena ya no existe y el fichero queda
- *   huerfano pero inaccesible desde la app; no se revierte el borrado por eso.
- * - Solo resenas escritas por el (FILTRO_FUENTE_PROPIA): la RLS de admin deja
- *   borrar cualquier fila, y las importadas llevan el user_id del admin.
- */
-export const deleteOwnReview = async (review: {
-  id: string;
-  user_id: string | null;
-  image_urls?: string[] | null;
-  audio_url?: string | null;
-}): Promise<void> => {
-  if (!review.user_id) throw new Error('REVIEW_WITHOUT_AUTHOR');
-  const { data, error } = await supabase
-    .from('reviews')
-    .delete()
-    .eq('id', review.id)
-    .eq('user_id', review.user_id)
-    .or(FILTRO_FUENTE_PROPIA)
-    .is('original_author_name', null)
-    .select('id');
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error('REVIEW_NOT_DELETED');
-
-  const rutas = [...(review.image_urls || []), review.audio_url]
-    .map(rutaMediaDeResena)
-    .filter((r): r is string => !!r && r.startsWith(`${review.user_id}/`));
-  if (rutas.length > 0) {
-    const { error: storageError } = await supabase.storage.from(BUCKET_MEDIA_RESENA).remove(rutas);
-    if (storageError) console.warn('No se pudo borrar la media de la reseña:', storageError);
-  }
-};
-
-/**
- * El autor edita su resena desde su perfil: valoracion, titulo y texto. Ni el
- * negocio ni el producto.
- *
- * - No se manda `status`: si la resena estaba aprobada, la BD la devuelve a
- *   'pending' (guard_review_sensitive_columns, migracion 20260924160000); si
- *   estaba pendiente, sigue pendiente. La fila devuelta trae el estado final.
- * - RLS: solo resenas propias pendientes o aprobadas. Como en el borrado, si
- *   la RLS no deja PostgREST devuelve 0 filas sin error -> REVIEW_NOT_UPDATED.
- * - Solo resenas escritas por el (FILTRO_FUENTE_PROPIA). Imprescindible para
- *   el admin: su RLS le deja editar todo y el guard no le devuelve la resena a
- *   'pending', asi que podia reescribir una de Google importada con su user_id.
- * - El estado lo decide la BD en el momento de guardar; el editor debe releerlo
- *   con getOwnReview (la lista del perfil puede estar desfasada).
- */
-export const updateOwnReview = async (
-  review: { id: string; user_id: string | null },
-  changes: { rating: number; title: string; review_text: string },
-): Promise<Record<string, any>> => {
-  if (!review.user_id) throw new Error('REVIEW_WITHOUT_AUTHOR');
-  const { data, error } = await supabase
-    .from('reviews')
-    .update({
-      rating: changes.rating,
-      title: changes.title,
-      review_text: changes.review_text,
-    })
-    .eq('id', review.id)
-    .eq('user_id', review.user_id)
-    .or(FILTRO_FUENTE_PROPIA)
-    .is('original_author_name', null)
-    .select('*');
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error('REVIEW_NOT_UPDATED');
-  return data[0];
-};
-
-/**
- * Estado actual de una resena escrita por el usuario, o null si ya no existe
- * (la borro un admin) o no es suya. Lo usa el editor del perfil para no
- * decidir el aviso de moderacion con un estado viejo, y para explicar por que
- * no se pudo guardar o borrar (REVIEW_NOT_UPDATED / REVIEW_NOT_DELETED).
- */
-export const getOwnReview = async (reviewId: string, userId: string): Promise<Record<string, any> | null> => {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('id', reviewId)
-    .eq('user_id', userId)
-    .or(FILTRO_FUENTE_PROPIA)
-    .is('original_author_name', null)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-};
+// El autor no edita ni borra su resena (decision 28/09/2026, migracion
+// 20260929100000): solo solicita su eliminacion con un motivo, via una
+// solicitud de soporte de tipo 'review_deletion' que revisa el admin.
 
 export const userHasReviewedBusiness = async (userId: string, businessId: string): Promise<boolean> => {
   const { data, error } = await supabase
@@ -3612,8 +3504,11 @@ export const sendSupportEmail = async (formType: 'bug' | 'claim' | 'claim_review
 // RLS: cada usuario ve lo suyo; el admin todo. is_staff, autor y estado los
 // pone el servidor; el estado solo cambia con support_ticket_set_status().
 
-export const SUPPORT_TICKET_TYPES = ['question', 'account', 'billing', 'business', 'account_deletion', 'other'] as const;
+export const SUPPORT_TICKET_TYPES = ['question', 'account', 'billing', 'business', 'account_deletion', 'review_deletion', 'other'] as const;
 export type SupportTicketType = typeof SUPPORT_TICKET_TYPES[number];
+// Los que se eligen en el formulario de Soporte: 'review_deletion' solo se abre
+// desde la propia resena («Solicitar eliminacion» en el perfil).
+export const USER_SELECTABLE_TICKET_TYPES = SUPPORT_TICKET_TYPES.filter(t => t !== 'review_deletion');
 export const SUPPORT_TICKET_STATUSES = ['open', 'in_progress', 'waiting_user', 'resolved', 'closed'] as const;
 export type SupportTicketStatus = typeof SUPPORT_TICKET_STATUSES[number];
 export const SUPPORT_SUBJECT_MAX = 150;

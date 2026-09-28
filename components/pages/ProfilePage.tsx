@@ -4,9 +4,9 @@ import Spinner from '../Spinner';
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import type { Review } from '../../types';
-import { getReviewsForUser, supabase } from '../../services/supabaseService';
+import { getReviewsForUser, getMySupportTickets, supabase } from '../../services/supabaseService';
 import ReviewCard from '../ReviewCard';
-import EditOwnReviewModal from '../EditOwnReviewModal';
+import RequestReviewDeletionModal, { reviewIdFromDeletionSubject } from '../RequestReviewDeletionModal';
 import MySupportTickets from '../support/MySupportTickets';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
@@ -35,8 +35,13 @@ const ProfilePage: React.FC = () => {
     const { notifyError, showUserError } = useUserErrorNotifier();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
-    // Resena abierta en el editor (modal dentro del perfil, sin ruta propia).
-    const [editingReview, setEditingReview] = useState<Review | null>(null);
+    // La resena propia no se edita ni se borra: se solicita su eliminacion
+    // (modal dentro del perfil, sin ruta propia) y la revisa el admin.
+    const [deletionReview, setDeletionReview] = useState<Review | null>(null);
+    // Resenas con una solicitud de eliminacion abierta.
+    const [deletionRequested, setDeletionRequested] = useState<Set<string>>(new Set());
+    // Cambia al enviar una solicitud: «Mis solicitudes» se recarga y la muestra.
+    const [ticketsVersion, setTicketsVersion] = useState(0);
     const [v2Loading, setV2Loading] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
@@ -147,11 +152,21 @@ const ProfilePage: React.FC = () => {
         loadReviews();
     }, [loadReviews]);
 
-    // Un admin la rechazo o la borro mientras el autor la tenia en pantalla:
-    // la tarjeta o el editor ya lo explicaron; aqui se trae el estado real.
-    const reloadReviewsQuietly = useCallback(() => {
-        loadReviews(true);
-    }, [loadReviews]);
+    useEffect(() => {
+        if (!user) return;
+        let vigente = true;
+        getMySupportTickets(user.id)
+            .then(tickets => {
+                if (!vigente) return;
+                const abiertas = tickets
+                    .filter(tk => tk.type === 'review_deletion' && tk.status !== 'resolved' && tk.status !== 'closed')
+                    .map(tk => reviewIdFromDeletionSubject(tk.subject))
+                    .filter((id): id is string => !!id);
+                setDeletionRequested(new Set(abiertas));
+            })
+            .catch(() => { /* sin la lista, el boton sigue disponible */ });
+        return () => { vigente = false; };
+    }, [user, ticketsVersion]);
 
     if (authLoading) {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -173,18 +188,6 @@ const ProfilePage: React.FC = () => {
         badgeColor: profile.role === 'admin' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
                     profile.role === 'business_owner' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' :
                     'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
-    };
-
-    // La tarjeta ya borro la resena y aviso al usuario; aqui solo se quita de
-    // la lista (y con ella del contador y la media de arriba).
-    const handleReviewDeleted = (reviewId: string) => {
-        setReviews(prev => prev.filter(r => r.id !== reviewId));
-    };
-
-    // El editor ya guardo y aviso; aqui se sustituye en la lista (con el
-    // estado que devolvio la BD: una aprobada editada vuelve a pendiente).
-    const handleReviewSaved = (updated: Review) => {
-        setReviews(prev => prev.map(r => (r.id === updated.id ? updated : r)));
     };
 
     // Los tres contadores salen de la MISMA lista (solo resenas escritas por
@@ -332,7 +335,7 @@ const ProfilePage: React.FC = () => {
                 </div>
 
                 {/* Solicitudes de soporte (sin URL propia; ancla #soporte). */}
-                <MySupportTickets />
+                <MySupportTickets key={ticketsVersion} />
 
                 <div className="bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">
                     <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">{t('profilePage.myRecentReviews')}</h2>
@@ -342,7 +345,7 @@ const ProfilePage: React.FC = () => {
                         <div className="space-y-6">
                             {reviews.map(review => (
                                 <LazyRender key={review.id} placeholderHeight="250px">
-                                    <ReviewCard review={review} showBusinessName={true} onDeleted={handleReviewDeleted} onEdit={setEditingReview} onStale={reloadReviewsQuietly} />
+                                    <ReviewCard review={review} showBusinessName={true} onRequestDeletion={setDeletionReview} deletionRequested={deletionRequested.has(String(review.id))} />
                                 </LazyRender>
                             ))}
                         </div>
@@ -358,12 +361,14 @@ const ProfilePage: React.FC = () => {
                     )}
                 </div>
             </div>
-            {editingReview && (
-                <EditOwnReviewModal
-                    review={editingReview}
-                    onClose={() => setEditingReview(null)}
-                    onSaved={handleReviewSaved}
-                    onStale={reloadReviewsQuietly}
+            {deletionReview && (
+                <RequestReviewDeletionModal
+                    review={deletionReview}
+                    onClose={() => setDeletionReview(null)}
+                    onSent={(id) => {
+                        setDeletionRequested(prev => new Set(prev).add(id));
+                        setTicketsVersion(v => v + 1);
+                    }}
                 />
             )}
         </>

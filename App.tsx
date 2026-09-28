@@ -11,6 +11,8 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Snackbar from './components/Snackbar';
+import BackBar from './components/BackBar';
+import WriteReviewFab from './components/WriteReviewFab';
 import RealtimeNotificationHandler from './components/RealtimeNotificationHandler';
 import Spinner from './components/Spinner';
 import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode, detectLanguageFromPath } from './contexts/i18nContext';
@@ -229,11 +231,13 @@ const MainLayout = () => {
                 <div className="flex flex-col min-h-screen font-sans text-brand-dark dark:text-gray-200">
                     <Header />
                     <main className="flex-grow container mx-auto px-3 sm:px-4 md:px-6 pt-8 sm:pt-10 md:pt-12 pb-20 sm:pb-16 md:pb-12">
+                        <BackBar />
                         <Suspense fallback={<div className="flex justify-center items-center h-full py-12 sm:py-16 md:py-20"><Spinner /></div>}>
                            <Outlet/>
                         </Suspense>
                     </main>
                     <Footer />
+                    <WriteReviewFab />
                 </div>
             </LanguagePathValidator>
         </>

@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Meta from '../Meta';
 import { useNotification } from '../../contexts/NotificationContext';
 import * as ReactRouterDOM from 'react-router-dom';
-import { getBusinessByName, getBusinessBySlug, hasPendingClaim, createClaim, createBugReport, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser, createSupportTicket, isSupportError, SUPPORT_TICKET_TYPES, SUPPORT_SUBJECT_MAX, SUPPORT_BODY_MAX, type SupportTicketType } from '../../services/supabaseService';
+import { getBusinessByName, getBusinessBySlug, hasPendingClaim, createClaim, createBugReport, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser, createSupportTicket, isSupportError, SUPPORT_TICKET_TYPES, USER_SELECTABLE_TICKET_TYPES, SUPPORT_SUBJECT_MAX, SUPPORT_BODY_MAX, type SupportTicketType } from '../../services/supabaseService';
 import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
@@ -484,7 +484,7 @@ const SupportPage: React.FC = () => {
                                             onChange={e => setTicketForm(prev => ({ ...prev, type: e.target.value as SupportTicketType }))}
                                             className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-200"
                                         >
-                                            {SUPPORT_TICKET_TYPES.map(type => (
+                                            {USER_SELECTABLE_TICKET_TYPES.map(type => (
                                                 <option key={type} value={type}>{t(`supportPage.ticketType_${type}`)}</option>
                                             ))}
                                         </select>

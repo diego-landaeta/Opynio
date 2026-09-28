@@ -80,117 +80,6 @@ const CountryLoadingOverlay: React.FC<{ isVisible: boolean; countryName: string 
     );
 };
 
-const MobileLanguageSelector: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { language, setLanguage } = useI18n();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [isOpen, setIsOpen] = useState(false);
-    const t = useTranslation();
-
-    const handleLanguageChange = (newLang: Language) => {
-        if (newLang === language) {
-            setIsOpen(false);
-            onClose();
-            return;
-        }
-
-        setLanguage(newLang);
-        setIsOpen(false);
-        onClose();
-    };
-
-    const selectedLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
-
-    return (
-        <div className="text-lg font-semibold">
-            <button 
-                onClick={() => setIsOpen(v => !v)}
-                className="flex items-center justify-between w-full gap-4 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-                <div className="flex items-center gap-4">
-                    <i className="fa-solid fa-language w-6 text-center text-base"></i>
-                    <span className="text-lg font-semibold">{t('header.language')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <img src={selectedLang.flag} alt={selectedLang.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    <i className={`fa-solid fa-chevron-down text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
-                </div>
-            </button>
-            {isOpen && (
-                <div className="pl-8 pt-1 space-y-1 max-h-48 overflow-y-auto">
-                    {LANGUAGES.map(lang => (
-                        <button
-                            key={lang.code}
-                            onClick={() => handleLanguageChange(lang.code as Language)}
-                            className={`w-full text-left flex items-center gap-3 px-4 py-2 text-base rounded-lg transition-colors ${language === lang.code ? 'font-bold text-brand-green bg-brand-green/10' : 'text-gray-500 dark:text-gray-400'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                        >
-                            <img src={lang.flag} alt={lang.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                            <span>{lang.name}</span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-const MobileCountrySelector: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { userCountry } = useCountry(); // CAMBIO: usar userCountry
-    const switchCountry = useSwitchCountry();
-    const [isOpen, setIsOpen] = useState(false);
-    const t = useTranslation();
-
-    const handleCountryChange = (newCountryCode: string) => {
-        setIsOpen(false);
-        onClose();
-        // Pais + idioma de ese pais + misma pagina en ese pais (useSwitchCountry,
-        // compartido con Editar perfil). Sin markInternalNavigation, como el
-        // selector de escritorio: el idioma ya se cambia aqui, asi que no hay
-        // nada que preguntar. Con la marca, LanguagePopup ofrecia «cambiar a
-        // aleman» con la UI ya pasando a aleman.
-        switchCountry(newCountryCode as CountryCode);
-    };
-
-    const selectedCountry = COUNTRIES.find(c => c.code === userCountry);
-
-    return (
-        <div className="text-lg font-semibold">
-            <button 
-                onClick={() => setIsOpen(v => !v)}
-                className="flex items-center justify-between w-full gap-4 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-                <div className="flex items-center gap-4">
-                    <i className="fa-solid fa-globe w-6 text-center text-base"></i>
-                    <span className="text-lg font-semibold">{t('common.headerCountry')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    {selectedCountry ? (
-                        <img src={selectedCountry.flag} alt={selectedCountry.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    ) : (
-                        <span className="text-xs">{t('common.headerSelect')}</span>
-                    )}
-                    <i className={`fa-solid fa-chevron-down text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
-                </div>
-            </button>
-            {isOpen && (
-                <div className="pl-8 pt-1 space-y-1 max-h-48 overflow-y-auto">
-                    {COUNTRIES.map(c => (
-                        <button
-                            key={c.code}
-                            onClick={() => handleCountryChange(c.code)}
-                            className={`w-full text-left flex items-center gap-3 px-4 py-2 text-base rounded-lg transition-colors ${userCountry === c.code ? 'font-bold text-brand-green bg-brand-green/10' : 'text-gray-500 dark:text-gray-400'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                        >
-                            <img src={c.flag} alt={c.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                            <span>{c.name}</span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-
 const MobileMenu: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -224,7 +113,6 @@ const MobileMenu: React.FC<{
 
     // Selectores de idioma y pais solo en la pantalla de inicio (/ y /<pais>),
     // como el boton flotante y el pie. En fichas, paneles, admin... no salen.
-    const showLocaleSelectors = isHomeRoute(location.pathname);
 
     const navLinks = useMemo(() => [
         { to: countryPrefix || '/', icon: "fa-solid fa-house", label: t('header.home') },
@@ -344,8 +232,6 @@ const MobileMenu: React.FC<{
                     </nav>
 
                     <div className="p-3 sm:p-4 border-t dark:border-zinc-800 space-y-1.5 sm:space-y-2">
-                        {showLocaleSelectors && <MobileLanguageSelector onClose={onClose} />}
-                        {showLocaleSelectors && <MobileCountrySelector onClose={onClose} />}
 
                         {user && profile ? (
                             <button onClick={() => { handleLogout(); onClose(); }} className="w-full text-left block px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md font-semibold">
@@ -425,14 +311,12 @@ const Header: React.FC = () => {
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
     const [langDropdownOpen, setLangDropdownOpen] = useState(false);
-    const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
     const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
     const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
 
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const notifDropdownRef = useRef<HTMLDivElement>(null);
     const langDesktopRef = useRef<HTMLDivElement>(null);
-    const countryDropdownRef = useRef<HTMLDivElement>(null);
     const moreDropdownRef = useRef<HTMLDivElement>(null);
     const companyDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -542,20 +426,6 @@ const Header: React.FC = () => {
         setLangDropdownOpen(false);
     };
 
-    const handleCountryChange = (newCountryCode: string) => {
-        // If same country, just close dropdown
-        if (newCountryCode === userCountry) {
-            setCountryDropdownOpen(false);
-            return;
-        }
-        // Show confirmation modal
-        const targetCountry = COUNTRIES.find(c => c.code === newCountryCode);
-        if (targetCountry) {
-            setPendingCountryChange(targetCountry);
-            setCountryDropdownOpen(false);
-        }
-    };
-
     const handleConfirmCountryChange = () => {
         if (!pendingCountryChange) return;
 
@@ -591,7 +461,6 @@ const Header: React.FC = () => {
             if (userDropdownRef.current && !userDropdownRef.current.contains(target)) setUserDropdownOpen(false);
             if (notifDropdownRef.current && !notifDropdownRef.current.contains(target)) setNotifDropdownOpen(false);
             if (langDesktopRef.current && !langDesktopRef.current.contains(target)) setLangDropdownOpen(false);
-            if (countryDropdownRef.current && !countryDropdownRef.current.contains(target)) setCountryDropdownOpen(false);
             if (moreDropdownRef.current && !moreDropdownRef.current.contains(target)) setMoreDropdownOpen(false);
             if (companyDropdownRef.current && !companyDropdownRef.current.contains(target)) setCompanyDropdownOpen(false);
         };
@@ -645,23 +514,6 @@ const Header: React.FC = () => {
         </div>
     );
 
-    const CountryDropdownPanel: React.FC = () => (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-100 dark:border-zinc-700 max-h-60 overflow-y-auto">
-            {COUNTRIES.map(c => (
-                <button 
-                    key={c.code}
-                    onClick={() => handleCountryChange(c.code)}
-                    className={`w-full text-left flex items-center gap-3 px-4 py-2 text-sm transition-colors ${userCountry === c.code ? 'font-bold text-brand-green' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                >
-                    <img src={c.flag} alt={c.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    <span>{c.name}</span>
-                </button>
-            ))}
-        </div>
-    );
-
-    const selectedCountry = COUNTRIES.find(c => c.code === userCountry);
-
     return (
         <>
             <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 dark:bg-zinc-900/90 dark:border-zinc-800 sticky top-0 z-30">
@@ -713,29 +565,8 @@ const Header: React.FC = () => {
                                 </div>
                             </nav>
                             <div className="flex items-center gap-1.5 xl:gap-2">
-                                {/* Language selector moved to Footer for desktop - kept in mobile menu */}
-                                {showCountrySelector && (
-                                    <div className="relative" ref={countryDropdownRef}>
-                                        <button
-                                          type="button"
-                                          className="flex items-center gap-1.5 xl:gap-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors px-2 xl:px-3 py-1.5 rounded-full border dark:border-zinc-700 text-xs xl:text-sm"
-                                          onClick={() => setCountryDropdownOpen(v => !v)}
-                                          aria-label="Cambiar país"
-                                        >
-                                            {selectedCountry ? (
-                                                <>
-                                                    <img src={selectedCountry.flag} alt={selectedCountry.name} width={20} height={20} loading="lazy" decoding="async" className="w-4 h-4 xl:w-5 xl:h-5 rounded-full object-cover" />
-                                                    <span className="font-semibold hidden xl:inline">{selectedCountry.name}</span>
-                                                </>
-                                            ) : (
-                                                <span className="font-semibold">{t('header.selectCountry')}</span>
-                                            )}
-                                            <i className="fa-solid fa-chevron-down text-xs text-gray-400"></i>
-                                        </button>
-                                        {countryDropdownOpen && <CountryDropdownPanel />}
-                                    </div>
-                                )}
-                                <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />
+                                {/* Pais, idioma y tema solo desde el engranaje, y solo en la home. */}
+                                {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />}
                                 {loading ? <div className="w-8 h-8"><Spinner /></div> : user ? (
                                     <>
                                         <NotificationDropdown />
@@ -751,7 +582,7 @@ const Header: React.FC = () => {
                             </div>
                         </div>
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
-                            <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />
+                            {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />}
                             {user && <NotificationDropdown />}
                             <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label="Abrir menú"><i className="fa-solid fa-bars"></i></button>
                         </div>
