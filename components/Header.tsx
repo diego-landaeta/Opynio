@@ -10,7 +10,7 @@ import Spinner from './Spinner';
 import { VAPID_PUBLIC_KEY, LANGUAGES, COUNTRIES, PUSH_NOTIFICATIONS_ENABLED } from '../constants';
 import { urlBase64ToUint8Array } from '../utils/urlBase64ToUint8Array';
 import { Json } from '../types';
-import { useTheme } from '../contexts/ThemeContext';
+import SettingsMenu from './SettingsMenu';
 import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode, isHomeRoute } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useCountry, CountryCode, useSwitchCountry } from '../contexts/CountryContext';
@@ -203,7 +203,6 @@ const MobileMenu: React.FC<{
     const t = useTranslation();
     const { userCountry } = useCountry(); // CAMBIO: usar userCountry
     const { language } = useI18n();
-    const { theme, toggleTheme } = useTheme();
     const location = useLocation();
 
     // Block body scroll when menu is open
@@ -348,20 +347,6 @@ const MobileMenu: React.FC<{
                         {showLocaleSelectors && <MobileLanguageSelector onClose={onClose} />}
                         {showLocaleSelectors && <MobileCountrySelector onClose={onClose} />}
 
-                        <div className="flex items-center justify-between w-full gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-base sm:text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">
-                            <div className="flex items-center gap-3 sm:gap-4">
-                                <i className="fa-solid fa-moon w-5 sm:w-6 text-center text-sm sm:text-base flex-shrink-0"></i>
-                                <span className="text-sm sm:text-base">{t('common.darkMode')}</span>
-                            </div>
-                            <button
-                                onClick={(e) => toggleTheme(e)}
-                                className="text-gray-600 dark:text-gray-400 transition-colors text-lg sm:text-xl w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full flex-shrink-0"
-                                aria-label={t('common.aria.changeTheme')}
-                            >
-                               {theme === 'light' ? <i className="fa-solid fa-toggle-off text-xl sm:text-2xl text-gray-400"></i> : <i className="fa-solid fa-toggle-on text-xl sm:text-2xl text-brand-green"></i>}
-                            </button>
-                        </div>
-
                         {user && profile ? (
                             <button onClick={() => { handleLogout(); onClose(); }} className="w-full text-left block px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md font-semibold">
                                 <i className="fa-solid fa-right-from-bracket mr-2"></i>
@@ -427,7 +412,6 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
 
 const Header: React.FC = () => {
     const { user, profile, loading, businesses, notifications, setNotifications } = useAuth();
-    const { theme, toggleTheme } = useTheme();
     const { language, setLanguage } = useI18n();
     const { userCountry } = useCountry(); // CAMBIO: usar userCountry
     const switchCountry = useSwitchCountry();
@@ -751,7 +735,7 @@ const Header: React.FC = () => {
                                         {countryDropdownOpen && <CountryDropdownPanel />}
                                     </div>
                                 )}
-                                <button onClick={(event) => toggleTheme(event)} className="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" aria-label={t('common.aria.changeTheme')}>{theme === 'light' ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}</button>
+                                <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />
                                 {loading ? <div className="w-8 h-8"><Spinner /></div> : user ? (
                                     <>
                                         <NotificationDropdown />
@@ -767,7 +751,7 @@ const Header: React.FC = () => {
                             </div>
                         </div>
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
-                             <button onClick={(event) => toggleTheme(event)} className="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" aria-label={t('common.aria.changeTheme')}>{theme === 'light' ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}</button>
+                            <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />
                             {user && <NotificationDropdown />}
                             <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label="Abrir menú"><i className="fa-solid fa-bars"></i></button>
                         </div>

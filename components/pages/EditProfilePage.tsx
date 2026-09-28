@@ -4,16 +4,14 @@ import { updateUserProfile, uploadAvatar, deleteOwnAvatarByUrl, savePushSubscrip
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../Spinner';
-import { VAPID_PUBLIC_KEY, PUSH_NOTIFICATIONS_ENABLED, LANGUAGES, COUNTRIES } from '../../constants';
+import { VAPID_PUBLIC_KEY, PUSH_NOTIFICATIONS_ENABLED, COUNTRIES } from '../../constants';
 import { urlBase64ToUint8Array } from '../../utils/urlBase64ToUint8Array';
-import { Json, ThemePreference } from '../../types';
+import { Json } from '../../types';
 import Meta from '../Meta';
 import PasswordInput from '../PasswordInput';
-import { useTranslation, useI18n, localizedPathOrRoot, isSupportedLanguage, getLanguageForCountryCode, Language } from '../../contexts/i18nContext';
-import { useCountry, useSwitchCountry, isValidCountryCode, CountryCode } from '../../contexts/CountryContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useNotification } from '../../contexts/NotificationContext';
-import { markProfilePreferencesApplied } from '../../hooks/useProfilePreferencesSync';
+import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import { usePreferenceActions, LANGUAGE_OPTIONS, THEME_OPTIONS } from '../../hooks/usePreferenceActions';
 import { prepareAvatar, AvatarPrepError } from '../../utils/avatarImage';
 import { getUserFacingError } from '../../utils/userFacingError';
 import { getAuthErrorInfo } from '../../utils/authErrors';
@@ -23,18 +21,6 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
 // Minimo de Supabase Auth (supabase/config.toml, minimum_password_length), el
 // mismo que piden el registro y «Restablecer contrasena».
 const MIN_PASSWORD_LENGTH = 6;
-
-// Los 31 idiomas cableados en i18nContext, con su nombre nativo (LANGUAGES es
-// la lista de los selectores de la home).
-const LANGUAGE_OPTIONS = LANGUAGES.filter(l => isSupportedLanguage(l.code));
-
-const THEME_OPTIONS: { value: ThemePreference; icon: string; labelKey: string }[] = [
-    { value: 'light', icon: 'fa-sun', labelKey: 'editProfile.themeLight' },
-    { value: 'dark', icon: 'fa-moon', labelKey: 'editProfile.themeDark' },
-    { value: 'system', icon: 'fa-circle-half-stroke', labelKey: 'editProfile.themeSystem' },
-];
-
-type PrefStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const SECTION_TITLE = 'text-lg font-semibold text-gray-700 dark:text-gray-300';
 const FIELD_LABEL = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
@@ -49,7 +35,7 @@ const EditProfilePage: React.FC = () => {
     const navigate = ReactRouterDOM.useNavigate();
     const location = ReactRouterDOM.useLocation();
     const t = useTranslation();
-    const { language, requestedLanguage, setLanguage } = useI18n();
+    const { language } = useI18n();
     // Volver al perfil DENTRO del pais del usuario (useCountry): con
     // `/${pathTranslations[language].profile}` se mandaba a /perfil sin el
     // /gb, /de... delante. Sin pais guardado, la ruta sin prefijo (/perfil).
@@ -59,9 +45,10 @@ const EditProfilePage: React.FC = () => {
     // sin prefijo, el del pais del usuario o, sin pais, la ruta sin prefijo.
     const { countryCode: urlCountryCode } = ReactRouterDOM.useParams<{ countryCode?: string }>();
     const supportPath = localizedPathOrRoot('support', language, urlCountryCode || country);
-    const switchCountry = useSwitchCountry();
-    const { preference: themePreference, setThemePreference } = useTheme();
-    const { showNotification } = useNotification();
+    // Preferencias: se aplican al momento y se guardan en el perfil aparte del
+    // formulario de arriba (no esperan a «Guardar cambios»). Mismo hook que el
+    // engranaje de la cabecera.
+    const { status: prefStatus, requestedLanguage, themePreference, changeLanguage: handleLanguageChange, changeCountry: handleCountryChange, changeTheme: handleThemeChange } = usePreferenceActions();
 
     const [name, setName] = useState('');
     const [username, setUsername] = useState('');
@@ -78,10 +65,6 @@ const EditProfilePage: React.FC = () => {
 
     const [isPushSubscribed, setIsPushSubscribed] = useState(false);
     const [pushLoading, setPushLoading] = useState(true);
-
-    // Preferencias: se aplican al momento y se guardan en el perfil aparte del
-    // formulario de arriba (no esperan a «Guardar cambios»).
-    const [prefStatus, setPrefStatus] = useState<PrefStatus>('idle');
 
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -299,48 +282,6 @@ const EditProfilePage: React.FC = () => {
         }
     };
     
-    // Guarda en el perfil lo que ya se ha aplicado en este navegador. Antes se
-    // marca como «aplicado» (useProfilePreferencesSync) para que el perfil
-    // guardado no se vuelva a aplicar encima. Si falla (p. ej. sin la migracion
-    // 20260925100000), la preferencia sigue valiendo en este dispositivo.
-    const savePreferences = async (updates: { preferred_language?: string; preferred_country?: string; theme?: ThemePreference }) => {
-        if (!user) return;
-        markProfilePreferencesApplied(user.id);
-        setPrefStatus('saving');
-        try {
-            const updated = await updateUserProfile(user.id, updates);
-            if (updated) setProfile(updated);
-            setPrefStatus('saved');
-        } catch (err) {
-            console.error('No se pudieron guardar las preferencias en el perfil:', err);
-            setPrefStatus('error');
-        }
-    };
-
-    // Como los selectores de idioma de la home: solo cambia el idioma, sin navegar.
-    const handleLanguageChange = (lang: string) => {
-        if (!isSupportedLanguage(lang) || lang === requestedLanguage) return;
-        setLanguage(lang as Language);
-        void savePreferences({ preferred_language: lang });
-    };
-
-    // Como el selector de pais de la home (useSwitchCountry): pais, idioma de
-    // ese pais y esta misma pagina en ese pais (/es/perfil/editar ->
-    // /gb/profile/edit).
-    const handleCountryChange = (code: string) => {
-        if (!isValidCountryCode(code) || code === country) return;
-        const target = COUNTRIES.find(c => c.code === code);
-        void savePreferences({ preferred_country: code, preferred_language: getLanguageForCountryCode(code) });
-        switchCountry(code as CountryCode);
-        if (target) showNotification(t('common.countryChanged', { country: target.name }), 'success');
-    };
-
-    const handleThemeChange = (pref: ThemePreference) => {
-        if (pref === themePreference) return;
-        setThemePreference(pref);
-        void savePreferences({ theme: pref });
-    };
-
     const handlePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setPasswordError(null);

@@ -19,7 +19,6 @@ import { getBusinessByName, getBusinessById } from './services/supabaseService';
 import { Business } from './types';
 import { COUNTRIES, isServedUrlPrefix } from './constants';
 import LanguagePopup, { hasSavedLanguage, isLandingNavigation } from './components/LanguagePopup';
-import FloatingLanguageButton from './components/FloatingLanguageButton';
 import PlanActivatedModal from './components/PlanActivatedModal';
 
 // Error Boundary to catch render errors and prevent blank pages
@@ -225,7 +224,6 @@ const MainLayout = () => {
             <RealtimeNotificationHandler />
             <Snackbar />
             <LanguagePopup />
-            <FloatingLanguageButton />
             <PlanActivatedModal />
             <LanguagePathValidator>
                 <div className="flex flex-col min-h-screen font-sans text-brand-dark dark:text-gray-200">

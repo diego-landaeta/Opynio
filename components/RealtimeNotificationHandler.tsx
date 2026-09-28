@@ -10,21 +10,25 @@ const RealtimeNotificationHandler: React.FC = () => {
     const { notifications, user } = useAuth();
     const { showNotification } = useNotification();
     const t = useTranslation();
-    const isInitialLoad = useRef(true);
     const prevNotificationsCount = useRef(notifications.length);
+    const mountedAt = useRef(Date.now());
+    const shownIds = useRef(new Set<string>());
 
     useEffect(() => {
-        // Skip the initial render to avoid showing notifications for existing unread messages on load.
-        if (isInitialLoad.current) {
-            isInitialLoad.current = false;
-            prevNotificationsCount.current = notifications.length;
-            return;
-        }
-
-        // If a new notification has been added (prepended to the start of the array)
+        // La lista llega vacia y se rellena al cargar (0 -> N) en cada visita:
+        // eso no es una notificacion nueva. Solo se avisa de la que se antepone
+        // a una lista ya cargada (tiempo real) o, si la lista estaba vacia, de
+        // una creada durante esta visita. Antes salia el aviso de la ultima
+        // notificacion en cada carga de pagina mientras existiera.
+        const hadList = prevNotificationsCount.current > 0;
         if (notifications.length > prevNotificationsCount.current) {
             const newNotification = notifications[0];
-            if (newNotification) {
+            const createdAt = newNotification ? new Date(newNotification.created_at).getTime() : 0;
+            const isNew = !!newNotification
+                && !shownIds.current.has(String(newNotification.id))
+                && (hadList ? notifications.length === prevNotificationsCount.current + 1 : createdAt >= mountedAt.current - 2 * 60 * 1000);
+            if (newNotification) shownIds.current.add(String(newNotification.id));
+            if (isNew) {
                  // 1. Show in-app snackbar. En una respuesta de soporte el
                  // mensaje es solo el asunto: se antepone que es de soporte.
                  const snack = newNotification.type === 'support_reply'
