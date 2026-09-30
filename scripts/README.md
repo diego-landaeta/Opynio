@@ -27,6 +27,7 @@ credenciales leídas de `.env` (nunca escritas en los ficheros). Los que siguen 
 | `_datos-prod/` | SQL de datos de producción con su marcha atrás (runbook). |
 | `_backup-prod-functions/` | Copia de las Edge Functions desplegadas, para volver atrás. |
 | `_prodlike/` | Copias de la estructura de producción para ensayar migraciones. |
+| `_backup/` | `backup-completo.cjs` (copia completa de producción, solo lectura) y `restaurar-tabla.cjs` (reinserta filas que falten). |
 | `_deploy-edge-*.cjs`, `_get-deployed-code.cjs`, `_share/` | Despliegue y diagnóstico (runbook). |
 | `_inject-reviews.cjs`, `_rollback-sep.sql`, `_ids-*-lote.json` | Carga mensual de reseñas: patrón y marcha atrás del último mes. |
 
