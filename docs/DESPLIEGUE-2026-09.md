@@ -574,7 +574,7 @@ Guárdalo **fuera del repo** o en `scripts/_backup/` (los `scripts/_*` están en
 
 ## 3. Migraciones SQL
 
-> **30/09: automatizado.** `node scripts/_datos-prod/10-migracion/migrar.cjs` aplica esta lista entera en orden (simulación por defecto; `--aplicar --confirmo-backup` para ejecutar), para en el primer error y registra cada migración. Comprobado ese día en solo lectura: ninguna aplicada todavía. Supabase no tiene copias del proyecto: copia de definiciones y de todos los datos de `public` en `scripts/_backup/2026-09-30-antes-migracion/`. Ver `scripts/_datos-prod/10-migracion/LEEME.md`.
+> **30/09: automatizado.** `node scripts/_datos-prod/10-migracion/migrar.cjs` aplica esta lista entera en orden (simulación por defecto; `--aplicar --confirmo-backup` para ejecutar), para en el primer error y registra cada migración. Comprobado ese día en solo lectura: ninguna aplicada todavía. Supabase no tiene copias del proyecto: copia completa (datos de `public`, `auth.users`/`identities`, Storage y estructura) con `node scripts/_backup/backup-completo.cjs` en `C:\Users\nange\Backups\opynio-bd-2026-09-30\` (+ `.zip`); restaurar con `scripts/_backup/restaurar-tabla.cjs`. Ver `scripts/_datos-prod/10-migracion/LEEME.md`.
 
 **Dónde**: Dashboard → SQL Editor, **un fichero por ejecución**, pegando el
 fichero **entero**, en el orden de la lista. Tras cada uno, su comprobación. Si
