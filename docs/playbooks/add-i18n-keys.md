@@ -53,21 +53,25 @@ en total) con el inyector que se describe aquí.
    ```
 
 2. **Elige un ancla**: una clave que ya exista en los 31 ficheros **dentro del bloque
-   correcto**. Compruébalo antes:
+   correcto** (el inyector aborta si no está o si sale más de una vez). Compruébalo antes:
 
    ```bash
    grep -l "    allReviewsFor:" locales/*.ts | wc -l   # tiene que dar 31
    ```
 
-3. **Inyecta** con un script que inserte detrás del ancla, respetando la indentación
-   y el estilo de comillas (comillas simples salvo que el texto lleve apóstrofo, y
-   entonces `JSON.stringify`). Usa `scripts/_i18n-productos/inyectar.mjs` como base:
-   es idempotente (si la clave ya está, salta el fichero).
+3. **Inyecta** con `scripts/i18n-inyectar.mjs` (en git). Inserta detrás del ancla,
+   dentro del bloque indicado, con su indentación y comillas simples (o
+   `JSON.stringify` si el texto lleva apóstrofo). Valida los 31 idiomas y el ancla
+   **antes** de escribir nada, y es idempotente (un locale que ya tiene la primera
+   clave nueva se salta):
 
    ```bash
-   node scripts/_i18n-<tema>/inyectar.mjs --dry-run   # informa, no escribe
-   node scripts/_i18n-<tema>/inyectar.mjs
+   node scripts/i18n-inyectar.mjs scripts/_i18n-<tema>/traducciones.mjs --bloque common --tras goBack --dry-run
+   node scripts/i18n-inyectar.mjs scripts/_i18n-<tema>/traducciones.mjs --bloque common --tras goBack
    ```
+
+   Para el bloque `paths` (una URL nueva) usa `--bloque paths` y después
+   `npm run gen:locale-paths`.
 
 ## Verificación
 
