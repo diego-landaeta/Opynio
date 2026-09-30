@@ -1590,6 +1590,8 @@ va ejecutando por bloques).
 >    `asignar-prod.sql`, y para volver atrás **`desasignar-prod-revisado.sql`**.
 >    La cifra esperada de 04.2 es la que da `informe-revision.txt`, no 667.
 > Copia de los ficheros del 24/09 en `scripts/_catalogo/v2409/`.
+>
+> **30/09 · segunda pasada por contenido.** De las 2.849 que seguían sin producto, 2.230 describen claramente su programa (1.477 confianza alta, 753 media; 65 con el programa confirmado por los documentos de origen). Tras `asignar-prod-revisado.sql`, ejecutar **`scripts/_catalogo/asignar-contenido.sql`** (deshacer: `desasignar-contenido.sql`; revisión en `revision-contenido.xlsx`). Total: **3.192 reseñas con producto** en las 9 empresas. Ensayado el 30/09 sobre una copia local con todos los datos de producción: 2.230/2.230 enlazadas y la huella de reseñas y empresas idéntica.
 
 Orden: 3.2 aplicada → front subido → 6.1 → **04.0** (comprobaciones previas) →
 **`scripts/_catalogo/carga.sql`** → comprobación 04.1 →
