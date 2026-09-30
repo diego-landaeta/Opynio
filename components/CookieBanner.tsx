@@ -26,11 +26,11 @@ const CookieBanner: React.FC = () => {
                     aria-labelledby="cookie-banner-title"
                     className="fixed z-[45] bottom-3 left-3 right-3 sm:right-auto sm:left-4 sm:bottom-4 sm:max-w-sm rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-4"
                 >
-                    <h2 id="cookie-banner-title" className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-1.5">
+                    <h2 id="cookie-banner-title" className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center justify-center gap-2 mb-1.5">
                         <i className="fa-solid fa-cookie-bite text-brand-green" aria-hidden="true"></i>
                         {t('editProfile.cookiesTitle')}
                     </h2>
-                    <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300 mb-3">{t('editProfile.cookiesText')}</p>
+                    <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300 mb-3 text-center">{t('editProfile.cookiesText')}</p>
                     <div className="flex gap-2">
                         <button type="button" onClick={() => setCookieConsent('denied')} className={`${BTN} border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-zinc-800`}>
                             {t('editProfile.cookiesReject')}
