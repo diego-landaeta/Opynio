@@ -325,7 +325,10 @@ export const searchReviewsOptimized = async (
   searchTerm: string,
   source: string = 'all',
   ratingFilter: 'all' | '5' | '4+' | '3-' = 'all',
-  productId?: string | null
+  productId?: string | null,
+  // Productos de la empresa cuyo nombre contiene el termino: sus reseñas entran
+  // en el resultado aunque el texto no nombre el producto.
+  productIdsByName: string[] = []
 ) => {
   try {
     const term = removeAccents((searchTerm || '').trim());
@@ -337,10 +340,10 @@ export const searchReviewsOptimized = async (
     // A fresh builder per page: supabase-js builders carry their own headers and
     // are not meant to be awaited twice.
     const nowIso = new Date().toISOString();
-    const buildQuery = () => {
+    const buildQuery = (seleccion: string = campos) => {
       let q = supabase
         .from('reviews')
-        .select(campos)
+        .select(seleccion)
         .eq('business_id', businessId)
         .eq('status', 'approved')
         .lte('created_at', nowIso);
@@ -386,6 +389,28 @@ export const searchReviewsOptimized = async (
       matches.push(...page.filter(matchesTerm));
       // Enough to fill the UI, or the last page came back short: stop paging.
       if (matches.length >= REVIEW_SEARCH_RESULT_CAP || page.length < REVIEW_SEARCH_PAGE_SIZE) break;
+    }
+
+    // Por nombre de producto: consulta directa de las reseñas enlazadas a esos
+    // productos (no depende del recorrido por texto de arriba). Se juntan sin
+    // repetir y se reordenan por fecha. Dentro de un producto ya elegido no aplica.
+    if (!productId && productIdsByName.length > 0) {
+      const { data: porProducto, error } = await buildQuery(`${reviewFields}, review_subject_links!inner(subject_id)`)
+        .in('review_subject_links.subject_id', productIdsByName)
+        .range(0, REVIEW_SEARCH_RESULT_CAP - 1)
+        .returns<any[]>();
+      if (error) {
+        console.error('Error searching reviews by product name:', error);
+      } else if (porProducto?.length) {
+        const vistos = new Set(matches.map(r => r.id));
+        for (const r of porProducto) {
+          if (vistos.has(r.id)) continue;
+          vistos.add(r.id);
+          const { review_subject_links: _enlaces, ...resto } = r;
+          matches.push(resto);
+        }
+        matches.sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : (b.id > a.id ? 1 : -1)));
+      }
     }
 
     matches.length = Math.min(matches.length, REVIEW_SEARCH_RESULT_CAP);

@@ -90,10 +90,11 @@ const ProductChooser: React.FC<{
     noResults: string;
 }> = ({ products, value, onChange, title, hint, allLabel, reviewsWord, searchPlaceholder, noResults }) => {
     const [abierto, setAbierto] = useState(false);
-    // Buscador dentro del desplegable: hay empresas con mas de mil cursos y
-    // recorrer la lista entera a mano no es viable.
+    // Buscador dentro del desplegable, siempre (antes solo con mas de 10): al
+    // abrirlo se puede escribir directamente, y escribir con el boton enfocado
+    // lo abre con esa letra ya puesta.
     const [busqueda, setBusqueda] = useState('');
-    const conBuscador = products.length > 10;
+    const conBuscador = true;
     const visibles = React.useMemo(() => {
         const normalizar = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const palabras = normalizar(busqueda.trim()).split(/\s+/).filter(Boolean);
@@ -152,6 +153,13 @@ const ProductChooser: React.FC<{
                 ref={botonRef}
                 type="button"
                 onClick={() => setAbierto(o => !o)}
+                onKeyDown={(e) => {
+                    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== ' ') {
+                        e.preventDefault();
+                        setBusqueda(e.key);
+                        setAbierto(true);
+                    }
+                }}
                 aria-expanded={abierto}
                 aria-haspopup="true"
                 className={`mt-2 w-full min-h-[52px] flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand-green ${
@@ -858,7 +866,7 @@ const BusinessPage: React.FC = () => {
         }
     }, []);
 
-    const fetchSearch = useCallback(async (businessId: string, term: string, source: string, rating: typeof ratingFilter, product: string) => {
+    const fetchSearch = useCallback(async (businessId: string, term: string, source: string, rating: typeof ratingFilter, product: string, productIdsByName: string[] = []) => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -871,7 +879,7 @@ const BusinessPage: React.FC = () => {
         setHasMore(false);
         setIsLoadingMore(true);
         try {
-            const reviewsData = await searchReviewsOptimized(businessId, term, source, rating, product && product !== 'all' ? product : null);
+            const reviewsData = await searchReviewsOptimized(businessId, term, source, rating, product && product !== 'all' ? product : null, productIdsByName);
             if (esLaUltima()) {
                 setReviews(reviewsData);
                 setHasMore(false);
@@ -1090,12 +1098,18 @@ const BusinessPage: React.FC = () => {
         if (business) {
             setPage(1);
             if (activeSearch) {
-                fetchSearch(business.id, activeSearch, sourceFilter, ratingFilter, productFilter);
+                // Escribir el nombre de un producto también trae sus reseñas.
+                const plano = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+                const termino = plano(activeSearch.trim());
+                const porNombre = termino.length >= 3
+                    ? products.filter(p => plano(p.name || '').includes(termino)).map(p => p.id)
+                    : [];
+                fetchSearch(business.id, activeSearch, sourceFilter, ratingFilter, productFilter, porNombre);
             } else {
                 fetchReviews(business.id, 1, sourceFilter, ratingFilter, false, productFilter);
             }
         }
-    }, [business, sourceFilter, ratingFilter, productFilter, activeSearch, fetchReviews, fetchSearch]);
+    }, [business, sourceFilter, ratingFilter, productFilter, activeSearch, fetchReviews, fetchSearch, products]);
 
     // Load more reviews when page changes (but not when filters change, and never in search mode)
     const prevFiltersRef = useRef({ sourceFilter, ratingFilter, productFilter });
