@@ -149,9 +149,12 @@ const FlagSelect: React.FC<SelectProps & { opciones: Opcion[] }> = ({ id, value,
     );
 };
 
-const CountrySelect: React.FC<SelectProps> = (props) => {
+// nombrePais: para nombrar los países en otro idioma que el de la interfaz (la
+// bienvenida habla el idioma que se está eligiendo, aún no el de la web).
+const CountrySelect: React.FC<SelectProps & { nombrePais?: (code: string, fallback: string) => string }> = ({ nombrePais, ...props }) => {
     const countryName = useCountryName();
-    const opciones = COUNTRIES.map(c => ({ code: c.code, name: countryName(c.code, c.name), flag: c.code }));
+    const nombre = nombrePais ?? countryName;
+    const opciones = COUNTRIES.map(c => ({ code: c.code, name: nombre(c.code, c.name), flag: c.code }));
     return <FlagSelect {...props} opciones={opciones} />;
 };
 

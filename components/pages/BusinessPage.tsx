@@ -1340,12 +1340,12 @@ const BusinessPage: React.FC = () => {
                                                 }`}
                                             >
                                                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full overflow-hidden shadow-sm flex-shrink-0">
-                                                    <img src={s.flag} alt={s.name} width={28} height={28} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                                    <img src={s.flag} alt={countryNameOf(s.country_code, s.name)} width={28} height={28} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-                                                            {s.name}
+                                                            {countryNameOf(s.country_code, s.name)}
                                                         </span>
                                                         {isMainSede && (
                                                             <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-brand-green/20 text-brand-green dark:bg-brand-green/30 dark:text-brand-green-light rounded font-bold uppercase">

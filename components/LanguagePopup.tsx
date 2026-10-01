@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY, toBcp47, useLocaleDictionary, getNestedTranslation } from '../contexts/i18nContext';
 import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
-import { useCountryName } from '../utils/countryName';
+import { useCountryName, intlCountryName } from '../utils/countryName';
 import CountrySelect, { LanguageSelect } from './CountrySelect';
 import { LANGUAGES, COUNTRIES } from '../constants';
 import { useLocation, useNavigationType } from 'react-router-dom';
@@ -233,6 +233,11 @@ const LanguagePopup: React.FC = () => {
     const tw = (key: string) => {
         const v = welcomeDict ? getNestedTranslation(welcomeDict, key) : undefined;
         return typeof v === 'string' ? v : t(key);
+    };
+    // Países en el idioma de la bienvenida: clave del locale si la tiene, si no CLDR.
+    const paisEnBienvenida = (code: string, fallback: string) => {
+        const v = welcomeDict ? getNestedTranslation(welcomeDict, `countries.${code}`) : undefined;
+        return typeof v === 'string' ? v : (intlCountryName(code, welcomeLang) || fallback);
     };
     const [welcomeCountry, setWelcomeCountry] = useState<string>(() => {
         const region = (typeof navigator !== 'undefined' ? navigator.language : '').split('-')[1]?.toUpperCase();
@@ -506,7 +511,7 @@ const LanguagePopup: React.FC = () => {
                     </div>
                     <div>
                         <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{tw('editProfile.countryLabel')}</label>
-                        <CountrySelect id="welcome-country" value={welcomeCountry} onChange={setWelcomeCountry} className={SELECT} />
+                        <CountrySelect id="welcome-country" value={welcomeCountry} onChange={setWelcomeCountry} className={SELECT} nombrePais={paisEnBienvenida} />
                     </div>
                     <button type="submit" className="w-full p-3.5 rounded-xl bg-brand-green text-white font-semibold hover:bg-brand-green/90 transition-colors">
                         {tw('common.welcomeContinue')}

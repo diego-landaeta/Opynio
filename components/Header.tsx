@@ -158,7 +158,7 @@ const MobileMenu: React.FC<{
                         <Link to={countryPrefix || '/'} onClick={onClose} className="flex items-center gap-2">
                             <span id="menu-title" className="text-lg sm:text-xl font-bold text-brand-green truncate">{brandName}</span>
                         </Link>
-                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label="Cerrar menú">
+                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
                             <i className="fa-solid fa-times"></i>
                         </button>
                     </div>
@@ -480,14 +480,14 @@ const Header: React.FC = () => {
 
     const NotificationPrompt: React.FC = () => (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm flex items-center justify-between gap-4">
-            <div><p className="font-semibold text-yellow-800">¡Mantente al día!</p><p className="text-yellow-700">Activa las notificaciones para saber cuándo responden a tus reseñas.</p>{subscriptionError && <p className="text-red-600 mt-1 text-xs font-medium">{subscriptionError}</p>}</div>
-            <div className="flex items-center gap-4 flex-shrink-0"><button onClick={handleSubscribe} className="bg-brand-green text-white font-semibold px-4 py-1.5 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs">Activar</button><button onClick={handleDismissNotifPrompt} className="text-yellow-800 hover:text-yellow-900 transition-colors p-1" aria-label="Cerrar aviso de notificaciones"><i className="fa-solid fa-times text-lg"></i></button></div>
+            <div><p className="font-semibold text-yellow-800">{t('header.notifPromptTitle')}</p><p className="text-yellow-700">{t('header.notifPromptText')}</p>{subscriptionError && <p className="text-red-600 mt-1 text-xs font-medium">{subscriptionError}</p>}</div>
+            <div className="flex items-center gap-4 flex-shrink-0"><button onClick={handleSubscribe} className="bg-brand-green text-white font-semibold px-4 py-1.5 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs">{t('header.notifPromptActivate')}</button><button onClick={handleDismissNotifPrompt} className="text-yellow-800 hover:text-yellow-900 transition-colors p-1" aria-label={t('header.notifPromptDismiss')}><i className="fa-solid fa-times text-lg"></i></button></div>
         </div>
     );
 
     const UserDropdownMenu: React.FC = () => (
         <div className="relative" ref={userDropdownRef}>
-            <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-brand-dark dark:text-gray-200 font-bold overflow-hidden">
+            <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} aria-label={t('header.accountMenu')} aria-expanded={userDropdownOpen} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-brand-dark dark:text-gray-200 font-bold overflow-hidden">
                 {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" width={48} height={48} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span>{profile?.name?.charAt(0).toUpperCase()}</span>}
             </button>
             {userDropdownOpen && (
@@ -594,7 +594,7 @@ const Header: React.FC = () => {
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
                             {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />}
                             {user && <NotificationDropdown />}
-                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label="Abrir menú"><i className="fa-solid fa-bars"></i></button>
+                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label={t('header.openMenu')}><i className="fa-solid fa-bars"></i></button>
                         </div>
                     </div>
                 </div>
