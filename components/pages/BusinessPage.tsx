@@ -292,6 +292,8 @@ const BusinessPage: React.FC = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [ratingDistribution, setRatingDistribution] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    // En móvil la descripción va antes de las reseñas: plegada a 4 líneas.
+    const [descripcionAbierta, setDescripcionAbierta] = useState(false);
     
     // States for review source filtering
     const [sourceFilter, setSourceFilter] = useState<'all' | 'opynio' | 'google' | 'trustindex'>('all');
@@ -793,7 +795,11 @@ const BusinessPage: React.FC = () => {
 
                 const marker = L.marker(latLng, { icon: currentBusinessIcon, zIndexOffset: 1000 })
                     .addTo(markersLayerRef.current!);
-                marker.bindPopup(`<b>${business.name}</b>`).openPopup();
+                // El nombre va como texto (no HTML) y el globo no se abre solo: con
+                // nombres largos tapaba el mapa y los botones de zoom.
+                const etiqueta = document.createElement('b');
+                etiqueta.textContent = business.name;
+                marker.bindPopup(etiqueta);
 
                 timeoutId = setTimeout(() => {
                     if (mapRef.current) mapRef.current.invalidateSize();
@@ -1309,7 +1315,9 @@ const BusinessPage: React.FC = () => {
                         {allSedes.length > 1 && (
                             <div className="w-full md:w-auto">
                                 <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-100 mb-3">{t('businessPage.locations')}</h3>
-                                <div className="flex flex-wrap items-start gap-2 sm:gap-3">
+                                {/* Móvil: una fila con scroll horizontal (con muchas sedes ocupaban
+                                    media pantalla antes de las reseñas). Desde md, en varias filas. */}
+                                <div className="flex flex-nowrap md:flex-wrap items-start gap-2 sm:gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none hide-scrollbar -mx-3 px-3 sm:-mx-4 sm:px-4 md:mx-0 md:px-0 pb-1 md:pb-0">
                                     {allSedes.map(s => {
                                         const isActive = s.country_code === activeCountryCode;
                                         const isMainSede = s.country_code === business.country;
@@ -1325,7 +1333,7 @@ const BusinessPage: React.FC = () => {
                                             <Link
                                                 key={s.country_code}
                                                 to={linkPath}
-                                                className={`group flex items-center gap-2 px-3 py-2 rounded-lg border-2 shadow-sm transition-all duration-200 hover:shadow-md ${
+                                                className={`group flex flex-shrink-0 snap-start items-center gap-2 px-3 py-2 rounded-lg border-2 shadow-sm transition-all duration-200 hover:shadow-md ${
                                                     isActive
                                                         ? 'border-brand-green bg-brand-green/5 dark:bg-brand-green/10'
                                                         : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600'
@@ -1373,8 +1381,12 @@ const BusinessPage: React.FC = () => {
                     </div>
                 </header>
 
+                {/* Por debajo de lg el aside es `contents`: sus tarjetas pasan a ser piezas
+                    de esta rejilla y se ordenan con order-*: productos, «Sobre» y distribución
+                    antes de las reseñas; panel/reclamar, mapa y redes después. Desde lg el
+                    aside vuelve a ser la columna fija de la derecha y los order no aplican. */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-                    <section className="lg:col-span-2 space-y-3 sm:space-y-4 md:space-y-6">
+                    <section className="order-4 lg:order-none min-w-0 lg:col-span-2 space-y-3 sm:space-y-4 md:space-y-6">
                         {isLoadingInsights ? <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700 flex justify-center"><Spinner/></div> : insights && (
                             <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border dark:border-zinc-700">
                                 <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-gray-800 dark:text-gray-100">{t('businessPage.aiSummary')}</h2>
@@ -1488,9 +1500,9 @@ const BusinessPage: React.FC = () => {
                         </div>
                     </section>
 
-                    <aside className="lg:col-span-1 space-y-3 sm:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
+                    <aside className="contents lg:block lg:col-span-1 lg:space-y-4 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto hide-scrollbar">
                         {products.length > 0 && (
-                            <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
+                            <div className="order-1 lg:order-none min-w-0 bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
                                 {/* allLabel: sin producto elegido el boton decia "Todos",
                                     que no dice de que. Ahora nombra lo que se esta viendo. */}
                                 <ProductChooser
@@ -1512,7 +1524,7 @@ const BusinessPage: React.FC = () => {
                             </div>
                         )}
 
-                        <div>
+                        <div className="order-3 lg:order-none min-w-0">
                             {/* Con un producto elegido, la distribucion es la de sus
                                 resenas (subconjunto). Con «Todas», la de la empresa. */}
                             {selectedProduct ? (
@@ -1543,7 +1555,7 @@ const BusinessPage: React.FC = () => {
                                 <RatingDistribution distribution={ratingDistribution} totalReviews={totalReviews} />
                             )}
                         </div>
-                        <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700 space-y-2.5 sm:space-y-3 overflow-hidden">
+                        <div className="order-2 lg:order-none min-w-0 bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700 space-y-2.5 sm:space-y-3 overflow-hidden">
                             <h3 className="font-bold text-xs sm:text-sm md:text-base text-gray-800 dark:text-gray-100">{t('businessPage.aboutBusiness', { businessName: business.name })}</h3>
                             {isTranslating && business?.description ? (
                                 <div className="space-y-2 animate-pulse">
@@ -1552,7 +1564,22 @@ const BusinessPage: React.FC = () => {
                                     <div className="h-3 sm:h-4 bg-gray-200 dark:bg-zinc-700 rounded w-3/4"></div>
                                 </div>
                             ) : (
-                                translatedContent.description && <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{translatedContent.description}</p>
+                                translatedContent.description && (
+                                    <div>
+                                        {/* Plegada solo por debajo de lg (ahí va antes de las reseñas). */}
+                                        <p className={`text-xs sm:text-sm text-gray-600 dark:text-gray-300 ${descripcionAbierta ? '' : 'line-clamp-4 lg:line-clamp-none'}`}>{translatedContent.description}</p>
+                                        {translatedContent.description.length > 220 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDescripcionAbierta(v => !v)}
+                                                aria-expanded={descripcionAbierta}
+                                                className="lg:hidden mt-1 text-xs sm:text-sm font-semibold text-brand-green hover:underline focus:outline-none focus:ring-2 focus:ring-brand-green rounded"
+                                            >
+                                                {descripcionAbierta ? t('common.showLess') : t('common.showMore')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )
                             )}
                             <div className="text-[11px] sm:text-xs md:text-sm space-y-2 pt-2 border-t dark:border-zinc-700">
                                 <div className="flex items-start gap-2"><i className="fa-solid fa-tags w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.category')}:</strong><br/><span className="break-words">{displayCategory}</span></div></div>
@@ -1565,7 +1592,7 @@ const BusinessPage: React.FC = () => {
 
                         {/* Es tu negocio: en lugar de "reclamar", acceso al panel. */}
                         {business && ownBusiness && (
-                            <div className="bg-green-50 dark:bg-green-900/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-green-200 dark:border-green-800" data-own-business="true">
+                            <div className="order-5 lg:order-none min-w-0 bg-green-50 dark:bg-green-900/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-green-200 dark:border-green-800" data-own-business="true">
                                 <div className="flex items-start gap-2 mb-2">
                                     <i className="fa-solid fa-store text-brand-green text-base sm:text-lg mt-0.5" aria-hidden="true"></i>
                                     <div className="flex-1 min-w-0">
@@ -1585,7 +1612,7 @@ const BusinessPage: React.FC = () => {
 
                         {/* Claim Business Section - Only show if business is unclaimed */}
                         {business && !business.owner_id && !ownBusiness && (
-                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-blue-200 dark:border-blue-700">
+                            <div className="order-5 lg:order-none min-w-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 sm:p-4 rounded-xl shadow-sm border-2 border-blue-200 dark:border-blue-700">
                                 <div className="flex items-start gap-2 mb-2">
                                     <i className="fa-solid fa-store text-blue-600 dark:text-blue-400 text-base sm:text-lg mt-0.5"></i>
                                     <div className="flex-1 min-w-0">
@@ -1608,9 +1635,9 @@ const BusinessPage: React.FC = () => {
                             </div>
                         )}
 
-                        {hasSedeLocation && !mapError && <div ref={mapContainerRef} className="w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-gray-200 dark:bg-zinc-700 rounded-lg shadow-md border dark:border-zinc-700 z-0"></div>}
+                        {hasSedeLocation && !mapError && <div ref={mapContainerRef} className="order-6 lg:order-none w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-gray-200 dark:bg-zinc-700 rounded-lg shadow-md border dark:border-zinc-700 z-0"></div>}
                         {hasSedeLocation && mapError && (
-                            <div className="w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-gray-100 dark:bg-zinc-800 rounded-lg shadow-md border dark:border-zinc-700 flex items-center justify-center">
+                            <div className="order-6 lg:order-none w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-gray-100 dark:bg-zinc-800 rounded-lg shadow-md border dark:border-zinc-700 flex items-center justify-center">
                                 <div className="text-center text-gray-500 dark:text-gray-400">
                                     <i className="fa-solid fa-map-location-dot text-3xl mb-2 text-gray-400 dark:text-gray-500"></i>
                                     <p className="text-sm font-medium">{t('businessPage.mapError') || 'No se pudo cargar el mapa'}</p>
@@ -1619,7 +1646,7 @@ const BusinessPage: React.FC = () => {
                         )}
                         {/* FIX: Corrected typo from `social` to `socialLinks.instagram` and completed the JSX. */}
                         {(socialLinks.twitter || socialLinks.instagram) &&
-                            <div className="bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
+                            <div className="order-7 lg:order-none min-w-0 bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
                                 <h3 className="font-bold text-xs sm:text-sm md:text-base mb-2">{t('businessPage.socialMedia')}</h3>
                                 <div className="flex gap-3 text-lg sm:text-xl">
                                     {socialLinks.twitter && <a href={`https://twitter.com/${socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500"><i className="fab fa-twitter"></i></a>}
