@@ -437,3 +437,8 @@ verify_jwt = false
 
 [functions.generate-sitemap]
 verify_jwt = false
+
+# Hook "Send Email" de Auth: lo llama Supabase Auth, protegido con firma
+# Standard Webhooks (SEND_EMAIL_HOOK_SECRET).
+[functions.send-auth-email]
+verify_jwt = false
