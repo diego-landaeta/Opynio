@@ -10,9 +10,11 @@ import Meta from '../../Meta';
 import L from 'leaflet';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink, { useUnsavedChangesGuard } from './AdminBackLink';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 type CreationMode = 'none' | 'manual' | 'google';
+const INITIAL_FORM = { name: '', slug: '', website_url: '', twitter: '', instagram: '', logo_url: '', google_maps_url: '', category: '', description: '', contact_email: '', contact_phone: '', country: 'ES' };
 
 const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; close: string } | 'cerrado'; onChange: (day: keyof BusinessHours, value: { open: string; close: string } | 'cerrado') => void; }> = ({ day, value, onChange }) => {
     const isClosed = value === 'cerrado';
@@ -46,7 +48,7 @@ const AdminCreateBusinessPage: React.FC = () => {
     // Manual form states
     const [activeTab, setActiveTab] = useState<'info' | 'import'>('info');
     const [createdBusiness, setCreatedBusiness] = useState<Business | null>(null);
-    const [formData, setFormData] = useState({ name: '', slug: '', website_url: '', twitter: '', instagram: '', logo_url: '', google_maps_url: '', category: '', description: '', contact_email: '', contact_phone: '', country: 'ES' });
+    const [formData, setFormData] = useState(INITIAL_FORM);
     const [horarios, setHorarios] = useState<BusinessHours>({});
     const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
     const [checkingSlug, setCheckingSlug] = useState(false);
@@ -73,6 +75,16 @@ const AdminCreateBusinessPage: React.FC = () => {
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
+
+    // Formulario largo: si hay algo escrito y aun no se ha creado la empresa (o
+    // hay una importacion en marcha), salir avisa antes.
+    const manualDirty = creationMode === 'manual' && !createdBusiness && (
+        (Object.keys(INITIAL_FORM) as (keyof typeof INITIAL_FORM)[]).some(k => formData[k] !== INITIAL_FORM[k])
+        || Object.keys(horarios).length > 0
+        || location !== null
+    );
+    const googleDirty = creationMode === 'google' && !googleProcessSuccess && googleMapsUrl.trim() !== '';
+    useUnsavedChangesGuard(manualDirty || googleDirty || loading || isImporting || isProcessingGoogle);
     
     useEffect(() => {
         if (creationMode === 'manual' && mapContainerRef.current && !mapRef.current) {
@@ -168,7 +180,7 @@ const AdminCreateBusinessPage: React.FC = () => {
 
             const newBusiness = await adminCreateBusiness(businessData);
             setCreatedBusiness(newBusiness as Business);
-            showNotification(t('businessCreatedSuccess'), 'success');
+            showNotification(t('adminCreateBusiness.businessCreatedSuccess', { name: (newBusiness as Business).name }), 'success');
             setActiveTab('import');
         } catch (err: any) {
             setError(err.message || 'Error al crear la empresa.');
@@ -400,6 +412,7 @@ const AdminCreateBusinessPage: React.FC = () => {
     return (
         <>
             <Meta title={`${t('adminCreateBusiness.title')} - Admin`} description={t('adminCreateBusiness.title')} />
+            <AdminBackLink />
             <div className="max-w-4xl mx-auto bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100 mb-6">{t('adminCreateBusiness.title')}</h1>
 

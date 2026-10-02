@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 
 // Demo widget component for preview
 const WidgetPreviewCard: React.FC<{
@@ -67,7 +68,12 @@ const WidgetsShowcasePage: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
+  // Con sesión no tiene sentido mandar al registro: al panel de widgets de su
+  // empresa, a "Mis negocios" o al asistente de alta (ver utils/businessOwnership).
+  const ctaPath = useBusinessStartPath('dashboardWidgets');
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -101,7 +107,7 @@ const WidgetsShowcasePage: React.FC = () => {
             {t('widgetsPage.subtitle')}
           </p>
           <Link
-            to={`${countryPrefix}/${paths.register}?type=business`}
+            to={ctaPath}
             className="inline-flex items-center gap-2 bg-brand-green text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
           >
             {t('widgetsPage.ctaButton')}
@@ -318,7 +324,7 @@ const WidgetsShowcasePage: React.FC = () => {
                 </div>
                 <div className="border-t border-zinc-700 pt-4 mt-4">
                   <p className="text-gray-400 text-xs text-center">
-                    {t('widgetsPage.needHelp')} <a href="mailto:support@opynio.com" className="text-brand-green hover:underline">support@opynio.com</a>
+                    {t('widgetsPage.needHelp')} <Link to={`${countryPrefix}/${paths.support}`} className="text-brand-green hover:underline">{t('footer.contactViaSupport')}</Link>
                   </p>
                 </div>
               </div>
@@ -360,7 +366,7 @@ const WidgetsShowcasePage: React.FC = () => {
               {t('widgetsPage.ctaDesc')}
             </p>
             <Link
-              to={`${countryPrefix}/${paths.register}?type=business`}
+              to={ctaPath}
               className="inline-flex items-center gap-2 bg-white text-brand-green px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               {t('widgetsPage.ctaButton')}

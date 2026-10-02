@@ -10,20 +10,23 @@ declare const Deno: {
 
 // Se actualiza a una versión más reciente y estable de la librería estándar de Deno.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { requireAdmin } from '../_shared/requireAdmin.ts';
+import { corsHeadersFor } from '../_shared/cors.ts';
 
-// Cabeceras CORS para permitir que tu aplicación frontend llame a esta función.
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Para producción, es mejor restringirlo a tu dominio: 'https://app.opynio.com'
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 
 serve(async (req) => {
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   // Manejo de la solicitud preflight de CORS, necesaria para los navegadores.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Solo admin: consume cuota de una API de pago (ver _shared/requireAdmin.ts).
+  const denied = await requireAdmin(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     // 1. OBTENCIÓN SEGURA DE LA CLAVE API

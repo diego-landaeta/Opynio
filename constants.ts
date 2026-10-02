@@ -286,7 +286,36 @@ export const APP_LANGUAGES = [
   { code: 'tr', name: 'Türkiye', flag: 'https://flagcdn.com/tr.svg', disabled: false },
 ];
 
+// Prefijos de URL (/xx/...) que la app sirve aunque no sean paises del selector
+// (COUNTRIES). En master se aceptaba cualquier prefijo y hay enlaces vivos con
+// estos: /en/... salia en el sitemap antiguo, el widget enlaza /ve/empresa/... y
+// /cn/公司/... (VE y CN estan en SEDE_COUNTRIES), /cn es el pais por defecto del
+// chino simplificado (LANGUAGE_DEFAULT_COUNTRY) y versiones antiguas montaban
+// los enlaces con el codigo del IDIOMA (/ja/explore, /sv/..., /ko/...).
+// Hoy salen: ve, cn, en, ko, ms, fa, vi, bn, hi, tl, sv, ja.
+// Son alias, no paises del selector: no hay empresas de ellos, asi que el
+// contenido se sigue mostrando con el pais de busqueda del usuario (como en
+// master) en vez de un pais vacio. Un prefijo que no este aqui ni en COUNTRIES
+// es un 404.
+export const URL_PREFIX_ALIASES: readonly string[] = Array.from(new Set(
+  [...SEDE_COUNTRIES.map(c => c.code), ...APP_LANGUAGES.map(c => c.code), ...LANGUAGES.map(c => c.code)]
+    .map(code => code.toLowerCase())
+    .filter(code => !COUNTRIES.some(c => c.code.toLowerCase() === code))
+));
+
+/** true si /<code>/... es un prefijo que se sirve (pais del selector o alias). */
+export const isServedUrlPrefix = (code: string | null | undefined): boolean => {
+  if (!code) return false;
+  const lc = code.toLowerCase();
+  return COUNTRIES.some(c => c.code.toLowerCase() === lc) || URL_PREFIX_ALIASES.includes(lc);
+};
+
 
 // This key is used by the push service to identify the application server.
 // The corresponding private key must be used on the server to send notifications.
+// Notificaciones push: no existe public/service-worker.js ni ninguna funcion
+// que envie los avisos, asi que "Activar" no hacia nada y el registro del
+// service worker daba error en consola. Apagado hasta que exista el envio.
+export const PUSH_NOTIFICATIONS_ENABLED = false;
+
 export const VAPID_PUBLIC_KEY = 'BPhgcyzi1O0wF2j_v5V_MfYj1vQj8-2hO9-4nF6gI3d3W4eX8rJ6p6c5Z8s7K9l0R8n7M6i5T4o3E2w';

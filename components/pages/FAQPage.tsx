@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
 
@@ -54,7 +54,9 @@ const FAQPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('general');
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';

@@ -4,8 +4,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
-import { useNotification } from '../../contexts/NotificationContext';
 import { supabase } from '../../services/supabaseService';
+import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
 import { COUNTRIES } from '../../constants';
 
 // FAQ Item Component
@@ -36,7 +36,7 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
 const PricingPage = () => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const { user, businesses, profile } = useAuth();
-    const { showNotification } = useNotification();
+    const { notifyError, showUserError } = useUserErrorNotifier();
     const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
     const [openingPortal, setOpeningPortal] = useState(false);
     const t = useTranslation();
@@ -62,18 +62,23 @@ const PricingPage = () => {
         planName !== 'free' &&
         planName !== 'enterprise';
 
-    const handleManageBilling = async () => {
+    // Con `target` (cambio de plan), el portal se abre en la confirmacion del
+    // cambio a ese plan, con el prorrateo que calcula Stripe; si la
+    // configuracion del portal no lo permite, en su pagina principal.
+    const handleManageBilling = async (target?: { plan: string; billingCycle: 'monthly' | 'annual' }) => {
         setOpeningPortal(true);
         try {
-            const { data, error } = await supabase.functions.invoke('create-portal-session');
+            const { data, error } = await supabase.functions.invoke('create-portal-session', target ? { body: target } : undefined);
             if (error) throw error;
             if (data?.url) {
                 window.location.href = data.url;
             } else {
-                throw new Error('No se recibió la URL del portal de facturación.');
+                throw new Error('create-portal-session: respuesta sin url');
             }
-        } catch (err: any) {
-            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+        } catch (err) {
+            // Mensaje traducido con accion (Soporte / Iniciar sesion); nunca el
+            // texto tecnico («Edge Function returned a non-2xx status code»).
+            await notifyError(err, { flow: 'portal' });
             setOpeningPortal(false);
         }
     };
@@ -86,25 +91,30 @@ const PricingPage = () => {
                 body: { plan: planName, billingCycle, businessId: primaryBusinessId },
             });
             if (error) {
-                // El backend devuelve 409 con error: 'duplicate_subscription' si el
-                // usuario ya tiene este plan activo. En ese caso, mandamos al portal.
-                // deno-lint-ignore no-explicit-any
-                const ctx: any = (error as any)?.context;
-                const status = ctx?.response?.status ?? ctx?.status;
-                if (status === 409) {
+                const info = await getUserFacingError(error, { flow: 'checkout' });
+                // 409 'duplicate_subscription' (ya tiene este plan) o
+                // 'has_active_subscription' (tiene otro): al portal, que cambia
+                // el plan de la suscripcion que ya paga. Antes se abria un
+                // Checkout nuevo y acababa con dos suscripciones cobradas.
+                if (info.kind === 'duplicateSubscription') {
                     setUpgradingPlan(null);
-                    await handleManageBilling();
+                    await handleManageBilling({ plan: planName, billingCycle });
                     return;
                 }
-                throw error;
+                // «No se ha podido iniciar el pago. No se ha realizado ningun
+                // cargo...» con enlace a Soporte (o el caso concreto: sesion
+                // caducada, limite de empresas, sin conexion).
+                showUserError(info);
+                setUpgradingPlan(null);
+                return;
             }
             if (data?.url) {
                 window.location.href = data.url;
             } else {
-                throw new Error('No se recibió la URL de pago.');
+                throw new Error('create-checkout-session: respuesta sin url');
             }
-        } catch (err: any) {
-            showNotification(err.message || 'No se pudo iniciar el checkout.', 'error');
+        } catch (err) {
+            await notifyError(err, { flow: 'checkout' });
             setUpgradingPlan(null);
         }
     };
@@ -215,7 +225,7 @@ const PricingPage = () => {
                             className="sr-only peer" 
                             checked={billingCycle === 'annual'}
                             onChange={() => setBillingCycle(prev => prev === 'monthly' ? 'annual' : 'monthly')}
-                            aria-label="Cambiar a facturación anual"
+                            aria-label={t('pricingPage.toggleAnnual')}
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-green"></div>
                     </label>
@@ -286,14 +296,14 @@ const PricingPage = () => {
                                     {isCurrentSubscription(planName) ? (
                                         <button
                                             type="button"
-                                            onClick={handleManageBilling}
+                                            onClick={() => handleManageBilling()}
                                             disabled={openingPortal}
                                             className={`w-full text-center font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.isPopular ? 'bg-brand-blue text-white hover:bg-opacity-90 shadow-md' : 'bg-blue-50 text-brand-blue hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50'}`}
                                         >
                                             {openingPortal ? (
                                                 <>
                                                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                    <span>Abriendo portal…</span>
+                                                    <span>{t('common.openingPortal')}</span>
                                                 </>
                                             ) : (
                                                 <span><i className="fa-solid fa-credit-card mr-2"></i>{t('myBusinesses.manageBilling')}</span>
@@ -309,7 +319,7 @@ const PricingPage = () => {
                                             {upgradingPlan === planName ? (
                                                 <>
                                                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                    <span>Redirigiendo a Stripe…</span>
+                                                    <span>{t('common.redirectingToStripe')}</span>
                                                 </>
                                             ) : (
                                                 <span>{t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>

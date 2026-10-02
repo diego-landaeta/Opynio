@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 
 // Animated counter hook
 const useCountUp = (end: number, duration: number = 2000, startOnView: boolean = true) => {
@@ -462,7 +463,10 @@ const CaseStudiesPage: React.FC = () => {
   const { country } = useCountry();
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
+  const ctaPath = useBusinessStartPath();
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -752,7 +756,7 @@ const CaseStudiesPage: React.FC = () => {
                 {t('caseStudiesPage.ctaDesc')}
               </p>
               <Link
-                to={`${countryPrefix}/${paths.register}?type=business`}
+                to={ctaPath}
                 className="inline-flex items-center gap-3 bg-white text-brand-green px-8 py-4 rounded-xl font-semibold hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
                 {t('caseStudiesPage.ctaButton')}

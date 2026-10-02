@@ -6,15 +6,20 @@ import { importSerpApiGoogleReviews, checkGoogleMapsUrlExists } from '../../../s
 import { googleReviewsImporter, SerpApiImportResult } from '../../../services/serpApiService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useTranslation } from '../../../contexts/i18nContext';
+import { useUserErrorNotifier, type UserFacingError } from '../../../utils/userFacingError';
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 
 const MigrateGoogleReviewsPage: React.FC = () => {
-    // FIX: Updated to use `businesses` array from AuthContext and select the first one.
+    // La empresa sale de ?businessId= (el panel enlaza con ella). Antes era
+    // siempre la primera: un dueno con varias importaba en la equivocada.
     const { businesses, profile } = useAuth();
-    const business = businesses.length > 0 ? businesses[0] : null;
+    const [searchParams] = ReactRouterDOM.useSearchParams();
+    const businessIdParam = searchParams.get('businessId');
+    const business = businesses.find(b => b.id === businessIdParam) || (businesses.length > 0 ? businesses[0] : null);
     const { showNotification } = useNotification();
+    const { notifyError, showUserError } = useUserErrorNotifier();
     const t = useTranslation();
 
     const [googleMapsUrl, setGoogleMapsUrl] = useState('');
@@ -41,9 +46,12 @@ const MigrateGoogleReviewsPage: React.FC = () => {
 
         try {
             handleProgressUpdate('Verificando URL...');
-            const exists = await checkGoogleMapsUrlExists(googleMapsUrl.trim());
+            // La URL de la propia empresa no cuenta como "de otra empresa".
+            const esLaPropia = !!business.google_maps_url
+                && business.google_maps_url.trim().replace(/\/+$/, '') === googleMapsUrl.trim().replace(/\/+$/, '');
+            const exists = !esLaPropia && await checkGoogleMapsUrlExists(googleMapsUrl.trim());
             if (exists) {
-                throw new Error(`Esta URL ya está asociada a otra empresa. Contacta con soporte si crees que es un error.`);
+                throw Object.assign(new Error('GOOGLE_URL_TAKEN'), { code: 'GOOGLE_URL_TAKEN' });
             }
 
             // Step 1: Fetch all reviews from SerpApi
@@ -75,10 +83,18 @@ const MigrateGoogleReviewsPage: React.FC = () => {
             }
 
         } catch (err: any) {
-            const errorMessage = err.message || 'Ocurrió un error desconocido durante la importación.';
+            // Traducido y con accion. Antes salia tal cual el texto de SerpApi,
+            // de la Edge Function o de la BD, en espanol o en ingles.
+            let info: UserFacingError;
+            if (err?.code === 'GOOGLE_URL_TAKEN') {
+                info = { kind: 'conflict', key: 'businessDashboard.googleImportUrlTaken', action: 'support' };
+                showUserError(info);
+            } else {
+                info = await notifyError(err, { fallbackKey: 'businessDashboard.googleImportFailed' });
+            }
+            const errorMessage = t(info.key);
             setImportError(errorMessage);
             handleProgressUpdate(`Error: ${errorMessage}`);
-            showNotification(errorMessage, 'error');
         } finally {
             setIsImporting(false);
         }
@@ -176,7 +192,7 @@ const MigrateGoogleReviewsPage: React.FC = () => {
                 `}</style>
 
                 <div className="mt-8 border-t pt-6 text-center">
-                    <ReactRouterDOM.Link to="/empresa/panel" className="text-sm font-semibold text-gray-600 hover:underline">
+                    <ReactRouterDOM.Link to="/mis-negocios" className="text-sm font-semibold text-gray-600 hover:underline">
                         <i className="fa-solid fa-arrow-left mr-2"></i>
                         Volver al panel
                     </ReactRouterDOM.Link>

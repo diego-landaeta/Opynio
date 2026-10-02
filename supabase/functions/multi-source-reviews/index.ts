@@ -9,12 +9,9 @@ declare const Deno: {
 };
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { requireAdmin } from '../_shared/requireAdmin.ts';
+import { corsHeadersFor } from '../_shared/cors.ts';
 
-// CORS headers to allow your frontend application to call this function.
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // For production, restrict this to your domain: 'https://app.opynio.com'
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 
@@ -30,9 +27,15 @@ interface MultiSourceReview {
 }
 
 serve(async (req) => {
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Solo admin: consume cuota de una API de pago (ver _shared/requireAdmin.ts).
+  const denied = await requireAdmin(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     const { 

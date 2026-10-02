@@ -9,7 +9,6 @@ interface MetaProps {
   ogImage?: string; // Imagen para Open Graph (opcional)
   noindex?: boolean; // Evitar indexación de páginas privadas
   isPremium?: boolean; // Metaetiquetas mejoradas para empresas premium
-  lang?: string; // Idioma de la página (ej: 'es', 'pt', 'en') - se aplica al atributo lang del HTML
 }
 
 // SIEMPRE usar la URL de producción para canonicals y hreflang
@@ -23,7 +22,6 @@ const Meta: React.FC<MetaProps> = ({
   ogImage = 'https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png',
   noindex = false,
   isPremium = false,
-  lang
 }) => {
   const location = useLocation();
 
@@ -31,10 +29,9 @@ const Meta: React.FC<MetaProps> = ({
     // Update document title
     document.title = title;
 
-    // Update HTML lang attribute (importante para SEO y accesibilidad)
-    if (lang) {
-      document.documentElement.setAttribute('lang', lang);
-    }
+    // <html lang> NO se toca aqui: lo pone I18nProvider con el idioma que se ve
+    // en pantalla. Antes las fichas pasaban el idioma del pais de la empresa y
+    // pisaban el de la UI (usuario en espanol viendo /de/... -> lang="de").
 
     // Helper function to set or create meta tag
     const setMetaTag = (selector: string, attribute: string, value: string, attributeKey: string = 'name') => {
@@ -260,7 +257,7 @@ const Meta: React.FC<MetaProps> = ({
     return () => {
       // No removemos nada aquí porque las tags se sobrescriben dinámicamente
     };
-  }, [title, description, canonical, ogImage, noindex, isPremium, lang, location]);
+  }, [title, description, canonical, ogImage, noindex, isPremium, location]);
 
   return null; // This component does not render anything
 };

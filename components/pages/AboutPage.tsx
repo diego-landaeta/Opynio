@@ -1,7 +1,9 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import ContactForm from '../ContactForm';
+import type { ContactKind } from '../../services/supabaseService';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
 
@@ -43,9 +45,20 @@ const AboutPage: React.FC = () => {
   const t = useTranslation();
   const { language } = useI18n();
   const { country } = useCountry();
+  const location = useLocation();
+  // Tipo del formulario de contacto: «Trabaja con nosotros» lo abre en su tipo.
+  const [contactKind, setContactKind] = useState<ContactKind>('contact');
+  const scrollToContact = () => document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const openCareers = () => { setContactKind('careers'); scrollToContact(); };
+  // Desde el pie («Escribenos») se llega con #contacto.
+  useEffect(() => {
+    if (location.hash === '#contacto') setTimeout(scrollToContact, 150);
+  }, [location.hash]);
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -195,8 +208,8 @@ const AboutPage: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   {t('aboutPage.careersDesc')}
                 </p>
-                <button className="inline-flex items-center gap-2 bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
-                  {t('aboutPage.careersButton')}
+                <button type="button" onClick={openCareers} className="inline-flex items-center gap-2 bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                  {t('aboutPage.careersApply')}
                   <i className="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
@@ -210,29 +223,15 @@ const AboutPage: React.FC = () => {
         </section>
 
         {/* Contact Section */}
-        <section className="py-12 text-center">
+        <section id="contacto" className="py-12 text-center scroll-mt-24">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
             {t('aboutPage.contactTitle')}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {t('aboutPage.contactDesc')}
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <a
-              href={`mailto:${t('aboutPage.contactEmail')}`}
-              className="inline-flex items-center justify-center gap-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
-            >
-              <i className="fa-solid fa-envelope"></i>
-              {t('aboutPage.contactEmail')}
-            </a>
-            <Link
-              to={`${countryPrefix}/${paths.support}`}
-              className="inline-flex items-center justify-center gap-2 bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-            >
-              {t('aboutPage.contactButton')}
-              <i className="fa-solid fa-arrow-right"></i>
-            </Link>
-          </div>
+          {/* Formulario de contacto propio (no el de soporte al cliente). */}
+          <ContactForm initialKind={contactKind} />
         </section>
       </div>
     </>

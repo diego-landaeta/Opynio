@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Academia Local — web de cliente simulada</title>
+    <style>
+        /* A proposito NO se usa Tailwind: esto imita la web de un cliente, con
+           su propio CSS. El widget vive en Shadow DOM y no debe verse afectado
+           ni afectar a nada de aqui. */
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Georgia, 'Times New Roman', serif; color: #2b2b2b; background: #fbf9f6; }
+        header { background: #143f3a; color: #fff; padding: 22px 20px; }
+        header h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+        header p { margin: 6px 0 0; opacity: .8; font-size: 14px; }
+        main { max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; }
+        h2 { font-size: 21px; margin: 34px 0 10px; }
+        p.cuerpo { line-height: 1.65; font-size: 16px; }
+        .marca { border-left: 4px solid #143f3a; padding-left: 14px; color: #555; font-style: italic; }
+        footer { background: #eae4db; padding: 28px 20px; text-align: center; font-size: 13px; color: #6a6a6a; }
+        /* Referencia para medir el desplazamiento: si el widget reserva mal su
+           hueco, este bloque se mueve al cargar. */
+        #testigo { background: #143f3a0d; border: 1px dashed #143f3a55; padding: 12px; margin-top: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Academia Local</h1>
+        <p>Formación profesional desde 1998</p>
+    </header>
+    <main>
+        <h2>Nuestros cursos</h2>
+        <p class="cuerpo">Impartimos formación presencial y online en prevención de riesgos, marketing y ofimática. Todos nuestros programas incluyen tutor asignado y certificado final.</p>
+
+        <h2>Lo que opinan de la academia</h2>
+        <p class="marca">Widget de EMPRESA: debe mostrar la nota global y reseñas de todo el centro.</p>
+        <div class="opynio-widget" data-empresa
+             data-type="stars-carousel"
+             data-theme="light"></div>
+
+        <h2>Curso de Marketing Digital</h2>
+        <p class="cuerpo">Cuarenta horas online con tutor asignado, ejercicios corregidos y certificado.</p>
+        <p class="marca">Widget de PRODUCTO: debe mostrar SOLO la nota y las reseñas de este curso.</p>
+        <div class="opynio-widget" data-empresa data-producto
+             data-type="stars-carousel"
+             data-theme="light"></div>
+
+        <div id="testigo">Bloque testigo: si al cargar los widgets esta caja se mueve, hay desplazamiento de diseño (CLS).</div>
+
+        <h2>Cómo llegar</h2>
+        <p class="cuerpo">Calle Mayor 14, planta 2. Autobuses 21, 44 y 60. Parada de metro a 300 metros.</p>
+    </main>
+    <footer>© 1998–2026 Academia Local · Centro acreditado</footer>
+
+    <!-- ids.js lo genera preparar-widget.py: los identificadores cambian en
+         cada reconstruccion de la base, asi que no pueden ir escritos aqui. -->
+    <script src="/scripts/local/ids.js"></script>
+    <script>
+        document.querySelectorAll('[data-empresa]').forEach(function (el) {
+            el.setAttribute('data-business-id', window.OPYNIO_LOCAL.businessId);
+        });
+        document.querySelectorAll('[data-producto]').forEach(function (el) {
+            el.setAttribute('data-product-id', window.OPYNIO_LOCAL.productId);
+        });
+        // El testigo se apunta ANTES de que el widget cargue, para medir cuanto
+        // se ha movido despues.
+        window.__yTestigoInicial = document.getElementById('testigo').getBoundingClientRect().top + window.scrollY;
+    </script>
+    <script src="/scripts/local/widget-local.js" async></script>
+</body>
+</html>

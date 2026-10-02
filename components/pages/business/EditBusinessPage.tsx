@@ -4,54 +4,53 @@ import { useBusinessDashboard } from '../../../contexts/BusinessDashboardContext
 import { updateBusinessProfile } from '../../../services/supabaseService';
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
-import type { BusinessHours, Json, Business, Plan, Sede } from '../../../types';
+import type { BusinessHours, Json, Business, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { CATEGORIES, COUNTRIES, SEDE_COUNTRIES } from '../../../constants';
 import Meta from '../../Meta';
 import L from 'leaflet';
-import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, localizedPath } from '../../../contexts/i18nContext';
+import { useCountryName } from '../../../utils/countryName';
+import { useCountry } from '../../../contexts/CountryContext';
+import { useUserErrorNotifier } from '../../../utils/userFacingError';
+import SectionLock from './dashboard/SectionLock';
+import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields } from '../../../utils/planFeatures';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
-const PLAN_HIERARCHY: Record<Plan, number> = {
-    free: 0,
-    starter: 1,
-    growth: 2,
-    pro: 3,
-    v2: 4,
-    enterprise: 4,
-};
+// El bloqueo de la seccion entera es el comun del panel (dashboard/SectionLock).
+// El perfil es de todos los planes (ver utils/planFeatures), asi que hoy solo
+// salta si un admin la apaga en una cuenta enterprise. Lo de pago va DENTRO del
+// formulario, con PaidFieldGroup.
 
-const FeatureLock: React.FC<{ requiredPlan: Plan, featureName: string, children: React.ReactNode }> = ({ requiredPlan, featureName, children }) => {
-    const { profile } = useAuth();
+// Parte del perfil que solo se edita con plan de pago (logo, redes, sedes).
+// Sin ese plan se VE, deshabilitada, para que se entienda que existe, con el
+// enlace a Planes. El guardado tampoco la envia (withoutPaidProfileFields).
+const PaidFieldGroup: React.FC<{ unlocked: boolean; pricingHref: string; children: React.ReactNode }> = ({ unlocked, pricingHref, children }) => {
     const t = useTranslation();
+    const avisoId = React.useId();
 
-    if (!profile) {
-        return null;
-    }
-
-    const currentPlanLevel = PLAN_HIERARCHY[profile.plan];
-    const requiredPlanLevel = PLAN_HIERARCHY[requiredPlan];
-
-    if (currentPlanLevel >= requiredPlanLevel) {
+    if (unlocked) {
         return <>{children}</>;
     }
 
     return (
-        <div className="text-center p-6 sm:p-8 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border-2 border-dashed dark:border-zinc-700">
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300 rounded-full w-14 h-14 sm:w-16 sm:h-16 inline-flex items-center justify-center shadow-sm border-4 border-white dark:border-zinc-800 mb-3 sm:mb-4">
-                <i className="fa-solid fa-lock text-2xl sm:text-3xl"></i>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{featureName}</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                {t('businessDashboard.widgetsLockSubtitle')}
+        <div className="rounded-xl border border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10 p-3 sm:p-4">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3">
+                <i className="fa-solid fa-lock" aria-hidden="true"></i>
+                <span id={avisoId}>{t('businessDashboard.sectionAvailableFrom', { plan: t(planNameKey(PROFILE_PAID_MIN_PLAN)) })}</span>
+                <span aria-hidden="true">·</span>
+                <ReactRouterDOM.Link
+                    to={pricingHref}
+                    className="text-brand-green underline underline-offset-2 hover:no-underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+                >
+                    {t('businessDashboard.seePlansLink')}
+                </ReactRouterDOM.Link>
             </p>
-            <ReactRouterDOM.Link
-                to="/planes"
-                className="mt-4 sm:mt-6 inline-block bg-brand-green text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-brand-green/30 text-base sm:text-lg"
-            >
-                {t('businessDashboard.upgradePlanButton')}
-            </ReactRouterDOM.Link>
+            {/* fieldset disabled: deshabilita todos los controles de dentro de una vez. */}
+            <fieldset disabled aria-describedby={avisoId} className="min-w-0 opacity-60 pointer-events-none select-none">
+                {children}
+            </fieldset>
         </div>
     );
 };
@@ -92,7 +91,7 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                         onChange={(e) => handleTimeChange('open', e.target.value)}
                         disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
-                        aria-label={`Hora de apertura para ${day}`}
+                        aria-label={`${t('editBusiness.opens')} · ${t(`businessPage.day_${day}`)}`}
                     />
                      <i className="fa-regular fa-clock absolute right-2 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-400 pointer-events-none"></i>
                 </div>
@@ -103,7 +102,7 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                         onChange={(e) => handleTimeChange('close', e.target.value)}
                         disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
-                        aria-label={`Hora de cierre para ${day}`}
+                        aria-label={`${t('editBusiness.closes')} · ${t(`businessPage.day_${day}`)}`}
                     />
                     <i className="fa-regular fa-clock absolute right-2 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-400 pointer-events-none"></i>
                 </div>
@@ -127,8 +126,10 @@ const SedeEditor: React.FC<{
             : {}
     );
     const t = useTranslation();
+    const countryNameOf = useCountryName();
 
     const countryInfo = SEDE_COUNTRIES.find(c => c.code === sede.country_code);
+    const countryLabel = countryNameOf(sede.country_code, countryInfo?.name);
 
     const handleFieldChange = (field: keyof Sede, value: any) => {
         onUpdate(index, { ...sede, [field]: value });
@@ -149,11 +150,11 @@ const SedeEditor: React.FC<{
             >
                 <div className="flex items-center gap-3">
                     {countryInfo && (
-                        <img src={countryInfo.flag} alt={countryInfo.name} width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full shadow-sm" />
+                        <img src={countryInfo.flag} alt={countryLabel} width={32} height={32} loading="lazy" decoding="async" className="w-8 h-8 rounded-full shadow-sm" />
                     )}
                     <div>
                         <h4 className="font-bold text-gray-900 dark:text-white">
-                            {sede.name || countryInfo?.name || sede.country_code}
+                            {sede.name || countryLabel}
                         </h4>
                         {isPrimary && (
                             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
@@ -194,7 +195,7 @@ const SedeEditor: React.FC<{
                             type="text"
                             value={sede.name || ''}
                             onChange={(e) => handleFieldChange('name', e.target.value)}
-                            placeholder={`${t('editBusiness.locationNamePlaceholder')} (${countryInfo?.name})`}
+                            placeholder={`${t('editBusiness.locationNamePlaceholder')} (${countryLabel})`}
                             className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-gray-200"
                         />
                     </div>
@@ -362,12 +363,18 @@ const SedeEditor: React.FC<{
 };
 
 const EditBusinessPage: React.FC = () => {
-    const { loading: authLoading, setBusinesses } = useAuth();
-    const { business } = useBusinessDashboard();
+    const { loading: authLoading, setBusinesses, profile } = useAuth();
+    const { business, updateBusiness } = useBusinessDashboard();
     const navigate = ReactRouterDOM.useNavigate();
     const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const t = useTranslation();
+    const countryNameOf = useCountryName();
     const { language } = useI18n();
+    const { country: urlCountry } = useCountry();
+    // Plan del USUARIO (profiles.plan): logo, redes y sedes son de pago.
+    const paidFieldsUnlocked = canEditPaidProfileFields(profile?.plan);
+    const pricingHref = localizedPath('pricing', language, urlCountry);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -388,7 +395,6 @@ const EditBusinessPage: React.FC = () => {
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
     
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const [sedes, setSedes] = useState<Sede[]>([]);
     const [offersInternational, setOffersInternational] = useState(false);
@@ -537,7 +543,6 @@ const EditBusinessPage: React.FC = () => {
         if (!business) return;
         
         setLoading(true);
-        setError(null);
 
         try {
             const social_links = {
@@ -559,7 +564,10 @@ const EditBusinessPage: React.FC = () => {
             // Remove the primary sede from the 'sedes' array before saving
             const otherSedes = sedes.filter(s => s.country_code !== business.country);
 
-            const updates = {
+            // Sin plan de pago no se envian logo, redes ni sedes: ni se pisan
+            // (una empresa que bajo de plan conserva lo que tenia) ni se pueden
+            // estrenar desde aqui.
+            const updates = withoutPaidProfileFields({
                 name: formData.name,
                 website_url: formData.website_url,
                 social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
@@ -575,19 +583,34 @@ const EditBusinessPage: React.FC = () => {
                 country: formData.country,
                 sedes: otherSedes.length > 0 ? otherSedes as unknown as Json : null,
                 offers_international_services: offersInternational,
-            };
+            }, profile?.plan);
 
             const updatedBusiness = await updateBusinessProfile(business.id, updates);
 
             if (updatedBusiness) {
                 setBusinesses(prev => prev.map(b => b.id === updatedBusiness.id ? { ...b, ...updatedBusiness } : b));
+                updateBusiness(updatedBusiness);
+                // Renombrada: la URL del panel lleva el nombre; con el viejo, al
+                // recargar salia "Negocio no encontrado".
+                if (updatedBusiness.name && updatedBusiness.name !== business.name) {
+                    const viejo = encodeURIComponent(business.name.replace(/ /g, '_'));
+                    const nuevo = encodeURIComponent(updatedBusiness.name.replace(/ /g, '_'));
+                    const actual = window.location.pathname;
+                    const conNombreNuevo = actual.includes(`/${viejo}/`) || actual.endsWith(`/${viejo}`)
+                        ? actual.replace(`/${viejo}`, `/${nuevo}`)
+                        : null;
+                    if (conNombreNuevo) navigate(conNombreNuevo, { replace: true });
+                }
             }
             
             showNotification(t('editBusiness.changesSaved'), 'success');
             initialDataLoaded.current = false; // Allow reloading new data if user navigates back
 
-        } catch (err: any) {
-            setError(err.message || t('editBusiness.errorUpdating'));
+        } catch (err) {
+            // Traducido y con accion (Soporte, Iniciar sesion...). Antes salia el
+            // texto de PostgREST en un recuadro arriba del formulario, lejos del
+            // boton de guardar.
+            await notifyError(err, { fallbackKey: 'editBusiness.errorUpdating' });
         } finally {
             setLoading(false);
         }
@@ -622,16 +645,10 @@ const EditBusinessPage: React.FC = () => {
                 description={t('editBusiness.subtitle')}
                 noindex={true}
             />
-            <FeatureLock requiredPlan="starter" featureName={t('businessDashboard.dashboardProfile')}>
+            <SectionLock section="profile" title={t('businessDashboard.dashboardProfile')}>
                 <div className="max-w-3xl mx-auto bg-white dark:bg-zinc-800 p-8 rounded-xl shadow-lg">
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1.5 sm:mb-2 text-gray-900 dark:text-gray-100">{t('editBusiness.title')}</h1>
                     <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 sm:mb-8">{t('editBusiness.subtitle')}</p>
-
-                    {error && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg mb-5 sm:mb-6 text-sm sm:text-base" role="alert">
-                            <span>{error}</span>
-                        </div>
-                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
                         <div>
@@ -639,6 +656,7 @@ const EditBusinessPage: React.FC = () => {
                             <input id="name" type="text" value={formData.name} onChange={handleInputChange} required className="w-full p-2.5 sm:p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200 text-sm sm:text-base"/>
                         </div>
 
+                        <PaidFieldGroup unlocked={paidFieldsUnlocked} pricingHref={pricingHref}>
                         <div>
                             <label className="block text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1.5 sm:mb-2">{t('editBusiness.logo')}</label>
                             <div className="flex flex-col xs:flex-row items-start xs:items-center gap-3 sm:gap-4">
@@ -664,6 +682,7 @@ const EditBusinessPage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                        </PaidFieldGroup>
                         
                         <div>
                             <label htmlFor="description" className="block text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">{t('editBusiness.description')}</label>
@@ -694,8 +713,20 @@ const EditBusinessPage: React.FC = () => {
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent dark:text-gray-200"
                                 >
                                     <option value="" disabled>{t('editBusiness.selectCategory')}</option>
+                                    {/* Las empresas creadas desde el alta o por scraping guardan solo la
+                                        categoria principal ("Educación y Formación"), sin ":sub". Antes
+                                        ese valor no coincidia con ninguna opcion: el select salia vacio y
+                                        al guardar obligaba a elegir otra. Ahora cada grupo ofrece la
+                                        principal, y un valor desconocido se muestra tal cual. */}
+                                    {formData.category
+                                        && !Object.entries(CATEGORIES).some(([main, subs]) =>
+                                            formData.category === main || subs.some(sub => formData.category === `${main}:${sub}`))
+                                        && (
+                                        <option value={formData.category}>{formData.category.replace(/_/g, ' ')}</option>
+                                    )}
                                     {Object.entries(CATEGORIES).map(([mainCategory, subCategories]) => (
                                         <optgroup key={mainCategory} label={t(`categories.${mainCategory}`)}>
+                                            <option value={mainCategory}>{t(`categories.${mainCategory}`)}</option>
                                             {subCategories.map(subCategory => {
                                                 const fullCategory = `${mainCategory}:${subCategory}`;
                                                 return <option key={fullCategory} value={fullCategory}>{t(`subcategories.${subCategory}`)}</option>;
@@ -714,11 +745,13 @@ const EditBusinessPage: React.FC = () => {
                                     required
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent dark:text-gray-200"
                                 >
-                                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryNameOf(c.code, c.name)}</option>)}
                                 </select>
                             </div>
                         </div>
 
+                        <PaidFieldGroup unlocked={paidFieldsUnlocked} pricingHref={pricingHref}>
+                        <div className="space-y-6 sm:space-y-8">
                         <div>
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">
                                 {t('editBusiness.internationalLocations')}
@@ -765,7 +798,7 @@ const EditBusinessPage: React.FC = () => {
                                         <option value="" disabled>{t('editBusiness.selectCountry')}</option>
                                         {availableSedeCountries.map(c => (
                                             <option key={c.code} value={c.code}>
-                                                {c.name}
+                                                {countryNameOf(c.code, c.name)}
                                             </option>
                                         ))}
                                     </select>
@@ -797,6 +830,8 @@ const EditBusinessPage: React.FC = () => {
                                 </div>
                             </label>
                         </div>
+                        </div>
+                        </PaidFieldGroup>
                         
                         <div>
                             <label htmlFor="google_maps_url" className="block text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">{t('editBusiness.googleMapsUrl')}</label>
@@ -857,9 +892,10 @@ const EditBusinessPage: React.FC = () => {
                             </div>
                         </div>
 
+                        <PaidFieldGroup unlocked={paidFieldsUnlocked} pricingHref={pricingHref}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editBusiness.twitter')}</label>
+                                <label htmlFor="twitter"className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editBusiness.twitter')}</label>
                                 <input id="twitter" type="text" value={formData.twitter} onChange={handleInputChange} placeholder={t('editBusiness.twitterPlaceholder')} className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
                             </div>
                             <div>
@@ -867,6 +903,7 @@ const EditBusinessPage: React.FC = () => {
                                 <input id="instagram" type="text" value={formData.instagram} onChange={handleInputChange} placeholder={t('editBusiness.instagramPlaceholder')} className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
                             </div>
                         </div>
+                        </PaidFieldGroup>
                         
                         <div>
                             <label className="block text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">{t('editBusiness.openingHours')}</label>
@@ -908,7 +945,7 @@ const EditBusinessPage: React.FC = () => {
                         </div>
                     </form>
                 </div>
-            </FeatureLock>
+            </SectionLock>
         </>
     );
 };

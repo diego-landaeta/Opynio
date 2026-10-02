@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { Business, Plan } from '../../../types';
 import Spinner from '../../Spinner';
+import BusinessLogo from '../../BusinessLogo';
 import { Link, useNavigate } from 'react-router-dom';
 import Meta from '../../Meta';
 import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { supabase } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
 
@@ -49,6 +51,7 @@ const DeleteConfirmModal: React.FC<{
 const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string) => void }> = ({ business, onDelete }) => {
     const t = useTranslation();
     const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -74,16 +77,18 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
 
             if (error) throw error;
 
-            // Verify the deletion actually happened
+            // Verify the deletion actually happened (RLS no da error: borra 0 filas)
             if (count === 0) {
-                throw new Error(t('myBusinesses.deletePermissionError') || 'No tienes permisos para eliminar esta empresa');
+                showNotification(t('myBusinesses.deletePermissionError'), 'error');
+                return;
             }
 
             showNotification(t('myBusinesses.deleteSuccess'), 'success');
             setShowDeleteModal(false);
             onDelete(business.id);
-        } catch (error: any) {
-            showNotification(error.message || t('myBusinesses.deleteError'), 'error');
+        } catch (error) {
+            // Error de PostgREST traducido (sin «violates foreign key constraint...»).
+            await notifyError(error, { fallbackKey: 'myBusinesses.deleteError' });
         } finally {
             setIsDeleting(false);
         }
@@ -93,15 +98,13 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
         <>
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md border dark:border-zinc-700 p-5 flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-zinc-700 flex-shrink-0 flex items-center justify-center overflow-hidden border dark:border-zinc-600">
-                        {business.logo_url && !imageError ? (
-                            <img src={business.logo_url} alt={`${business.name} logo`} width={64} height={64} loading="lazy" decoding="async" className="w-full h-full object-contain p-1" onError={() => setImageError(true)} />
-                        ) : (
-                            <div className="text-gray-400 dark:text-gray-500">
-                                <i className="fa-solid fa-store text-3xl"></i>
-                            </div>
-                        )}
-                    </div>
+                    <BusinessLogo
+                        logoUrl={business.logo_url}
+                        businessName={business.name}
+                        tone={business.logo_tone}
+                        className="w-16 h-16"
+                        iconSize="text-3xl"
+                    />
                     <div className="flex-1">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">{business.name}</h3>
                     </div>
@@ -184,7 +187,7 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
 
 const BusinessListPage: React.FC = () => {
     const { businesses, loading, profile, setBusinesses } = useAuth();
-    const { showNotification } = useNotification();
+    const { notifyError } = useUserErrorNotifier();
     const navigate = useNavigate();
     const t = useTranslation();
     const { language } = useI18n();
@@ -221,6 +224,14 @@ const BusinessListPage: React.FC = () => {
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
+    // El admin tambien entra aqui (BusinessRoute), pero da de alta empresas
+    // desde su panel: el asistente (AssignBusinessPage) llama a
+    // upgrade_user_to_business_owner, que le pondria role = business_owner y
+    // le quitaria el acceso de administrador.
+    const addBusinessHref = profile?.role === 'admin'
+        ? '/admin/empresa/crear'
+        : `${countryPrefix}/${paths.assignBusiness}?plan=${currentPlan}`;
+
     const handleDeleteBusiness = (businessId: string) => {
         setBusinesses(businesses.filter(b => b.id !== businessId));
     };
@@ -245,10 +256,11 @@ const BusinessListPage: React.FC = () => {
             if (data?.url) {
                 window.location.href = data.url;
             } else {
-                throw new Error('No se recibió la URL del portal de facturación.');
+                throw new Error('create-portal-session: respuesta sin url');
             }
-        } catch (err: any) {
-            showNotification(err.message || 'No se pudo abrir el portal de facturación.', 'error');
+        } catch (err) {
+            // Antes: texto en espanol fijo o el mensaje crudo de la funcion.
+            await notifyError(err, { flow: 'portal' });
             setBillingLoading(false);
         }
     };
@@ -262,7 +274,7 @@ const BusinessListPage: React.FC = () => {
                         <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('myBusinesses.myBusinessesTitle', { count: businesses.length, limit: limit === Infinity ? '∞' : limit })}</h1>
                     </div>
                     {canCreateBusiness ? (
-                        <Link to={`${countryPrefix}/${paths.assignBusiness}?plan=${currentPlan}`} className="bg-brand-green text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center gap-2">
+                        <Link to={addBusinessHref} className="bg-brand-green text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center gap-2">
                             <i className="fa-solid fa-plus-circle"></i>
                             <span>{t('myBusinesses.addBusiness')}</span>
                         </Link>
@@ -339,6 +351,13 @@ const BusinessListPage: React.FC = () => {
                         <i className="fa-solid fa-store-slash text-6xl mb-4 text-gray-300 dark:text-gray-600"></i>
                         <h2 className="font-semibold text-lg text-gray-600 dark:text-gray-300">{t('myBusinesses.noBusinesses')}</h2>
                         <p className="text-sm mt-2 max-w-sm mx-auto">{t('myBusinesses.noBusinessesSubtitle')}</p>
+                        {/* El texto dice «haz clic en Añadir negocio»: el boton, aqui mismo. */}
+                        {canCreateBusiness && (
+                            <Link to={addBusinessHref} className="mt-6 inline-flex items-center gap-2 bg-brand-green text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-green">
+                                <i className="fa-solid fa-plus-circle" aria-hidden="true"></i>
+                                <span>{t('myBusinesses.addBusiness')}</span>
+                            </Link>
+                        )}
                     </div>
                 )}
             </div>

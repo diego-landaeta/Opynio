@@ -1,18 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useI18n, Language, getLanguageForCountryCode } from '../contexts/i18nContext';
-import { useCountry } from '../contexts/CountryContext';
+import { useI18n, useTranslation, Language, getLanguageForCountryCode, isHomeRoute, isSupportedLanguage, LANGUAGE_DEFAULT_COUNTRY, toBcp47, useLocaleDictionary, getNestedTranslation } from '../contexts/i18nContext';
+import { useCountry, hasSavedCountry, useSwitchCountry, CountryCode } from '../contexts/CountryContext';
+import { useCountryName, intlCountryName } from '../utils/countryName';
+import CountrySelect, { LanguageSelect } from './CountrySelect';
 import { LANGUAGES, COUNTRIES } from '../constants';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
+import { useProfilePreferencesSync } from '../hooks/useProfilePreferencesSync';
 
 const FIRST_VISIT_KEY = 'opynio_first_visit';
 const COUNTRY_LANGUAGE_PROMPT_KEY = 'opynio_country_lang_prompt';
 const LAST_URL_COUNTRY_KEY = 'opynio_last_url_country';
 const INTERNAL_NAV_KEY = 'opynio_internal_nav';
 
+// true si el usuario ya tiene idioma (elegido o de una visita anterior). La
+// clave la escribe setLanguage en contexts/i18nContext.tsx.
+export const hasSavedLanguage = (): boolean => {
+    try { return !!localStorage.getItem('opynio_language'); } catch { return false; }
+};
+
 // Helper function to mark navigation as internal (called before navigating to a country)
 export const markInternalNavigation = () => {
     sessionStorage.setItem(INTERNAL_NAV_KEY, 'true');
 };
+
+// Fase de aterrizaje: desde que carga la pagina hasta la primera navegacion
+// del usuario (PUSH: un enlace, un boton). Las redirecciones (REPLACE, p. ej.
+// la URL canonica de una ficha) siguen siendo el aterrizaje. Solo ahi, y solo
+// sin preferencias guardadas, el pais de la URL da el idioma y el pais de
+// busqueda iniciales.
+let userHasNavigated = false;
+
+/** true hasta la primera navegacion del usuario (la usa tambien MainLayout). */
+export const isLandingNavigation = (): boolean => !userHasNavigated;
 
 // Translations for the popup based on browser language
 const popupTranslations: Record<string, {
@@ -188,9 +207,54 @@ const countryNames: Record<string, Record<string, string>> = {
 type PopupMode = 'first_visit' | 'country_change' | null;
 
 const LanguagePopup: React.FC = () => {
-    const { language, setLanguage } = useI18n();
+    // requestedLanguage: el idioma al que va la UI. `language` sigue siendo el
+    // anterior mientras se descarga el nuevo: comparar con el daba el aviso
+    // «Sie haben Opynio Deutschland betreten | Zu Deutsch wechseln» con la UI
+    // ya cambiando a aleman.
+    const { language, requestedLanguage, setLanguage } = useI18n();
     const { setCountry } = useCountry();
+    const switchCountry = useSwitchCountry();
+    const t = useTranslation();
+    const countryName = useCountryName();
     const location = useLocation();
+    // Bienvenida (primera visita): idioma y pais precargados con lo que dice el
+    // navegador (es-ES -> espanol y Espana); el usuario los confirma o cambia.
+    const [welcomeLang, setWelcomeLang] = useState<Language>(() => {
+        const [nav, region] = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-');
+        // Variante regional del mismo idioma si la hay (pt-BR -> br, en-GB -> gb, zh-TW -> tw).
+        const porRegion = region ? getLanguageForCountryCode(region) : null;
+        if (porRegion && toBcp47(porRegion).split('-')[0] === nav) return porRegion;
+        return isSupportedLanguage(nav) ? nav : 'es';
+    });
+    // La bienvenida habla el idioma elegido en su selector (al abrirse, el del
+    // navegador), no el de la web, que aun es el de por defecto. Si ese idioma
+    // aun no ha cargado o le falta una clave, se usa el texto normal.
+    const welcomeDict = useLocaleDictionary(welcomeLang);
+    const tw = (key: string) => {
+        const v = welcomeDict ? getNestedTranslation(welcomeDict, key) : undefined;
+        return typeof v === 'string' ? v : t(key);
+    };
+    // Países en el idioma de la bienvenida: clave del locale si la tiene, si no CLDR.
+    const paisEnBienvenida = (code: string, fallback: string) => {
+        const v = welcomeDict ? getNestedTranslation(welcomeDict, `countries.${code}`) : undefined;
+        return typeof v === 'string' ? v : (intlCountryName(code, welcomeLang) || fallback);
+    };
+    const [welcomeCountry, setWelcomeCountry] = useState<string>(() => {
+        const region = (typeof navigator !== 'undefined' ? navigator.language : '').split('-')[1]?.toUpperCase();
+        if (region && COUNTRIES.some(c => c.code === region)) return region;
+        const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').toLowerCase().split('-')[0];
+        const porIdioma = isSupportedLanguage(nav) ? LANGUAGE_DEFAULT_COUNTRY[nav]?.toUpperCase() : undefined;
+        return porIdioma && COUNTRIES.some(c => c.code === porIdioma) ? porIdioma : 'ES';
+    });
+    // Preferencias guardadas en el perfil (Editar perfil): se aplican una vez
+    // al iniciar sesion en este navegador. Va aqui porque este componente se
+    // monta siempre y ya lleva la logica de preferencias de la primera visita.
+    useProfilePreferencesSync();
+    // Los popups (primera visita y cambio de pais) solo se ENSENAN en la
+    // pantalla de inicio (/ y /<pais>), como los selectores. La logica de
+    // preferencias (idioma y pais de la primera visita, pais elegido) sigue
+    // corriendo en todas las rutas: este componente se monta siempre.
+    const onHome = isHomeRoute(location.pathname);
     const [isVisible, setIsVisible] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const [popupMode, setPopupMode] = useState<PopupMode>(null);
@@ -219,22 +283,26 @@ const LanguagePopup: React.FC = () => {
         return popupTranslations[language] || popupTranslations[browserLang] || popupTranslations.es;
     }, [language, browserLang]);
 
-    // Effect for handling language based on URL country
-    // - Direct entry (URL typed, page refresh, external link) → auto-set language
-    // - Internal navigation (clicking country button in app) → show popup asking to change
+    // Declarado antes que el efecto del pais: en el mismo commit tiene que
+    // quedar marcado que el usuario ya ha navegado.
+    const navigationType = useNavigationType();
     useEffect(() => {
-        if (!urlCountryCode) {
-            // No country in URL - show language selection popup for first visit
-            const hasVisited = localStorage.getItem(FIRST_VISIT_KEY);
-            if (!hasVisited) {
-                const timer = setTimeout(() => {
-                    setPopupMode('first_visit');
-                    setIsVisible(true);
-                }, 500);
-                return () => clearTimeout(timer);
-            }
-            return;
-        }
+        if (navigationType === 'PUSH') userHasNavigated = true;
+    }, [location.key, navigationType]);
+
+    // Preferencias (idioma de la interfaz y pais de busqueda) segun el pais de
+    // la URL. El prefijo es el pais del CONTENIDO, no la preferencia:
+    // - Navegacion interna marcada (selector de pais del movil, banderas de la
+    //   home): el usuario ha elegido ese pais; se guarda y, si el idioma
+    //   difiere, se le PREGUNTA si quiere cambiarlo.
+    // - Cualquier otra entrada (enlace a una ficha extranjera, URL escrita,
+    //   recarga): no cambia nada si ya hay preferencias. Solo en la primera
+    //   visita (aterrizaje sin idioma ni pais guardados) se toman los del pais
+    //   de la URL. Antes se ponia SIEMPRE el pais de la URL como pais del
+    //   usuario: abrir /it/azienda/x dejaba la cabecera en Italia y Explorar
+    //   con negocios de Roma al volver.
+    useEffect(() => {
+        if (!urlCountryCode) return;
 
         const countryLanguage = getLanguageForCountryCode(urlCountryCode);
         const lastUrlCountry = sessionStorage.getItem(LAST_URL_COUNTRY_KEY);
@@ -252,8 +320,10 @@ const LanguagePopup: React.FC = () => {
             localStorage.setItem(FIRST_VISIT_KEY, 'true');
 
             if (isInternalNav) {
-                // Internal navigation (clicked country button) - show popup if language differs
-                if (countryLanguage !== language) {
+                // Internal navigation (clicked country button) - show popup if
+                // language differs. Solo en la home: fuera de ella se guarda el
+                // pais y no se pregunta nada.
+                if (countryLanguage !== requestedLanguage && onHome) {
                     setSuggestedLanguage(countryLanguage);
                     setDetectedCountryCode(urlCountryCode);
                     setPopupMode('country_change');
@@ -261,17 +331,47 @@ const LanguagePopup: React.FC = () => {
                 }
                 // Update country context regardless
                 setCountry(urlCountryCode as any);
-            } else {
-                // Direct entry (URL typed, page load, external link) - auto-set language
+            } else if (!userHasNavigated && !hasSavedLanguage() && !hasSavedCountry()) {
+                // Primera visita. Los buscadores no guardan localStorage: siguen
+                // viendo cada pais en su idioma, asi que el SEO no cambia.
                 setLanguage(countryLanguage);
                 setCountry(urlCountryCode as any);
             }
         }
-    }, [urlCountryCode, setLanguage, setCountry, language]);
+    }, [urlCountryCode, setLanguage, setCountry, requestedLanguage]);
 
-    const handleLanguageSelect = (lang: Language) => {
-        setLanguage(lang);
-        localStorage.setItem(FIRST_VISIT_KEY, 'true');
+    // Popup de primera visita (elegir idioma): en la home sin pais en la URL
+    // (/, /en...). Si la visita empieza en otra pantalla sin pais (/login), no
+    // sale ahi: sale la primera vez que se llega a la home.
+    useEffect(() => {
+        if (urlCountryCode || !onHome) return;
+        let hasVisited = false;
+        try { hasVisited = !!localStorage.getItem(FIRST_VISIT_KEY); } catch { /* sin almacenamiento */ }
+        if (hasVisited) return;
+        const timer = setTimeout(() => {
+            setPopupMode('first_visit');
+            setIsVisible(true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [urlCountryCode, onHome]);
+
+    // Si se sale de la home con el popup abierto (boton atras), se cierra sin
+    // guardar nada: la primera visita vuelve a preguntar en la home.
+    useEffect(() => {
+        if (onHome) return;
+        setIsVisible(false);
+        setIsClosing(false);
+        setPopupMode(null);
+        setSuggestedLanguage(null);
+        setDetectedCountryCode(null);
+    }, [onHome]);
+
+    // «Continuar» de la bienvenida: pais (navega a su home, como el selector) y
+    // despues el idioma elegido, que manda sobre el del pais.
+    const handleWelcomeContinue = () => {
+        try { localStorage.setItem(FIRST_VISIT_KEY, 'true'); } catch { /* sin almacenamiento */ }
+        switchCountry(welcomeCountry as CountryCode);
+        setLanguage(welcomeLang);
         closePopup();
     };
 
@@ -307,7 +407,7 @@ const LanguagePopup: React.FC = () => {
         closePopup();
     };
 
-    if (!isVisible) return null;
+    if (!isVisible || !onHome) return null;
 
     // Get country info
     const countryInfo = detectedCountryCode ? COUNTRIES.find(c => c.code === detectedCountryCode) : null;
@@ -379,57 +479,52 @@ const LanguagePopup: React.FC = () => {
         );
     }
 
-    // First visit popup (original)
+    // Bienvenida (primera visita): lo esencial, idioma y pais, en un paso.
+    const SELECT = 'w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent';
     return (
         <div
             className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`}
             onClick={handleClose}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="welcome-title"
                 className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
                 <div className="flex-shrink-0 bg-gradient-to-r from-brand-green to-green-600 p-5 sm:p-6 text-center">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full mx-auto flex items-center justify-center mb-3 shadow-lg">
-                        <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl"></i>
+                        <i className="fa-solid fa-globe text-brand-green text-2xl sm:text-3xl" aria-hidden="true"></i>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                        {currentLangTexts.welcome}
-                    </h2>
-                    <p className="text-green-100 text-sm sm:text-base">
-                        {currentLangTexts.selectLanguage}
-                    </p>
+                    <h2 id="welcome-title" className="text-xl sm:text-2xl font-bold text-white mb-1">{tw('common.welcomeTitle')}</h2>
+                    <p className="text-green-100 text-sm sm:text-base">{tw('common.welcomeSubtitle')}</p>
                 </div>
 
-                {/* Language Grid */}
-                <div className="p-4 sm:p-6 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                        {LANGUAGES.map((lang) => (
-                            <button
-                                key={lang.code}
-                                onClick={() => handleLanguageSelect(lang.code as Language)}
-                                className="flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 border-gray-200 dark:border-zinc-600 hover:border-brand-green hover:bg-brand-green/5 dark:hover:bg-brand-green/10 transition-all duration-200 group"
-                            >
-                                <img
-                                    src={lang.flag}
-                                    alt={lang.name}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-zinc-700"
-                                    loading="lazy"
-                                />
-                                <span className="font-semibold text-gray-700 dark:text-gray-200 group-hover:text-brand-green transition-colors text-sm sm:text-base">
-                                    {lang.name}
-                                </span>
-                            </button>
-                        ))}
+                <form
+                    className="p-5 sm:p-6 space-y-4 overflow-y-auto"
+                    onSubmit={(e) => { e.preventDefault(); handleWelcomeContinue(); }}
+                >
+                    <div>
+                        <label htmlFor="welcome-lang" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{tw('editProfile.languageLabel')}</label>
+                        <LanguageSelect id="welcome-lang" value={welcomeLang} onChange={(v) => setWelcomeLang(v as Language)} className={SELECT} />
                     </div>
-                </div>
+                    <div>
+                        <label htmlFor="welcome-country" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{tw('editProfile.countryLabel')}</label>
+                        <CountrySelect id="welcome-country" value={welcomeCountry} onChange={setWelcomeCountry} className={SELECT} nombrePais={paisEnBienvenida} />
+                    </div>
+                    <button type="submit" className="w-full p-3.5 rounded-xl bg-brand-green text-white font-semibold hover:bg-brand-green/90 transition-colors">
+                        {tw('common.welcomeContinue')}
+                    </button>
+                    <button type="button" onClick={handleClose} className="w-full p-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                        {tw('common.welcomeSkip')}
+                    </button>
+                </form>
 
-                {/* Footer hint */}
-                <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 sm:py-4 border-t dark:border-zinc-700">
+                <div className="flex-shrink-0 bg-gray-50 dark:bg-zinc-900 px-4 sm:px-6 py-3 border-t dark:border-zinc-700">
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center">
-                        <i className="fa-solid fa-info-circle mr-1.5"></i>
-                        {currentLangTexts.changeLanguageHint}
+                        <i className="fa-solid fa-gear mr-1.5" aria-hidden="true"></i>
+                        {tw('common.welcomeHint')}
                     </p>
                 </div>
             </div>

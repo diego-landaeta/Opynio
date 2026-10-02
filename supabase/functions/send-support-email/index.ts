@@ -15,6 +15,44 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Asunto: texto plano (el correo lo pinta tal cual, asi que escaparlo dejaba
+// «O&#39;Brien»), pero sin saltos de linea ni caracteres de control: un \r\n
+// en el asunto es la puerta a inyectar cabeceras si el servicio de correo no
+// lo filtra. El escape HTML queda solo para el cuerpo.
+function plainSubjectPart(value: unknown, max = 120): string {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+// La pagina a reclamar tiene que ser de Opynio. Antes cualquier URL acababa
+// como enlace en un correo que sale de Opynio hacia soporte.
+const OPYNIO_HOST = /(^|\.)opynio\.com$/;
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1)$/;
+function isOpynioUrl(value: unknown): boolean {
+  try {
+    const url = new URL(String(value ?? "").trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    if (url.username || url.password) return false;
+    return OPYNIO_HOST.test(url.hostname) || LOCAL_HOST.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// La web de la empresa puede ser cualquier dominio, pero solo se enlaza si es
+// http(s); si no (javascript:, data:...), va como texto.
+function isHttpUrl(value: unknown): boolean {
+  try {
+    const url = new URL(String(value ?? "").trim());
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function createErrorResponse(message: string, statusCode: number = 500) {
   console.error(`Error (${statusCode}):`, message);
   return new Response(JSON.stringify({ error: message, details: message }), {
@@ -29,14 +67,6 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Get Make.com Webhook URL from secrets
-    const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
-
-    if (!makeWebhookUrl) {
-      const errorMessage = `Configuración incompleta. Falta el secreto 'MAKE_WEBHOOK_URL' en el proyecto de Supabase.`;
-      return createErrorResponse(errorMessage, 500);
-    }
-
     // 2. Authenticate the user calling the function (Safer check)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -57,17 +87,37 @@ serve(async (req) => {
     }
     
     // 3. Get form data from request body
-    const { formType, data } = await req.json();
+    // El secreto se mira DESPUES de autenticar: antes un anonimo podia saber si
+    // estaba configurado.
+    const makeWebhookUrl = Deno.env.get("MAKE_WEBHOOK_URL");
+    if (!makeWebhookUrl) {
+      return createErrorResponse("Configuración incompleta. Falta el secreto 'MAKE_WEBHOOK_URL' en el proyecto de Supabase.", 500);
+    }
+
+    const { formType, data: rawData } = await req.json();
+    // Todo lo que llega del formulario se escapa antes de ir al HTML del correo,
+    // y el email del remitente es el de la sesion: antes salia del body y se
+    // podia suplantar a cualquiera o meter HTML (enlaces) en el correo a soporte.
+    const escapar = (v: unknown) => String(v ?? "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const data: Record<string, string> = {};
+    for (const [clave, valor] of Object.entries((rawData ?? {}) as Record<string, unknown>)) {
+      data[clave] = escapar(valor);
+    }
+    data.email = escapar(user.email ?? rawData?.email);
     if (!formType || !data) {
       return createErrorResponse("Faltan datos en la solicitud.", 400);
     }
+    // Para el asunto se usa el valor original (sin escapar), limpiado a texto plano.
+    const usernameForSubject = plainSubjectPart(rawData?.username);
 
     // 4. Construct email subject and body
     let subject = "";
     let body = "";
 
     if (formType === 'bug') {
-        subject = `Nuevo Reporte de Bug de: ${data.username}`;
+        subject = `Nuevo Reporte de Bug de: ${usernameForSubject}`;
         body = `
             <p>Un usuario ha reportado un error en la plataforma.</p>
             <br>
@@ -84,7 +134,13 @@ serve(async (req) => {
             <pre style="background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">${data.description}</pre>
         `;
     } else if (formType === 'claim') {
-        subject = `Nueva Solicitud de Reclamación de Empresa: ${data.username}`;
+        if (!isOpynioUrl(rawData?.opynioUrl)) {
+          return createErrorResponse("La página a reclamar debe ser una URL de Opynio (http/https).", 400);
+        }
+        const websiteHtml = isHttpUrl(rawData?.websiteUrl)
+          ? `<a href="${data.websiteUrl}">${data.websiteUrl}</a>`
+          : (data.websiteUrl || 'No especificada');
+        subject = `Nueva Solicitud de Reclamación de Empresa: ${usernameForSubject}`;
         body = `
             <p>Un usuario ha solicitado reclamar una página de empresa.</p>
             <br>
@@ -96,14 +152,14 @@ serve(async (req) => {
             <h3>Detalles de la Reclamación:</h3>
             <ul>
                 <li><strong>Página de Opynio a reclamar:</strong> <a href="${data.opynioUrl}">${data.opynioUrl}</a></li>
-                <li><strong>Web oficial de la empresa:</strong> <a href="${data.websiteUrl}">${data.websiteUrl}</a></li>
+                <li><strong>Web oficial de la empresa:</strong> ${websiteHtml}</li>
                 <li><strong>Teléfono de la empresa:</strong> ${data.phone}</li>
             </ul>
             <strong>Comentarios adicionales:</strong><br> 
             <pre style="background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">${data.comments || 'Sin comentarios.'}</pre>
         `;
     } else if (formType === 'claim_review') {
-        subject = `Apelación de Reseña Rechazada por: ${data.username}`;
+        subject = `Apelación de Reseña Rechazada por: ${usernameForSubject}`;
         body = `
             <p>Un usuario ha apelado el rechazo de una de sus reseñas.</p>
             <br>
@@ -119,6 +175,27 @@ serve(async (req) => {
             </ul>
             <strong>Motivo de la apelación:</strong><br>
             <pre style="background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">${data.reason || 'Sin comentarios.'}</pre>
+        `;
+    } else if (formType === 'ticket') {
+        // Aviso al equipo de una solicitud nueva. La solicitud ya esta guardada
+        // en support_tickets: esto es solo el aviso (si falla, no pasa nada).
+        const ticketId = plainSubjectPart(rawData?.ticketId, 20);
+        subject = `Nueva solicitud de soporte #${ticketId} (${plainSubjectPart(rawData?.ticketType, 30)}): ${plainSubjectPart(rawData?.subject, 100)}`;
+        body = `
+            <p>Un usuario ha abierto una solicitud de soporte. Respóndela desde el panel de admin (Soporte).</p>
+            <br>
+            <h3>Detalles del Usuario:</h3>
+            <ul>
+                <li><strong>Nombre de Usuario:</strong> ${data.username}</li>
+                <li><strong>Email:</strong> ${data.email}</li>
+            </ul>
+            <h3>Solicitud #${data.ticketId}</h3>
+            <ul>
+                <li><strong>Tipo:</strong> ${data.ticketType}</li>
+                <li><strong>Asunto:</strong> ${data.subject}</li>
+            </ul>
+            <strong>Mensaje:</strong><br>
+            <pre style="background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">${data.message}</pre>
         `;
     } else {
         return createErrorResponse("Tipo de formulario no válido.", 400);

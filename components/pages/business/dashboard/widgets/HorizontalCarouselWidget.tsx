@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
 const DEMO_REVIEWS = [
@@ -45,7 +47,7 @@ const DEMO_REVIEWS = [
 ];
 
 
-export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'review_text']);
     const ratingText = (business.avg_rating || 5) >= 4.5 ? s.ratingExcellent : (business.avg_rating || 5) >= 3.5 ? s.ratingVeryGood : s.ratingGood;
@@ -116,6 +118,7 @@ export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, th
                 <div className="opynio-horizontal-wrapper">
                     <div className="opynio-rating-panel-wrapper">
                         <div className="opynio-rating-panel" style={{minWidth: '280px', padding: '2rem 1.5rem'}}>
+                            <ProductPillSlot label={s.productBadge} name={productName} />
                             <div className="opynio-rating-badge">{ratingText}</div>
                             <div className="opynio-stars-display" style={{ letterSpacing: '4px' }}>
                                 <StaticStarRating rating={business.avg_rating || 5} />

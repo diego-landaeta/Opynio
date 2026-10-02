@@ -3,6 +3,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireAdmin } from '../_shared/requireAdmin.ts'
+import { corsHeadersFor } from '../_shared/cors.ts'
 
 // Type declarations for Deno environment
 declare const Deno: {
@@ -11,17 +13,19 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 
 serve(async (req) => {
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+
+  // Solo admin: consume cuota de una API de pago (ver _shared/requireAdmin.ts).
+  const denied = await requireAdmin(req, corsHeaders);
+  if (denied) return denied;
 
   try {
     const SERPAPI_KEY = Deno.env.get('SERPAPI_KEY');

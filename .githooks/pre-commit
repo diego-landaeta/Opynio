@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Guardián de la versión del widget, antes de cada commit.
+#
+# Solo hace algo si el commit toca el widget, así que no estorba en el día a día.
+# Se activa una vez por copia del repositorio:
+#
+#     git config core.hooksPath .githooks
+#
+# Para saltárselo puntualmente:  git commit --no-verify
+# Para desactivarlo del todo:    git config --unset core.hooksPath
+
+tocados=$(git diff --cached --name-only)
+
+case "$tocados" in
+  *public/widget.js*|*widgetShared.ts*|*widget-proxy*)
+    echo "→ El commit toca el widget; comprobando versiones..."
+    if ! npm run --silent check:widget; then
+      echo
+      echo "Commit detenido. Ver docs/playbooks/bump-widget-version.md"
+      echo "Si sabes lo que haces: git commit --no-verify"
+      exit 1
+    fi
+    ;;
+esac
+
+exit 0

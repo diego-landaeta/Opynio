@@ -7,14 +7,13 @@ import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut, markNotificationsAsRead, savePushSubscription } from '../services/supabaseService';
 import Spinner from './Spinner';
-import { VAPID_PUBLIC_KEY, LANGUAGES, COUNTRIES } from '../constants';
+import { VAPID_PUBLIC_KEY, LANGUAGES, COUNTRIES, PUSH_NOTIFICATIONS_ENABLED } from '../constants';
 import { urlBase64ToUint8Array } from '../utils/urlBase64ToUint8Array';
 import { Json } from '../types';
-import { useTheme } from '../App';
-import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode } from '../contexts/i18nContext';
+import SettingsMenu from './SettingsMenu';
+import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode, isHomeRoute } from '../contexts/i18nContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { useCountry, CountryCode } from '../contexts/CountryContext';
-import { markInternalNavigation } from './LanguagePopup';
+import { useCountry, CountryCode, useSwitchCountry } from '../contexts/CountryContext';
 
 // Modal de confirmación para cambio de país
 const CountryChangeModal: React.FC<{
@@ -81,118 +80,6 @@ const CountryLoadingOverlay: React.FC<{ isVisible: boolean; countryName: string 
     );
 };
 
-const MobileLanguageSelector: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { language, setLanguage } = useI18n();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [isOpen, setIsOpen] = useState(false);
-    const t = useTranslation();
-
-    const handleLanguageChange = (newLang: Language) => {
-        if (newLang === language) {
-            setIsOpen(false);
-            onClose();
-            return;
-        }
-
-        setLanguage(newLang);
-        setIsOpen(false);
-        onClose();
-    };
-
-    const selectedLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
-
-    return (
-        <div className="text-lg font-semibold">
-            <button 
-                onClick={() => setIsOpen(v => !v)}
-                className="flex items-center justify-between w-full gap-4 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-                <div className="flex items-center gap-4">
-                    <i className="fa-solid fa-language w-6 text-center text-base"></i>
-                    <span className="text-lg font-semibold">{t('header.language')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <img src={selectedLang.flag} alt={selectedLang.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    <i className={`fa-solid fa-chevron-down text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
-                </div>
-            </button>
-            {isOpen && (
-                <div className="pl-8 pt-1 space-y-1 max-h-48 overflow-y-auto">
-                    {LANGUAGES.map(lang => (
-                        <button
-                            key={lang.code}
-                            onClick={() => handleLanguageChange(lang.code as Language)}
-                            className={`w-full text-left flex items-center gap-3 px-4 py-2 text-base rounded-lg transition-colors ${language === lang.code ? 'font-bold text-brand-green bg-brand-green/10' : 'text-gray-500 dark:text-gray-400'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                        >
-                            <img src={lang.flag} alt={lang.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                            <span>{lang.name}</span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-const MobileCountrySelector: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { userCountry, setUserCountry } = useCountry(); // CAMBIO: usar userCountry
-    const { setLanguage } = useI18n();
-    const [isOpen, setIsOpen] = useState(false);
-    const navigate = useNavigate();
-    const t = useTranslation();
-
-    const handleCountryChange = (newCountryCode: string) => {
-        setUserCountry(newCountryCode as CountryCode); // CAMBIO: actualizar userCountry
-        // Cambiar idioma automáticamente según el país seleccionado
-        const newLanguage = getLanguageForCountryCode(newCountryCode);
-        setLanguage(newLanguage);
-        setIsOpen(false);
-        onClose();
-        markInternalNavigation();
-        navigate(`/${newCountryCode.toLowerCase()}`);
-    };
-
-    const selectedCountry = COUNTRIES.find(c => c.code === userCountry);
-
-    return (
-        <div className="text-lg font-semibold">
-            <button 
-                onClick={() => setIsOpen(v => !v)}
-                className="flex items-center justify-between w-full gap-4 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-                <div className="flex items-center gap-4">
-                    <i className="fa-solid fa-globe w-6 text-center text-base"></i>
-                    <span className="text-lg font-semibold">{t('common.headerCountry')}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    {selectedCountry ? (
-                        <img src={selectedCountry.flag} alt={selectedCountry.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    ) : (
-                        <span className="text-xs">{t('common.headerSelect')}</span>
-                    )}
-                    <i className={`fa-solid fa-chevron-down text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
-                </div>
-            </button>
-            {isOpen && (
-                <div className="pl-8 pt-1 space-y-1 max-h-48 overflow-y-auto">
-                    {COUNTRIES.map(c => (
-                        <button
-                            key={c.code}
-                            onClick={() => handleCountryChange(c.code)}
-                            className={`w-full text-left flex items-center gap-3 px-4 py-2 text-base rounded-lg transition-colors ${userCountry === c.code ? 'font-bold text-brand-green bg-brand-green/10' : 'text-gray-500 dark:text-gray-400'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                        >
-                            <img src={c.flag} alt={c.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                            <span>{c.name}</span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-
 const MobileMenu: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -205,9 +92,7 @@ const MobileMenu: React.FC<{
     const t = useTranslation();
     const { userCountry } = useCountry(); // CAMBIO: usar userCountry
     const { language } = useI18n();
-    const { theme, toggleTheme } = useTheme();
     const location = useLocation();
-    const isAdminRoute = location.pathname.startsWith('/admin');
 
     // Block body scroll when menu is open
     useEffect(() => {
@@ -226,26 +111,8 @@ const MobileMenu: React.FC<{
     const pathLang = userCountry ? getLanguageForCountryCode(userCountry) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
-    // Check if current path is a business route in any language
-    const isBusinessDashboard = useMemo(() => {
-        const pathSegments = location.pathname.split('/').filter(Boolean);
-        const hasCountryInPath = pathSegments.length > 0 && COUNTRIES.some(c => c.code.toLowerCase() === pathSegments[0]);
-        const rawSegment = hasCountryInPath ? pathSegments[1] : pathSegments[0];
-
-        if (!rawSegment) return false;
-
-        // Decode URL-encoded characters (e.g., Chinese characters)
-        const relevantSegment = decodeURIComponent(rawSegment);
-
-        const businessPaths = Object.values(pathTranslations).flatMap(lang => [
-            lang.myBusinesses,
-            lang.businessDashboard?.split('/')[0],
-            lang.completeBusinessRegistration?.split('/')[0],
-            lang.migrateGoogleReviews?.split('/')[0]
-        ]).filter(Boolean);
-
-        return businessPaths.some(p => relevantSegment === p || relevantSegment.startsWith(p + '/'));
-    }, [location.pathname]);
+    // Selectores de idioma y pais solo en la pantalla de inicio (/ y /<pais>),
+    // como el boton flotante y el pie. En fichas, paneles, admin... no salen.
 
     const navLinks = useMemo(() => [
         { to: countryPrefix || '/', icon: "fa-solid fa-house", label: t('header.home') },
@@ -291,7 +158,7 @@ const MobileMenu: React.FC<{
                         <Link to={countryPrefix || '/'} onClick={onClose} className="flex items-center gap-2">
                             <span id="menu-title" className="text-lg sm:text-xl font-bold text-brand-green truncate">{brandName}</span>
                         </Link>
-                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label="Cerrar menú">
+                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
                             <i className="fa-solid fa-times"></i>
                         </button>
                     </div>
@@ -353,34 +220,24 @@ const MobileMenu: React.FC<{
                             </NavLink>
                         ))}
 
-                        <div className="py-2 sm:py-3 px-3 sm:px-4">
-                            <hr className="border-gray-200 dark:border-zinc-700" />
-                        </div>
+                        {/* Como en escritorio: el boton grande solo con sesion. Sin sesion,
+                            escribir una resena esta en el boton flotante del lapiz. */}
+                        {user && (
+                            <>
+                                <div className="py-2 sm:py-3 px-3 sm:px-4">
+                                    <hr className="border-gray-200 dark:border-zinc-700" />
+                                </div>
 
-                        <div className="px-1 sm:px-2">
-                          <Link to={user ? `${countryPrefix}/${paths.writeReview}` : `${countryPrefix}/${paths.login}`} onClick={onClose} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg text-center block text-sm sm:text-base">
-                              {t('header.writeReview')}
-                          </Link>
-                        </div>
+                                <div className="px-1 sm:px-2">
+                                  <Link to={`${countryPrefix}/${paths.writeReview}`} onClick={onClose} className="w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg text-center block text-sm sm:text-base">
+                                      {t('header.writeReview')}
+                                  </Link>
+                                </div>
+                            </>
+                        )}
                     </nav>
 
                     <div className="p-3 sm:p-4 border-t dark:border-zinc-800 space-y-1.5 sm:space-y-2">
-                        {!isAdminRoute && !isBusinessDashboard && <MobileLanguageSelector onClose={onClose} />}
-                        {!isAdminRoute && !isBusinessDashboard && <MobileCountrySelector onClose={onClose} />}
-
-                        <div className="flex items-center justify-between w-full gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-base sm:text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">
-                            <div className="flex items-center gap-3 sm:gap-4">
-                                <i className="fa-solid fa-moon w-5 sm:w-6 text-center text-sm sm:text-base flex-shrink-0"></i>
-                                <span className="text-sm sm:text-base">{t('common.darkMode')}</span>
-                            </div>
-                            <button
-                                onClick={(e) => toggleTheme(e)}
-                                className="text-gray-600 dark:text-gray-400 transition-colors text-lg sm:text-xl w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full flex-shrink-0"
-                                aria-label="Cambiar tema"
-                            >
-                               {theme === 'light' ? <i className="fa-solid fa-toggle-off text-xl sm:text-2xl text-gray-400"></i> : <i className="fa-solid fa-toggle-on text-xl sm:text-2xl text-brand-green"></i>}
-                            </button>
-                        </div>
 
                         {user && profile ? (
                             <button onClick={() => { handleLogout(); onClose(); }} className="w-full text-left block px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md font-semibold">
@@ -404,28 +261,45 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
     const { userCountry } = useCountry(); // CAMBIO: usar userCountry
     const { language } = useI18n();
     const t = useTranslation();
-    const { text: translatedMessage } = useAutoTranslation(notification.message);
+    // Respuesta de soporte: el mensaje es el asunto que escribio el propio
+    // usuario (no se traduce) y el enlace va a «Mis solicitudes» del perfil.
+    const isSupportReply = notification.type === 'support_reply';
+    // Resena nueva en tu empresa: el mensaje es empresa · estrellas · titulo.
+    const isNewReview = notification.type === 'new_review';
+    const { text: translatedMessage } = useAutoTranslation(isSupportReply || isNewReview ? null : notification.message);
 
     // Use userCountry directly - don't infer from language
     const countryPrefix = userCountry ? `/${userCountry.toLowerCase()}` : '';
     const pathLang = userCountry ? getLanguageForCountryCode(userCountry) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
 
-    const businessPathSegment = paths.business.split('/:sede').join('').replace(':identifier', notification.related_business_id || '');
-    const targetUrl = `${countryPrefix}/${businessPathSegment}`;
-    const localeForDate = 'es-ES';
+    // Antes enlazaba siempre a /empresa/<related_business_id>, columna que no
+    // existe: acababa en /es/empresa/ vacio. Se usa el enlace guardado, o la
+    // empresa si viene en data, o el perfil (donde estan sus resenas).
+    const n: any = notification;
+    const empresa = n.data?.business_slug || n.data?.business_id || n.related_business_id || '';
+    const targetUrl = isSupportReply
+        ? `${countryPrefix}/${paths.profile}#soporte`
+        : isNewReview
+        ? `${countryPrefix}/${paths.myBusinesses}`
+        : typeof n.link === 'string' && n.link.startsWith('/')
+        ? n.link
+        : empresa
+            ? `${countryPrefix}/${paths.business.split('/:sede').join('').replace(':identifier', encodeURIComponent(empresa))}`
+            : `${countryPrefix}/${paths.profile}`;
+    const localeForDate = language;
 
     return (
         <Link 
             to={targetUrl}
             onClick={onClick} 
-            className={`block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 ${!notification.is_read ? 'bg-green-50 dark:bg-green-500/10' : ''}`}
+            className={`block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 ${!(notification.read ?? (notification as any).is_read) ? 'bg-green-50 dark:bg-green-500/10' : ''}`}
         >
             <p className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                <i className="fa-solid fa-reply text-brand-green"></i>
-                {t('header.responseToYourReview')}
+                <i className={`fa-solid ${isSupportReply ? 'fa-headset' : isNewReview ? 'fa-star' : 'fa-reply'} text-brand-green`} aria-hidden="true"></i>
+                {isSupportReply ? t('header.supportReplyTitle') : isNewReview ? t('header.newReviewTitle') : t('header.responseToYourReview')}
             </p>
-            <p className="mt-1 text-gray-600 dark:text-gray-300">{translatedMessage}</p>
+            <p className="mt-1 text-gray-600 dark:text-gray-300">{isSupportReply || isNewReview ? notification.message : translatedMessage}</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{new Date(notification.created_at).toLocaleString(localeForDate)}</p>
         </Link>
     );
@@ -434,9 +308,9 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
 
 const Header: React.FC = () => {
     const { user, profile, loading, businesses, notifications, setNotifications } = useAuth();
-    const { theme, toggleTheme } = useTheme();
     const { language, setLanguage } = useI18n();
-    const { userCountry, setUserCountry } = useCountry(); // CAMBIO: usar userCountry
+    const { userCountry } = useCountry(); // CAMBIO: usar userCountry
+    const switchCountry = useSwitchCountry();
     const t = useTranslation();
     const { showNotification } = useNotification();
     const navigate = useNavigate();
@@ -447,14 +321,12 @@ const Header: React.FC = () => {
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
     const [langDropdownOpen, setLangDropdownOpen] = useState(false);
-    const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
     const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
     const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
 
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const notifDropdownRef = useRef<HTMLDivElement>(null);
     const langDesktopRef = useRef<HTMLDivElement>(null);
-    const countryDropdownRef = useRef<HTMLDivElement>(null);
     const moreDropdownRef = useRef<HTMLDivElement>(null);
     const companyDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -476,36 +348,11 @@ const Header: React.FC = () => {
 
     const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === userCountry), [userCountry]);
     const brandName = 'Opynio'; // Simplified: always "Opynio" in header (SEO titles keep country)
-    const isAdminRoute = location.pathname.startsWith('/admin');
 
-    // Check if current path is a business route (my-businesses, business dashboard, etc.) in any language
-    const isBusinessDashboardRoute = useMemo(() => {
-        const pathSegments = location.pathname.split('/').filter(Boolean);
-        // Get the relevant path segment (after country code if present)
-        const hasCountryInPath = pathSegments.length > 0 && COUNTRIES.some(c => c.code.toLowerCase() === pathSegments[0]);
-        const rawSegment = hasCountryInPath ? pathSegments[1] : pathSegments[0];
-
-        if (!rawSegment) return false;
-
-        // Decode URL-encoded characters (e.g., Chinese characters)
-        const relevantSegment = decodeURIComponent(rawSegment);
-
-        // Excluir explícitamente el directorio público de empresas
-        const publicBusinessDirectoryPaths = Object.values(pathTranslations).map(lang => lang.businesses).filter(Boolean);
-        if (publicBusinessDirectoryPaths.some(p => relevantSegment === p)) {
-            return false;
-        }
-
-        // Check against all language translations of business routes
-        const businessPaths = Object.values(pathTranslations).flatMap(lang => [
-            lang.myBusinesses,
-            lang.businessDashboard?.split('/')[0],
-            lang.completeBusinessRegistration?.split('/')[0],
-            lang.migrateGoogleReviews?.split('/')[0]
-        ]).filter(Boolean);
-
-        return businessPaths.some(p => relevantSegment === p || relevantSegment.startsWith(p + '/'));
-    }, [location.pathname]);
+    // Selector de pais solo en la pantalla de inicio (/ y /<pais>). En el resto
+    // (fichas, explorar, planes, paneles, perfil, admin...) no se muestra: la
+    // URL ya fija el pais del contenido.
+    const showCountrySelector = isHomeRoute(location.pathname);
 
 
     useEffect(() => {
@@ -520,7 +367,7 @@ const Header: React.FC = () => {
     }, [user, loading, location.hash, navigate, userCountry, language]);
 
     useEffect(() => {
-        if (!user || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (!PUSH_NOTIFICATIONS_ENABLED || !user || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
         const dismissed = localStorage.getItem('notificationPromptDismissed') === 'true';
         if (Notification.permission === 'default' && !dismissed) setShowNotifPrompt(true);
         navigator.serviceWorker.ready.then(r => r.pushManager.getSubscription().then(s => { if(s){ setIsSubscribed(true); setShowNotifPrompt(false); }}));
@@ -589,40 +436,21 @@ const Header: React.FC = () => {
         setLangDropdownOpen(false);
     };
 
-    const handleCountryChange = (newCountryCode: string) => {
-        // If same country, just close dropdown
-        if (newCountryCode === userCountry) {
-            setCountryDropdownOpen(false);
-            return;
-        }
-        // Show confirmation modal
-        const targetCountry = COUNTRIES.find(c => c.code === newCountryCode);
-        if (targetCountry) {
-            setPendingCountryChange(targetCountry);
-            setCountryDropdownOpen(false);
-        }
-    };
-
     const handleConfirmCountryChange = () => {
         if (!pendingCountryChange) return;
 
         const targetCode = pendingCountryChange.code;
         const targetName = pendingCountryChange.name;
 
-        // CRÍTICO: Actualizar userCountry (preferencia del usuario)
-        setUserCountry(targetCode);
-
-        // Cambiar idioma automáticamente según el país seleccionado
-        const newLanguage = getLanguageForCountryCode(targetCode);
-        setLanguage(newLanguage);
-
         setChangingCountryName(targetName);
         setIsChangingCountry(true);
         setPendingCountryChange(null);
 
-        // Small delay for visual feedback, then navigate
+        // Small delay for visual feedback, then switch: userCountry (preferencia
+        // del usuario) + idioma de ese pais + misma pagina en ese pais
+        // (useSwitchCountry, compartido con Editar perfil).
         setTimeout(() => {
-            navigate(`/${targetCode.toLowerCase()}`);
+            switchCountry(targetCode);
             // Reset loading after navigation starts
             setTimeout(() => {
                 setIsChangingCountry(false);
@@ -643,7 +471,6 @@ const Header: React.FC = () => {
             if (userDropdownRef.current && !userDropdownRef.current.contains(target)) setUserDropdownOpen(false);
             if (notifDropdownRef.current && !notifDropdownRef.current.contains(target)) setNotifDropdownOpen(false);
             if (langDesktopRef.current && !langDesktopRef.current.contains(target)) setLangDropdownOpen(false);
-            if (countryDropdownRef.current && !countryDropdownRef.current.contains(target)) setCountryDropdownOpen(false);
             if (moreDropdownRef.current && !moreDropdownRef.current.contains(target)) setMoreDropdownOpen(false);
             if (companyDropdownRef.current && !companyDropdownRef.current.contains(target)) setCompanyDropdownOpen(false);
         };
@@ -653,14 +480,14 @@ const Header: React.FC = () => {
 
     const NotificationPrompt: React.FC = () => (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm flex items-center justify-between gap-4">
-            <div><p className="font-semibold text-yellow-800">¡Mantente al día!</p><p className="text-yellow-700">Activa las notificaciones para saber cuándo responden a tus reseñas.</p>{subscriptionError && <p className="text-red-600 mt-1 text-xs font-medium">{subscriptionError}</p>}</div>
-            <div className="flex items-center gap-4 flex-shrink-0"><button onClick={handleSubscribe} className="bg-brand-green text-white font-semibold px-4 py-1.5 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs">Activar</button><button onClick={handleDismissNotifPrompt} className="text-yellow-800 hover:text-yellow-900 transition-colors p-1" aria-label="Cerrar aviso de notificaciones"><i className="fa-solid fa-times text-lg"></i></button></div>
+            <div><p className="font-semibold text-yellow-800">{t('header.notifPromptTitle')}</p><p className="text-yellow-700">{t('header.notifPromptText')}</p>{subscriptionError && <p className="text-red-600 mt-1 text-xs font-medium">{subscriptionError}</p>}</div>
+            <div className="flex items-center gap-4 flex-shrink-0"><button onClick={handleSubscribe} className="bg-brand-green text-white font-semibold px-4 py-1.5 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs">{t('header.notifPromptActivate')}</button><button onClick={handleDismissNotifPrompt} className="text-yellow-800 hover:text-yellow-900 transition-colors p-1" aria-label={t('header.notifPromptDismiss')}><i className="fa-solid fa-times text-lg"></i></button></div>
         </div>
     );
 
     const UserDropdownMenu: React.FC = () => (
         <div className="relative" ref={userDropdownRef}>
-            <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-brand-dark dark:text-gray-200 font-bold overflow-hidden">
+            <button onClick={() => setUserDropdownOpen(!userDropdownOpen)} aria-label={t('header.accountMenu')} aria-expanded={userDropdownOpen} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-brand-dark dark:text-gray-200 font-bold overflow-hidden">
                 {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" width={48} height={48} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span>{profile?.name?.charAt(0).toUpperCase()}</span>}
             </button>
             {userDropdownOpen && (
@@ -696,23 +523,6 @@ const Header: React.FC = () => {
             ))}
         </div>
     );
-
-    const CountryDropdownPanel: React.FC = () => (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-gray-100 dark:border-zinc-700 max-h-60 overflow-y-auto">
-            {COUNTRIES.map(c => (
-                <button 
-                    key={c.code}
-                    onClick={() => handleCountryChange(c.code)}
-                    className={`w-full text-left flex items-center gap-3 px-4 py-2 text-sm transition-colors ${userCountry === c.code ? 'font-bold text-brand-green' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-100 dark:hover:bg-zinc-700`}
-                >
-                    <img src={c.flag} alt={c.name} width={20} height={20} loading="lazy" decoding="async" className="w-5 h-5 rounded-full object-cover" />
-                    <span>{c.name}</span>
-                </button>
-            ))}
-        </div>
-    );
-
-    const selectedCountry = COUNTRIES.find(c => c.code === userCountry);
 
     return (
         <>
@@ -765,29 +575,6 @@ const Header: React.FC = () => {
                                 </div>
                             </nav>
                             <div className="flex items-center gap-1.5 xl:gap-2">
-                                {/* Language selector moved to Footer for desktop - kept in mobile menu */}
-                                {!isAdminRoute && !isBusinessDashboardRoute && (
-                                    <div className="relative" ref={countryDropdownRef}>
-                                        <button
-                                          type="button"
-                                          className="flex items-center gap-1.5 xl:gap-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors px-2 xl:px-3 py-1.5 rounded-full border dark:border-zinc-700 text-xs xl:text-sm"
-                                          onClick={() => setCountryDropdownOpen(v => !v)}
-                                          aria-label="Cambiar país"
-                                        >
-                                            {selectedCountry ? (
-                                                <>
-                                                    <img src={selectedCountry.flag} alt={selectedCountry.name} width={20} height={20} loading="lazy" decoding="async" className="w-4 h-4 xl:w-5 xl:h-5 rounded-full object-cover" />
-                                                    <span className="font-semibold hidden xl:inline">{selectedCountry.name}</span>
-                                                </>
-                                            ) : (
-                                                <span className="font-semibold">{t('header.selectCountry')}</span>
-                                            )}
-                                            <i className="fa-solid fa-chevron-down text-xs text-gray-400"></i>
-                                        </button>
-                                        {countryDropdownOpen && <CountryDropdownPanel />}
-                                    </div>
-                                )}
-                                <button onClick={(event) => toggleTheme(event)} className="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" aria-label="Toggle dark mode">{theme === 'light' ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}</button>
                                 {loading ? <div className="w-8 h-8"><Spinner /></div> : user ? (
                                     <>
                                         <NotificationDropdown />
@@ -800,12 +587,14 @@ const Header: React.FC = () => {
                                         <Link to={`${countryPrefix}/${paths.forBusinesses}`} className="bg-brand-green text-white font-semibold px-3 xl:px-5 py-2 rounded-md hover:bg-opacity-90 transition-all shadow-sm whitespace-nowrap text-xs xl:text-sm">{t('header.forBusinesses')}</Link>
                                     </>
                                 )}
+                                {/* Pais, idioma y tema: engranaje a la derecha del todo, solo en la home. */}
+                                {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg xl:text-xl w-8 h-8 flex items-center justify-center rounded-full" />}
                             </div>
                         </div>
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
-                             <button onClick={(event) => toggleTheme(event)} className="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" aria-label="Toggle dark mode">{theme === 'light' ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}</button>
+                            {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />}
                             {user && <NotificationDropdown />}
-                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label="Abrir menú"><i className="fa-solid fa-bars"></i></button>
+                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label={t('header.openMenu')}><i className="fa-solid fa-bars"></i></button>
                         </div>
                     </div>
                 </div>

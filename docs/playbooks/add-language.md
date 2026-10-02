@@ -63,44 +63,41 @@ Funcional pero deja todo en inglés salvo paths. Usar sólo si el sub-agent fall
 
 **Opción C — manual escribir 1865 claves** desde Read del prompt: sólo si nada más funciona. Muy lento.
 
-### 2. Cablear en [contexts/i18nContext.tsx](../../contexts/i18nContext.tsx)
+### 2. Cablear en [contexts/i18nContext.tsx](../../contexts/i18nContext.tsx) y regenerar las rutas
 
-6 ediciones en este archivo:
+Los locales ya **no** se importan de forma estática (salvo `es`, fallback de `t()`): cada idioma es un chunk propio que se descarga con `import()` al elegirlo. Las rutas de todos los idiomas viven copiadas en [contexts/localePaths.generated.ts](../../contexts/localePaths.generated.ts), generado desde el bloque `paths` de cada locale.
+
+Ediciones en `i18nContext.tsx`:
 
 ```ts
-// (a) Import
-import {LANG}Translations from "../locales/{LANG}";
-
-// (b) Tipo Language — añade al final
+// (a) Tipo Language — añade al final. El generador de rutas lee esta lista.
 export type Language = "es" | ... | "{LANG_TYPE}";
 
-// (c) Mapa translations
-export const translations = { es: esTranslations, ..., {LANG}: {LANG}Translations };
+// (b) LOCALE_LOADERS — import dinámico (Rollup crea el chunk locale-{LANG})
+{LANG}: () => import('../locales/{LANG}'),
 
-// (d) Mapa pathTranslations — incluye tipo Y valor
-export const pathTranslations: { ...; {LANG}: typeof {LANG}Translations.paths } = {
-    ...,
-    {LANG}: {LANG}Translations.paths,
-};
+// (c) LANGUAGE_DEFAULT_COUNTRY
+{LANG}: '{COUNTRY}',
 
-// (e) LANGUAGE_DEFAULT_COUNTRY
-export const LANGUAGE_DEFAULT_COUNTRY: Partial<Record<Language, string>> = {
-    ...,
-    {LANG}: '{COUNTRY}',
-};
-
-// (f) getLanguageForCountryCode — case nuevo
+// (d) getLanguageForCountryCode — case nuevo
 case '{COUNTRY_UC}':
     return '{LANG_TYPE}';
 
-// (g) Validación localStorage en initLanguage useState
-if (saved && ['es', ..., '{LANG_TYPE}'].includes(saved)) { ... }
+// (e) getLocaleFromLanguage localeMap
+{LANG}: '{LOCALE_INTL}',
 
-// (h) getLocaleFromLanguage localeMap
-const localeMap: Record<Language, string> = {
-    ...,
-    {LANG}: '{LOCALE_INTL}',
-};
+// (f) BCP47 — solo si el código interno NO es un código de idioma válido
+//     (variantes por país: gb -> en-GB, br -> pt-BR...). Es lo que va a <html lang>.
+{LANG}: '{LOCALE_INTL}',
+```
+
+La validación del idioma guardado en localStorage (`isSupportedLanguage`) sale sola de `localePaths`: no hay lista que tocar.
+
+Después, **regenera las rutas** (obligatorio; el build falla si no coinciden):
+
+```bash
+npm run gen:locale-paths      # = node scripts/gen-locale-paths.mjs
+npm run check:locale-paths    # comprueba; también lo hace `npm run verify` y el build
 ```
 
 ### 3. Cablear en [constants.ts](../../constants.ts)
@@ -121,7 +118,7 @@ const localeMap: Record<Language, string> = {
 { code: '{COUNTRY}', name: '{COUNTRY_NATIVE}', flag: 'https://flagcdn.com/{COUNTRY}.svg', disabled: false },
 ```
 
-### 4. Cablear en [services/geminiService.ts](../../services/geminiService.ts)
+### 4. Cablear en [services/translateService.ts](../../services/translateService.ts)
 
 ```ts
 const GOOGLE_LANG_CODES = {
@@ -224,19 +221,9 @@ const countryCodes = [..., '{COUNTRY}'];
 {LANG}: '{LOCALE_INTL}',
 ```
 
-### 11. (SÓLO RTL) — añadir efecto `dir="rtl"` en `<html>`
+### 11. (SÓLO RTL) — añadir el idioma a `RTL_LANGUAGES`
 
-En [contexts/i18nContext.tsx](../../contexts/i18nContext.tsx), dentro del `I18nProvider`, añade:
-
-```tsx
-useEffect(() => {
-    if (typeof document !== 'undefined') {
-        const isRTL = ['ar', 'he', 'fa', 'ur'].includes(language);
-        document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-        document.documentElement.lang = language;
-    }
-}, [language]);
-```
+En [contexts/i18nContext.tsx](../../contexts/i18nContext.tsx) el `I18nProvider` ya pone `<html dir>` y `<html lang>` (con `toBcp47`) en un `useLayoutEffect`. Solo hay que añadir el código a `RTL_LANGUAGES` si no está (`['ar', 'he', 'fa', 'ur']`). No pongas `lang`/`dir` en ningún otro sitio (ni App.tsx ni Meta.tsx): se pisarían.
 
 Para RTL puro habrá que revisar también CSS: márgenes/paddings asimétricos (`mr-*`, `pl-*`) se invierten. Tailwind v3+ tiene `rtl:` variant pero hay que añadirlo a cada utility relevante. Esto es trabajo aparte del playbook — auditar visualmente.
 
@@ -244,11 +231,14 @@ Para RTL puro habrá que revisar también CSS: márgenes/paddings asimétricos (
 
 ## Verificación
 
-### A. Build vite
+### A. Rutas generadas + build vite
 
 ```bash
+npm run check:locale-paths    # "Rutas de locales sincronizadas."
 npx vite build 2>&1 | tail -5
 ```
+
+En la salida del build debe aparecer un chunk `assets/locale-{LANG}-*.js` propio. Si el build se para con `[check-locale-paths]`, falta `npm run gen:locale-paths`.
 
 Salida esperada:
 ```
@@ -316,6 +306,7 @@ Si ya commiteaste y quieres revertir todo: `git revert <commit-de-cableado>` des
 - **EMBED_VERSION debe coincidir** entre `widgetShared.ts` y el header de `widget.js`. Si no, los embeds antiguos cacheados no recargarán y los clientes verán UI de versión anterior.
 - **Sub-agents con socket error**: los sub-agents pueden fallar en operaciones de Write grandes (>1500 líneas). Si pasa, relanzar el sub-agent o caer a Opción B (re-export con override) y backfillear después.
 - **Categorías de empresas (`categories.*`)**: usan keys en español como ID en la BD (`"Restaurantes y Ocio"`, etc.). No renombrar las keys españolas, solo traducir los valores.
+- **`paths.*` se copian a `contexts/localePaths.generated.ts`**: cualquier cambio en un bloque `paths` (o en el tipo `Language`) exige `npm run gen:locale-paths`. No edites el generado a mano. El resto de claves NO afecta al generado.
 - **`paths.*` cambios rompen SEO**: si un idioma ya existe en producción, NO cambies sus slugs de paths sin redirects 301. Las URLs cambian y Google las desindexa.
 - **Categorías y subcategorías**: el archivo `subcategories` también usa snake_case en inglés Y duplicados en snake_case en español (legacy). Hay ~95 subcategorías. Replicar de `en.ts` exactamente.
 

@@ -6,6 +6,7 @@ import Spinner from '../../Spinner';
 import Meta from '../../Meta';
 import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
 import { COUNTRIES } from '../../../constants';
 
 type ActiveTab = 'pending' | 'in_review' | 'approved' | 'rejected' | 'all';
@@ -80,13 +81,14 @@ const AdminClaimsPage: React.FC = () => {
             approved: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
             rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
         };
-        const statusText = t(`adminClaims.${status.replace('_', '')}`);
+        const statusText = t(`adminClaims.${status}`);
         return <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${styles[status]}`}>{statusText}</span>;
     };
 
     return (
         <>
             <Meta title={`${t('adminClaims.title')} - Admin`} description="Revisa y aprueba las reclamaciones de propiedad de empresas." />
+            <AdminBackLink />
             <div className="space-y-6">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminClaims.title')}</h1>
                 
@@ -188,7 +190,7 @@ const AdminClaimsPage: React.FC = () => {
                 <Modal title={t('adminClaims.reviewModalTitle', { id: selectedClaim.id })} onClose={() => setIsActionModalOpen(false)}>
                     <div className="py-4 space-y-4">
                         <div className="text-sm space-y-3">
-                            <p><strong>{t('adminClaims.modalUser')}</strong> {selectedClaim.profiles?.name} (@{selectedClaim.profiles?.username})</p>
+                            <p><strong>{t('adminClaims.modalUser')}</strong> {selectedClaim.profiles?.name || t('adminClaims.userNotFound')}{selectedClaim.profiles?.username && ` (@${selectedClaim.profiles.username})`}</p>
                             <p><strong>{t('adminClaims.modalBusiness')}</strong> {selectedClaim.businesses?.name}</p>
                             <p><strong>{t('adminClaims.modalOpynioUrl')}</strong> <a href={selectedClaim.opynio_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{selectedClaim.opynio_url}</a></p>
                         </div>

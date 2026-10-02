@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { COUNTRIES } from '../../constants';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 
 // Feature card component
 const FeatureCard: React.FC<{
@@ -72,7 +73,10 @@ const ForBusinessesPage: React.FC = () => {
   const { country } = useCountry();
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-  const paths = pathTranslations[language] || pathTranslations.es;
+  // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
+  // inglesa = 404).
+  const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
+  const ctaPath = useBusinessStartPath();
 
   // SEO: Obtener nombre del país para títulos únicos
   const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
@@ -107,7 +111,7 @@ const ForBusinessesPage: React.FC = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
-                  to={`${countryPrefix}/${paths.register}?type=business`}
+                  to={ctaPath}
                   className="inline-flex items-center justify-center gap-2 bg-brand-green text-white px-8 py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
                 >
                   {t('forBusinessesPage.ctaButton')}
@@ -260,7 +264,7 @@ const ForBusinessesPage: React.FC = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                to={`${countryPrefix}/${paths.register}?type=business`}
+                to={ctaPath}
                 className="inline-flex items-center justify-center gap-2 bg-white text-brand-green px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               >
                 {t('forBusinessesPage.ctaButton')}

@@ -3,10 +3,15 @@ export const initWebVitalsMonitoring = () => {
   // Web Vitals monitoring (optional - can be expanded)
   if (typeof window !== 'undefined' && 'performance' in window) {
     // Log performance metrics
+    // Dentro del propio 'load', loadEventEnd aun vale 0 y salia un tiempo
+    // negativo. Se mide en el siguiente tick y solo en desarrollo.
     window.addEventListener('load', () => {
-      const perfData = window.performance.timing;
-      const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
-      console.log(`Page load time: ${pageLoadTime}ms`);
+      setTimeout(() => {
+        const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        if (nav && nav.loadEventEnd > 0 && import.meta.env.DEV) {
+          console.log(`Page load time: ${Math.round(nav.loadEventEnd)}ms`);
+        }
+      }, 0);
     });
   }
 };

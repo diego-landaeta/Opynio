@@ -40,6 +40,7 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 const PUBLIC_BASE_URL = 'https://web.opynio.com';
 
 const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string | null | undefined; businessCountry: string | null | undefined }> = ({ businessName, businessSlug, businessCountry }) => {
+    const t = useTranslation();
     const { showNotification } = useNotification();
     const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
     const [showQr, setShowQr] = useState(false);
@@ -134,10 +135,10 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
                     </div>
                     <div className="min-w-0">
                         <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-                            Comparte tu empresa
+                            {t('businessDashboard.shareBusinessTitle')}
                         </h2>
                         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                            Más reseñas, más confianza
+                            {t('businessDashboard.shareBusinessSubtitle')}
                         </p>
                     </div>
                 </div>
@@ -150,7 +151,7 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
                     <button
                         type="button"
                         onClick={() => copyToClipboard(publicUrl, 'url')}
-                        title="Copiar enlace"
+                        title={t('businessDashboard.copyLink')}
                         className={`group flex-1 min-w-0 flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
                             copiedField === 'url'
                                 ? 'bg-brand-green/10 border-brand-green/40 dark:bg-brand-green/15'
@@ -164,7 +165,7 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
                         <span className={`hidden xs:inline flex-shrink-0 text-[11px] sm:text-xs font-semibold transition-colors ${
                             copiedField === 'url' ? 'text-brand-green' : 'text-gray-400 group-hover:text-brand-green'
                         }`}>
-                            {copiedField === 'url' ? '¡Copiado!' : 'Copiar'}
+                            {copiedField === 'url' ? t('businessDashboard.copied') : t('businessDashboard.copy')}
                         </span>
                     </button>
                     <button

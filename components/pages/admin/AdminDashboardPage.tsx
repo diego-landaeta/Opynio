@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAdminDashboardStats, deleteBusinessesWithoutReviews } from '../../../services/supabaseService';
+import { getAdminDashboardStats, deleteBusinessesWithoutReviews, getPendingReviewCount, adminSupportTicketCounts } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 import Spinner from '../../Spinner';
@@ -20,7 +20,8 @@ const StatCard: React.FC<{ title: string; value: number; icon: string; color: st
     </div>
 );
 
-const ToolCard: React.FC<{ title: string; icon: string; link: string; description: string; color: string; comingSoon?: boolean }> = ({ title, icon, link, description, color, comingSoon }) => {
+const ToolCard: React.FC<{
+    badge?: number; title: string; icon: string; link: string; description: string; color: string; comingSoon?: boolean }> = ({ badge, title, icon, link, description, color, comingSoon }) => {
     const inner = (
         <>
             <div className={`p-3 rounded-xl ${color} text-white flex-shrink-0 ${comingSoon ? 'opacity-60' : ''}`}>
@@ -29,6 +30,16 @@ const ToolCard: React.FC<{ title: string; icon: string; link: string; descriptio
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                     <h3 className={`font-bold text-gray-800 dark:text-gray-100 ${comingSoon ? '' : 'group-hover:text-brand-green'} transition-colors`}>{title}</h3>
+                    {/* El numero no se comunica solo con color: lleva su propia
+                        etiqueta accesible con lo que significa. */}
+                    {!!badge && badge > 0 && (
+                        <span
+                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-700"
+                            aria-label={`${badge} pendientes de revisar`}
+                        >
+                            {badge}
+                        </span>
+                    )}
                     {comingSoon && (
                         <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
                             Próximamente
@@ -65,19 +76,29 @@ const SectionTitle: React.FC<{ icon: string; title: string; color: string }> = (
 
 const AdminDashboardPage: React.FC = () => {
     const [stats, setStats] = useState({ users: 0, businesses: 0, reviews: 0 });
+    const [pendientes, setPendientes] = useState(0);
+    const [soporteAbiertas, setSoporteAbiertas] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isDeletingEmpty, setIsDeletingEmpty] = useState(false);
     const { showNotification } = useNotification();
     const { confirm } = useConfirm();
     const t = useTranslation();
     const { language } = useI18n();
-    const langPrefix = `/${language}`;
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
                 const data = await getAdminDashboardStats();
                 setStats(data);
+                // La cola de moderacion no estaba a la vista en ningun sitio.
+                setPendientes(await getPendingReviewCount());
+                // Solicitudes de soporte esperando respuesta. Aparte: si la
+                // migracion de tickets aun no esta, el panel carga igual.
+                try {
+                    setSoporteAbiertas((await adminSupportTicketCounts()).open);
+                } catch (e) {
+                    console.error('Error fetching support counts:', e);
+                }
             } catch (error) {
                 console.error("Error fetching admin stats:", error);
                 showNotification(t('adminDashboard.errorLoadingDashboardData'), 'error');
@@ -143,6 +164,25 @@ const AdminDashboardPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Una tarjeta con un numero entre otras diez pasa desapercibida.
+                    Si hay cola, se dice arriba del todo y con su atajo. */}
+                {pendientes > 0 && (
+                    <Link
+                        to={`/${pathTranslations.es.adminReviewModeration}`}
+                        className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                    >
+                        <i className="fa-solid fa-clock text-orange-600 dark:text-orange-400 flex-shrink-0" aria-hidden="true"></i>
+                        <span className="text-sm text-orange-900 dark:text-orange-100">
+                            <strong>{pendientes}</strong>{' '}
+                            {pendientes === 1 ? 'reseña espera moderación' : 'reseñas esperan moderación'}
+                            {' '}— no se ven en ninguna ficha hasta que se aprueben.
+                        </span>
+                        <span className="ml-auto text-sm font-semibold text-orange-800 dark:text-orange-200 whitespace-nowrap">
+                            Revisar <i className="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
+                        </span>
+                    </Link>
+                )}
+
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <StatCard title={t('adminDashboard.totalUsers')} value={stats.users} icon="fa-users" color="text-blue-500" bgColor="bg-gradient-to-br from-blue-500 to-blue-600" />
@@ -156,10 +196,10 @@ const AdminDashboardPage: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-2xl p-5 border dark:border-zinc-700">
                         <SectionTitle icon="fa-shield-halved" title="Moderación" color="bg-orange-500" />
                         <div className="space-y-3">
-                            <ToolCard title={t('adminDashboard.moderateReviews')} icon="fa-comments" link={`/${pathTranslations.es.adminReviewModeration}`} description="Aprueba o rechaza nuevas reseñas." color="bg-orange-500" />
+                            <ToolCard title={t('adminDashboard.moderateReviews')} icon="fa-comments" link={`/${pathTranslations.es.adminReviewModeration}`} description="Aprueba o rechaza nuevas reseñas." color="bg-orange-500" badge={pendientes} />
                             <ToolCard title={t('adminDashboard.reviewAppeals')} icon="fa-flag" link={`/${pathTranslations.es.adminReviewAppeals}`} description="Revisa apelaciones de reseñas rechazadas." color="bg-orange-400" />
                             <ToolCard title={t('adminDashboard.bugs')} icon="fa-bug" link={`/${pathTranslations.es.adminBugs}`} description="Gestiona informes de errores de usuarios." color="bg-red-500" />
-                            <ToolCard title="Soporte" icon="fa-headset" link="#" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" comingSoon />
+                            <ToolCard title="Soporte" icon="fa-headset" link="/admin/soporte" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" badge={soporteAbiertas} />
                         </div>
                     </div>
 

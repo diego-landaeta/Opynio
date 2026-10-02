@@ -1,7 +1,7 @@
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import Meta from '../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
 import { COUNTRIES } from '../../constants';
 import { useCountry } from '../../contexts/CountryContext';
 
@@ -216,8 +216,6 @@ const WhatsNewPage: React.FC = () => {
     const { language } = useI18n();
     const { country } = useCountry();
 
-    const countryPrefix = country ? `/${country.toLowerCase()}` : '';
-
     // SEO: Obtener nombre del país para títulos únicos
     const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
     const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
@@ -336,7 +334,7 @@ const WhatsNewPage: React.FC = () => {
                             {t('homepage.haveYouBought')}
                         </p>
                         <ReactRouterDOM.Link
-                            to={`${countryPrefix}/${pathTranslations[language].explore}`}
+                            to={localizedPathOrRoot('explore', language, country)}
                             className="inline-flex items-center gap-2 bg-white text-brand-green font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 text-sm sm:text-base"
                         >
                             <i className="fa-solid fa-compass"></i>

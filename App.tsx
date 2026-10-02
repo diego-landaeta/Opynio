@@ -1,5 +1,5 @@
 
-import React, { lazy, Suspense, createContext, useState, useEffect, useContext, ReactNode, Component, ErrorInfo } from 'react';
+import React, { lazy, Suspense, useState, useEffect, ReactNode, Component, ErrorInfo } from 'react';
 import { BrowserRouter, Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -9,16 +9,19 @@ import AdminRoute from './components/auth/AdminRoute';
 import BusinessRoute from './components/auth/BusinessRoute';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Snackbar from './components/Snackbar';
+import BackBar from './components/BackBar';
+import WriteReviewFab from './components/WriteReviewFab';
+import CookieBanner from './components/CookieBanner';
 import RealtimeNotificationHandler from './components/RealtimeNotificationHandler';
 import Spinner from './components/Spinner';
 import { I18nProvider, useI18n, pathTranslations, Language, getLanguageForCountryCode, detectLanguageFromPath } from './contexts/i18nContext';
 import { CountryProvider, useCountry, CountryCode } from './contexts/CountryContext';
 import { getBusinessByName, getBusinessById } from './services/supabaseService';
 import { Business } from './types';
-import { COUNTRIES } from './constants';
-import LanguagePopup from './components/LanguagePopup';
-import FloatingLanguageButton from './components/FloatingLanguageButton';
+import { COUNTRIES, isServedUrlPrefix } from './constants';
+import LanguagePopup, { hasSavedLanguage, isLandingNavigation } from './components/LanguagePopup';
 import PlanActivatedModal from './components/PlanActivatedModal';
 
 // Error Boundary to catch render errors and prevent blank pages
@@ -135,6 +138,7 @@ const PaymentSuccessPage = lazy(() => import('./components/pages/PaymentSuccessP
 const PaymentCancelPage = lazy(() => import('./components/pages/PaymentCancelPage'));
 const AdminClaimsPage = lazy(() => import('./components/pages/admin/AdminClaimsPage'));
 const AdminBugsPage = lazy(() => import('./components/pages/admin/AdminBugsPage'));
+const AdminSupportPage = lazy(() => import('./components/pages/admin/AdminSupportPage'));
 const AdminReviewAppealsPage = lazy(() => import('./components/pages/admin/AdminReviewAppealsPage'));
 const AdminEnterprisePage = lazy(() => import('./components/pages/admin/AdminEnterprisePage'));
 const AdminFeaturedBusinessesPage = lazy(() => import('./components/pages/admin/AdminFeaturedBusinessesPage'));
@@ -147,6 +151,7 @@ const ForBusinessesPage = lazy(() => import('./components/pages/ForBusinessesPag
 const HowItWorksPage = lazy(() => import('./components/pages/HowItWorksPage'));
 const FAQPage = lazy(() => import('./components/pages/FAQPage'));
 const AboutPage = lazy(() => import('./components/pages/AboutPage'));
+const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage'));
 const CaseStudiesPage = lazy(() => import('./components/pages/CaseStudiesPage'));
 
 // Lazy load business dashboard panels
@@ -154,97 +159,46 @@ const DashboardOverview = lazy(() => import('./components/pages/business/dashboa
 const DashboardReviews = lazy(() => import('./components/pages/business/dashboard/DashboardReviews'));
 const DashboardAnalytics = lazy(() => import('./components/pages/business/dashboard/DashboardAnalytics'));
 const DashboardInvitations = lazy(() => import('./components/pages/business/dashboard/DashboardInvitations'));
+const DashboardProducts = lazy(() => import('./components/pages/business/dashboard/DashboardProducts'));
 const DashboardWidgets = lazy(() => import('./components/pages/business/dashboard/DashboardWidgets'));
 const DashboardUserManual = lazy(() => import('./components/pages/business/dashboard/DashboardUserManual'));
 
-// --- Theme Context for Dark Mode ---
-type Theme = 'light' | 'dark';
-interface ThemeContextType {
-    theme: Theme;
-    toggleTheme: (event: React.MouseEvent) => void;
-}
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [theme, setTheme] = useState<Theme>('light');
-
-    useEffect(() => {
-        const root = window.document.documentElement;
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            root.classList.add('dark');
-            setTheme('dark');
-        } else {
-            root.classList.remove('dark');
-            setTheme('light');
-        }
-    }, []);
-
-    const toggleTheme = (event: React.MouseEvent) => {
-        const isDark = document.documentElement.classList.contains('dark');
-        const newTheme = isDark ? 'light' : 'dark';
-
-        // @ts-ignore
-        if (!document.startViewTransition) {
-            setTheme(newTheme);
-            localStorage.setItem('theme', newTheme);
-            document.documentElement.classList.toggle('dark');
-            return;
-        }
-
-        const x = event.clientX;
-        const y = event.clientY;
-        
-        // @ts-ignore
-        document.startViewTransition(() => {
-            const root = document.documentElement;
-            root.style.setProperty('--x', x + 'px');
-            root.style.setProperty('--y', y + 'px');
-            setTheme(newTheme);
-            localStorage.setItem('theme', newTheme);
-            root.classList.toggle('dark');
-        });
-    };
-
-    const value = { theme, toggleTheme };
-    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-};
-
-export const useTheme = () => {
-    const context = useContext(ThemeContext);
-    if (context === undefined) {
-        throw new Error('useTheme must be used within a ThemeProvider');
-    }
-    return context;
-};
-// --- End Theme Context ---
+// Tema claro/oscuro: ThemeProvider y useTheme viven en
+// contexts/ThemeContext.tsx (ver alli por que ya no estan aqui).
 
 const MainLayout = () => {
     const { countryCode } = useParams<{ countryCode?: string }>();
-    const { userCountry, viewingCountry, setViewingCountry } = useCountry();
-    const { language, setLanguage } = useI18n();
+    const { viewingCountry, setViewingCountry } = useCountry();
+    const { setLanguage, setLanguageOverride } = useI18n();
     const location = useLocation();
+    const isAdminPath = location.pathname.startsWith('/admin');
 
-    // Force Spanish language on admin routes
+    // El panel de admin va en espanol, pero como idioma IMPUESTO por la ruta: no
+    // se guarda como preferencia y al salir se vuelve al idioma del usuario.
+    // Antes llamaba a setLanguage('es'), que lo guardaba: un usuario en ingles
+    // que pasaba por /admin se quedaba en espanol para siempre.
     useEffect(() => {
-        if (location.pathname.startsWith('/admin')) {
-            setLanguage('es');
-        }
-    }, [location.pathname, setLanguage]);
+        setLanguageOverride(isAdminPath ? 'es' : null);
+    }, [isAdminPath, setLanguageOverride]);
 
-    // Sincroniza el idioma de la UI cuando el path no tiene country prefix
-    // (p.ej. el usuario entra directo a /register, /preise, /prezzi, etc.).
-    // Para paths con country prefix la fuente de verdad es el país, así que
-    // no tocamos el idioma aquí (lo gestiona LanguagePopup).
+    // Primera visita a una ruta sin prefijo de pais (/register, /preise...): el
+    // I18nProvider ya arranca con el idioma del slug; aqui solo se guarda como
+    // idioma elegido, como hacia antes. Solo en el aterrizaje y sin idioma
+    // guardado: despues, el idioma lo cambia el selector, no un enlace
+    // (/soporte, /empresa/x...) en otro idioma. Tampoco en /post-acceso: es la
+    // vuelta del login con Google (siempre en espanol), no una eleccion.
     useEffect(() => {
-        if (countryCode) return; // ya hay país, no interferir
-        if (location.pathname.startsWith('/admin')) return; // admin = es, ya tratado
-        const segs = location.pathname.split('/').filter(Boolean);
-        if (segs.length === 0) return;
-        const detected = detectLanguageFromPath(segs[0]);
-        if (detected && detected !== language) {
-            setLanguage(detected);
-        }
-    }, [location.pathname, countryCode, language, setLanguage]);
+        if (countryCode) return; // con pais lo gestiona LanguagePopup
+        if (isAdminPath) return;
+        if (!isLandingNavigation() || hasSavedLanguage()) return;
+        const first = location.pathname.split('/').filter(Boolean)[0];
+        if (!first) return;
+        let seg = first;
+        try { seg = decodeURIComponent(first); } catch { /* segmento mal codificado */ }
+        if (Object.values(pathTranslations).some(p => p.postLogin === seg)) return;
+        const detected = detectLanguageFromPath(seg);
+        if (detected) setLanguage(detected);
+    }, [location.pathname, countryCode, isAdminPath, setLanguage]);
 
     // Sync viewingCountry from URL parameter (NOT userCountry)
     // If no countryCode is in the URL (root path), set viewingCountry to null
@@ -264,13 +218,9 @@ const MainLayout = () => {
         }
     }, [countryCode, viewingCountry, setViewingCountry]);
 
-    // Set document lang attribute based on userCountry (not viewingCountry)
-    useEffect(() => {
-        const langFromUserCountry = userCountry
-            ? getLanguageForCountryCode(userCountry)
-            : language;
-        document.documentElement.lang = langFromUserCountry;
-    }, [userCountry, language]);
+    // <html lang> lo pone I18nProvider con el idioma que se ve en pantalla.
+    // Antes aqui se ponia el del pais del usuario (userCountry) y no coincidia
+    // con el texto cuando el usuario habia elegido otro idioma.
 
 
     return (
@@ -278,17 +228,19 @@ const MainLayout = () => {
             <RealtimeNotificationHandler />
             <Snackbar />
             <LanguagePopup />
-            <FloatingLanguageButton />
             <PlanActivatedModal />
             <LanguagePathValidator>
                 <div className="flex flex-col min-h-screen font-sans text-brand-dark dark:text-gray-200">
                     <Header />
                     <main className="flex-grow container mx-auto px-3 sm:px-4 md:px-6 pt-8 sm:pt-10 md:pt-12 pb-20 sm:pb-16 md:pb-12">
+                        <BackBar />
                         <Suspense fallback={<div className="flex justify-center items-center h-full py-12 sm:py-16 md:py-20"><Spinner /></div>}>
                            <Outlet/>
                         </Suspense>
                     </main>
                     <Footer />
+                    <WriteReviewFab />
+                    <CookieBanner />
                 </div>
             </LanguagePathValidator>
         </>
@@ -322,9 +274,15 @@ const ScrollToTop = () => {
     return null;
 };
 
+// Ruta antigua de "escribir resena" (la real es paths.writeReview, en espanol
+// 'escribir-resena'). Los correos de invitacion ya enviados llevan
+// /escribir?businessId=... y el widget antiguo /es/escribir?businessId=...:
+// se sirven como alias de la misma pagina, sin redirigir ni tocar la URL.
+const LEGACY_WRITE_REVIEW_PATH = 'escribir';
+
 // Helper function to check if a path matches the expected language for a country
 // This is used to validate URLs and prevent cross-language path access
-const getPathKeyFromPath = (path: string): keyof typeof pathTranslations.es | null => {
+const getPathKeyFromPath =(path: string): keyof typeof pathTranslations.es | null => {
     const languages = Object.keys(pathTranslations) as Language[];
     for (const lang of languages) {
         const paths = pathTranslations[lang];
@@ -390,7 +348,23 @@ const LanguagePathValidator: React.FC<{ children: React.ReactNode }> = ({ childr
     // Check if countryCode is valid
     const isValidCountry = COUNTRIES.some(c => c.code.toLowerCase() === countryCode.toLowerCase());
     if (!isValidCountry) {
-        return <>{children}</>; // Let it fall through normally
+        // Alias (/en, /ve, /cn y los codigos de idioma /ja, /sv, /ko...: ver
+        // URL_PREFIX_ALIASES en constants.ts): hay enlaces vivos (sitemap
+        // antiguo, widget, enlaces antiguos con el idioma como prefijo).
+        // Se sirven como en master: sin comprobar el idioma de la ruta.
+        if (isServedUrlPrefix(countryCode)) {
+            return <>{children}</>;
+        }
+        // Antes /xx y /xx/explorar se servian como paginas validas (home,
+        // explorar...) con un pais inexistente. Las rutas sin prefijo estan
+        // declaradas antes que :countryCode, asi que aqui solo llega un primer
+        // segmento desconocido.
+        if (!shouldShow404) setShouldShow404(true);
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Spinner />
+            </div>
+        );
     }
 
     // Get expected language for this country
@@ -416,6 +390,11 @@ const LanguagePathValidator: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Check if it's a valid path in ANOTHER language (wrong language for this country)
     const pathKey = getPathKeyFromPath(currentPathSegment);
+    // La ficha de empresa en otro idioma (/gb/empresa/x) no es un 404: la
+    // empresa existe y BusinessPage redirige a su URL canonica.
+    if (pathKey === 'business') {
+        return <>{children}</>;
+    }
     if (pathKey) {
         // This is a valid path but in the wrong language - trigger 404 with real HTTP status
         console.log(`❌ 404: Path "${currentPathSegment}" is valid but wrong language for country ${countryCode} (expected: ${expectedLang})`);
@@ -538,6 +517,7 @@ const App = () => {
                                     {uniquePaths.faq?.map(p => <Route key={`root-faq-${p}`} path={p} element={<FAQPage />} />)}
                                     {uniquePaths.about?.map(p => <Route key={`root-about-${p}`} path={p} element={<AboutPage />} />)}
                                     {uniquePaths.caseStudies?.map(p => <Route key={`root-caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
+                                    {uniquePaths.privacy?.map(p => <Route key={`root-privacy-${p}`} path={p} element={<PrivacyPage />} />)}
 
                                     {/* Non-prefixed routes (auth, admin, legacy, etc.) that are independent of country */}
                                     {uniquePaths.resetPassword?.map(p => <Route key={`root-resetPassword-${p}`} path={p} element={<ResetPasswordPage />} />)}
@@ -549,6 +529,9 @@ const App = () => {
                                         {uniquePaths.profile?.map(p => <Route key={`root-profile-${p}`} path={p} element={<ProfilePage />} />)}
                                         {uniquePaths.editProfile?.map(p => <Route key={`root-editProfile-${p}`} path={p} element={<EditProfilePage />} />)}
                                         {uniquePaths.writeReview?.map(p => <Route key={`root-writeReview-${p}`} path={p} element={<WriteReviewPage />} />)}
+                                        {/* Alias /escribir: enlace de los correos de invitacion ya enviados
+                                            (/escribir?businessId=...). Misma pagina, sin redirigir. */}
+                                        <Route path={LEGACY_WRITE_REVIEW_PATH} element={<WriteReviewPage />} />
                                         {uniquePaths.assignBusiness?.map(p => <Route key={`root-assignBusiness-${p}`} path={p} element={<AssignBusinessPage />} />)}
                                         {uniquePaths.paymentSuccess?.map(p => <Route key={`root-paymentSuccess-${p}`} path={p} element={<PaymentSuccessPage />} />)}
                                         {uniquePaths.paymentCancel?.map(p => <Route key={`root-paymentCancel-${p}`} path={p} element={<PaymentCancelPage />} />)}
@@ -571,6 +554,7 @@ const App = () => {
                                                 {uniquePaths.dashboardReviews?.map(p => <Route key={`root-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
                                                 {uniquePaths.dashboardAnalytics?.map(p => <Route key={`root-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
                                                 {uniquePaths.dashboardInvitations?.map(p => <Route key={`root-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                {uniquePaths.dashboardProducts?.map(p => <Route key={`root-dashProducts-${p}`} path={p} element={<DashboardProducts />} />)}
                                                 {uniquePaths.dashboardWidgets?.map(p => <Route key={`root-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
                                                 {uniquePaths.dashboardEdit?.map(p => <Route key={`root-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
                                                 {uniquePaths.dashboardUserManual?.map(p => <Route key={`root-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}
@@ -589,6 +573,7 @@ const App = () => {
                                         <Route path="moderacion-resenas" element={<AdminReviewModerationPage />} />
                                         <Route path="reclamaciones" element={<AdminClaimsPage />} />
                                         <Route path="bugs" element={<AdminBugsPage />} />
+                                        <Route path="soporte" element={<AdminSupportPage />} />
                                         <Route path="apelaciones-resenas" element={<AdminReviewAppealsPage />} />
                                         <Route path="enterprise" element={<AdminEnterprisePage />} />
                                         <Route path="destacados" element={<AdminFeaturedBusinessesPage />} />
@@ -625,6 +610,7 @@ const App = () => {
                                         {uniquePaths.faq?.map(p => <Route key={`faq-${p}`} path={p} element={<FAQPage />} />)}
                                         {uniquePaths.about?.map(p => <Route key={`about-${p}`} path={p} element={<AboutPage />} />)}
                                         {uniquePaths.caseStudies?.map(p => <Route key={`caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
+                                        {uniquePaths.privacy?.map(p => <Route key={`privacy-${p}`} path={p} element={<PrivacyPage />} />)}
 
                                         {/* PostLogin handles its own auth check - must NOT be inside ProtectedRoute to avoid race condition */}
                                         {uniquePaths.postLogin?.map(p => <Route key={`postLogin-${p}`} path={p} element={<PostLoginRedirect />} />)}
@@ -634,6 +620,8 @@ const App = () => {
                                             {uniquePaths.profile?.map(p => <Route key={`profile-${p}`} path={p} element={<ProfilePage />} />)}
                                             {uniquePaths.editProfile?.map(p => <Route key={`editProfile-${p}`} path={p} element={<EditProfilePage />} />)}
                                             {uniquePaths.writeReview?.map(p => <Route key={`writeReview-${p}`} path={p} element={<WriteReviewPage />} />)}
+                                            {/* Alias /<pais>/escribir: el widget antiguo enlazaba /es/escribir?businessId=... */}
+                                            <Route path={LEGACY_WRITE_REVIEW_PATH} element={<WriteReviewPage />} />
                                             {uniquePaths.assignBusiness?.map(p => <Route key={`assignBusiness-${p}`} path={p} element={<AssignBusinessPage />} />)}
                                             {uniquePaths.paymentSuccess?.map(p => <Route key={`paymentSuccess-${p}`} path={p} element={<PaymentSuccessPage />} />)}
                                             {uniquePaths.paymentCancel?.map(p => <Route key={`paymentCancel-${p}`} path={p} element={<PaymentCancelPage />} />)}
@@ -656,6 +644,7 @@ const App = () => {
                                                     {uniquePaths.dashboardReviews?.map(p => <Route key={`country-dashReviews-${p}`} path={p} element={<DashboardReviews />} />)}
                                                     {uniquePaths.dashboardAnalytics?.map(p => <Route key={`country-dashAnalytics-${p}`} path={p} element={<DashboardAnalytics />} />)}
                                                     {uniquePaths.dashboardInvitations?.map(p => <Route key={`country-dashInvitations-${p}`} path={p} element={<DashboardInvitations />} />)}
+                                                    {uniquePaths.dashboardProducts?.map(p => <Route key={`country-dashProducts-${p}`} path={p} element={<DashboardProducts />} />)}
                                                     {uniquePaths.dashboardWidgets?.map(p => <Route key={`country-dashWidgets-${p}`} path={p} element={<DashboardWidgets />} />)}
                                                     {uniquePaths.dashboardEdit?.map(p => <Route key={`country-dashEdit-${p}`} path={p} element={<EditBusinessPage />} />)}
                                                     {uniquePaths.dashboardUserManual?.map(p => <Route key={`country-dashManual-${p}`} path={p} element={<DashboardUserManual />} />)}

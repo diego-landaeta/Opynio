@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../Spinner';
 import { useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { takePostLoginReturnTo, forgetPostLoginReturnTo } from '../../utils/postLoginReturnTo';
 
 // Detecta si la sesión actual es signup-empresa, por orden de robustez:
 //   1) ?type=business en la URL del callback (lo añade signInWithGoogleForBusiness).
@@ -28,6 +29,11 @@ const PostLoginRedirect: React.FC = () => {
     const navigate = ReactRouterDOM.useNavigate();
     const location = ReactRouterDOM.useLocation();
     const [waitTime, setWaitTime] = useState(0);
+    // Este efecto se vuelve a ejecutar mientras el perfil termina de cargar.
+    // Tras la primera redireccion no debe hacer otra: antes, la vuelta a la
+    // pagina de origen (postLoginReturnTo) se pisaba con /perfil en la
+    // siguiente ejecucion, porque la clave ya se habia consumido.
+    const redirectedRef = useRef(false);
 
     // Timeout fallback: if profile doesn't load after 5 seconds, redirect to home
     useEffect(() => {
@@ -38,10 +44,21 @@ const PostLoginRedirect: React.FC = () => {
         return () => clearInterval(timer);
     }, []);
 
+    // Login con Google cancelado o rechazado: Supabase vuelve aqui con
+    // ?error=... (o #error=...) y sin sesion. El destino guardado por
+    // LoginPage ya no toca: si se quedaba, el siguiente login acababa ahi.
+    useEffect(() => {
+        const query = new URLSearchParams(window.location.search);
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        if (query.has('error') || hash.has('error')) forgetPostLoginReturnTo();
+    }, []);
+
     // Fallback redirect after timeout
     useEffect(() => {
         if (waitTime >= 5 && !loading && !profile) {
             console.warn("PostLoginRedirect: Timeout waiting for profile, redirecting to home");
+            // Se abandona el flujo de login: el destino guardado tambien.
+            forgetPostLoginReturnTo();
             const effectiveCountry = country || 'es';
             navigate(`/${effectiveCountry.toLowerCase()}`, { replace: true });
         }
@@ -51,11 +68,33 @@ const PostLoginRedirect: React.FC = () => {
         // Debug logging
         console.log("PostLoginRedirect state:", { loading, hasProfile: !!profile, hasUser: !!user, waitTime });
 
+        if (redirectedRef.current) return;
         if (!loading && profile) {
             // Use country directly - don't infer from language
             const countryPrefix = country ? `/${country.toLowerCase()}` : '';
             const pathLang = country ? getLanguageForCountryCode(country) : language;
             const paths = pathTranslations[pathLang] || pathTranslations.es;
+
+            // Alta de empresa a medias (?type=business, metadata o flag): manda
+            // sobre la vuelta a la pagina de origen. Antes el destino guardado
+            // se comprobaba primero y quien entraba con Google para dar de alta
+            // su empresa acababa en la pagina de antes, sin completar el alta.
+            const searchParams = new URLSearchParams(location.search);
+            const intent = detectBusinessSignUpIntent(searchParams, user?.user_metadata);
+            const pendingBusinessSignUp = intent.wants && profile.role === 'authenticated';
+
+            // Volver a la pagina que pidio el login (ver LoginPage). Solo rutas
+            // internas y de hace menos de 10 min (utils/postLoginReturnTo).
+            if (pendingBusinessSignUp) {
+                forgetPostLoginReturnTo();
+            } else {
+                const returnTo = takePostLoginReturnTo();
+                if (returnTo) {
+                    redirectedRef.current = true;
+                    navigate(returnTo, { replace: true });
+                    return;
+                }
+            }
 
             const postLoginActionRaw = localStorage.getItem('postLoginAction');
             if (postLoginActionRaw) {
@@ -80,9 +119,6 @@ const PostLoginRedirect: React.FC = () => {
             //  - ?type=business in URL (added by signInWithGoogleForBusiness redirectTo).
             //  - user_metadata.intended_role === 'business_owner' (email signup).
             //  - localStorage flag (legacy / same-device).
-            const searchParams = new URLSearchParams(location.search);
-            const intent = detectBusinessSignUpIntent(searchParams, user?.user_metadata);
-
             console.log('[postLogin] business intent detection', {
                 source: intent.source,
                 wantsBusinessSignUp: intent.wants,
@@ -95,7 +131,7 @@ const PostLoginRedirect: React.FC = () => {
                 // Only route to the completion form if the user has not been promoted yet.
                 // If profile.role is already 'business_owner' it means signup is complete
                 // (e.g. they already finished it earlier), fall through to the default routing.
-                if (profile.role === 'authenticated') {
+                if (pendingBusinessSignUp) {
                     // Propaga ?type=business al destino para que el guard de
                     // CompleteBusinessRegistrationPage detecte la intención de empresa
                     // incluso cuando es Google OAuth (no hay user_metadata.intended_role)

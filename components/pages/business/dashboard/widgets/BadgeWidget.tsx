@@ -1,15 +1,17 @@
 import React from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
-export const BadgePreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const BadgePreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
 
@@ -19,6 +21,7 @@ export const BadgePreview: React.FC<PreviewProps> = ({ business, theme, lang }) 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--opynio-green)' }}>Opynio</div>
                     <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem' }}>
+                        <ProductPillSlot label={s.productBadge} name={productName} align="start" />
                         <div className="opynio-stars"><StaticStarRating rating={business.avg_rating || 5} /></div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--subtext-color)', marginTop: '0.25rem' }}>
                             <strong>{(business.avg_rating || 0).toFixed(1)}</strong> {s.outOf5}

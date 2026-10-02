@@ -4,27 +4,34 @@ import { useAuth } from '../../contexts/AuthContext';
 import { updateUserPassword } from '../../services/supabaseService';
 import * as ReactRouterDOM from 'react-router-dom';
 import Meta from '../Meta';
-import { useI18n, pathTranslations, useTranslation } from '../../contexts/i18nContext';
+import { useI18n, localizedPathOrRoot, useTranslation } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import PasswordInput from '../PasswordInput';
+import AuthErrorText from '../auth/AuthErrorText';
+import { getAuthErrorInfo } from '../../utils/authErrors';
 
 const ResetPasswordPage: React.FC = () => {
     const { session, loading: authLoading } = useAuth();
     const navigate = ReactRouterDOM.useNavigate();
     const { language } = useI18n();
     const t = useTranslation();
-    const langPrefix = `/${language}`;
+    // Prefijo de pais y segmento en el idioma de ESE pais: /es/login (idioma
+    // de la UI) daba 404.
+    const { country } = useCountry();
+    const loginPath = localizedPathOrRoot('login', language, country);
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<React.ReactNode | null>(null);
     const [success, setSuccess] = useState(false);
 
     useEffect(() => {
         // If the user lands here without a recovery session, redirect them.
         if (!authLoading && !session?.user) {
-            navigate(`${langPrefix}/${pathTranslations[language].login}`, { replace: true });
+            navigate(loginPath, { replace: true });
         }
-    }, [session, authLoading, navigate, language, langPrefix]);
+    }, [session, authLoading, navigate, loginPath]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -45,10 +52,12 @@ const ResetPasswordPage: React.FC = () => {
             await updateUserPassword(password);
             setSuccess(true);
             setTimeout(() => {
-                navigate(`${langPrefix}/${pathTranslations[language].login}`);
+                navigate(loginPath);
             }, 3000);
         } catch (err: any) {
-            setError(err.message || 'No se pudo actualizar la contraseña.');
+            // Nunca el texto crudo de Supabase («New password should be
+            // different...»): se traduce por codigo (utils/authErrors).
+            setError(<AuthErrorText info={getAuthErrorInfo(err, 'reset')} />);
         } finally {
             setLoading(false);
         }
@@ -87,9 +96,9 @@ const ResetPasswordPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                     <div>
                         <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('resetPasswordPage.newPassword')}</label>
-                        <input
+                        <PasswordInput
                             id="password"
-                            type="password"
+                            autoComplete="new-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -99,9 +108,9 @@ const ResetPasswordPage: React.FC = () => {
                     </div>
                      <div>
                         <label htmlFor="confirmPassword" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('resetPasswordPage.confirmNewPassword')}</label>
-                        <input
+                        <PasswordInput
                             id="confirmPassword"
-                            type="password"
+                            autoComplete="new-password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required

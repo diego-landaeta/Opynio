@@ -2,7 +2,9 @@
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { GoogleGenAI, Type } from 'https://esm.sh/@google/genai@^1.13.0';
+import { GoogleGenAI, Type } from 'https://esm.sh/@google/genai@1.13.0?target=deno';
+import { corsHeadersFor } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/requireAdmin.ts';
 
 // Type declarations for Deno environment
 declare const Deno: {
@@ -11,10 +13,6 @@ declare const Deno: {
   };
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 const MAX_REVIEW_PAGES = 50; // Limit to 50 pages (approx 1000 reviews)
@@ -112,7 +110,7 @@ const CATEGORIES: { [key: string]: string[] } = {
 };
 
 // Función helper para crear respuestas de error consistentes
-function createErrorResponse(message: string, statusCode: number = 500, details?: any) {
+function createErrorResponse(corsHeaders: Record<string, string>, message: string, statusCode: number = 500, details?: any) {
     console.error(`Error (${statusCode}):`, message, details);
     return new Response(
         JSON.stringify({ 
@@ -239,29 +237,35 @@ async function processItem(item: any, supabase: SupabaseClient, adminId: string,
 }
 
 serve(async (req) => {
+    // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+    const corsHeaders = corsHeadersFor(req);
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+    // Solo admin, antes de leer secretos: 401/403 en vez de 500.
+    const denied = await requireAdmin(req, corsHeaders);
+    if (denied) return denied;
 
     try {
         const SERPAPI_KEY = Deno.env.get('SERPAPI_KEY');
-        if (!SERPAPI_KEY) return createErrorResponse('La clave de API del servidor (SERPAPI_KEY) no está configurada.', 500);
+        if (!SERPAPI_KEY) return createErrorResponse(corsHeaders, 'La clave de API del servidor (SERPAPI_KEY) no está configurada.', 500);
         
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-        if (!GEMINI_API_KEY) return createErrorResponse('La clave de API de Gemini (GEMINI_API_KEY) no está configurada.', 500);
+        if (!GEMINI_API_KEY) return createErrorResponse(corsHeaders, 'La clave de API de Gemini (GEMINI_API_KEY) no está configurada.', 500);
         
         const supabaseClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization')! } } });
         const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-        if (authError || !user) return createErrorResponse('No autorizado.', 401);
+        if (authError || !user) return createErrorResponse(corsHeaders, 'No autorizado.', 401);
         
         const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', user.id).single();
-        if (profile?.role !== 'admin') return createErrorResponse('Acción solo para administradores.', 403);
+        if (profile?.role !== 'admin') return createErrorResponse(corsHeaders, 'Acción solo para administradores.', 403);
 
         const { ids } = await req.json();
-        if (!Array.isArray(ids) || ids.length === 0) return createErrorResponse('Se requiere un array de IDs no vacío.', 400);
+        if (!Array.isArray(ids) || ids.length === 0) return createErrorResponse(corsHeaders, 'Se requiere un array de IDs no vacío.', 400);
         
         const { data: items, error: fetchError } = await supabaseClient.from('scraping_queue').select('*').in('id', ids).eq('status', 'pending');
-        if (fetchError) return createErrorResponse(`Error al obtener items: ${fetchError.message}`, 500);
+        if (fetchError) return createErrorResponse(corsHeaders, `Error al obtener items: ${fetchError.message}`, 500);
         
         if (items.length === 0) {
             return new Response(JSON.stringify({ processed: 0, failed: 0, message: "No se encontraron items pendientes con los IDs proporcionados." }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
@@ -283,6 +287,6 @@ serve(async (req) => {
         return new Response(JSON.stringify({ processed, failed, total: items.length, success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 
     } catch (error) {
-        return createErrorResponse('Error interno del servidor', 500, error);
+        return createErrorResponse(corsHeaders, 'Error interno del servidor', 500, error);
     }
 })

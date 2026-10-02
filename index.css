@@ -76,3 +76,10 @@ body {
 .animate-ken-burns {
   animation: ken-burns 8s ease-in-out infinite alternate;
 }
+
+/* Ojo nativo de Edge en los campos de contrasena: desaparece al perder el foco
+   y no vuelve. Se usa el boton propio de components/PasswordInput.tsx. */
+.password-input::-ms-reveal,
+.password-input::-ms-clear {
+  display: none;
+}

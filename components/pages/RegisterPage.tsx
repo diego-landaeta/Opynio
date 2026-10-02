@@ -5,8 +5,15 @@ import { signUpUser, signUpBusiness, signInWithGoogle, signInWithGoogleForBusine
 import Modal from '../Modal';
 import Meta from '../Meta';
 import { COUNTRIES } from '../../constants';
-import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useCountry } from '../../contexts/CountryContext';
+import PasswordInput from '../PasswordInput';
+import AuthErrorText from '../auth/AuthErrorText';
+import { getAuthErrorInfo } from '../../utils/authErrors';
 import { trackMetaEvent } from '../../utils/metaPixel';
+import { escapeHtml } from '../../utils/textUtils';
+import { useAuth } from '../../contexts/AuthContext';
+import { useBusinessStartPath } from '../../utils/businessOwnership';
 
 type RegisterType = 'user' | 'business';
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
@@ -30,6 +37,10 @@ const RegisterPage: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const navigate = ReactRouterDOM.useNavigate();
+    // Enlace a acceder dentro del pais de la URL y con el segmento en el idioma
+    // de ese pais (mezclar /es con una ruta en ingles da 404).
+    const { country } = useCountry();
+    const loginPath = localizedPathOrRoot('login', language, country);
 
     // Set register type from URL query parameter on initial load
     const location = ReactRouterDOM.useLocation();
@@ -41,6 +52,19 @@ const RegisterPage: React.FC = () => {
             setRegisterType('business');
         }
     }, [location.search]);
+
+    // Red de seguridad para enlaces viejos o CTA que se nos escapen: con la
+    // sesión iniciada, /registro?type=business acababa en "Crea tu cuenta" y
+    // rechazaba el username del propio usuario. Se le lleva a su panel, a
+    // "Mis negocios" o al asistente de alta. No actúa durante el envío del
+    // formulario (loading/success) para no pisar el alta recién hecha.
+    const { user: sessionUser, loading: authLoading } = useAuth();
+    const businessStartPath = useBusinessStartPath();
+    useEffect(() => {
+        if (authLoading || !sessionUser || loading || success) return;
+        if (new URLSearchParams(location.search).get('type') !== 'business') return;
+        navigate(businessStartPath, { replace: true });
+    }, [authLoading, sessionUser, loading, success, location.search, businessStartPath, navigate]);
 
     // Debounced username check
     useEffect(() => {
@@ -92,13 +116,15 @@ const RegisterPage: React.FC = () => {
             console.log('[signup] handleSubmit start', { registerType, email: formData.email });
             if (registerType === 'user') {
                 if (!formData.name || !formData.username) {
-                    throw new Error(t('registerPage.allFieldsRequiredError'));
+                    setError(t('registerPage.allFieldsRequiredError'));
+                    return;
                 }
                 await signUpUser(formData.email, formData.password, formData.name, formData.username);
                 console.log('[signup] user signup completed');
             } else {
                  if (!formData.name || !formData.username || !formData.businessName) {
-                    throw new Error(t('registerPage.allFieldsRequiredError'));
+                    setError(t('registerPage.allFieldsRequiredError'));
+                    return;
                 }
 
                 // Check if business name already exists before trying to sign up
@@ -115,6 +141,16 @@ const RegisterPage: React.FC = () => {
                 // Persist signup intent + pre-collected business data so PostLoginRedirect
                 // routes the user to CompleteBusinessRegistrationPage and the form arrives pre-filled.
                 localStorage.setItem('opynio_business_signup_flow', 'true');
+                // Plan de pago elegido en /planes antes de registrarse: el asistente
+                // lo recupera al terminar y lleva a completar el pago. Antes se
+                // perdia y el usuario acababa en free sin enterarse.
+                const planElegido = new URLSearchParams(location.search).get('plan');
+                if (planElegido && planElegido !== 'free') {
+                    localStorage.setItem('opynio_pending_plan', JSON.stringify({
+                        plan: planElegido,
+                        billingCycle: new URLSearchParams(location.search).get('billingCycle') || 'monthly',
+                    }));
+                }
                 localStorage.setItem('opynio_pending_business_data', JSON.stringify({
                     name: formData.businessName.trim(),
                     country: formData.country,
@@ -135,17 +171,18 @@ const RegisterPage: React.FC = () => {
                 );
                 console.log('[signup] business signup completed (email confirmation pending)');
             }
+            // A Meta el correo en crudo normalizado: escapeHtml cambiaba ' o &
+            // por entidades y el hash ya no coincidia. El escape solo va donde
+            // se inserta en HTML (modal de confirmacion).
             void trackMetaEvent('CompleteRegistration', {
-                userData: { email: formData.email },
+                userData: { email: formData.email.trim().toLowerCase() },
                 customData: { content_name: registerType === 'business' ? 'business' : 'user' },
             });
             setSuccess(true);
         } catch (err: any) {
-            if (err.message === 'Database error saving new user') {
-                setError(t('registerPage.registrationErrorDB'));
-            } else {
-                setError(err.message || t('registerPage.registrationErrorGeneral'));
-            }
+            // Nunca el texto crudo de Supabase: usuario ya registrado, contrasena
+            // debil, limite de envios, fallo del correo... (utils/authErrors).
+            setError(<AuthErrorText info={getAuthErrorInfo(err, 'register', 'registerPage.registrationErrorGeneral')} />);
             console.error(err);
         } finally {
             setLoading(false);
@@ -161,13 +198,23 @@ const RegisterPage: React.FC = () => {
                 // Mark this as a business signup so PostLoginRedirect can route to the
                 // complete-business-registration step after Google returns.
                 localStorage.setItem('opynio_business_signup_flow', 'true');
+                // Plan de pago elegido en /planes antes de registrarse: el asistente
+                // lo recupera al terminar y lleva a completar el pago. Antes se
+                // perdia y el usuario acababa en free sin enterarse.
+                const planElegido = new URLSearchParams(location.search).get('plan');
+                if (planElegido && planElegido !== 'free') {
+                    localStorage.setItem('opynio_pending_plan', JSON.stringify({
+                        plan: planElegido,
+                        billingCycle: new URLSearchParams(location.search).get('billingCycle') || 'monthly',
+                    }));
+                }
                 console.log('[signup] business flag persisted before Google OAuth redirect');
                 await signInWithGoogleForBusiness();
             } else {
                 await signInWithGoogle();
             }
         } catch (err: any) {
-            setError(err.message || t('registerPage.errorGoogle'));
+            setError(<AuthErrorText info={getAuthErrorInfo(err, 'oauth', 'registerPage.errorGoogle')} />);
             setGoogleLoading(false);
         }
     };
@@ -211,7 +258,7 @@ const RegisterPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                     <div>
                         <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{registerType === 'user' ? t('registerPage.yourFullName') : t('registerPage.yourNameContact')}</label>
-                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required placeholder={t('common.placeholders.businessName')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
+                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required placeholder={registerType === 'business' ? t('common.placeholders.businessName') : t('registerPage.fullNamePlaceholder')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
                     </div>
 
                     <div>
@@ -248,7 +295,7 @@ const RegisterPage: React.FC = () => {
 
                     <div>
                         <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('common.password')}</label>
-                        <input id="password" type="password" value={formData.password} onChange={handleInputChange} required minLength={6} placeholder={t('registerPage.min6Chars')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
+                        <PasswordInput id="password" autoComplete="new-password" value={formData.password} onChange={handleInputChange} required minLength={6} placeholder={t('registerPage.min6Chars')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
                     </div>
 
                     <div className="pt-2">
@@ -284,7 +331,7 @@ const RegisterPage: React.FC = () => {
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                         {registerType === 'business' ? t('registerPage.alreadyHaveAccountBusiness') : t('registerPage.alreadyHaveAccountUser')}
                         {' '}
-                        <ReactRouterDOM.Link to={`/${pathTranslations[language].login}`} className="font-semibold text-brand-green hover:underline">{t('registerPage.logIn')}</ReactRouterDOM.Link>
+                        <ReactRouterDOM.Link to={loginPath} className="font-semibold text-brand-green hover:underline">{t('registerPage.logIn')}</ReactRouterDOM.Link>
                     </p>
                 </div>
 
@@ -292,10 +339,10 @@ const RegisterPage: React.FC = () => {
                     <Modal title={t('registerPage.registrationComplete')} onClose={() => setSuccess(false)}>
                         <div className="text-center py-3 sm:py-4">
                             <i className="fa-solid fa-check-circle text-4xl sm:text-5xl text-brand-green mb-3 sm:mb-4"></i>
-                            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 mb-4 sm:mb-6" dangerouslySetInnerHTML={{ __html: t('registerPage.confirmationEmailSent', { email: formData.email }) }}>
+                            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 mb-4 sm:mb-6" dangerouslySetInnerHTML={{ __html: t('registerPage.confirmationEmailSent', { email: escapeHtml(formData.email) }) }}>
                             </p>
                             <ReactRouterDOM.Link
-                                to={`/${pathTranslations[language].login}`}
+                                to={loginPath}
                                 onClick={() => setSuccess(false)}
                                 className="inline-block bg-brand-green text-white font-semibold px-5 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base rounded-md hover:bg-opacity-90 transition-all shadow-sm">
                                 {t('registerPage.backToLogin')}

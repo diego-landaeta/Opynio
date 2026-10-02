@@ -19,10 +19,14 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
+import { corsHeadersFor } from "../_shared/cors.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+// Sin clave, la funcion antes respondia 200 { ok: true } y el fallo quedaba
+// escondido dentro de report[].error. Se comprueba al atender cada peticion.
+const STRIPE_KEY_CONFIGURADA = !!Deno.env.get("STRIPE_SECRET_KEY");
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   httpClient: Stripe.createFetchHttpClient(),
   apiVersion: "2024-06-20",
 });
@@ -32,11 +36,6 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 // Para subs multi-item: usa min(start) y max(end) de todos los items para
 // reflejar correctamente hasta cuándo está cubierto el plan.
@@ -142,6 +141,8 @@ async function syncSubscription(
 }
 
 serve(async (req) => {
+  // CORS solo para origenes de Opynio (ver _shared/cors.ts).
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
@@ -175,6 +176,12 @@ serve(async (req) => {
     if (callerProfile?.role !== "admin") {
       return new Response(JSON.stringify({ error: "admin only" }), {
         status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!STRIPE_KEY_CONFIGURADA) {
+      return new Response(JSON.stringify({ error: "STRIPE_SECRET_KEY no configurada" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

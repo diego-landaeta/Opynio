@@ -1,6 +1,13 @@
 // services/serpApiService.ts
 // Service for importing Google Reviews using SerpApi
 
+// La importacion desde Google usaba SerpAPI con una clave leida en el
+// navegador (VITE_SERPAPI_KEY): o no funcionaba o exponia la clave en el
+// bundle. SerpAPI ya no esta contratado; hasta que haya una ruta de servidor
+// con clave, la funcion lo dice claramente en vez de fallar a medias.
+export const GOOGLE_IMPORT_UNAVAILABLE =
+  'La importación de reseñas desde Google no está disponible en este momento.';
+
 export interface SerpApiReview {
   author: string;
   rating: number;
@@ -45,10 +52,10 @@ class GoogleReviewsImporter {
   private baseUrl = 'https://serpapi.com/search.json';
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_SERPAPI_KEY || '';
-    if (!this.apiKey) {
-      console.warn('SERPAPI_KEY not found in environment variables. Google reviews import will not work.');
-    }
+    this.apiKey = '' /* Nunca en el navegador: una VITE_* acaba en el bundle publico. */;
+    // Sin aviso aqui: el modulo se instancia al importarlo, y el console.warn
+    // salia en cada visita a /admin/empresa/crear aunque nadie importara nada.
+    // Se avisa en importAllReviews, cuando de verdad se intenta usar.
   }
 
   /**
@@ -80,7 +87,8 @@ class GoogleReviewsImporter {
     onProgress?: (message: string) => void
   ): Promise<SerpApiImportResult> {
     if (!this.apiKey) {
-      throw new Error('SerpApi key is not configured. Please add VITE_SERPAPI_KEY to your .env file.');
+      console.warn('SERPAPI_KEY not found in environment variables. Google reviews import will not work.');
+      throw new Error(GOOGLE_IMPORT_UNAVAILABLE);
     }
 
     const dataId = this.extractDataId(googleMapsUrl);

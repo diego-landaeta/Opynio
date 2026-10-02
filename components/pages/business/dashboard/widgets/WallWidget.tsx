@@ -1,12 +1,14 @@
 import React from 'react';
 import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
+import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
 
 interface PreviewProps {
     business: Business;
     theme: 'light' | 'dark';
     lang: string;
+    productName?: string;
 }
 
 const DEMO_REVIEWS = [
@@ -17,13 +19,14 @@ const DEMO_REVIEWS = [
     { id: 5, name: "Lucía G.", rating: 4, text: "Buen servicio, aunque tardaron un poco más de lo esperado. El resultado es bueno.", source: 'opynio' },
 ];
 
-export const WallPreview: React.FC<PreviewProps> = ({ business, theme, lang }) => {
+export const WallPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
     const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['text']);
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
 
     return (
         <div className={`opynio-widget ${themeClass}`}>
+            <ProductPillSlot label={s.productBadge} name={productName} align="start" />
             <div style={{ columns: '2 200px', columnGap: '1rem' }}>
                 {translatedReviews.map((review) => (
                     <div key={review.id} style={{ background: 'var(--card-bg)', padding: '1rem', borderRadius: '12px', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)', marginBottom: '1rem', breakInside: 'avoid' }}>

@@ -7,6 +7,7 @@ import Meta from '../../Meta';
 import Modal from '../../Modal';
 import ReviewCard from '../../ReviewCard';
 import { useTranslation } from '../../../contexts/i18nContext';
+import AdminBackLink from './AdminBackLink';
 
 type ActiveTab = 'pending' | 'approved' | 'rejected' | 'all';
 
@@ -84,6 +85,7 @@ const AdminReviewAppealsPage: React.FC = () => {
     return (
         <>
             <Meta title={`${t('adminReviewAppeals.title')} - Admin`} description="Revisa y gestiona las apelaciones de reseñas rechazadas." />
+            <AdminBackLink />
             <div className="space-y-6">
                 <h1 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminReviewAppeals.title')}</h1>
                 
@@ -168,7 +170,7 @@ const AdminReviewAppealsPage: React.FC = () => {
                 <Modal title={t('adminReviewAppeals.reviewModalTitle', { id: selectedAppeal.id })} onClose={() => setIsActionModalOpen(false)}>
                     <div className="py-4 space-y-4 text-left">
                         <div className="text-sm space-y-3">
-                            <p><strong>{t('adminReviewAppeals.modalUser')}</strong> {selectedAppeal.profiles?.name} (@{selectedAppeal.profiles?.username})</p>
+                            <p><strong>{t('adminReviewAppeals.modalUser')}</strong> {selectedAppeal.profiles?.name || 'Usuario no encontrado'}{selectedAppeal.profiles?.username && ` (@${selectedAppeal.profiles.username})`}</p>
                              <div className="p-3 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border dark:border-zinc-600">
                                 <h4 className="font-semibold mb-1">{t('adminReviewAppeals.modalReason')}</h4>
                                 <p className="whitespace-pre-wrap">{selectedAppeal.reason}</p>
