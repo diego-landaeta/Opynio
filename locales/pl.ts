@@ -50,6 +50,8 @@ export default {
     about: "o-nas",
     caseStudies: "historie-sukcesu",
     privacy: "prywatnosc",
+    legal: "informacje-prawne",
+    terms: "regulamin",
   },
   header: {
     home: "Strona główna",

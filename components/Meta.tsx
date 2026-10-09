@@ -1,6 +1,18 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { detectLanguageFromPath, LANGUAGE_DEFAULT_COUNTRY } from '../contexts/i18nContext';
+import { detectLanguageFromPath, LANGUAGE_DEFAULT_COUNTRY, pathTranslations, getLanguageForCountryCode } from '../contexts/i18nContext';
+
+const unSegmento = (v: unknown): v is string => typeof v === 'string' && !/[/:]/.test(v);
+
+// Clave de una ruta de un solo segmento fijo (/planes, /impressum…) en cualquier idioma.
+const claveDeSegmento = (seg: string): string | null => {
+  for (const rutas of Object.values(pathTranslations)) {
+    for (const [clave, v] of Object.entries(rutas)) {
+      if (v === seg && unSegmento(v)) return clave;
+    }
+  }
+  return null;
+};
 
 interface MetaProps {
   title: string;
@@ -186,47 +198,58 @@ const Meta: React.FC<MetaProps> = ({
       // Para páginas estáticas: generar hreflang para todos los idiomas principales
       removeHreflangTags();
 
+      // Cada alternativa usa el slug del idioma de su pais (/de/preise,
+      // /us/legal-notice): con el slug de la pagina actual daban 404 en todos
+      // los paises que no hablan español. Rutas de varios segmentos o con
+      // parametros conservan el slug actual, como antes.
+      const segmento = pathWithoutLang.replace(/^\//, '');
+      const clave = segmento && unSegmento(segmento) ? claveDeSegmento(decodeURIComponent(segmento)) : null;
+      const rutaPara = (cc: string): string => {
+        const destino = clave ? (pathTranslations as any)[getLanguageForCountryCode(cc)]?.[clave] : null;
+        return unSegmento(destino) ? encodeURI(`/${cc}/${destino}`) : `/${cc}${pathWithoutLang}`;
+      };
+
       const languages = [
         // Spanish-speaking countries
-        { code: 'es-ES', path: `/es${pathWithoutLang}` },   // España
-        { code: 'es-MX', path: `/mx${pathWithoutLang}` },   // México
-        { code: 'es-AR', path: `/ar${pathWithoutLang}` },   // Argentina
-        { code: 'es-CO', path: `/co${pathWithoutLang}` },   // Colombia
-        { code: 'es-CL', path: `/cl${pathWithoutLang}` },   // Chile
-        { code: 'es-PE', path: `/pe${pathWithoutLang}` },   // Perú
+        { code: 'es-ES', path: rutaPara('es') },   // España
+        { code: 'es-MX', path: rutaPara('mx') },   // México
+        { code: 'es-AR', path: rutaPara('ar') },   // Argentina
+        { code: 'es-CO', path: rutaPara('co') },   // Colombia
+        { code: 'es-CL', path: rutaPara('cl') },   // Chile
+        { code: 'es-PE', path: rutaPara('pe') },   // Perú
         // English-speaking countries
-        { code: 'en-US', path: `/us${pathWithoutLang}` },   // USA
-        { code: 'en-GB', path: `/gb${pathWithoutLang}` },   // UK
+        { code: 'en-US', path: rutaPara('us') },   // USA
+        { code: 'en-GB', path: rutaPara('gb') },   // UK
         // Portuguese
-        { code: 'pt-BR', path: `/br${pathWithoutLang}` },   // Brasil
-        { code: 'pt-PT', path: `/pt${pathWithoutLang}` },   // Portugal
+        { code: 'pt-BR', path: rutaPara('br') },   // Brasil
+        { code: 'pt-PT', path: rutaPara('pt') },   // Portugal
         // Other languages
-        { code: 'fr', path: `/fr${pathWithoutLang}` },      // Français
-        { code: 'de', path: `/de${pathWithoutLang}` },      // Deutsch
-        { code: 'it', path: `/it${pathWithoutLang}` },      // Italiano
-        { code: 'ca', path: `/ad${pathWithoutLang}` },      // Català (Andorra)
-        { code: 'zh', path: `/cn${pathWithoutLang}` },      // 中文 (China)
-        { code: 'sv', path: `/se${pathWithoutLang}` },      // Svenska (Sverige)
-        { code: 'pl', path: `/pl${pathWithoutLang}` },      // Polski (Polska)
-        { code: 'ja', path: `/jp${pathWithoutLang}` },      // 日本語 (日本)
-        { code: 'en-AU', path: `/au${pathWithoutLang}` },   // English (Australia)
-        { code: 'ko', path: `/kr${pathWithoutLang}` },       // 한국어 (Korea)
-        { code: 'ar', path: `/ae${pathWithoutLang}` },       // العربية (UAE)
-        { code: 'nl', path: `/nl${pathWithoutLang}` },       // Nederlands
-        { code: 'ru', path: `/ru${pathWithoutLang}` },       // Русский
-        { code: 'id', path: `/id${pathWithoutLang}` },       // Indonesia
-        { code: 'ms', path: `/my${pathWithoutLang}` },       // Malaysia
-        { code: 'zh-TW', path: `/tw${pathWithoutLang}` },    // 繁體中文 (Taiwan)
-        { code: 'th', path: `/th${pathWithoutLang}` },       // Thai
-        { code: 'fa', path: `/ir${pathWithoutLang}` },       // فارسی (Iran)
-        { code: 'vi', path: `/vn${pathWithoutLang}` },       // Tiếng Việt (Vietnam)
-        { code: 'bn', path: `/bd${pathWithoutLang}` },       // বাংলা (Bangladesh)
-        { code: 'hi', path: `/in${pathWithoutLang}` },       // हिन्दी (India)
-        { code: 'tl', path: `/ph${pathWithoutLang}` },       // Filipino (Philippines)
-        { code: 'en-SG', path: `/sg${pathWithoutLang}` },     // English (Singapore)
-        { code: 'en-IE', path: `/ie${pathWithoutLang}` },     // English (Ireland)
-        { code: 'en-CA', path: `/ca${pathWithoutLang}` },     // English (Canada)
-        { code: 'de-AT', path: `/at${pathWithoutLang}` },     // Deutsch (Österreich)
+        { code: 'fr', path: rutaPara('fr') },      // Français
+        { code: 'de', path: rutaPara('de') },      // Deutsch
+        { code: 'it', path: rutaPara('it') },      // Italiano
+        { code: 'ca', path: rutaPara('ad') },      // Català (Andorra)
+        { code: 'zh', path: rutaPara('cn') },      // 中文 (China)
+        { code: 'sv', path: rutaPara('se') },      // Svenska (Sverige)
+        { code: 'pl', path: rutaPara('pl') },      // Polski (Polska)
+        { code: 'ja', path: rutaPara('jp') },      // 日本語 (日本)
+        { code: 'en-AU', path: rutaPara('au') },   // English (Australia)
+        { code: 'ko', path: rutaPara('kr') },       // 한국어 (Korea)
+        { code: 'ar', path: rutaPara('ae') },       // العربية (UAE)
+        { code: 'nl', path: rutaPara('nl') },       // Nederlands
+        { code: 'ru', path: rutaPara('ru') },       // Русский
+        { code: 'id', path: rutaPara('id') },       // Indonesia
+        { code: 'ms', path: rutaPara('my') },       // Malaysia
+        { code: 'zh-TW', path: rutaPara('tw') },    // 繁體中文 (Taiwan)
+        { code: 'th', path: rutaPara('th') },       // Thai
+        { code: 'fa', path: rutaPara('ir') },       // فارسی (Iran)
+        { code: 'vi', path: rutaPara('vn') },       // Tiếng Việt (Vietnam)
+        { code: 'bn', path: rutaPara('bd') },       // বাংলা (Bangladesh)
+        { code: 'hi', path: rutaPara('in') },       // हिन्दी (India)
+        { code: 'tl', path: rutaPara('ph') },       // Filipino (Philippines)
+        { code: 'en-SG', path: rutaPara('sg') },     // English (Singapore)
+        { code: 'en-IE', path: rutaPara('ie') },     // English (Ireland)
+        { code: 'en-CA', path: rutaPara('ca') },     // English (Canada)
+        { code: 'de-AT', path: rutaPara('at') },     // Deutsch (Österreich)
       ];
 
       // Añadir hreflang para cada idioma
@@ -235,7 +258,7 @@ const Meta: React.FC<MetaProps> = ({
       });
 
       // Hreflang x-default (español como predeterminado)
-      setLinkTag('alternate', `${APP_URL}/es${pathWithoutLang}`, 'x-default');
+      setLinkTag('alternate', `${APP_URL}${rutaPara('es')}`, 'x-default');
     }
 
     // 7. Metaetiquetas PREMIUM (para empresas con plan premium)

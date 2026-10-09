@@ -51,6 +51,8 @@ export default {
     about: "darbare-ma",
     caseStudies: "dastanha-ye-movafaghiyat",
     privacy: "harim-khosusi",
+    legal: "eteleiye-hoghoghi",
+    terms: "sharayet-estefade",
   },
   header: {
     home: "خانه",

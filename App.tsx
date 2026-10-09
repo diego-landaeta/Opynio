@@ -152,6 +152,8 @@ const HowItWorksPage = lazy(() => import('./components/pages/HowItWorksPage'));
 const FAQPage = lazy(() => import('./components/pages/FAQPage'));
 const AboutPage = lazy(() => import('./components/pages/AboutPage'));
 const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage'));
+const LegalNoticePage = lazy(() => import('./components/pages/LegalNoticePage'));
+const TermsPage = lazy(() => import('./components/pages/TermsPage'));
 const CaseStudiesPage = lazy(() => import('./components/pages/CaseStudiesPage'));
 
 // Lazy load business dashboard panels
@@ -303,7 +305,8 @@ const getPathKeyFromPath =(path: string): keyof typeof pathTranslations.es | nul
 // en el bloque de imports al inicio de App.tsx.
 
 // Component that validates the path language matches the country
-// Shows 404 for paths in wrong language (not redirect, to avoid indexing issues)
+// Paths in the wrong language: 301 to the country's slug for single-segment
+// pages (/de/planes -> /de/preise); 404 for the rest
 // Also validates that routes WITHOUT country prefix only accept Spanish paths
 // IMPORTANT: Uses window.location.replace for actual HTTP 404 from server (SEO)
 const LanguagePathValidator: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -396,6 +399,21 @@ const LanguagePathValidator: React.FC<{ children: React.ReactNode }> = ({ childr
         return <>{children}</>;
     }
     if (pathKey) {
+        // Pagina valida con el slug de otro idioma (/de/planes, /us/aviso-legal):
+        // 301 al slug del idioma del pais (/de/preise, /us/legal-notice). Es lo
+        // que esperan Google y el hreflang (antes eran 404). El prerender
+        // convierte este cambio de URL en un 301 real. Solo para paginas de un
+        // segmento fijo; con varios segmentos o parametros, 404 como antes.
+        const unSegmento = (v: unknown) => typeof v === 'string' && !/[/:]/.test(v);
+        const clave = unSegmento(currentPathSegment) && pathSegments.length === 2
+            ? (Object.keys(pathTranslations) as Language[])
+                .map(l => Object.entries(pathTranslations[l]).find(([, v]) => v === decodeURIComponent(currentPathSegment) && unSegmento(v))?.[0])
+                .find(Boolean)
+            : undefined;
+        const destino = clave ? (expectedPaths as Record<string, string>)[clave] : undefined;
+        if (destino && unSegmento(destino)) {
+            return <Navigate to={`/${countryCode}/${destino}${location.search}${location.hash}`} replace />;
+        }
         // This is a valid path but in the wrong language - trigger 404 with real HTTP status
         console.log(`❌ 404: Path "${currentPathSegment}" is valid but wrong language for country ${countryCode} (expected: ${expectedLang})`);
         if (!shouldShow404) {
@@ -518,6 +536,8 @@ const App = () => {
                                     {uniquePaths.about?.map(p => <Route key={`root-about-${p}`} path={p} element={<AboutPage />} />)}
                                     {uniquePaths.caseStudies?.map(p => <Route key={`root-caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
                                     {uniquePaths.privacy?.map(p => <Route key={`root-privacy-${p}`} path={p} element={<PrivacyPage />} />)}
+                                    {uniquePaths.legal?.map(p => <Route key={`root-legal-${p}`} path={p} element={<LegalNoticePage />} />)}
+                                    {uniquePaths.terms?.map(p => <Route key={`root-terms-${p}`} path={p} element={<TermsPage />} />)}
 
                                     {/* Non-prefixed routes (auth, admin, legacy, etc.) that are independent of country */}
                                     {uniquePaths.resetPassword?.map(p => <Route key={`root-resetPassword-${p}`} path={p} element={<ResetPasswordPage />} />)}
@@ -611,6 +631,8 @@ const App = () => {
                                         {uniquePaths.about?.map(p => <Route key={`about-${p}`} path={p} element={<AboutPage />} />)}
                                         {uniquePaths.caseStudies?.map(p => <Route key={`caseStudies-${p}`} path={p} element={<CaseStudiesPage />} />)}
                                         {uniquePaths.privacy?.map(p => <Route key={`privacy-${p}`} path={p} element={<PrivacyPage />} />)}
+                                        {uniquePaths.legal?.map(p => <Route key={`legal-${p}`} path={p} element={<LegalNoticePage />} />)}
+                                        {uniquePaths.terms?.map(p => <Route key={`terms-${p}`} path={p} element={<TermsPage />} />)}
 
                                         {/* PostLogin handles its own auth check - must NOT be inside ProtectedRoute to avoid race condition */}
                                         {uniquePaths.postLogin?.map(p => <Route key={`postLogin-${p}`} path={p} element={<PostLoginRedirect />} />)}

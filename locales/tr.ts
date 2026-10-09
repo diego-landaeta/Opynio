@@ -51,6 +51,8 @@ export default {
     about: "hakkimizda",
     caseStudies: "basari-hikayeleri",
     privacy: "gizlilik",
+    legal: "yasal-uyari",
+    terms: "kullanim-kosullari",
   },
   header: {
     home: "Ana Sayfa",

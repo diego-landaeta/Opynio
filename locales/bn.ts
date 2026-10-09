@@ -51,6 +51,8 @@ export default {
     about: "about",
     caseStudies: "case-studies",
     privacy: "privacy",
+    legal: "legal-notice",
+    terms: "terms-of-use",
   },
   header: {
     home: "হোম",

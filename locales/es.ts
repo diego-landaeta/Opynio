@@ -53,6 +53,8 @@ export default {
     about: "sobre-nosotros",
     caseStudies: "casos-exito",
     privacy: "privacidad",
+    legal: "aviso-legal",
+    terms: "terminos-de-uso",
   },
   header: {
     home: "Inicio",

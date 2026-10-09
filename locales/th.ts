@@ -51,6 +51,8 @@ export default {
     about: "kiao-kap-rao",
     caseStudies: "korani-suksaa",
     privacy: "khwam-pen-suan-tua",
+    legal: "kho-kamnot-thang-kotmai",
+    terms: "ngueankhai-kan-chai-ngan",
   },
   header: {
     home: "หน้าแรก",

@@ -50,6 +50,8 @@ export default {
     about: "회사소개",
     caseStudies: "성공사례",
     privacy: "개인정보",
+    legal: "법적고지",
+    terms: "이용약관",
   },
   header: {
     home: "홈",

@@ -51,6 +51,8 @@ export default {
     about: "tentang-kami",
     caseStudies: "kajian-kes",
     privacy: "privasi",
+    legal: "notis-undang-undang",
+    terms: "terma-penggunaan",
   },
   header: {
     home: "Laman Utama",

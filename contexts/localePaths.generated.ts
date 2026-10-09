@@ -55,6 +55,8 @@ export const localePaths = {
     "about": "sobre-nosotros",
     "caseStudies": "casos-exito",
     "privacy": "privacidad",
+    "legal": "aviso-legal",
+    "terms": "terminos-de-uso",
   },
   en: {
     "explore": "explore",
@@ -106,6 +108,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   br: {
     "explore": "explorar",
@@ -157,6 +161,8 @@ export const localePaths = {
     "about": "sobre-nos",
     "caseStudies": "casos-de-sucesso",
     "privacy": "privacidade",
+    "legal": "aviso-legal",
+    "terms": "termos-de-uso",
   },
   ca: {
     "explore": "explorar",
@@ -208,6 +214,8 @@ export const localePaths = {
     "about": "sobre-nosaltres",
     "caseStudies": "casos-exit",
     "privacy": "privadesa",
+    "legal": "avis-legal",
+    "terms": "termes-d-us",
   },
   fr: {
     "explore": "explorer",
@@ -259,6 +267,8 @@ export const localePaths = {
     "about": "a-propos",
     "caseStudies": "cas-clients",
     "privacy": "confidentialite",
+    "legal": "mentions-legales",
+    "terms": "conditions-d-utilisation",
   },
   de: {
     "explore": "entdecken",
@@ -310,6 +320,8 @@ export const localePaths = {
     "about": "ueber-uns",
     "caseStudies": "erfolgsgeschichten",
     "privacy": "datenschutz",
+    "legal": "impressum",
+    "terms": "nutzungsbedingungen",
   },
   it: {
     "explore": "esplora",
@@ -361,6 +373,8 @@ export const localePaths = {
     "about": "chi-siamo",
     "caseStudies": "casi-di-successo",
     "privacy": "privacy",
+    "legal": "avviso-legale",
+    "terms": "termini-di-utilizzo",
   },
   cn: {
     "explore": "探索",
@@ -413,6 +427,8 @@ export const localePaths = {
     "about": "关于我们",
     "caseStudies": "成功案例",
     "privacy": "隐私",
+    "legal": "法律声明",
+    "terms": "使用条款",
   },
   sv: {
     "explore": "utforska",
@@ -464,6 +480,8 @@ export const localePaths = {
     "about": "om-oss",
     "caseStudies": "kundberattelser",
     "privacy": "integritet",
+    "legal": "juridisk-information",
+    "terms": "anvandarvillkor",
   },
   pl: {
     "explore": "odkrywaj",
@@ -515,6 +533,8 @@ export const localePaths = {
     "about": "o-nas",
     "caseStudies": "historie-sukcesu",
     "privacy": "prywatnosc",
+    "legal": "informacje-prawne",
+    "terms": "regulamin",
   },
   ja: {
     "explore": "探す",
@@ -566,6 +586,8 @@ export const localePaths = {
     "about": "私たちについて",
     "caseStudies": "導入事例",
     "privacy": "プライバシー",
+    "legal": "法的情報",
+    "terms": "利用規約",
   },
   pt: {
     "explore": "explorar",
@@ -617,6 +639,8 @@ export const localePaths = {
     "about": "sobre-nos",
     "caseStudies": "casos-de-sucesso",
     "privacy": "privacidade",
+    "legal": "aviso-legal",
+    "terms": "termos-de-utilizacao",
   },
   gb: {
     "explore": "explore",
@@ -668,6 +692,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   au: {
     "explore": "explore",
@@ -719,6 +745,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   ko: {
     "explore": "탐색",
@@ -770,6 +798,8 @@ export const localePaths = {
     "about": "회사소개",
     "caseStudies": "성공사례",
     "privacy": "개인정보",
+    "legal": "법적고지",
+    "terms": "이용약관",
   },
   ar: {
     "explore": "istakshif",
@@ -821,6 +851,8 @@ export const localePaths = {
     "about": "3anna",
     "caseStudies": "qissas-najah",
     "privacy": "al-khususiya",
+    "legal": "al-ish3ar-al-qanuni",
+    "terms": "shurut-al-istikhdam",
   },
   nl: {
     "explore": "ontdek",
@@ -872,6 +904,8 @@ export const localePaths = {
     "about": "over-ons",
     "caseStudies": "casestudies",
     "privacy": "privacy",
+    "legal": "juridische-kennisgeving",
+    "terms": "gebruiksvoorwaarden",
   },
   ru: {
     "explore": "explore",
@@ -923,6 +957,8 @@ export const localePaths = {
     "about": "o-nas",
     "caseStudies": "kejsy",
     "privacy": "konfidencialnost",
+    "legal": "pravovaya-informaciya",
+    "terms": "usloviya-ispolzovaniya",
   },
   id: {
     "explore": "jelajahi",
@@ -974,6 +1010,8 @@ export const localePaths = {
     "about": "tentang-kami",
     "caseStudies": "studi-kasus",
     "privacy": "privasi",
+    "legal": "pemberitahuan-hukum",
+    "terms": "ketentuan-penggunaan",
   },
   ms: {
     "explore": "jelajah",
@@ -1025,6 +1063,8 @@ export const localePaths = {
     "about": "tentang-kami",
     "caseStudies": "kajian-kes",
     "privacy": "privasi",
+    "legal": "notis-undang-undang",
+    "terms": "terma-penggunaan",
   },
   tw: {
     "explore": "探索",
@@ -1077,6 +1117,8 @@ export const localePaths = {
     "about": "關於我們",
     "caseStudies": "成功案例",
     "privacy": "隱私",
+    "legal": "法律聲明",
+    "terms": "使用條款",
   },
   th: {
     "explore": "samruat",
@@ -1128,6 +1170,8 @@ export const localePaths = {
     "about": "kiao-kap-rao",
     "caseStudies": "korani-suksaa",
     "privacy": "khwam-pen-suan-tua",
+    "legal": "kho-kamnot-thang-kotmai",
+    "terms": "ngueankhai-kan-chai-ngan",
   },
   fa: {
     "explore": "jostoju",
@@ -1179,6 +1223,8 @@ export const localePaths = {
     "about": "darbare-ma",
     "caseStudies": "dastanha-ye-movafaghiyat",
     "privacy": "harim-khosusi",
+    "legal": "eteleiye-hoghoghi",
+    "terms": "sharayet-estefade",
   },
   vi: {
     "explore": "kham-pha",
@@ -1230,6 +1276,8 @@ export const localePaths = {
     "about": "ve-chung-toi",
     "caseStudies": "cau-chuyen",
     "privacy": "quyen-rieng-tu",
+    "legal": "thong-bao-phap-ly",
+    "terms": "dieu-khoan-su-dung",
   },
   bn: {
     "explore": "explore",
@@ -1281,6 +1329,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   hi: {
     "explore": "explore",
@@ -1332,6 +1382,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   tl: {
     "explore": "explore",
@@ -1383,6 +1435,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   sg: {
     "explore": "explore",
@@ -1434,6 +1488,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   ie: {
     "explore": "explore",
@@ -1485,6 +1541,8 @@ export const localePaths = {
     "about": "about",
     "caseStudies": "case-studies",
     "privacy": "privacy",
+    "legal": "legal-notice",
+    "terms": "terms-of-use",
   },
   at: {
     "explore": "entdecken",
@@ -1536,6 +1594,8 @@ export const localePaths = {
     "about": "ueber-uns",
     "caseStudies": "erfolgsgeschichten",
     "privacy": "datenschutz",
+    "legal": "impressum",
+    "terms": "nutzungsbedingungen",
   },
   tr: {
     "explore": "kesfet",
@@ -1587,5 +1647,7 @@ export const localePaths = {
     "about": "hakkimizda",
     "caseStudies": "basari-hikayeleri",
     "privacy": "gizlilik",
+    "legal": "yasal-uyari",
+    "terms": "kullanim-kosullari",
   },
 };

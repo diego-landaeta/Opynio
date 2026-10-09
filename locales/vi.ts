@@ -51,6 +51,8 @@ export default {
     about: "ve-chung-toi",
     caseStudies: "cau-chuyen",
     privacy: "quyen-rieng-tu",
+    legal: "thong-bao-phap-ly",
+    terms: "dieu-khoan-su-dung",
   },
   header: {
     home: "Trang chủ",

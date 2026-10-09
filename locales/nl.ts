@@ -50,6 +50,8 @@ export default {
     about: "over-ons",
     caseStudies: "casestudies",
     privacy: "privacy",
+    legal: "juridische-kennisgeving",
+    terms: "gebruiksvoorwaarden",
   },
   header: {
     home: "Home",

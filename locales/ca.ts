@@ -50,6 +50,8 @@ export default {
     about: "sobre-nosaltres",
     caseStudies: "casos-exit",
     privacy: "privadesa",
+    legal: "avis-legal",
+    terms: "termes-d-us",
   },
   header: {
     home: "Inici",

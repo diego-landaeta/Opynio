@@ -50,6 +50,8 @@ export default {
     about: "om-oss",
     caseStudies: "kundberattelser",
     privacy: "integritet",
+    legal: "juridisk-information",
+    terms: "anvandarvillkor",
   },
   header: {
     home: "Hem",

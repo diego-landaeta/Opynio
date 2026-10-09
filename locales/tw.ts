@@ -51,6 +51,8 @@ export default {
     about: "關於我們",
     caseStudies: "成功案例",
     privacy: "隱私",
+    legal: "法律聲明",
+    terms: "使用條款",
   },
   header: {
     home: "首頁",

@@ -50,6 +50,8 @@ export default {
     about: "o-nas",
     caseStudies: "kejsy",
     privacy: "konfidencialnost",
+    legal: "pravovaya-informaciya",
+    terms: "usloviya-ispolzovaniya",
   },
   header: {
     home: "Главная",

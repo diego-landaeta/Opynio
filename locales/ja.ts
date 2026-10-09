@@ -50,6 +50,8 @@ export default {
     about: "私たちについて",
     caseStudies: "導入事例",
     privacy: "プライバシー",
+    legal: "法的情報",
+    terms: "利用規約",
   },
   header: {
     home: "ホーム",

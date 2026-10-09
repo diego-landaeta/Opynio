@@ -51,6 +51,8 @@ export default {
     about: "3anna",
     caseStudies: "qissas-najah",
     privacy: "al-khususiya",
+    legal: "al-ish3ar-al-qanuni",
+    terms: "shurut-al-istikhdam",
   },
   header: {
     home: "الرئيسية",
