@@ -1,18 +1,18 @@
 // Datos del titular del sitio web (LSSI-CE, art. 10). Se muestran en el
 // aviso legal de todos los idiomas: rellenar una sola vez aqui.
 //
-// PENDIENTE: sustituir los valores entre corchetes por los datos reales.
-// Mientras un valor siga entre corchetes (o vacio), su linea no se muestra en
-// el aviso legal, para no publicar huecos. Si el titular es una sociedad,
-// `registro` son sus datos registrales (Registro Mercantil, tomo, folio,
-// hoja); si es autonomo, se deja vacio.
+// Un valor vacio (o entre corchetes) oculta su linea en el aviso legal, para
+// no publicar huecos. Por decision del proyecto el titular figura como Opynio,
+// sin NIF ni domicilio; si algun dia se anaden, aparecen solos en los 26
+// idiomas. `registro` son los datos registrales si el titular es una sociedad.
+// El email es el contactEmail que la web ya muestra (locales/*.ts).
 
 export const TITULAR = {
-    nombre: '[RAZÓN SOCIAL DEL TITULAR]',
-    nif: '[NIF]',
-    domicilio: '[DOMICILIO SOCIAL]',
-    registro: '[DATOS REGISTRALES]',
-    email: '[EMAIL DE CONTACTO]',
+    nombre: 'Opynio',
+    nif: '',
+    domicilio: '',
+    registro: '',
+    email: 'support@opynio.com',
     web: 'web.opynio.com',
 };
 
