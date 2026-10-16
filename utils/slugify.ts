@@ -100,3 +100,12 @@ export function extractIdentifierFromUrl(url: string): string {
 
   return match ? match[1] : decoded;
 }
+
+/**
+ * Identificador de una empresa en la URL del panel: su slug, o el slug del
+ * nombre si aun no lo tiene. Nunca lleva acentos ni mayusculas ni el nombre
+ * crudo, y no cambia al renombrar la empresa (el slug se guarda al crearla).
+ */
+export function businessUrlId(business: { slug?: string | null; name?: string | null }): string {
+  return (business.slug || '').toLowerCase() || slugify(business.name || '');
+}

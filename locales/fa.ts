@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: 'این ابزارک چه چیزی نشان می‌دهد؟',
     widgetScopeWholeBusiness: 'کل شرکت',
     widgetScopeProductWarning: 'هنوز نظری به این محصول اختصاص نیافته و ابزارک عدد ۰ نشان می‌دهد. از بخش نظرات اختصاص دهید.',
+    widgetPreviewExampleNotice: 'پیش‌نمایش نمونه: نظرات و ارقام فقط برای نمایش هستند. در وب‌سایت شما ابزارک داده‌های واقعی شما را نشان می‌دهد.',
     productsStatActive: 'محصولات فعال',
     productsStatAssigned: 'نظرات اختصاص‌یافته',
     productsStatAverage: 'میانگین امتیاز',

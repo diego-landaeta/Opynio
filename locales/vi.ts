@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: 'Widget này hiển thị gì?',
     widgetScopeWholeBusiness: 'Toàn bộ doanh nghiệp',
     widgetScopeProductWarning: 'Sản phẩm này chưa có đánh giá nào được gắn: widget sẽ hiển thị 0. Hãy gắn đánh giá ở tab Đánh giá.',
+    widgetPreviewExampleNotice: 'Bản xem trước minh họa: các đánh giá và con số chỉ mang tính minh họa. Trên website của bạn, widget sẽ hiển thị dữ liệu thật của bạn.',
     productsStatActive: 'Sản phẩm đang bật',
     productsStatAssigned: 'Đánh giá đã gắn',
     productsStatAverage: 'Điểm trung bình',

@@ -21,6 +21,7 @@ import { triggerPlanActivatedModal } from '../../PlanActivatedModal';
 import { useCountryName } from '../../../utils/countryName';
 import { getUserFacingError, useUserErrorNotifier } from '../../../utils/userFacingError';
 import type { NotificationAction } from '../../../contexts/NotificationContext';
+import { businessUrlId } from '../../../utils/slugify';
 
 
 const CompleteBusinessRegistrationPage: React.FC = () => {
@@ -150,7 +151,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             } catch { planPendiente = null; }
             localStorage.removeItem('opynio_pending_plan');
 
-            let newBusinessName: string | null = null;
+            let newBusinessUrlId: string | null = null;
             try {
                 const [updatedProfile, newBusinesses] = await Promise.all([
                     getUserProfile(user),
@@ -160,7 +161,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                 if (newBusinesses) {
                     setBusinesses(newBusinesses);
                     const created = newBusinesses.find(b => b.name === businessName.trim()) || newBusinesses[0];
-                    newBusinessName = created?.name || null;
+                    newBusinessUrlId = created ? businessUrlId(created) : null;
                 }
             } catch (refetchErr) {
                 console.warn('[completeBusinessRegistration] re-fetch failed:', refetchErr);
@@ -169,10 +170,10 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             if (planPendiente?.plan) {
                 showNotification(t('registerPage.completePlanPayment', { plan: planPendiente.plan }), 'info');
                 navigate(`${prefijo}/${rutasPais.pricing}?plan=${encodeURIComponent(planPendiente.plan)}&billingCycle=${encodeURIComponent(planPendiente.billingCycle)}`, { replace: true });
-            } else if (newBusinessName) {
+            } else if (newBusinessUrlId) {
                 const dashboardPath = `${prefijo}/${rutasPais.businessDashboard.replace(
                     ':businessName',
-                    encodeURIComponent(newBusinessName.replace(/ /g, '_'))
+                    newBusinessUrlId
                 )}`;
                 navigate(dashboardPath, { replace: true });
             } else {

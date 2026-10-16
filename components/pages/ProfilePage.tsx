@@ -10,7 +10,7 @@ import RequestReviewDeletionModal, { reviewIdFromDeletionSubject } from '../Requ
 import MySupportTickets from '../support/MySupportTickets';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
-import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot, toBcp47 } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
@@ -84,6 +84,8 @@ const ProfilePage: React.FC = () => {
     }, [authLoading, user, profile, isAdmin, isBusinessOwner, language, country, navigate]);
 
     const isOnV2 = profile?.plan === 'v2';
+    // Starter/Growth/Pro: ya paga un plan de verdad; se muestra el suyo y se gestiona en el portal.
+    const paidPlan = (['starter', 'growth', 'pro'] as const).find(p => p === profile?.plan) ?? null;
     // El bloque de gestión de suscripción sólo aparece cuando el usuario YA es
     // business_owner con al menos un negocio. Antes de eso debe registrar empresa.
     const canBuyV2 = !!user && isBusinessOwner && hasBusiness && !isOnV2;
@@ -223,7 +225,7 @@ const ProfilePage: React.FC = () => {
                                 {profile.username && user.email && <span className="mx-2">&middot;</span>}
                                 {user.email}
                             </p>
-                             <span className={`mt-2 inline-block text-xs font-semibold px-3 py-1 rounded-full capitalize ${roleInfo.badgeColor}`}>
+                             <span className={`mt-2 inline-block text-xs font-semibold px-3 py-1 rounded-full ${roleInfo.badgeColor}`}>
                                 {roleInfo.name}
                             </span>
                         </div>
@@ -244,8 +246,7 @@ const ProfilePage: React.FC = () => {
                     <div className="mt-8">
                          <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">{t('profilePage.accountInfo')}</h2>
                          <div className="mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.userId')}</span> {user.id}</p>
-                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.registeredOn')}</span> {new Date(user.created_at).toLocaleDateString(language)}</p>
+                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.registeredOn')}</span> {new Date(user.created_at).toLocaleDateString(toBcp47(language), { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                          </div>
                     </div>
 
@@ -293,10 +294,14 @@ const ProfilePage: React.FC = () => {
                         <div className="mt-8 pt-6 border-t dark:border-zinc-700">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">{t('profilePage.premiumTitle')}</h2>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        {t('profilePage.premiumBody')}
-                                    </p>
+                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                                        {paidPlan ? `${t('businessDashboard.currentPlan')}: ${t(`businessDashboard.${paidPlan}PlanName`)}` : t('profilePage.premiumTitle')}
+                                    </h2>
+                                    {!paidPlan && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            {t('profilePage.premiumBody')}
+                                        </p>
+                                    )}
                                 </div>
                                 <ReactRouterDOM.Link
                                     to={pathTo('pricing')}
@@ -305,7 +310,7 @@ const ProfilePage: React.FC = () => {
                                     {t('profilePage.seeAllPlans')} <i className="fa-solid fa-arrow-right ml-1"></i>
                                 </ReactRouterDOM.Link>
                             </div>
-                            {isOnV2 ? (
+                            {isOnV2 || paidPlan ? (
                                 <button
                                     type="button"
                                     onClick={handleOpenPortal}
@@ -322,7 +327,7 @@ const ProfilePage: React.FC = () => {
                                     type="button"
                                     onClick={handleBuyV2}
                                     disabled={v2Loading}
-                                    className="bg-pink-600 text-white font-bold py-2.5 px-5 rounded-lg hover:bg-pink-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="bg-brand-green text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {v2Loading
                                         ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

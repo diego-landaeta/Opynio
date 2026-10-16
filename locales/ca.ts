@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'Què mostra aquest widget?',
     widgetScopeWholeBusiness: "Tota l'empresa",
     widgetScopeProductWarning: 'Aquest producte encara no té ressenyes assignades: el widget mostrarà 0. Assigna-li ressenyes des de la pestanya Ressenyes.',
+    widgetPreviewExampleNotice: 'Vista prèvia d’exemple: les ressenyes i les xifres són il·lustratives. Al teu web, el widget mostrarà les teves dades reals.',
     productsStatActive: 'Productes actius',
     productsStatAssigned: 'Ressenyes assignades',
     productsStatAverage: 'Nota mitjana',

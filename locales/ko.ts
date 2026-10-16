@@ -1249,6 +1249,7 @@ export default {
     widgetScopeTitle: '이 위젯이 보여주는 대상',
     widgetScopeWholeBusiness: '회사 전체',
     widgetScopeProductWarning: '이 제품에는 아직 할당된 리뷰가 없어 위젯에 0으로 표시됩니다. 리뷰 탭에서 할당하세요.',
+    widgetPreviewExampleNotice: '예시 미리보기: 리뷰와 수치는 설명용입니다. 고객님의 웹사이트에서는 위젯이 실제 데이터를 표시합니다.',
     productsStatActive: '활성 제품',
     productsStatAssigned: '할당된 리뷰',
     productsStatAverage: '평균 평점',

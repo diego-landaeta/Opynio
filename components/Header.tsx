@@ -551,6 +551,7 @@ const Header: React.FC = () => {
                                 <div className="relative" ref={moreDropdownRef}>
                                     <button
                                         onClick={() => setMoreDropdownOpen(v => !v)}
+                                        aria-expanded={moreDropdownOpen}
                                         className="flex items-center gap-1.5 hover:text-brand-green transition-colors"
                                     >
                                         <span>{t('header.more')}</span>

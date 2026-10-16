@@ -1249,6 +1249,7 @@ export default {
     widgetScopeTitle: 'Что показывает этот виджет?',
     widgetScopeWholeBusiness: 'Всю компанию',
     widgetScopeProductWarning: 'К этому товару пока не привязаны отзывы: виджет покажет 0. Привяжите отзывы на вкладке «Отзывы».',
+    widgetPreviewExampleNotice: 'Пример предпросмотра: отзывы и цифры приведены для иллюстрации. На вашем сайте виджет покажет ваши реальные данные.',
     productsStatActive: 'Активные товары',
     productsStatAssigned: 'Привязанные отзывы',
     productsStatAverage: 'Средняя оценка',

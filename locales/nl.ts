@@ -1249,6 +1249,7 @@ export default {
     widgetScopeTitle: 'Wat laat deze widget zien?',
     widgetScopeWholeBusiness: 'Het hele bedrijf',
     widgetScopeProductWarning: 'Dit product heeft nog geen gekoppelde reviews: de widget toont 0. Koppel reviews via het tabblad Reviews.',
+    widgetPreviewExampleNotice: 'Voorbeeldweergave: de beoordelingen en cijfers zijn illustratief. Op je website toont de widget je echte gegevens.',
     productsStatActive: 'Actieve producten',
     productsStatAssigned: 'Gekoppelde reviews',
     productsStatAverage: 'Gemiddelde score',

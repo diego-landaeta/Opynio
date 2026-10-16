@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: 'Apa yang ditampilkan widget ini?',
     widgetScopeWholeBusiness: 'Seluruh perusahaan',
     widgetScopeProductWarning: 'Produk ini belum punya ulasan yang ditautkan: widget akan menampilkan 0. Tautkan ulasan dari tab Ulasan.',
+    widgetPreviewExampleNotice: 'Pratinjau contoh: ulasan dan angka hanya ilustrasi. Di situs web Anda, widget akan menampilkan data asli Anda.',
     productsStatActive: 'Produk aktif',
     productsStatAssigned: 'Ulasan yang ditautkan',
     productsStatAverage: 'Peringkat rata-rata',

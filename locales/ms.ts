@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: 'Apa yang widget ini tunjukkan?',
     widgetScopeWholeBusiness: 'Seluruh syarikat',
     widgetScopeProductWarning: 'Produk ini belum ada ulasan yang dikaitkan: widget akan menunjukkan 0. Kaitkan ulasan dari tab Ulasan.',
+    widgetPreviewExampleNotice: 'Pratonton contoh: ulasan dan angka hanyalah ilustrasi. Di laman web anda, widget akan memaparkan data sebenar anda.',
     productsStatActive: 'Produk aktif',
     productsStatAssigned: 'Ulasan yang dikaitkan',
     productsStatAverage: 'Penilaian purata',

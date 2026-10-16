@@ -1248,6 +1248,7 @@ export default {
     widgetScopeTitle: 'このウィジェットが表示する対象',
     widgetScopeWholeBusiness: '会社全体',
     widgetScopeProductWarning: 'この商品にはまだレビューが割り当てられていません。ウィジェットは0と表示されます。レビュータブから割り当ててください。',
+    widgetPreviewExampleNotice: 'サンプルプレビュー：レビューと数値は例示です。お客様のサイトでは、ウィジェットに実際のデータが表示されます。',
     productsStatActive: '有効な商品',
     productsStatAssigned: '割り当て済みレビュー',
     productsStatAverage: '平均評価',

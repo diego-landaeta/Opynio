@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'এই উইজেট কী দেখায়?',
     widgetScopeWholeBusiness: 'পুরো কোম্পানি',
     widgetScopeProductWarning: 'এই পণ্যে এখনও কোনো রিভিউ নির্ধারিত নেই: উইজেট 0 দেখাবে। রিভিউ ট্যাব থেকে নির্ধারণ করুন।',
+    widgetPreviewExampleNotice: 'উদাহরণ প্রিভিউ: রিভিউ ও সংখ্যাগুলো শুধু উদাহরণ। আপনার ওয়েবসাইটে উইজেটটি আপনার আসল তথ্য দেখাবে।',
     productsStatActive: 'সক্রিয় পণ্য',
     productsStatAssigned: 'নির্ধারিত রিভিউ',
     productsStatAverage: 'গড় রেটিং',

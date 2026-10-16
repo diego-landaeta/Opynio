@@ -1170,6 +1170,7 @@ export default {
     widgetScopeTitle: '这个挂件显示什么？',
     widgetScopeWholeBusiness: '整个公司',
     widgetScopeProductWarning: '该产品尚未分配评价，挂件将显示 0。请在“评价”页分配评价。',
+    widgetPreviewExampleNotice: '示例预览：评价和数字仅作演示。在您的网站上，小组件将显示您的真实数据。',
     productsStatActive: '启用的产品',
     productsStatAssigned: '已分配评价',
     productsStatAverage: '平均评分',

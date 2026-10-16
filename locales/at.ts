@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'Was zeigt dieses Widget?',
     widgetScopeWholeBusiness: 'Das ganze Unternehmen',
     widgetScopeProductWarning: 'Diesem Produkt sind noch keine Rezensionen zugeordnet: das Widget zeigt 0. Ordne ihm Rezensionen im Tab Rezensionen zu.',
+    widgetPreviewExampleNotice: 'Beispielvorschau: Die Bewertungen und Zahlen sind nur illustrativ. Auf Ihrer Website zeigt das Widget Ihre echten Daten.',
     productsStatActive: 'Aktive Produkte',
     productsStatAssigned: 'Zugeordnete Rezensionen',
     productsStatAverage: 'Durchschnittsnote',

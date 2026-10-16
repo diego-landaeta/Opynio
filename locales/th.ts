@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: 'วิดเจ็ตนี้แสดงอะไร',
     widgetScopeWholeBusiness: 'ทั้งบริษัท',
     widgetScopeProductWarning: 'สินค้านี้ยังไม่มีรีวิวที่ผูกไว้ วิดเจ็ตจะแสดง 0 ผูกรีวิวได้จากแท็บรีวิว',
+    widgetPreviewExampleNotice: 'ตัวอย่างการแสดงผล: รีวิวและตัวเลขเป็นเพียงภาพประกอบ บนเว็บไซต์ของคุณ วิดเจ็ตจะแสดงข้อมูลจริงของคุณ',
     productsStatActive: 'สินค้าที่เปิดใช้งาน',
     productsStatAssigned: 'รีวิวที่ผูกไว้',
     productsStatAverage: 'คะแนนเฉลี่ย',

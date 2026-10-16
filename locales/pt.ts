@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'O que mostra este widget?',
     widgetScopeWholeBusiness: 'A empresa inteira',
     widgetScopeProductWarning: 'Este produto ainda não tem avaliações atribuídas: o widget mostrará 0. Atribui-lhe avaliações no separador Avaliações.',
+    widgetPreviewExampleNotice: 'Pré-visualização de exemplo: as avaliações e os números são ilustrativos. No seu site, o widget mostrará os seus dados reais.',
     productsStatActive: 'Produtos ativos',
     productsStatAssigned: 'Avaliações atribuídas',
     productsStatAverage: 'Nota média',

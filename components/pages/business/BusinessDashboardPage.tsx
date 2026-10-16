@@ -11,6 +11,7 @@ import { BusinessDashboardProvider, useBusinessDashboard } from '../../../contex
 import { useI18n, useTranslation, pathTranslations, useAutoTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
 import { getBusinessById, getBusinessByName, getOwnedBusinessByIdentifier } from '../../../services/supabaseService';
+import { businessUrlId } from '../../../utils/slugify';
 
 // Los enlaces del panel se usan en DOS sitios: el lateral de escritorio y el
 // cajon de movil. Salen de useDashboardSections (que tambien usa el manual), y
@@ -252,71 +253,65 @@ const BusinessDashboardPage: React.FC = () => {
             return;
         }
 
-        // Tras renombrar, EditBusinessPage cambia la URL al nombre nuevo: la
-        // empresa ya esta cargada y no hace falta volver a buscarla.
+        // La empresa ya esta cargada y la URL sigue siendo la suya: no se vuelve
+        // a buscar (cambiar de seccion no cambia el identificador).
         const yaCargada = businessRef.current;
         if (yaCargada && yaCargada.owner_id === user.id) {
-            let nombreUrl = identifier;
-            try { nombreUrl = decodeURIComponent(identifier); } catch { /* tal cual */ }
-            if (nombreUrl.replace(/_/g, ' ') === yaCargada.name) return;
+            let idUrl = identifier;
+            try { idUrl = decodeURIComponent(identifier); } catch { /* tal cual */ }
+            if (idUrl.toLowerCase() === businessUrlId(yaCargada)) return;
         }
 
         const fetchBusiness = async () => {
             setLoadingBusiness(true);
+            let redirigido = false;
             try {
-                console.log('=== BusinessDashboardPage Debug ===');
-                console.log('Raw identifier from URL:', identifier);
-
                 const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-                console.log('Is UUID:', isUuid);
 
-                // Safely decode the identifier - React Router v7 may already decode it
+                // React Router puede haber decodificado ya el identificador.
                 let decodedName = identifier;
                 try {
                     decodedName = decodeURIComponent(identifier);
-                    console.log('Decoded name:', decodedName);
                 } catch (e) {
-                    // If decodeURIComponent fails, use the identifier as-is
                     console.warn('Failed to decode URI component:', identifier, e);
                 }
-                // Replace underscores with spaces for URL-friendly names
                 const businessName = decodedName.replace(/_/g, ' ');
-                console.log('Final business name to search:', businessName);
 
                 const businessData = isUuid
                     ? await getBusinessById(identifier)
                     : ((user && await getOwnedBusinessByIdentifier(user.id, decodedName))
                         || await getBusinessByName(businessName));
 
-                console.log('Business data found:', businessData ? { id: businessData.id, name: businessData.name, owner_id: businessData.owner_id } : null);
-                console.log('Current user ID:', user?.id);
-                
-                // If accessed via UUID, redirect to the name-based URL for better SEO and user experience
-                // Skip redirect if the name contains special characters that cause URL issues
-                const hasSpecialChars = /[|,<>{}[\]\\^~`]/.test(businessData?.name || '');
-                if (businessData && isUuid && !hasSpecialChars) {
-                    const pathParts = location.pathname.split('/');
-                    const subRouteIndex = pathParts.indexOf(identifier) + 1;
-                    const subRoute = pathParts.slice(subRouteIndex).join('/');
-
-                    // Conserva el country prefix actual (si lo hay) y usa el
-                    // idioma del país de la empresa para construir el path
-                    // traducido. Antes saltaba siempre a /empresa/panel/...
-                    // (es, sin country), rompiendo la navegación en otros idiomas.
-                    const segs = location.pathname.split('/').filter(Boolean);
-                    const firstSeg = (segs[0] || '').toLowerCase();
-                    const looksLikeCountry = firstSeg.length === 2 && /^[a-z]{2}$/.test(firstSeg);
-                    const countryPrefix = looksLikeCountry ? `/${firstSeg}` : '';
-                    const targetLang = businessData.country
-                        ? getLanguageForCountryCode(businessData.country)
-                        : language;
-                    const targetPaths = pathTranslations[targetLang] ?? pathTranslations.es;
-                    const newPath = `${countryPrefix}/${targetPaths.businessDashboard.replace(':businessName', encodeURIComponent(businessData.name.replace(/ /g, '_')))}`;
-
-                    navigate(`${newPath}${subRoute ? `/${subRoute}` : ''}`, { replace: true });
-                    return; // Stop execution to let redirect happen
+                // Enlace antiguo (UUID, o nombre con tildes y mayusculas): se
+                // redirige al slug, que es el identificador de la URL del panel.
+                const urlId = businessData ? businessUrlId(businessData) : '';
+                if (businessData && businessData.owner_id === user.id && urlId && decodedName !== urlId) {
+                    const decodificar = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
+                    const segs = location.pathname.split('/');
+                    // Solo el segmento que va justo despues de la ruta base del panel
+                    // (empresa/panel/, business/dashboard/...): una seccion o un
+                    // nombre de empresa igual que una palabra de la ruta no cuentan.
+                    let idx = -1;
+                    for (const rutas of Object.values(pathTranslations) as any[]) {
+                        const base: string[] = (rutas?.businessDashboard ?? '').split('/:')[0].split('/').filter(Boolean);
+                        if (!base.length) continue;
+                        for (let i = 0; i + base.length < segs.length && idx < 0; i++) {
+                            if (base.every((b, k) => decodificar(segs[i + k]) === b) && decodificar(segs[i + base.length]) === decodedName) {
+                                idx = i + base.length;
+                            }
+                        }
+                        if (idx >= 0) break;
+                    }
+                    const porRutaBase = idx >= 0;
+                    if (idx < 0) idx = segs.findIndex(seg => decodificar(seg) === decodedName);
+                    if (idx >= 0) {
+                        segs[idx] = urlId;
+                        redirigido = porRutaBase; // sin ruta base reconocida no hay garantia de que cambie el parametro
+                        navigate(`${segs.join('/')}${location.search}${location.hash}`, { replace: true });
+                        return; // la redireccion vuelve a lanzar esta carga
+                    }
                 }
-                
+
                 // Security check: ensure the logged-in user owns this business
                 if (businessData && businessData.owner_id === user.id) {
                     setBusiness(businessData);
@@ -327,7 +322,7 @@ const BusinessDashboardPage: React.FC = () => {
                 console.error("Failed to fetch business for dashboard:", error);
                 setBusiness(null);
             } finally {
-                setLoadingBusiness(false);
+                if (!redirigido) setLoadingBusiness(false);
             }
         };
 

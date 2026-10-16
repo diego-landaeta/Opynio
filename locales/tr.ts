@@ -2004,6 +2004,7 @@ export default {
     widgetScopeTitle: 'Bu widget neyi gösteriyor?',
     widgetScopeWholeBusiness: 'Tüm şirket',
     widgetScopeProductWarning: 'Bu ürüne henüz değerlendirme atanmadı: widget 0 gösterecek. Değerlendirmeler sekmesinden atama yapın.',
+    widgetPreviewExampleNotice: 'Örnek önizleme: yorumlar ve rakamlar yalnızca örnektir. Web sitenizde widget gerçek verilerinizi gösterecektir.',
     productsStatActive: 'Aktif ürünler',
     productsStatAssigned: 'Atanan değerlendirmeler',
     productsStatAverage: 'Ortalama puan',

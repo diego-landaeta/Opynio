@@ -15,6 +15,7 @@ import { useCountry } from '../../../contexts/CountryContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import SectionLock from './dashboard/SectionLock';
 import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields } from '../../../utils/planFeatures';
+import { businessUrlId } from '../../../utils/slugify';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -590,16 +591,18 @@ const EditBusinessPage: React.FC = () => {
             if (updatedBusiness) {
                 setBusinesses(prev => prev.map(b => b.id === updatedBusiness.id ? { ...b, ...updatedBusiness } : b));
                 updateBusiness(updatedBusiness);
-                // Renombrada: la URL del panel lleva el nombre; con el viejo, al
-                // recargar salia "Negocio no encontrado".
-                if (updatedBusiness.name && updatedBusiness.name !== business.name) {
-                    const viejo = encodeURIComponent(business.name.replace(/ /g, '_'));
-                    const nuevo = encodeURIComponent(updatedBusiness.name.replace(/ /g, '_'));
-                    const actual = window.location.pathname;
-                    const conNombreNuevo = actual.includes(`/${viejo}/`) || actual.endsWith(`/${viejo}`)
-                        ? actual.replace(`/${viejo}`, `/${nuevo}`)
-                        : null;
-                    if (conNombreNuevo) navigate(conNombreNuevo, { replace: true });
+                // Con slug guardado, renombrar no cambia la URL del panel. Una
+                // empresa SIN slug usa el del nombre: si cambia, se sigue la URL
+                // (con la vieja, al recargar saldria "Negocio no encontrado").
+                const viejo = businessUrlId(business);
+                const nuevo = businessUrlId(updatedBusiness);
+                if (nuevo && viejo !== nuevo) {
+                    const segs = window.location.pathname.split('/');
+                    const i = segs.findIndex(s => { try { return decodeURIComponent(s).toLowerCase() === viejo; } catch { return s.toLowerCase() === viejo; } });
+                    if (i >= 0) {
+                        segs[i] = nuevo;
+                        navigate(segs.join('/'), { replace: true });
+                    }
                 }
             }
             
@@ -929,7 +932,7 @@ const EditBusinessPage: React.FC = () => {
                                 const lang = business.country ? getLanguageForCountryCode(business.country) : language;
                                 const paths = pathTranslations[lang] ?? pathTranslations.es;
                                 const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
-                                const slug = encodeURIComponent(business.name.replace(/ /g, '_'));
+                                const slug = businessUrlId(business);
                                 navigate(`${countryPrefix}/${paths.businessDashboard.replace(':businessName', slug)}`);
                             }} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
                                 {t('common.cancel')}

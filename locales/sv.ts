@@ -1248,6 +1248,7 @@ export default {
     widgetScopeTitle: 'Vad visar den här widgeten?',
     widgetScopeWholeBusiness: 'Hela företaget',
     widgetScopeProductWarning: 'Produkten har inga kopplade omdömen ännu: widgeten visar 0. Koppla omdömen under fliken Omdömen.',
+    widgetPreviewExampleNotice: 'Exempelförhandsvisning: omdömena och siffrorna är bara illustrationer. På din webbplats visar widgeten dina riktiga uppgifter.',
     productsStatActive: 'Aktiva produkter',
     productsStatAssigned: 'Kopplade omdömen',
     productsStatAverage: 'Snittbetyg',

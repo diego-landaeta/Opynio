@@ -348,6 +348,10 @@ const DashboardWidgets: React.FC = () => {
                             datos (5.0 y 123 reseñas). Para un producto sin reseñas eso
                             contradiría al widget real, que mostrará 0: se avisa aquí mismo,
                             pegado a las cifras que no son suyas. */}
+                        <p className="mb-3 text-xs sm:text-sm text-sky-800 dark:text-sky-200 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-lg p-2.5 flex items-start gap-2">
+                            <i className="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                            <span>{t('businessDashboard.widgetPreviewExampleNotice')}</span>
+                        </p>
                         {selectedProduct && (selectedProduct.review_count ?? 0) === 0 && (
                             <p className="mb-3 text-xs sm:text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 flex items-start gap-2">
                                 <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>

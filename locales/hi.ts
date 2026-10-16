@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'यह विजेट क्या दिखाता है?',
     widgetScopeWholeBusiness: 'पूरी कंपनी',
     widgetScopeProductWarning: 'इस उत्पाद से अभी कोई समीक्षा नहीं जुड़ी है: विजेट 0 दिखाएगा। समीक्षाएँ टैब से जोड़ें।',
+    widgetPreviewExampleNotice: 'उदाहरण पूर्वावलोकन: समीक्षाएँ और आँकड़े केवल उदाहरण हैं। आपकी वेबसाइट पर विजेट आपका असली डेटा दिखाएगा।',
     productsStatActive: 'सक्रिय उत्पाद',
     productsStatAssigned: 'जुड़ी समीक्षाएँ',
     productsStatAverage: 'औसत रेटिंग',

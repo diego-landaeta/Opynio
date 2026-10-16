@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'Ano ang ipinapakita ng widget na ito?',
     widgetScopeWholeBusiness: 'Buong negosyo',
     widgetScopeProductWarning: 'Wala pang naka-assign na review ang produktong ito: 0 ang ipapakita ng widget. Mag-assign ng review sa tab na Reviews.',
+    widgetPreviewExampleNotice: 'Halimbawang preview: ang mga review at numero ay para sa paglalarawan lamang. Sa iyong website, ipapakita ng widget ang iyong totoong datos.',
     productsStatActive: 'Aktibong produkto',
     productsStatAssigned: 'Naka-assign na review',
     productsStatAverage: 'Karaniwang rating',

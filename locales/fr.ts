@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'Que montre ce widget ?',
     widgetScopeWholeBusiness: "Toute l'entreprise",
     widgetScopeProductWarning: "Ce produit n'a encore aucun avis attribué : le widget affichera 0. Attribuez-lui des avis depuis l'onglet Avis.",
+    widgetPreviewExampleNotice: 'Aperçu à titre d’exemple : les avis et les chiffres sont illustratifs. Sur votre site, le widget affichera vos données réelles.',
     productsStatActive: 'Produits actifs',
     productsStatAssigned: 'Avis attribués',
     productsStatAverage: 'Note moyenne',

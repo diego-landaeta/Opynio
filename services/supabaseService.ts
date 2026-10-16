@@ -518,9 +518,23 @@ export const getOwnedBusinessByIdentifier = async (userId: string, identifier: s
   }
   const lowerName = name.toLowerCase();
   const lowerId = identifier.toLowerCase();
-  return (data || []).find(b => (b.name || '').trim().toLowerCase() === lowerName)
-    || (data || []).find(b => (b.slug || '').toLowerCase() === lowerId)
-    || null;
+  // Primero el slug (la URL actual del panel); el nombre solo para los enlaces
+  // viejos con tildes y mayusculas, que el panel redirige al slug.
+  const encontrada = (data || []).find(b => (b.slug || '').toLowerCase() === lowerId)
+    || (data || []).find(b => slugify(b.name || '') === lowerId)
+    || (data || []).find(b => (b.name || '').trim().toLowerCase() === lowerName);
+  if (encontrada || !data?.length) return encontrada || null;
+
+  // Slug anterior de una de sus empresas (el admin lo cambio con redireccion):
+  // el marcador del dueno sigue funcionando y el panel lo lleva al slug nuevo.
+  const { data: redir } = await supabase
+    .from('url_redirects')
+    .select('business_id')
+    .eq('old_slug', lowerId)
+    .in('business_id', data.map(b => b.id))
+    .limit(1)
+    .maybeSingle();
+  return redir ? data.find(b => b.id === redir.business_id) || null : null;
 };
 
 export const getBusinessById = async (id: string) => {

@@ -1252,6 +1252,7 @@ export default {
     widgetScopeTitle: 'ماذا تعرض هذه الودجة؟',
     widgetScopeWholeBusiness: 'الشركة بأكملها',
     widgetScopeProductWarning: 'لا توجد مراجعات مرتبطة بهذا المنتج بعد، وستعرض الودجة 0. اربط المراجعات من تبويب المراجعات.',
+    widgetPreviewExampleNotice: 'معاينة توضيحية: التقييمات والأرقام للتوضيح فقط. في موقعك سيعرض الودجت بياناتك الحقيقية.',
     productsStatActive: 'المنتجات المفعّلة',
     productsStatAssigned: 'المراجعات المرتبطة',
     productsStatAverage: 'متوسط التقييم',

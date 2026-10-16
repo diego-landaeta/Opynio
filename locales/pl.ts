@@ -1248,6 +1248,7 @@ export default {
     widgetScopeTitle: 'Co pokazuje ten widget?',
     widgetScopeWholeBusiness: 'Cała firma',
     widgetScopeProductWarning: 'Ten produkt nie ma jeszcze przypisanych opinii: widget pokaże 0. Przypisz opinie w zakładce Opinie.',
+    widgetPreviewExampleNotice: 'Podgląd przykładowy: opinie i liczby są ilustracyjne. Na Twojej stronie widżet pokaże Twoje prawdziwe dane.',
     productsStatActive: 'Aktywne produkty',
     productsStatAssigned: 'Przypisane opinie',
     productsStatAverage: 'Średnia ocena',

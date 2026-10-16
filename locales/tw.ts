@@ -1251,6 +1251,7 @@ export default {
     widgetScopeTitle: '這個小工具顯示什麼？',
     widgetScopeWholeBusiness: '整間公司',
     widgetScopeProductWarning: '這個產品尚未指派評論，小工具會顯示 0。請到「評論」分頁指派評論。',
+    widgetPreviewExampleNotice: '範例預覽：評價與數字僅供示意。在您的網站上，小工具會顯示您的真實資料。',
     productsStatActive: '啟用的產品',
     productsStatAssigned: '已指派評論',
     productsStatAverage: '平均評分',

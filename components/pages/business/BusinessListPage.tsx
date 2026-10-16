@@ -5,12 +5,13 @@ import Spinner from '../../Spinner';
 import BusinessLogo from '../../BusinessLogo';
 import { Link, useNavigate } from 'react-router-dom';
 import Meta from '../../Meta';
-import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode, toBcp47 } from '../../../contexts/i18nContext';
 import { supabase } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
+import { businessUrlId } from '../../../utils/slugify';
 
 const DeleteConfirmModal: React.FC<{
     businessName: string;
@@ -60,7 +61,7 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
     // Si no hay country, se cae al idioma actual del usuario.
     const { language } = useI18n();
     const dashLang = business.country ? getLanguageForCountryCode(business.country) : language;
-    const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', encodeURIComponent(business.name.replace(/ /g, '_')));
+    const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', businessUrlId(business));
     const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
     const businessSlug = (business as any).slug as string | undefined;
     const publicUrl = businessSlug
@@ -297,7 +298,7 @@ const BusinessListPage: React.FC = () => {
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     {profile.plan_expires_at 
-                                        ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' }) })
+                                        ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }) })
                                         : (profile.plan === 'free' ? t('myBusinesses.freePlanActive') : t('myBusinesses.supportForRenewal'))
                                     }
                                 </p>

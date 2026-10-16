@@ -1250,6 +1250,7 @@ export default {
     widgetScopeTitle: 'What does this widget show?',
     widgetScopeWholeBusiness: 'The whole business',
     widgetScopeProductWarning: 'This product has no reviews assigned yet: the widget will show 0. Assign reviews to it from the Reviews tab.',
+    widgetPreviewExampleNotice: 'Example preview: the reviews and figures are illustrative. On your website, the widget will show your real data.',
     productsStatActive: 'Active products',
     productsStatAssigned: 'Assigned reviews',
     productsStatAverage: 'Average rating',
