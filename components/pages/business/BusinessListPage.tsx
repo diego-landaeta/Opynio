@@ -12,6 +12,8 @@ import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
 import { businessUrlId } from '../../../utils/slugify';
+import { useTrialStatus } from '../../../hooks/useTrialStatus';
+import { isPaidPlanKey, formatPlanPrice } from '../../../utils/planPrices';
 
 const DeleteConfirmModal: React.FC<{
     businessName: string;
@@ -194,6 +196,8 @@ const BusinessListPage: React.FC = () => {
     const { language } = useI18n();
     const { country } = useCountry();
     const [billingLoading, setBillingLoading] = useState(false);
+    // Solo devuelve algo con NEW_PRICING_ENABLED y una suscripcion en 'trialing'.
+    const trial = useTrialStatus();
 
     if (loading) {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -296,6 +300,15 @@ const BusinessListPage: React.FC = () => {
                                     <span className="font-bold text-lg text-brand-green capitalize">{profile.plan}</span>
                                     {profile.billing_cycle && <span className="text-sm text-gray-500 dark:text-gray-400 capitalize">({profile.billing_cycle === 'monthly' ? t('myBusinesses.billingCycleMonthly') : t('myBusinesses.billingCycleAnnual')})</span>}
                                 </div>
+                                {trial && isPaidPlanKey(profile.plan) && (
+                                    <p className="text-sm font-semibold text-brand-green mt-1">
+                                        {t(trial.daysLeft === 1 ? 'pricingPage.trialStatusOne' : 'pricingPage.trialStatus', {
+                                            days: String(trial.daysLeft),
+                                            plan: profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1),
+                                            price: formatPlanPrice(profile.plan, profile.billing_cycle === 'annual' ? 'annual' : 'monthly') + t(profile.billing_cycle === 'annual' ? 'pricingPage.perYear' : 'pricingPage.perMonth'),
+                                        })}
+                                    </p>
+                                )}
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     {profile.plan_expires_at 
                                         ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }) })

@@ -20,6 +20,16 @@
 //   • Todas las respuestas de error son JSON { error, code, details } con un
 //     `code` estable (ver ErrorCode). El front traduce por `code`.
 //
+//   • Prueba gratuita (issue #2), APAGADA por defecto: solo si el secret de
+//     entorno TRIAL_DAYS existe y es un entero > 0 se anade
+//     subscription_data.trial_period_days (90 = 3 meses; la tarjeta se pide
+//     igual y no se cobra hasta que acaba). Una sola prueba: si el cliente ya
+//     tuvo CUALQUIER suscripcion (en la BD o en Stripe, del estado que sea) o
+//     una prueba, no se aplica. Si no se puede comprobar, tampoco (nunca se
+//     regala una prueba por error). Sin TRIAL_DAYS el comportamiento es el de
+//     siempre. Con plan anual el ano empieza a contar al acabar la prueba
+//     (Stripe ancla el ciclo al fin de la prueba).
+//
 // OJO al desplegar: el front manda { plan, billingCycle, businessId |
 // businessData }, nunca priceId. Una version anterior de esta funcion (la que
 // habia en produccion desde el 19/05/2026) exigia priceId y respondia 400 a
@@ -34,6 +44,7 @@ import {
   PLAN_PRICE_IDS,
   allowedPriceIds,
   isLiveStatus,
+  priceIdFor,
 } from "../_shared/stripePlans.ts";
 import { ilikeExactPattern, normalizeBusinessName } from "../_shared/businessName.ts";
 
@@ -179,6 +190,41 @@ async function findLiveSubscriptions(admin: Admin, userId: string, stripeCustome
   }
 }
 
+// Dias de prueba del secret TRIAL_DAYS. 0 = sin prueba (valor por defecto).
+// Solo vale un entero entre 1 y 730 (maximo de Stripe); cualquier otra cosa, sin
+// prueba y con aviso en el log.
+function trialDaysFromEnv(): number {
+  const raw = (Deno.env.get("TRIAL_DAYS") ?? "").trim();
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (Number.isInteger(n) && n > 0 && n <= 730) return n;
+  if (!(Number.isInteger(n) && n === 0)) console.warn(`TRIAL_DAYS='${raw}' no es un entero entre 1 y 730: se ignora (sin prueba).`);
+  return 0;
+}
+
+// ¿Este usuario ya tuvo alguna suscripcion o prueba? Mira la BD (subscriptions,
+// cualquier estado salvo los de un alta que nunca se completo) y Stripe (todas
+// las suscripciones del customer, con o sin prueba). Si algo falla, devuelve
+// true: ante la duda no se da prueba.
+async function hasHadSubscriptionBefore(admin: Admin, userId: string, stripeCustomerId: string | null): Promise<boolean> {
+  const NEVER_STARTED = new Set(["incomplete", "incomplete_expired"]);
+  try {
+    const { data: rows, error } = await admin.from("subscriptions").select("id, status").eq("user_id", userId).limit(100);
+    if (error) throw error;
+    // deno-lint-ignore no-explicit-any
+    if ((rows ?? []).some((r: any) => !NEVER_STARTED.has(String(r.status)))) return true;
+    if (stripeCustomerId) {
+      const list = await stripe.subscriptions.list({ customer: stripeCustomerId, status: "all", limit: 100 });
+      if (list.data.some((s) => !NEVER_STARTED.has(s.status) || s.trial_start != null || s.trial_end != null)) return true;
+    }
+    return false;
+  } catch (err) {
+    // deno-lint-ignore no-explicit-any
+    console.error("No se pudo comprobar si el usuario ya tuvo suscripcion; no se aplica la prueba:", (err as any)?.message ?? String(err));
+    return true;
+  }
+}
+
 type ExistingBusiness = { id: string; name: string; slug: string | null; country: string | null; owner_id: string | null };
 
 // Empresa con el mismo nombre (sin mayusculas ni espacios de los extremos).
@@ -260,7 +306,8 @@ serve(async (req) => {
       if (billingCycle !== "monthly" && billingCycle !== "annual") {
         return errorResponse("invalid_plan", "Ciclo de facturación inválido.", 400, origin);
       }
-      priceId = PLAN_PRICE_IDS[plan][billingCycle];
+      // PLAN_PRICE_IDS salvo que haya ids nuevos en el entorno (stripePlans.ts).
+      priceId = priceIdFor(plan, billingCycle) ?? PLAN_PRICE_IDS[plan][billingCycle];
     } else if (legacyPriceId && typeof legacyPriceId === "string") {
       if (!allowedPriceIds().includes(legacyPriceId)) {
         return errorResponse("invalid_plan", "priceId no autorizado.", 400, origin);
@@ -447,9 +494,16 @@ serve(async (req) => {
     // un doble clic reutiliza la sesion; si el usuario corrige el nombre de la
     // empresa y reintenta, es otra clave. Antes Stripe rechazaba la clave
     // reutilizada con parametros distintos y el usuario veia un 500 durante 1 h.
+    // Prueba gratuita: solo con TRIAL_DAYS > 0 y si es la primera suscripcion.
+    const trialDays = trialDaysFromEnv();
+    const applyTrial = trialDays > 0 && !(await hasHadSubscriptionBefore(supabaseAdmin, user.id, stripeCustomerId));
+    if (trialDays > 0 && !applyTrial) {
+      console.log(`Usuario ${user.id}: ya tuvo suscripcion o prueba, checkout sin prueba.`);
+    }
     const huella = await crypto.subtle.digest(
       "SHA-256",
-      new TextEncoder().encode(JSON.stringify({ priceId, stripeMetadata })),
+      // Sin prueba el objeto es el de siempre (misma clave de idempotencia).
+      new TextEncoder().encode(JSON.stringify(applyTrial ? { priceId, stripeMetadata, trialDays } : { priceId, stripeMetadata })),
     );
     const huellaHex = Array.from(new Uint8Array(huella)).slice(0, 8)
       .map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -464,6 +518,13 @@ serve(async (req) => {
         success_url: successUrl,
         cancel_url: cancelUrl,
         metadata: stripeMetadata,
+        ...(applyTrial
+          ? {
+              // La tarjeta se pide siempre; Stripe no cobra hasta que acaba la prueba.
+              payment_method_collection: "always" as const,
+              subscription_data: { trial_period_days: trialDays },
+            }
+          : {}),
       },
       { idempotencyKey: idemKey }
     );

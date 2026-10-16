@@ -11,7 +11,10 @@
 
 import React, { useEffect, useState } from 'react';
 import type { Plan } from '../types';
-import { useTranslation } from '../contexts/i18nContext';
+import { useTranslation, useI18n, toBcp47 } from '../contexts/i18nContext';
+import { useTrialStatus } from '../hooks/useTrialStatus';
+import { isPaidPlanKey, formatPlanPrice } from '../utils/planPrices';
+import { useAuth } from '../contexts/AuthContext';
 
 // Datos visuales del plan (color, icono) — estáticos, no se traducen.
 // Las strings (title/tagline/features) viven en los locales bajo el namespace
@@ -58,6 +61,10 @@ const STORAGE_KEY = 'opynio_pending_plan_welcome';
 
 const PlanActivatedModal: React.FC = () => {
     const t = useTranslation();
+    const { language } = useI18n();
+    const { profile } = useAuth();
+    // Solo devuelve algo con NEW_PRICING_ENABLED y una suscripcion en 'trialing'.
+    const trial = useTrialStatus();
     const [plan, setPlan] = useState<Plan | null>(null);
     const [visible, setVisible] = useState(false);
     const [closing, setClosing] = useState(false);
@@ -186,6 +193,16 @@ const PlanActivatedModal: React.FC = () => {
                         <i className="fa-solid fa-check-circle"></i>
                         <span>Plan {plan === 'v2' ? 'v.2' : plan} activo</span>
                     </div>
+
+                    {/* Prueba gratuita (solo con NEW_PRICING_ENABLED y suscripcion en trialing) */}
+                    {trial && isPaidPlanKey(plan) && (
+                        <p className="mt-4 text-sm font-semibold text-brand-green">
+                            {t('pricingPage.trialModalNote', {
+                                date: trial.endsAt.toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }),
+                                amount: formatPlanPrice(plan, profile?.billing_cycle === 'annual' ? 'annual' : 'monthly'),
+                            })}
+                        </p>
+                    )}
 
                     {/* Features list */}
                     <div className="mt-7 text-left">
