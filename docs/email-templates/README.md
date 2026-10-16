@@ -9,6 +9,7 @@ iconos son SVG inline al estilo Heroicons / Feather.
 | # | Archivo | Plantilla en Supabase | Asunto recomendado |
 |---|---|---|---|
 | 1 | `01-confirm-signup.html` | **Confirm signup** | Confirma tu registro en Opynio |
+| 1b | `01b-confirm-signup-business.html` | *(solo en send-auth-email)* | Confirma tu cuenta de empresa en Opynio |
 | 2 | `02-magic-link.html` | **Magic link** | Tu enlace mágico de Opynio |
 | 3 | `03-reset-password.html` | **Reset password** | Restablece tu contraseña en Opynio |
 | 4 | `04-change-email.html` | **Change email address** | Confirma tu nuevo email en Opynio |
@@ -72,3 +73,10 @@ query — verá la versión clara siempre, lo cual es aceptable.
   idioma de forma nativa; opciones: switching server-side antes de mandar el
   email, o un servicio de email transaccional como Resend/Postmark con
   templates por locale).
+
+## Nota (15/10/2026)
+
+Las plantillas se compactaron (issue #3): cabecera y tarjeta del mismo ancho (600 px) sin solape, icono pequeño
+y el botón visible sin hacer scroll. La **1b** es la de **cuentas de empresa**: la usa `send-auth-email` cuando el alta
+viene de `signUpBusiness` (`intended_role = business_owner` o `?type=business` en el redirect). Estos ficheros son la
+copia de referencia; lo que se envía vive en `supabase/functions/send-auth-email/plantillas.ts`.

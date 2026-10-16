@@ -4805,3 +4805,36 @@ export const getPublicProductById = async (productId: string): Promise<{ id: str
   }
   return data as any;
 };
+
+// ---------------------------------------------------------------------------
+// Invitaciones a reseñar (issue #5, migracion 20261015100000_review_invitations)
+// El enlace del correo lleva ?invitacion=<uuid>. Ambas llamadas son "mejor
+// esfuerzo": un fallo aqui nunca debe impedir abrir ni publicar la reseña.
+// ---------------------------------------------------------------------------
+const INVITATION_STORAGE_KEY = 'opynio_invitacion';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Al abrir el enlace: marca la invitacion como "abierta" y la recuerda hasta publicar. */
+export const registerInvitationOpened = async (invitationId: string | null, businessId?: string | null): Promise<void> => {
+  if (!invitationId || !UUID_RE.test(invitationId)) return;
+  try {
+    sessionStorage.setItem(INVITATION_STORAGE_KEY, JSON.stringify({ id: invitationId, businessId: businessId ?? null }));
+  } catch { /* storage bloqueado: sigue funcionando con la URL */ }
+  const { error } = await supabase.rpc('mark_invitation_opened', { p_id: invitationId });
+  if (error) console.warn('mark_invitation_opened:', error.message);
+};
+
+/** Tras publicar: marca "reseña escrita". Usa la URL o lo recordado (el login puede perder la query). */
+export const registerInvitationReviewed = async (invitationId: string | null, businessId: string): Promise<void> => {
+  let id = invitationId && UUID_RE.test(invitationId) ? invitationId : null;
+  if (!id) {
+    try {
+      const guardada = JSON.parse(sessionStorage.getItem(INVITATION_STORAGE_KEY) || 'null');
+      if (guardada?.id && UUID_RE.test(guardada.id) && (!guardada.businessId || guardada.businessId === businessId)) id = guardada.id;
+    } catch { /* sin nada guardado */ }
+  }
+  if (!id) return;
+  const { error } = await supabase.rpc('mark_invitation_reviewed', { p_id: id });
+  if (error) console.warn('mark_invitation_reviewed:', error.message);
+  else try { sessionStorage.removeItem(INVITATION_STORAGE_KEY); } catch { /* nada */ }
+};
