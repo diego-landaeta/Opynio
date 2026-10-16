@@ -3,6 +3,7 @@ import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
 import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings, useTranslatedReviews } from './widgetShared';
+import { useTranslation } from '../../../../../contexts/i18nContext';
 
 interface PreviewProps {
     business: Business;
@@ -48,6 +49,7 @@ const DEMO_REVIEWS = [
 
 
 export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
+    const tUi = useTranslation(); // nombre accesible de las flechas, en el idioma del panel
     const s = getPreviewStrings(lang);
     const translatedReviews = useTranslatedReviews(DEMO_REVIEWS, lang, ['title', 'review_text']);
     const ratingText = (business.avg_rating || 5) >= 4.5 ? s.ratingExcellent : (business.avg_rating || 5) >= 3.5 ? s.ratingVeryGood : s.ratingGood;
@@ -167,8 +169,8 @@ export const HorizontalCarouselPreview: React.FC<PreviewProps> = ({ business, th
                                 );
                             })}
                         </div>
-                        <button onClick={scrollPrev} className="opynio-nav-arrow opynio-nav-prev" type="button"><svg style={{transform: 'rotate(180deg)'}} viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
-                        <button onClick={scrollNext} className="opynio-nav-arrow opynio-nav-next" type="button"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+                        <button onClick={scrollPrev} className="opynio-nav-arrow opynio-nav-prev" type="button" aria-label={tUi('common.previous')}><svg style={{transform: 'rotate(180deg)'}} viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+                        <button onClick={scrollNext} className="opynio-nav-arrow opynio-nav-next" type="button" aria-label={tUi('common.next')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
                     </div>
                 </div>
             </div>

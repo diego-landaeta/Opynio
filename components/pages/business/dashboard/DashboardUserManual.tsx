@@ -36,7 +36,8 @@ const ManualCard: React.FC<{ section: DashboardSectionLink; pricingHref: string;
     const base = `manual-${section.id}`;
 
     // El manual es una subruta del panel: '..' sube a la raiz del panel.
-    const destino = locked ? pricingHref : section.subpath === '.' ? '..' : `../${section.subpath}`;
+    // Bloqueada o no, abre su propia seccion: si falta el plan, ahi esta la explicacion con ejemplos y los planes.
+    const destino = section.subpath === '.' ? '..' : `../${section.subpath}`;
 
     const etiqueta = locked
         ? section.lockText
@@ -75,7 +76,7 @@ const ManualCard: React.FC<{ section: DashboardSectionLink; pricingHref: string;
                         dangerouslySetInnerHTML={{ __html: html }}
                     />
                     <span id={`${base}-cta`} className="mt-3 inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-green group-hover:underline">
-                        {locked ? t('businessDashboard.seePlansLink') : t('businessDashboard.manualGoToSection')}
+                        {t('businessDashboard.manualGoToSection')}
                         <i className="fa-solid fa-arrow-right text-[11px] transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true"></i>
                     </span>
                 </div>

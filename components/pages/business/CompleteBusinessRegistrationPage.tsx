@@ -37,7 +37,10 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     // texto: si otra validacion cambia `error`, el enlace deja de mostrarse.
     const [errorAction, setErrorAction] = useState<{ text: string; action: NotificationAction } | null>(null);
 
-    const categoryOptions = Object.keys(CATEGORIES);
+    // Grupos (categoria principal + subcategorias), como en Editar perfil: el
+    // alta solo ofrecia las principales y una academia online quedaba en
+    // «Educación y Formación» sin poder decir que es formacion profesional.
+    const categoryOptions = Object.entries(CATEGORIES);
     const { showNotification } = useNotification();
     const { actionFor } = useUserErrorNotifier();
     const navigate = ReactRouterDOM.useNavigate();
@@ -217,7 +220,14 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     // Intl.DisplayNames, si no el nombre de constants.
     const nombrePais = useCountryName();
     const nombreCategoria = (c: string) => {
-        const k = `categories.${c}`;
+        // «Principal:sub» -> nombre de la subcategoria (locales: subcategories.*).
+        const [main, sub] = c.split(':');
+        if (sub) {
+            const ks = `subcategories.${sub}`;
+            const vs = t(ks);
+            return vs && vs !== ks ? vs : sub.replace(/_/g, ' ');
+        }
+        const k = `categories.${main}`;
         const v = t(k);
         return v && v !== k ? v : c;
     };
@@ -461,8 +471,13 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         className="w-full pl-11 pr-9 py-3.5 text-sm sm:text-base appearance-none border border-gray-300 dark:border-zinc-600 rounded-xl bg-white dark:bg-zinc-900/40 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-green focus:border-transparent transition-all"
                                                     >
                                                         <option value="">{t('businessWizard.selectCategory')}</option>
-                                                        {categoryOptions.map(c => (
-                                                            <option key={c} value={c}>{nombreCategoria(c)}</option>
+                                                        {categoryOptions.map(([main, subs]) => (
+                                                            <optgroup key={main} label={nombreCategoria(main)}>
+                                                                <option value={main}>{nombreCategoria(main)}</option>
+                                                                {subs.map(sub => (
+                                                                    <option key={sub} value={`${main}:${sub}`}>{nombreCategoria(`${main}:${sub}`)}</option>
+                                                                ))}
+                                                            </optgroup>
                                                         ))}
                                                     </select>
                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">

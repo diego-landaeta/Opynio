@@ -15,8 +15,9 @@ export interface DashboardSectionLink extends DashboardSectionDef {
 
 /**
  * Planes en el pais y el idioma de la URL actual (/es/planes, /gb/pricing). Es
- * el destino de todo lo bloqueado del panel: lateral, manual, bloqueos de cada
- * seccion y campos de pago del perfil.
+ * el destino del pago: manual, botones de plan de la pantalla de cada funcion
+ * bloqueada (LockedFeaturePreview) y campos de pago del perfil. El lateral ya no
+ * lleva aqui: un apartado con candado abre su propia pantalla de la funcion.
  */
 export const usePricingHref = (): string => {
     const { language } = useI18n();

@@ -474,8 +474,21 @@ const Header: React.FC = () => {
             if (moreDropdownRef.current && !moreDropdownRef.current.contains(target)) setMoreDropdownOpen(false);
             if (companyDropdownRef.current && !companyDropdownRef.current.contains(target)) setCompanyDropdownOpen(false);
         };
+        // Escape cierra los desplegables (notificaciones, cuenta, idioma, Mas...).
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            setUserDropdownOpen(false);
+            setNotifDropdownOpen(false);
+            setLangDropdownOpen(false);
+            setMoreDropdownOpen(false);
+            setCompanyDropdownOpen(false);
+        };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
     }, []);
 
     const NotificationPrompt: React.FC = () => (
@@ -504,7 +517,7 @@ const Header: React.FC = () => {
     
     const NotificationDropdown: React.FC = () => (
         <div className="relative" ref={notifDropdownRef}>
-            <button onClick={handleNotifClick} className="relative text-gray-600 dark:text-gray-300 hover:text-brand-green transition-colors text-xl w-10 h-10 flex items-center justify-center rounded-full"><i className="fa-regular fa-bell"></i>{unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">{unreadCount}</span>}</button>
+            <button onClick={handleNotifClick} aria-label={t('header.notifications')} aria-expanded={notifDropdownOpen} aria-haspopup="true" className="relative text-gray-600 dark:text-gray-300 hover:text-brand-green transition-colors text-xl w-10 h-10 flex items-center justify-center rounded-full"><i className="fa-regular fa-bell" aria-hidden="true"></i>{unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">{unreadCount}</span>}</button>
             {notifDropdownOpen && (<div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-800 rounded-md shadow-lg z-50 border border-gray-100 dark:border-zinc-700"><div className="px-4 py-3 border-b dark:border-zinc-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t('header.notifications')}</h3></div><div className="max-h-96 overflow-y-auto">{notifications.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">{t('header.noNotifications')}</p> : notifications.map(n => <NotificationItem key={n.id} notification={n} onClick={() => setNotifDropdownOpen(false)} />)}</div></div>)}
         </div>
     );

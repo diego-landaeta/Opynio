@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
@@ -45,7 +45,10 @@ const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) =
     const { business } = useBusinessDashboard();
     const { profile } = useAuth();
     const t = useTranslation();
-    const { navLinks, countryPrefix, paths, pricingHref } = useDashboardNav();
+    const { navLinks, countryPrefix, paths } = useDashboardNav();
+    // El lateral se pinta dos veces (escritorio y cajon de movil): los ids de los
+    // avisos de bloqueo no pueden repetirse.
+    const idBase = useId();
 
     return (
         <>
@@ -72,31 +75,40 @@ const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) =
             <nav className="space-y-1">
                 {navLinks.map(link => {
                     const isLocked = link.locked;
+                    const lockId = `${idBase}-lock-${link.to}`;
                     return (
                         <ReactRouterDOM.NavLink
                             key={link.to}
-                            // Bloqueada: lleva a Planes (en el pais y el idioma de la URL).
-                            to={isLocked ? pricingHref : link.to}
+                            // Bloqueada: abre la pantalla de la funcion (ejemplos, beneficios
+                            // y planes), no el pago. El nombre accesible es solo la etiqueta;
+                            // «Disponible desde el plan X» se lee despues, como descripcion.
+                            to={link.to}
                             end={link.exact}
                             onClick={onNavigate}
-                            title={isLocked ? link.lockText : undefined}
+                            aria-describedby={isLocked ? lockId : undefined}
                             className={({ isActive }) =>
-                                `flex items-center justify-between px-2.5 sm:px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green ${
-                                isActive && !isLocked
+                                `flex items-center justify-between gap-2 px-2.5 sm:px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green ${
+                                isActive
                                     ? 'bg-brand-green/10 text-brand-green'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700'
-                                } ${isLocked ? 'opacity-70' : ''}`
+                                    : isLocked
+                                        ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700'
+                                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700'
+                                }`
                             }
                         >
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                                 <i className={`${link.icon} w-4 sm:w-5 text-center flex-shrink-0`} aria-hidden="true"></i>
-                                <span className="truncate">{link.label}</span>
+                                <span className="min-w-0">
+                                    <span className="block truncate">{link.label}</span>
+                                    {isLocked && (
+                                        <span id={lockId} aria-hidden="true" className="block text-[11px] font-medium leading-tight text-gray-500 dark:text-gray-400">
+                                            {link.lockText}
+                                        </span>
+                                    )}
+                                </span>
                             </div>
                             {isLocked && (
-                                <>
-                                    <i className="fa-solid fa-lock text-xs text-amber-600 dark:text-amber-400 flex-shrink-0" aria-hidden="true"></i>
-                                    <span className="sr-only">{`(${link.lockText})`}</span>
-                                </>
+                                <i className="fa-solid fa-lock text-xs text-amber-600 dark:text-amber-400 flex-shrink-0" aria-hidden="true"></i>
                             )}
                         </ReactRouterDOM.NavLink>
                     );
@@ -351,7 +363,12 @@ const BusinessDashboardPage: React.FC = () => {
                 <DashboardMobileNav />
                 <DashboardSidebar />
                 <main className="flex-grow min-w-0">
-                    <ReactRouterDOM.Outlet />
+                    {/* Cada seccion es un chunk lazy. Sin este Suspense propio, el del App
+                        sustituia TODO el panel (menu y titulo de pestana incluidos) por un
+                        spinner mientras se descargaba la seccion. Asi solo cambia el contenido. */}
+                    <React.Suspense fallback={<div className="flex justify-center items-center py-12 sm:py-16"><Spinner /></div>}>
+                        <ReactRouterDOM.Outlet />
+                    </React.Suspense>
                 </main>
             </div>
         </BusinessDashboardProvider>

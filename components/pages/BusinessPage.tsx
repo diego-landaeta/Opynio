@@ -373,6 +373,14 @@ const BusinessPage: React.FC = () => {
         : 0;
     // Chips de fuente: con producto, sus cifras; mientras llegan, sin cifra.
     const chipSourceCounts = selectedProduct ? (currentProductStats?.data?.sourceCounts ?? null) : sourceCounts;
+    // Fuentes que se ofrecen como chip. Sin ninguna (empresa sin resenas), la
+    // fila «Fuente:» se oculta: antes salia el rotulo solo, sin opciones al lado.
+    const fuentesVisibles = sourceCounts ? (['all', 'opynio', 'google', 'trustindex'] as const).filter(s => {
+        const count = (chipSourceCounts ?? sourceCounts)[s === 'all' ? 'total' : s];
+        // El chip activo no desaparece aunque el producto no tenga resenas de esa
+        // fuente; «Todas» se queda con producto elegido aunque sea (0).
+        return count > 0 || (sourceFilter === s && s !== 'all') || (s === 'all' && !!selectedProduct);
+    }) : [];
 
     // Función de traducción que usa el idioma del PAÍS de la empresa (no el del usuario)
     // Esto asegura que los metadatos estén en el idioma correcto del país
@@ -1371,7 +1379,9 @@ const BusinessPage: React.FC = () => {
                                     <i className="fa-solid fa-globe text-xs"></i>
                                     <span className="truncate">{t('businessPage.offersServicesWorldwideText')}</span>
                                 </div>
-                            ) : (
+                            ) : (hasSedeLocation || !!googleMapsUrlToDisplay || allSedes.length > 1) && (
+                                // «Limitados a sus sedes» solo tiene sentido si hay alguna sede o
+                                // ubicacion configurada; sin ninguna, el aviso no dice nada.
                                 <div title={t('businessPage.limitedServicesToLocationsTitle')} className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 text-gray-800 dark:bg-zinc-700 dark:text-gray-300 px-2.5 sm:px-3 py-1.5 rounded-lg">
                                     <i className="fa-solid fa-map-marker-alt text-xs"></i>
                                     <span className="truncate">{t('businessPage.limitedServicesToLocationsText')}</span>
@@ -1426,29 +1436,24 @@ const BusinessPage: React.FC = () => {
                                         </button>
                                     )}
                                 </div>
+                                {fuentesVisibles.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('businessPage.source')}:</span>
                                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                                        {sourceCounts && [ 'all', 'opynio', 'google', 'trustindex' ].map(s => {
-                                            const key = s === 'all' ? 'total' : s as keyof typeof sourceCounts;
+                                        {fuentesVisibles.map(s => {
+                                            const key = s === 'all' ? 'total' : s;
                                             // Con un producto elegido, las cifras son las de ese
                                             // producto. Mientras llegan (o si fallan) el chip sale
                                             // sin cifra, con la visibilidad de la empresa, en vez de
                                             // una cifra que no es la de lo que se esta viendo.
                                             const scoped = chipSourceCounts;
-                                            const count = (scoped ?? sourceCounts)[key];
-                                            // El chip activo no desaparece aunque el producto no
-                                            // tenga resenas de esa fuente: si no, el filtro seguiria
-                                            // aplicado sin ningun chip que lo muestre ni lo quite.
-                                            // «Todas» se queda con producto elegido aunque sea (0).
-                                            if (count > 0 || (sourceFilter === s && s !== 'all') || (s === 'all' && !!selectedProduct)) {
-                                                const label = selectedProduct && !scoped ? t(`businessPage.${s}`) : `${t(`businessPage.${s}`)} (${count})`;
-                                                return <FilterChip key={s} label={label} isActive={sourceFilter === s} onClick={() => setSourceFilter(s as any)} />;
-                                            }
-                                            return null;
+                                            const count = (scoped ?? sourceCounts!)[key];
+                                            const label = selectedProduct && !scoped ? t(`businessPage.${s}`) : `${t(`businessPage.${s}`)} (${count})`;
+                                            return <FilterChip key={s} label={label} isActive={sourceFilter === s} onClick={() => setSourceFilter(s as any)} />;
                                         })}
                                     </div>
                                 </div>
+                                )}
                                 {/* Barra de estado del filtro. Antes habia aqui un
                                     desplegable de productos: un segundo mando para lo
                                     mismo que las tarjetas de arriba, sin decir cual
@@ -1494,6 +1499,9 @@ const BusinessPage: React.FC = () => {
                                 </div>
                             ) : activeSearch ? (
                                 <PlaceholderMessage icon="fa-magnifying-glass" title={t('businessPage.noSearchResults', { term: activeSearch })} message={t('businessPage.noSearchResultsSubtitle')} />
+                            ) : (sourceFilter === 'all' && ratingFilter === 'all' && !selectedProduct && sourceCounts?.total === 0) ? (
+                                // La empresa no tiene ninguna resena: no es culpa de un filtro.
+                                <PlaceholderMessage icon="fa-comment-slash" title={t('businessPage.noReviewsAtAll')} message={t('businessPage.noReviewsAtAllSubtitle')} />
                             ) : (
                                 <PlaceholderMessage icon="fa-comment-slash" title={t('businessPage.noReviewsMatchingFilter')} message={t('businessPage.noReviewsMatchingFilterSubtitle')} />
                             )}

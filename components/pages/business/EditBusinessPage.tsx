@@ -6,7 +6,7 @@ import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
 import type { BusinessHours, Json, Business, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { CATEGORIES, COUNTRIES, SEDE_COUNTRIES } from '../../../constants';
+import { CATEGORIES, SEDE_COUNTRIES } from '../../../constants';
 import Meta from '../../Meta';
 import L from 'leaflet';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, localizedPath } from '../../../contexts/i18nContext';
@@ -84,13 +84,18 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                 <span>{t(`businessPage.day_${day}`)}</span>
             </label>
 
-            <div className={`grid grid-cols-2 items-center gap-2 transition-opacity ${isClosed ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+            {/* Dia cerrado (tambien los que aun no tienen horario, p. ej. el domingo):
+                antes eran dos campos de hora vacios y apagados que parecian no existir.
+                Ahora se lee «Cerrado»; al marcar el dia aparecen los campos. */}
+            {isClosed ? (
+                <p className="p-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">{t('common.closed')}</p>
+            ) : (
+            <div className="grid grid-cols-2 items-center gap-2">
                 <div className="relative">
                     <input
                         type="time"
-                        value={isClosed ? '' : value.open}
+                        value={value.open}
                         onChange={(e) => handleTimeChange('open', e.target.value)}
-                        disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
                         aria-label={`${t('editBusiness.opens')} · ${t(`businessPage.day_${day}`)}`}
                     />
@@ -99,15 +104,15 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                  <div className="relative">
                     <input
                         type="time"
-                        value={isClosed ? '' : value.close}
+                        value={value.close}
                         onChange={(e) => handleTimeChange('close', e.target.value)}
-                        disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
                         aria-label={`${t('editBusiness.closes')} · ${t(`businessPage.day_${day}`)}`}
                     />
                     <i className="fa-regular fa-clock absolute right-2 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-400 pointer-events-none"></i>
                 </div>
             </div>
+            )}
         </div>
     )
 };
@@ -403,6 +408,8 @@ const EditBusinessPage: React.FC = () => {
     
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
+    const mapResizeRef = useRef<ResizeObserver | null>(null);
+    useEffect(() => () => { mapResizeRef.current?.disconnect(); }, []);
     const markerRef = useRef<L.Marker | null>(null);
     const initialDataLoaded = useRef(false);
 
@@ -437,12 +444,23 @@ const EditBusinessPage: React.FC = () => {
             mapRef.current = L.map(mapContainerRef.current, {
                 center: [40.416775, -3.703790], // Default center on Spain
                 zoom: 6,
+                // La rueda del raton baja la pagina; el mapa solo hace zoom con la
+                // rueda despues de pulsarlo y deja de hacerlo al salir.
+                scrollWheelZoom: false,
             });
+            mapRef.current.on('click', () => mapRef.current?.scrollWheelZoom.enable());
+            mapRef.current.on('mouseout', () => mapRef.current?.scrollWheelZoom.disable());
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(mapRef.current);
 
             setTimeout(() => mapRef.current?.invalidateSize(), 100);
+            // El contenedor cambia de tamano despues de cargar (el formulario
+            // sigue pintandose): sin recalcular, salian teselas sueltas sobre gris.
+            if (typeof ResizeObserver !== 'undefined') {
+                mapResizeRef.current = new ResizeObserver(() => mapRef.current?.invalidateSize());
+                mapResizeRef.current.observe(mapContainerRef.current);
+            }
         }
 
         const map = mapRef.current;
@@ -748,7 +766,10 @@ const EditBusinessPage: React.FC = () => {
                                     required
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent dark:text-gray-200"
                                 >
-                                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryNameOf(c.code, c.name)}</option>)}
+                                    {/* Misma lista que «Añadir sede» (SEDE_COUNTRIES): COUNTRIES no trae
+                                        Venezuela ni China y el desplegable de pais y el de sede se contradecian. */}
+                                    {SEDE_COUNTRIES.filter(c => !c.disabled || c.code === formData.country).map(c => <option key={c.code} value={c.code}>{countryNameOf(c.code, c.name)}</option>)}
+                                    {formData.country && !SEDE_COUNTRIES.some(c => c.code === formData.country) && <option value={formData.country}>{formData.country}</option>}
                                 </select>
                             </div>
                         </div>
@@ -857,6 +878,7 @@ const EditBusinessPage: React.FC = () => {
                                     type="button"
                                     onClick={handleAddressSearch}
                                     disabled={isSearchingAddress}
+                                    aria-label={t('editBusiness.searchAddressButton')}
                                     className="bg-brand-dark text-white font-semibold px-4 py-3 rounded-lg w-16 h-[48px] flex items-center justify-center"
                                 >
                                     {isSearchingAddress ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <i className="fa-solid fa-search"></i>}

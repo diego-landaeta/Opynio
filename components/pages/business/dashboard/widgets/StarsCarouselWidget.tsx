@@ -3,6 +3,7 @@ import type { Business } from '../../../../../types';
 import StaticStarRating from './StaticStarRating';
 import { ProductPillSlot } from './ProductPill';
 import { getPreviewStrings } from './widgetShared';
+import { useTranslation } from '../../../../../contexts/i18nContext';
 
 interface PreviewProps {
     business: Business;
@@ -19,6 +20,7 @@ const DEMO_REVIEWS = [
 
 export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, lang, productName }) => {
     const s = getPreviewStrings(lang);
+    const tUi = useTranslation(); // nombres accesibles en el idioma del panel
     const themeClass = theme === 'dark' ? 'opynio-theme-dark' : 'opynio-theme-light';
     const reviewCount = business.review_count || 123;
     const score = (business.avg_rating || 5).toFixed(1);
@@ -26,24 +28,27 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
 
     const trackRef = useRef<HTMLDivElement>(null);
     const pausedRef = useRef(false);
-    const [currentIndex, setCurrentIndex] = useState(1);
+    // Se ven 3 tarjetas a la vez: hacen falta 3 clones a cada lado (con 1 solo, el
+    // final del recorrido dejaba huecos en blanco en el area de tarjetas).
+    const CLONES = 3;
+    const total = DEMO_REVIEWS.length;
+    const [currentIndex, setCurrentIndex] = useState(CLONES);
     const transitionEnabledRef = useRef(true);
 
     const duplicated = useMemo(() => {
-        if (DEMO_REVIEWS.length === 0) return [];
-        return [DEMO_REVIEWS[DEMO_REVIEWS.length - 1], ...DEMO_REVIEWS, DEMO_REVIEWS[0]];
-    }, []);
+        if (total === 0) return [];
+        const ciclo = (n: number) => Array.from({ length: n }, (_, i) => DEMO_REVIEWS[((i % total) + total) % total]);
+        return [...ciclo(CLONES).reverse(), ...DEMO_REVIEWS, ...ciclo(CLONES)];
+    }, [total]);
 
     const scrollNext = useCallback(() => {
         if (!transitionEnabledRef.current) return;
         setCurrentIndex(prev => prev + 1);
-        transitionEnabledRef.current = true;
     }, []);
 
     const scrollPrev = useCallback(() => {
         if (!transitionEnabledRef.current) return;
         setCurrentIndex(prev => prev - 1);
-        transitionEnabledRef.current = true;
     }, []);
 
     useEffect(() => {
@@ -68,19 +73,26 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
         }
         track.style.transform = `translateX(-${currentIndex * moveDistance}px)`;
 
-        const handleTransitionEnd = () => {
-            if (currentIndex === 0) {
+        // Tras un salto sin animacion (de los clones al tramo real) se vuelve a
+        // permitir avanzar. Antes la marca se quedaba en false para siempre y el
+        // carrusel dejaba de moverse tras la primera vuelta.
+        if (!transitionEnabledRef.current) {
+            requestAnimationFrame(() => requestAnimationFrame(() => { transitionEnabledRef.current = true; }));
+        }
+
+        const handleTransitionEnd = (e: TransitionEvent) => {
+            if (e.target !== track) return; // el hover de las tarjetas tambien emite transitionend
+            if (currentIndex < CLONES || currentIndex >= total + CLONES) {
+                // Modulo, no una sola vuelta: con la pestana en segundo plano o varios
+                // clics seguidos el indice puede pasarse de largo.
                 transitionEnabledRef.current = false;
-                setCurrentIndex(DEMO_REVIEWS.length);
-            } else if (currentIndex === DEMO_REVIEWS.length + 1) {
-                transitionEnabledRef.current = false;
-                setCurrentIndex(1);
+                setCurrentIndex((((currentIndex - CLONES) % total) + total) % total + CLONES);
             }
         };
 
         track.addEventListener('transitionend', handleTransitionEnd);
         return () => { track.removeEventListener('transitionend', handleTransitionEnd); };
-    }, [currentIndex]);
+    }, [currentIndex, total]);
 
     return (
         <div className={`opynio-widget ${themeClass}`}>
@@ -110,11 +122,14 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
 
                     <div className="opynio-stars-carousel-right">
                         <div className="opynio-stars-carousel-cards-area">
-                            <button onClick={scrollPrev} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-prev" type="button" aria-label="Anterior">
+                            <button onClick={scrollPrev} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-prev" type="button" aria-label={tUi('common.previous')}>
                                 <svg style={{ transform: 'rotate(180deg)' }} viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>
                             </button>
-                            <div className="opynio-stars-carousel-cards-container" role="region" aria-label="Reseñas" aria-live="polite" aria-roledescription="carrusel">
-                                <div className="opynio-stars-carousel-track" ref={trackRef}>
+                            <div className="opynio-stars-carousel-cards-container" role="region" aria-label={tUi('common.reviews')} aria-live="polite" aria-roledescription="carrusel">
+                                {/* flex-start: el CSS estrecho (@container < 760px) centra la pista; con la pista mas ancha
+                                    que el area, el desbordamiento se reparte a ambos lados y translateX acaba
+                                    mostrando el hueco: area de tarjetas en blanco. */}
+                                <div className="opynio-stars-carousel-track" ref={trackRef} style={{ justifyContent: 'flex-start' }}>
                                     {duplicated.map((review, index) => (
                                         <a
                                             key={`${review.id}-${index}`}
@@ -134,7 +149,7 @@ export const StarsCarouselPreview: React.FC<PreviewProps> = ({ business, theme, 
                                     ))}
                                 </div>
                             </div>
-                            <button onClick={scrollNext} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-next" type="button" aria-label="Siguiente">
+                            <button onClick={scrollNext} className="opynio-stars-carousel-nav opynio-stars-carousel-nav-next" type="button" aria-label={tUi('common.next')}>
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" /></svg>
                             </button>
                         </div>
