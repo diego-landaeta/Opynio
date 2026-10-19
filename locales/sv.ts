@@ -1380,7 +1380,8 @@ export default {
       'grid': 'Rutnät',
       'badge': 'Märke',
       'wall': 'Recensionsvägg',
-      'stars-carousel': 'Stjärnkarusell'
+      'stars-carousel': 'Stjärnkarusell',
+      'testimonials': 'Recensionssektion'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'En interaktiv karusell som visar dina bästa recensioner tillsammans med ditt totala betyg.',
@@ -1391,7 +1392,8 @@ export default {
       'grid': 'Visar flera recensioner i ett snyggt och prydligt rutnätsformat.',
       'badge': 'Ett enkelt märke för att snabbt visa ditt genomsnittliga betyg.',
       'wall': 'En dynamisk "masonry"-stil recensionsvägg som visar många åsikter samtidigt.',
-      'stars-carousel': 'Stor karusell med ditt totala betyg och en "Se mer"-knapp till vänster, och animerade kort till höger som visar författare + stjärnor.'
+      'stars-carousel': 'Stor karusell med ditt totala betyg och en "Se mer"-knapp till vänster, och animerade kort till höger som visar författare + stjärnor.',
+      'testimonials': 'En komplett sektion för din webbplats: totalbetyg, tre utvalda recensioner, verifieringsmärke och knappen “Se alla recensioner”.'
     },
     billingAndPlanTitle: 'Fakturering och plan',
     yourSubscription: 'Din prenumeration',

@@ -19,7 +19,7 @@ const corsHeaders = {
 // Version de widget.js que deberia estar corriendo. El widget la compara
 // con la suya y, si es mas antigua, se recarga. Tiene que coincidir con la
 // cabecera de public/widget.js: `npm run check:widget` lo comprueba.
-const WIDGET_VERSION = 'v6.10.8';
+const WIDGET_VERSION = 'v6.11.0';
 
 serve(async (req) => {
   // Handle CORS preflight request

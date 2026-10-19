@@ -1,5 +1,5 @@
 /**
- * Opynio Widget Loader v6.10.8
+ * Opynio Widget Loader v6.11.0
  * External script for embedding Opynio review widgets
  * Usage: <script src="https://web.opynio.com/widget.js" async></script>
  *        <div class="opynio-widget" data-business-id="UUID" data-type="badge" data-theme="light"></div>
@@ -45,6 +45,9 @@
  *    barra lateral, encima de las tarjetas en cuadricula y muro) y el nombre
  *    del producto solo sale en su tooltip. El widget conserva el nombre de la
  *    empresa, que tambien arregla el enlace de empresas sin slug.
+ *  - v6.11.0: tipo nuevo data-type="testimonials": seccion completa para la web
+ *    (nota, 3 resenas, banda de verificacion y boton a la ficha), sin caja
+ *    exterior y con carrusel en huecos estrechos. Los 9 tipos anteriores no cambian.
  *
  * Isolation (v6.4.0):
  *  - Human path renders inside a Shadow DOM attached to each widget element.
@@ -78,7 +81,7 @@
     // Version de ESTE fichero. Tiene que coincidir con la cabecera de arriba,
     // con EMBED_VERSION (widgetShared.ts) y con la del widget-proxy.
     // `npm run check:widget` lo comprueba; no te fies de la memoria.
-    var WIDGET_VERSION = 'v6.10.8';
+    var WIDGET_VERSION = 'v6.11.0';
 
     // URL desde la que se cargo este script. Hace falta para poder recargarse a
     // si mismo si el servidor esta sirviendo una version mas nueva.
@@ -574,6 +577,53 @@
             .opynio-stars-carousel-nav { width: 32px; height: 32px; }
         }
 
+        /* Testimonios (v6.11.0): seccion completa para la web del cliente. Sin caja
+           exterior: nota centrada, 3 resenas, banda de verificacion y boton.
+           container-type: responde al ancho de su hueco, no al de la ventana. */
+        .opynio-testi { max-width: 1180px; margin: 0 auto; container-type: inline-size; color: var(--text-color); }
+        .opynio-testi-summary { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; margin-bottom: 34px; }
+        .opynio-testi-score { font-size: 3.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text-color); }
+        .opynio-testi-stars { font-size: 1.6rem; gap: 6px; }
+        .opynio-testi-count { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 1rem; font-weight: 500; color: var(--subtext-color); }
+        .opynio-testi-count svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .opynio-testi-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .opynio-testi-card { display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 20px; border: 2px solid var(--border-color); background: var(--card-bg); text-decoration: none !important; color: inherit !important; outline: none; transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
+        .opynio-testi-card:hover { transform: translateY(-6px); border-color: #00b67a !important; box-shadow: 0 15px 40px rgba(0, 182, 122, 0.15); }
+        .opynio-testi-card:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+        .opynio-testi-head { display: flex; align-items: center; gap: 12px; }
+        .opynio-testi-card .opynio-username { margin-bottom: 2px; }
+        .opynio-testi-card .opynio-stars { font-size: 1.05rem; letter-spacing: 2px; }
+        .opynio-testi-title { margin: 0; font-size: 1.02rem; font-weight: 700; line-height: 1.3; color: var(--text-color); }
+        .opynio-testi-text { margin: 0; flex: 1; font-size: 0.92rem; line-height: 1.6; color: var(--subtext-color); display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+        .opynio-testi-foot { padding-top: 12px; border-top: 1px solid var(--border-color); }
+        .opynio-testi-band { margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; padding: 18px 24px; border-radius: 20px; box-shadow: var(--shadow); text-align: center; }
+        .opynio-theme-light .opynio-testi-band { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+        .opynio-theme-dark .opynio-testi-band { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); }
+        .opynio-testi-band svg { width: 26px; height: 26px; flex-shrink: 0; }
+        .opynio-testi-band-text { font-size: 0.98rem; font-weight: 600; color: var(--text-color); }
+        .opynio-testi-band-brand { padding-left: 14px; border-left: 2px solid rgba(0, 182, 122, 0.25); font-size: 1.3rem; font-weight: 900; line-height: 1; color: #00b67a !important; }
+        .opynio-theme-dark .opynio-testi-band-brand { color: #34d399 !important; }
+        .opynio-testi-footer { display: flex; justify-content: center; margin-top: 30px; }
+        .opynio-testi-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: 50px; background: #00b67a !important; color: #fff !important; font-weight: 700; font-size: 0.92rem; text-decoration: none !important; box-shadow: 0 6px 16px rgba(0, 182, 122, 0.3); transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease; }
+        .opynio-testi-btn:hover { background: #008f5f !important; transform: translateY(-2px); box-shadow: 0 10px 22px rgba(0, 182, 122, 0.4); }
+        .opynio-testi-btn:focus-visible { outline: 3px solid #00b67a; outline-offset: 3px; }
+        .opynio-testi-btn svg { width: 14px; height: 14px; fill: #fff; transition: transform 0.2s ease; }
+        .opynio-testi-btn:hover svg { transform: translateX(2px); }
+        /* Hueco estrecho (movil o columna): las tarjetas pasan a carrusel con
+           scroll-snap y asoma la siguiente. */
+        @container (max-width: 760px) {
+            .opynio-testi-score { font-size: 3rem; }
+            .opynio-testi-stars { font-size: 1.4rem; }
+            .opynio-testi-cards { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; padding: 8px 2px 14px; scrollbar-width: none; }
+            .opynio-testi-cards::-webkit-scrollbar { display: none; }
+            .opynio-testi-card { flex: 0 0 84%; scroll-snap-align: center; }
+            .opynio-testi-band-brand { border-left: 0; padding-left: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .opynio-testi-card, .opynio-testi-btn, .opynio-testi-btn svg { transition: none; }
+            .opynio-testi-card:hover, .opynio-testi-btn:hover { transform: none; }
+        }
+
     `;
 
     // Inject styles into the host's <head>. Only used for the bot path and as a
@@ -948,32 +998,32 @@
 
     // Widget UI strings (static text translations)
     var UI_STRINGS = {
-        es: { productBadge: 'Producto', reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
-        en: { productBadge: 'Product', reviewsOf: 'Reviews of', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
-        fr: { productBadge: 'Produit', reviewsOf: 'Avis sur', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
-        de: { productBadge: 'Produkt', reviewsOf: 'Bewertungen zu', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
-        it: { productBadge: 'Prodotto', reviewsOf: 'Recensioni di', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
-        pt: { productBadge: 'Produto', reviewsOf: 'Avaliações de', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
-        ca: { productBadge: 'Producte', reviewsOf: 'Ressenyes de', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
-        zh: { productBadge: '产品', reviewsOf: '关于', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
-        ja: { productBadge: '商品', reviewsOf: 'レビュー対象', reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
-        ko: { productBadge: '제품', reviewsOf: '리뷰 대상', reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
-        nl: { productBadge: 'Product', reviewsOf: 'Beoordelingen van', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
-        ru: { productBadge: 'Товар', reviewsOf: 'Отзывы о', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
-        ar: { productBadge: 'منتج', reviewsOf: 'تقييمات', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
-        sv: { productBadge: 'Produkt', reviewsOf: 'Omdömen om', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
-        pl: { productBadge: 'Produkt', reviewsOf: 'Opinie o', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
-        vi: { productBadge: 'Sản phẩm', reviewsOf: 'Đánh giá về', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
-        bn: { productBadge: 'পণ্য', reviewsOf: 'পর্যালোচনা', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
-        hi: { productBadge: 'उत्पाद', reviewsOf: 'समीक्षाएँ', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
-        tl: { productBadge: 'Produkto', reviewsOf: 'Mga review ng', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
-        tr: { productBadge: 'Ürün', reviewsOf: 'Değerlendirmeler', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
+        es: { verifiedByOpynio: 'Opiniones verificadas por Opynio', productBadge: 'Producto', reviewsOf: 'Reseñas de', reviews: 'reseñas', outOf5: 'de 5 estrellas', customerRatings: 'Valoración de nuestros clientes', basedOn: 'Basado en {n} reseñas', basedOnAlt: 'A base de <strong>{n} reseñas</strong>', seeMore: 'Ver más', seeAllReviews: 'Ver reseñas completas', writeReview: 'Escribe tu reseña', anonymous: 'Anónimo', noReviews: 'No hay reseñas.', noReviewsText: 'No hay reseñas con texto para mostrar.', multimediaReview: 'Reseña multimedia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUY BUENO', ratingGood: 'BUENO', googleReview: 'Opinión de Google', opynioReview: 'Opinión de Opynio', close: 'Cerrar' },
+        en: { verifiedByOpynio: 'Reviews verified by Opynio', productBadge: 'Product', reviewsOf: 'Reviews of', reviews: 'reviews', outOf5: 'out of 5 stars', customerRatings: 'Our customer ratings', basedOn: 'Based on {n} reviews', basedOnAlt: 'Based on <strong>{n} reviews</strong>', seeMore: 'See more', seeAllReviews: 'See all reviews', writeReview: 'Write a review', anonymous: 'Anonymous', noReviews: 'No reviews.', noReviewsText: 'No reviews with text to show.', multimediaReview: 'Multimedia review.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'VERY GOOD', ratingGood: 'GOOD', googleReview: 'Google Review', opynioReview: 'Opynio Review', close: 'Close' },
+        fr: { verifiedByOpynio: 'Avis vérifiés par Opynio', productBadge: 'Produit', reviewsOf: 'Avis sur', reviews: 'avis', outOf5: 'sur 5 étoiles', customerRatings: 'Évaluation de nos clients', basedOn: 'Basé sur {n} avis', basedOnAlt: 'Basé sur <strong>{n} avis</strong>', seeMore: 'Voir plus', seeAllReviews: 'Voir tous les avis', writeReview: 'Écrire un avis', anonymous: 'Anonyme', noReviews: 'Pas d\'avis.', noReviewsText: 'Pas d\'avis avec du texte.', multimediaReview: 'Avis multimédia.', ratingExcellent: 'EXCELLENT', ratingVeryGood: 'TRÈS BIEN', ratingGood: 'BIEN', googleReview: 'Avis Google', opynioReview: 'Avis Opynio', close: 'Fermer' },
+        de: { verifiedByOpynio: 'Von Opynio verifizierte Bewertungen', productBadge: 'Produkt', reviewsOf: 'Bewertungen zu', reviews: 'Bewertungen', outOf5: 'von 5 Sternen', customerRatings: 'Bewertung unserer Kunden', basedOn: 'Basierend auf {n} Bewertungen', basedOnAlt: 'Basierend auf <strong>{n} Bewertungen</strong>', seeMore: 'Mehr sehen', seeAllReviews: 'Alle Bewertungen ansehen', writeReview: 'Bewertung schreiben', anonymous: 'Anonym', noReviews: 'Keine Bewertungen.', noReviewsText: 'Keine Bewertungen mit Text.', multimediaReview: 'Multimedia-Bewertung.', ratingExcellent: 'AUSGEZEICHNET', ratingVeryGood: 'SEHR GUT', ratingGood: 'GUT', googleReview: 'Google-Bewertung', opynioReview: 'Opynio-Bewertung', close: 'Schließen' },
+        it: { verifiedByOpynio: 'Recensioni verificate da Opynio', productBadge: 'Prodotto', reviewsOf: 'Recensioni di', reviews: 'recensioni', outOf5: 'su 5 stelle', customerRatings: 'Valutazione dei nostri clienti', basedOn: 'Basato su {n} recensioni', basedOnAlt: 'Basato su <strong>{n} recensioni</strong>', seeMore: 'Vedi di più', seeAllReviews: 'Vedi tutte le recensioni', writeReview: 'Scrivi una recensione', anonymous: 'Anonimo', noReviews: 'Nessuna recensione.', noReviewsText: 'Nessuna recensione con testo.', multimediaReview: 'Recensione multimediale.', ratingExcellent: 'ECCELLENTE', ratingVeryGood: 'MOLTO BUONO', ratingGood: 'BUONO', googleReview: 'Recensione Google', opynioReview: 'Recensione Opynio', close: 'Chiudi' },
+        pt: { verifiedByOpynio: 'Avaliações verificadas pelo Opynio', productBadge: 'Produto', reviewsOf: 'Avaliações de', reviews: 'avaliações', outOf5: 'de 5 estrelas', customerRatings: 'Avaliação dos nossos clientes', basedOn: 'Baseado em {n} avaliações', basedOnAlt: 'Baseado em <strong>{n} avaliações</strong>', seeMore: 'Ver mais', seeAllReviews: 'Ver todas as avaliações', writeReview: 'Escrever avaliação', anonymous: 'Anônimo', noReviews: 'Sem avaliações.', noReviewsText: 'Sem avaliações com texto.', multimediaReview: 'Avaliação multimídia.', ratingExcellent: 'EXCELENTE', ratingVeryGood: 'MUITO BOM', ratingGood: 'BOM', googleReview: 'Avaliação do Google', opynioReview: 'Avaliação do Opynio', close: 'Fechar' },
+        ca: { verifiedByOpynio: 'Ressenyes verificades per Opynio', productBadge: 'Producte', reviewsOf: 'Ressenyes de', reviews: 'ressenyes', outOf5: 'de 5 estrelles', customerRatings: 'Valoració dels nostres clients', basedOn: 'Basat en {n} ressenyes', basedOnAlt: 'Basat en <strong>{n} ressenyes</strong>', seeMore: 'Veure més', seeAllReviews: 'Veure totes les ressenyes', writeReview: 'Escriu la teva ressenya', anonymous: 'Anònim', noReviews: 'No hi ha ressenyes.', noReviewsText: 'No hi ha ressenyes amb text.', multimediaReview: 'Ressenya multimèdia.', ratingExcellent: 'EXCEL·LENT', ratingVeryGood: 'MOLT BO', ratingGood: 'BO', googleReview: 'Ressenya de Google', opynioReview: "Ressenya d'Opynio", close: 'Tancar' },
+        zh: { verifiedByOpynio: '经 Opynio 验证的评论', productBadge: '产品', reviewsOf: '关于', reviews: '评论', outOf5: '/ 5 星', customerRatings: '客户评价', basedOn: '基于 {n} 条评论', basedOnAlt: '基于 <strong>{n} 条评论</strong>', seeMore: '查看更多', seeAllReviews: '查看所有评论', writeReview: '写评论', anonymous: '匿名', noReviews: '暂无评论。', noReviewsText: '暂无文字评论。', multimediaReview: '多媒体评论。', ratingExcellent: '优秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 评论', opynioReview: 'Opynio 评论', close: '关闭' },
+        ja: { verifiedByOpynio: 'Opynioが認証したレビュー', productBadge: '商品', reviewsOf: 'レビュー対象', reviews: 'レビュー', outOf5: '/ 5 つ星', customerRatings: 'お客様の評価', basedOn: '{n} 件のレビューに基づく', basedOnAlt: '<strong>{n} 件のレビュー</strong>に基づく', seeMore: 'もっと見る', seeAllReviews: 'すべてのレビューを見る', writeReview: 'レビューを書く', anonymous: '匿名', noReviews: 'レビューはありません。', noReviewsText: 'テキスト付きのレビューはありません。', multimediaReview: 'マルチメディアレビュー。', ratingExcellent: '最高', ratingVeryGood: 'とても良い', ratingGood: '良い', googleReview: 'Google レビュー', opynioReview: 'Opynio レビュー', close: '閉じる' },
+        ko: { verifiedByOpynio: 'Opynio가 인증한 리뷰', productBadge: '제품', reviewsOf: '리뷰 대상', reviews: '리뷰', outOf5: '/ 5 점', customerRatings: '고객 평가', basedOn: '{n}개 리뷰 기반', basedOnAlt: '<strong>{n}개 리뷰</strong> 기반', seeMore: '더 보기', seeAllReviews: '모든 리뷰 보기', writeReview: '리뷰 쓰기', anonymous: '익명', noReviews: '리뷰가 없습니다.', noReviewsText: '텍스트 리뷰가 없습니다.', multimediaReview: '멀티미디어 리뷰.', ratingExcellent: '최고', ratingVeryGood: '매우 좋음', ratingGood: '좋음', googleReview: 'Google 리뷰', opynioReview: 'Opynio 리뷰', close: '닫기' },
+        nl: { verifiedByOpynio: 'Door Opynio geverifieerde beoordelingen', productBadge: 'Product', reviewsOf: 'Beoordelingen van', reviews: 'beoordelingen', outOf5: 'van 5 sterren', customerRatings: 'Klantbeoordelingen', basedOn: 'Gebaseerd op {n} beoordelingen', basedOnAlt: 'Gebaseerd op <strong>{n} beoordelingen</strong>', seeMore: 'Meer zien', seeAllReviews: 'Alle beoordelingen bekijken', writeReview: 'Schrijf een beoordeling', anonymous: 'Anoniem', noReviews: 'Geen beoordelingen.', noReviewsText: 'Geen beoordelingen met tekst.', multimediaReview: 'Multimedia beoordeling.', ratingExcellent: 'UITSTEKEND', ratingVeryGood: 'ZEER GOED', ratingGood: 'GOED', googleReview: 'Google-beoordeling', opynioReview: 'Opynio-beoordeling', close: 'Sluiten' },
+        ru: { verifiedByOpynio: 'Отзывы, проверенные Opynio', productBadge: 'Товар', reviewsOf: 'Отзывы о', reviews: 'отзывов', outOf5: 'из 5 звёзд', customerRatings: 'Оценки наших клиентов', basedOn: 'На основе {n} отзывов', basedOnAlt: 'На основе <strong>{n} отзывов</strong>', seeMore: 'Подробнее', seeAllReviews: 'Все отзывы', writeReview: 'Написать отзыв', anonymous: 'Аноним', noReviews: 'Нет отзывов.', noReviewsText: 'Нет текстовых отзывов.', multimediaReview: 'Мультимедиа отзыв.', ratingExcellent: 'ОТЛИЧНО', ratingVeryGood: 'ОЧЕНЬ ХОРОШО', ratingGood: 'ХОРОШО', googleReview: 'Отзыв Google', opynioReview: 'Отзыв Opynio', close: 'Закрыть' },
+        ar: { verifiedByOpynio: 'تقييمات موثّقة من Opynio', productBadge: 'منتج', reviewsOf: 'تقييمات', reviews: 'تقييمات', outOf5: 'من 5 نجوم', customerRatings: 'تقييمات عملائنا', basedOn: 'بناءً على {n} تقييمات', basedOnAlt: 'بناءً على <strong>{n} تقييمات</strong>', seeMore: 'عرض المزيد', seeAllReviews: 'عرض جميع التقييمات', writeReview: 'اكتب تقييماً', anonymous: 'مجهول', noReviews: 'لا توجد تقييمات.', noReviewsText: 'لا توجد تقييمات نصية.', multimediaReview: 'تقييم وسائط متعددة.', ratingExcellent: 'ممتاز', ratingVeryGood: 'جيد جداً', ratingGood: 'جيد', googleReview: 'مراجعة Google', opynioReview: 'مراجعة Opynio', close: 'إغلاق' },
+        sv: { verifiedByOpynio: 'Recensioner verifierade av Opynio', productBadge: 'Produkt', reviewsOf: 'Omdömen om', reviews: 'recensioner', outOf5: 'av 5 stjärnor', customerRatings: 'Våra kunders betyg', basedOn: 'Baserat på {n} recensioner', basedOnAlt: 'Baserat på <strong>{n} recensioner</strong>', seeMore: 'Se mer', seeAllReviews: 'Se alla recensioner', writeReview: 'Skriv en recension', anonymous: 'Anonym', noReviews: 'Inga recensioner.', noReviewsText: 'Inga recensioner med text.', multimediaReview: 'Multimediarecension.', ratingExcellent: 'UTMÄRKT', ratingVeryGood: 'MYCKET BRA', ratingGood: 'BRA', googleReview: 'Google-recension', opynioReview: 'Opynio-recension', close: 'Stäng' },
+        pl: { verifiedByOpynio: 'Opinie zweryfikowane przez Opynio', productBadge: 'Produkt', reviewsOf: 'Opinie o', reviews: 'opinii', outOf5: 'na 5 gwiazdek', customerRatings: 'Oceny naszych klientów', basedOn: 'Na podstawie {n} opinii', basedOnAlt: 'Na podstawie <strong>{n} opinii</strong>', seeMore: 'Zobacz więcej', seeAllReviews: 'Zobacz wszystkie opinie', writeReview: 'Napisz opinię', anonymous: 'Anonim', noReviews: 'Brak opinii.', noReviewsText: 'Brak opinii z tekstem.', multimediaReview: 'Opinia multimedialna.', ratingExcellent: 'ZNAKOMICIE', ratingVeryGood: 'BARDZO DOBRZE', ratingGood: 'DOBRZE', googleReview: 'Opinia Google', opynioReview: 'Opinia Opynio', close: 'Zamknij' },
+        vi: { verifiedByOpynio: 'Đánh giá được Opynio xác minh', productBadge: 'Sản phẩm', reviewsOf: 'Đánh giá về', reviews: 'đánh giá', outOf5: 'trên 5 sao', customerRatings: 'Đánh giá của khách hàng', basedOn: 'Dựa trên {n} đánh giá', basedOnAlt: 'Dựa trên <strong>{n} đánh giá</strong>', seeMore: 'Xem thêm', seeAllReviews: 'Xem tất cả đánh giá', writeReview: 'Viết đánh giá', anonymous: 'Ẩn danh', noReviews: 'Chưa có đánh giá.', noReviewsText: 'Không có đánh giá nào có văn bản.', multimediaReview: 'Đánh giá đa phương tiện.', ratingExcellent: 'XUẤT SẮC', ratingVeryGood: 'RẤT TỐT', ratingGood: 'TỐT', googleReview: 'Đánh giá Google', opynioReview: 'Đánh giá Opynio', close: 'Đóng' },
+        bn: { verifiedByOpynio: 'Opynio দ্বারা যাচাইকৃত পর্যালোচনা', productBadge: 'পণ্য', reviewsOf: 'পর্যালোচনা', reviews: 'পর্যালোচনা', outOf5: '৫ তারার মধ্যে', customerRatings: 'আমাদের গ্রাহক রেটিং', basedOn: '{n} পর্যালোচনার ভিত্তিতে', basedOnAlt: '<strong>{n} পর্যালোচনার</strong> ভিত্তিতে', seeMore: 'আরও দেখুন', seeAllReviews: 'সব পর্যালোচনা দেখুন', writeReview: 'পর্যালোচনা লিখুন', anonymous: 'নামহীন', noReviews: 'কোনো পর্যালোচনা নেই।', noReviewsText: 'দেখানোর জন্য পাঠ্য সহ কোনো পর্যালোচনা নেই।', multimediaReview: 'মাল্টিমিডিয়া পর্যালোচনা।', ratingExcellent: 'চমৎকার', ratingVeryGood: 'খুব ভালো', ratingGood: 'ভালো', googleReview: 'Google পর্যালোচনা', opynioReview: 'Opynio পর্যালোচনা', close: 'বন্ধ করুন' },
+        hi: { verifiedByOpynio: 'Opynio द्वारा सत्यापित समीक्षाएँ', productBadge: 'उत्पाद', reviewsOf: 'समीक्षाएँ', reviews: 'समीक्षाएँ', outOf5: '5 तारों में से', customerRatings: 'हमारी ग्राहक रेटिंग', basedOn: '{n} समीक्षाओं पर आधारित', basedOnAlt: '<strong>{n} समीक्षाओं</strong> पर आधारित', seeMore: 'और देखें', seeAllReviews: 'सभी समीक्षाएँ देखें', writeReview: 'समीक्षा लिखें', anonymous: 'अनाम', noReviews: 'कोई समीक्षा नहीं।', noReviewsText: 'दिखाने के लिए कोई टेक्स्ट समीक्षा नहीं।', multimediaReview: 'मल्टीमीडिया समीक्षा।', ratingExcellent: 'उत्कृष्ट', ratingVeryGood: 'बहुत अच्छा', ratingGood: 'अच्छा', googleReview: 'Google समीक्षा', opynioReview: 'Opynio समीक्षा', close: 'बंद करें' },
+        tl: { verifiedByOpynio: 'Mga review na na-verify ng Opynio', productBadge: 'Produkto', reviewsOf: 'Mga review ng', reviews: 'mga review', outOf5: 'sa 5 bituin', customerRatings: 'Mga rating ng aming customer', basedOn: 'Batay sa {n} review', basedOnAlt: 'Batay sa <strong>{n} review</strong>', seeMore: 'Tingnan pa', seeAllReviews: 'Tingnan lahat ng review', writeReview: 'Sumulat ng review', anonymous: 'Anonimo', noReviews: 'Walang review.', noReviewsText: 'Walang review na may text upang ipakita.', multimediaReview: 'Multimedia na review.', ratingExcellent: 'NAPAKAHUSAY', ratingVeryGood: 'NAPAKAGANDA', ratingGood: 'MAGANDA', googleReview: 'Google review', opynioReview: 'Opynio review', close: 'Isara' },
+        tr: { verifiedByOpynio: 'Opynio tarafından doğrulanmış yorumlar', productBadge: 'Ürün', reviewsOf: 'Değerlendirmeler', reviews: 'yorum', outOf5: '5 üzerinden', customerRatings: 'Müşteri puanlarımız', basedOn: '{n} yoruma dayanmaktadır', basedOnAlt: '<strong>{n} yoruma</strong> dayanmaktadır', seeMore: 'Daha fazla gör', seeAllReviews: 'Tüm yorumları gör', writeReview: 'Yorum yaz', anonymous: 'Anonim', noReviews: 'Yorum yok.', noReviewsText: 'Gösterilecek metin içeren yorum yok.', multimediaReview: 'Multimedya yorumu.', ratingExcellent: 'MÜKEMMEL', ratingVeryGood: 'ÇOK İYİ', ratingGood: 'İYİ', googleReview: 'Google yorumu', opynioReview: 'Opynio yorumu', close: 'Kapat' },
         // Chino tradicional. Clave con region: 'zh' a secas es el simplificado.
-        'zh-TW': { productBadge: '產品', reviewsOf: '關於', reviews: '評論', outOf5: '/ 5 星', customerRatings: '客戶評價', basedOn: '根據 {n} 則評論', basedOnAlt: '根據 <strong>{n} 則評論</strong>', seeMore: '查看更多', seeAllReviews: '查看所有評論', writeReview: '撰寫評論', anonymous: '匿名', noReviews: '尚無評論。', noReviewsText: '尚無文字評論。', multimediaReview: '多媒體評論。', ratingExcellent: '優秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 評論', opynioReview: 'Opynio 評論', close: '關閉' },
-        id: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'dari 5 bintang', customerRatings: 'Peringkat pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat selengkapnya', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Anonim', noReviews: 'Belum ada ulasan.', noReviewsText: 'Belum ada ulasan dengan teks untuk ditampilkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'LUAR BIASA', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
-        ms: { productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'daripada 5 bintang', customerRatings: 'Penilaian pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat lagi', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Tanpa nama', noReviews: 'Tiada ulasan.', noReviewsText: 'Tiada ulasan bertulis untuk dipaparkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'CEMERLANG', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
-        th: { productBadge: 'สินค้า', reviewsOf: 'รีวิวของ', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', seeMore: 'ดูเพิ่มเติม', seeAllReviews: 'ดูรีวิวทั้งหมด', writeReview: 'เขียนรีวิว', anonymous: 'ไม่ระบุชื่อ', noReviews: 'ยังไม่มีรีวิว', noReviewsText: 'ยังไม่มีรีวิวที่มีข้อความ', multimediaReview: 'รีวิวมัลติมีเดีย', ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', close: 'ปิด' },
-        fa: { productBadge: 'محصول', reviewsOf: 'نظرات درباره', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', seeMore: 'بیشتر ببینید', seeAllReviews: 'مشاهده همه نظرات', writeReview: 'نوشتن نظر', anonymous: 'ناشناس', noReviews: 'هنوز نظری ثبت نشده است.', noReviewsText: 'نظر متنی برای نمایش وجود ندارد.', multimediaReview: 'نظر چندرسانه‌ای.', ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', close: 'بستن' },
+        'zh-TW': { verifiedByOpynio: '經 Opynio 驗證的評論', productBadge: '產品', reviewsOf: '關於', reviews: '評論', outOf5: '/ 5 星', customerRatings: '客戶評價', basedOn: '根據 {n} 則評論', basedOnAlt: '根據 <strong>{n} 則評論</strong>', seeMore: '查看更多', seeAllReviews: '查看所有評論', writeReview: '撰寫評論', anonymous: '匿名', noReviews: '尚無評論。', noReviewsText: '尚無文字評論。', multimediaReview: '多媒體評論。', ratingExcellent: '優秀', ratingVeryGood: '很好', ratingGood: '好', googleReview: 'Google 評論', opynioReview: 'Opynio 評論', close: '關閉' },
+        id: { verifiedByOpynio: 'Ulasan terverifikasi oleh Opynio', productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'dari 5 bintang', customerRatings: 'Peringkat pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat selengkapnya', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Anonim', noReviews: 'Belum ada ulasan.', noReviewsText: 'Belum ada ulasan dengan teks untuk ditampilkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'LUAR BIASA', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
+        ms: { verifiedByOpynio: 'Ulasan disahkan oleh Opynio', productBadge: 'Produk', reviewsOf: 'Ulasan untuk', reviews: 'ulasan', outOf5: 'daripada 5 bintang', customerRatings: 'Penilaian pelanggan kami', basedOn: 'Berdasarkan {n} ulasan', basedOnAlt: 'Berdasarkan <strong>{n} ulasan</strong>', seeMore: 'Lihat lagi', seeAllReviews: 'Lihat semua ulasan', writeReview: 'Tulis ulasan', anonymous: 'Tanpa nama', noReviews: 'Tiada ulasan.', noReviewsText: 'Tiada ulasan bertulis untuk dipaparkan.', multimediaReview: 'Ulasan multimedia.', ratingExcellent: 'CEMERLANG', ratingVeryGood: 'SANGAT BAIK', ratingGood: 'BAIK', googleReview: 'Ulasan Google', opynioReview: 'Ulasan Opynio', close: 'Tutup' },
+        th: { verifiedByOpynio: 'รีวิวที่ผ่านการยืนยันโดย Opynio', productBadge: 'สินค้า', reviewsOf: 'รีวิวของ', reviews: 'รีวิว', outOf5: 'จาก 5 ดาว', customerRatings: 'คะแนนจากลูกค้าของเรา', basedOn: 'จาก {n} รีวิว', basedOnAlt: 'จาก <strong>{n} รีวิว</strong>', seeMore: 'ดูเพิ่มเติม', seeAllReviews: 'ดูรีวิวทั้งหมด', writeReview: 'เขียนรีวิว', anonymous: 'ไม่ระบุชื่อ', noReviews: 'ยังไม่มีรีวิว', noReviewsText: 'ยังไม่มีรีวิวที่มีข้อความ', multimediaReview: 'รีวิวมัลติมีเดีย', ratingExcellent: 'ยอดเยี่ยม', ratingVeryGood: 'ดีมาก', ratingGood: 'ดี', googleReview: 'รีวิว Google', opynioReview: 'รีวิว Opynio', close: 'ปิด' },
+        fa: { verifiedByOpynio: 'نظرات تأییدشده توسط Opynio', productBadge: 'محصول', reviewsOf: 'نظرات درباره', reviews: 'نظر', outOf5: 'از 5 ستاره', customerRatings: 'امتیاز مشتریان ما', basedOn: 'بر اساس {n} نظر', basedOnAlt: 'بر اساس <strong>{n} نظر</strong>', seeMore: 'بیشتر ببینید', seeAllReviews: 'مشاهده همه نظرات', writeReview: 'نوشتن نظر', anonymous: 'ناشناس', noReviews: 'هنوز نظری ثبت نشده است.', noReviewsText: 'نظر متنی برای نمایش وجود ندارد.', multimediaReview: 'نظر چندرسانه‌ای.', ratingExcellent: 'عالی', ratingVeryGood: 'خیلی خوب', ratingGood: 'خوب', googleReview: 'نظر Google', opynioReview: 'نظر Opynio', close: 'بستن' },
     };
 
     // Alias regional variants (gb, au, sg, ie, at, en-*, de-*) to their canonical
@@ -1223,6 +1273,14 @@
         var rating = (business.avg_rating || 0).toFixed(1);
         var count = business.review_count || 0;
         el.innerHTML = '<a href="' + getBusinessUrl(business) + '" rel="noopener nofollow" class="opynio-widget-link"><div class="opynio-badge"><div class="opynio-badge-content"><div class="opynio-badge-logo">Opynio</div><div><div class="opynio-stars">' + generateStars(business.avg_rating) + '</div><div class="opynio-badge-text">' + rating + ' ' + s.outOf5 + '</div><div class="opynio-badge-count">' + count + ' ' + s.reviews + '</div></div></div></div></a>';
+    }
+
+    // Etiqueta de origen de una resena (Google u Opynio). La usa 'testimonials'.
+    function sourceBadgeHtml(source, s) {
+        if (String(source || 'opynio').toLowerCase().trim() === 'google') {
+            return '<div class="opynio-google-badge"><svg class="opynio-google-logo" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span class="opynio-google-text">' + s.googleReview + '</span></div>';
+        }
+        return '<div class="opynio-opynio-badge"><svg viewBox="0 0 24 24" fill="#00b67a" style="width:14px;height:14px" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="opynio-opynio-text">' + s.opynioReview + '</span></div>';
     }
 
     // Widget Renderers — signature: (root, el, business, reviews, s)
@@ -1506,6 +1564,37 @@
             nextBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(1); start(); };
             prevBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); scroll(-1); start(); };
             start();
+        },
+
+        // Testimonios (v6.11.0): seccion completa para la web del cliente. Nota
+        // centrada, 3 resenas, banda de verificacion y boton a la ficha. Elige
+        // primero las de 4-5 estrellas y completa con las demas si hay menos de 3.
+        'testimonials': function(root, el, business, reviews, s) {
+            var ITEMS = 3;
+            var url = getBusinessUrl(business);
+            var altas = reviews.filter(function(r) { return r.rating >= 4; });
+            var resto = reviews.filter(function(r) { return !(r.rating >= 4); });
+            var elegidas = altas.concat(resto).slice(0, ITEMS);
+            var check = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="#00b67a"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            var rating = (business.avg_rating || 0).toFixed(1);
+            var verified = s.verifiedByOpynio || UI_STRINGS.en.verifiedByOpynio;
+            var cards = elegidas.map(function(r) {
+                return '<a class="opynio-testi-card" href="' + url + '" target="_blank" rel="noopener nofollow">'
+                    + '<div class="opynio-testi-head"><div class="opynio-avatar-placeholder">' + initialHtml(r.raw.original_author_name || 'A') + '</div>'
+                    + '<div><div class="opynio-username">' + (r.original_author_name || s.anonymous) + '</div><div class="opynio-stars">' + generateStars(r.rating) + '</div></div></div>'
+                    + (r.title ? '<h3 class="opynio-testi-title">' + r.title + '</h3>' : '')
+                    + '<p class="opynio-testi-text">' + (r.review_text || '') + '</p>'
+                    + '<div class="opynio-testi-foot">' + sourceBadgeHtml(r.source, s) + '</div></a>';
+            }).join('');
+            root.innerHTML = '<div class="opynio-testi">'
+                + productPillSlot(business, s)
+                + '<div class="opynio-testi-summary"><div class="opynio-testi-score">' + rating + '</div>'
+                + '<div class="opynio-stars opynio-testi-stars" role="img" aria-label="' + rating + ' ' + s.outOf5 + '">' + generateStars(business.avg_rating) + '</div>'
+                + '<div class="opynio-testi-count">' + check + '<span>' + s.basedOn.replace('{n}', business.review_count || 0) + '</span></div></div>'
+                + '<div class="opynio-testi-cards">' + cards + '</div>'
+                + '<div class="opynio-testi-band">' + check + '<span class="opynio-testi-band-text">' + verified + '</span><span class="opynio-testi-band-brand">Opynio</span></div>'
+                + '<div class="opynio-testi-footer"><a class="opynio-testi-btn" href="' + url + '" target="_blank" rel="noopener nofollow">' + s.seeAllReviews + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 5.3 15.3 12l-6.7 6.7-1.4-1.4L12.5 12 7.2 6.7z"/></svg></a></div>'
+                + '</div>';
         }
     };
 
@@ -1645,7 +1734,8 @@
         'showcase': 440,
         'large-carousel': 380,
         'horizontal-carousel': 440,
-        'stars-carousel': 320
+        'stars-carousel': 320,
+        'testimonials': 680
     };
 
     // 768px - 1023px
@@ -1658,7 +1748,8 @@
         'showcase': 630,
         'large-carousel': 380,
         'horizontal-carousel': 810,
-        'stars-carousel': 460
+        'stars-carousel': 460,
+        'testimonials': 680
     };
 
     // Menos de 768px
@@ -1671,7 +1762,8 @@
         'showcase': 930,
         'large-carousel': 380,
         'horizontal-carousel': 640,
-        'stars-carousel': 450
+        'stars-carousel': 450,
+        'testimonials': 740
     };
 
     function minHeightForType(type) {
@@ -1696,7 +1788,8 @@
         'showcase': 300,
         'large-carousel': 300,
         'horizontal-carousel': 300,
-        'stars-carousel': 300
+        'stars-carousel': 300,
+        'testimonials': 300
     };
 
     // Applies a default only when the host hasn't set that property itself, inline or

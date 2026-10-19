@@ -1384,7 +1384,8 @@ export default {
       'grid': 'Grelha',
       'badge': 'Selo',
       'wall': 'Mural de Análises',
-      'stars-carousel': 'Carrossel de Estrelas'
+      'stars-carousel': 'Carrossel de Estrelas',
+      'testimonials': 'Seção de avaliações'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Um carrossel interativo que exibe as suas melhores análises juntamente com a sua pontuação geral.',
@@ -1395,7 +1396,8 @@ export default {
       'grid': 'Exibe várias análises num formato de grelha limpo e ordenado.',
       'badge': 'Um selo simples para mostrar rapidamente a sua pontuação média.',
       'wall': 'Um mural de análises dinâmico estilo "masonry" que exibe muitas opiniões de uma só vez.',
-      'stars-carousel': 'Carrossel grande com a sua pontuação geral e um botão "Ver mais" à esquerda, e cartões animados à direita com autor + estrelas.'
+      'stars-carousel': 'Carrossel grande com a sua pontuação geral e um botão "Ver mais" à esquerda, e cartões animados à direita com autor + estrelas.',
+      'testimonials': 'Seção completa para o seu site: nota geral, três avaliações em destaque, selo de verificação e botão “Ver todas as avaliações”.'
     },
     billingAndPlanTitle: 'Faturação e Plano',
     yourSubscription: 'A Sua Assinatura',

@@ -1302,7 +1302,8 @@ export default {
       'grid': '网格',
       'badge': '徽章',
       'wall': '评论墙',
-      'stars-carousel': '星级轮播'
+      'stars-carousel': '星级轮播',
+      'testimonials': '评论专区'
     },
     widgetDescriptions: {
       'horizontal-carousel': '交互式轮播，展示您最好的评论和整体评分。',
@@ -1313,7 +1314,8 @@ export default {
       'grid': '以清晰有序的网格格式显示多条评论。',
       'badge': '快速显示平均评分的简单徽章。',
       'wall': '动态"砌体"风格的评论墙，一次显示许多意见。',
-      'stars-carousel': '大型轮播：左侧显示综合评分和"查看更多"按钮，右侧动态卡片显示作者和星级。'
+      'stars-carousel': '大型轮播：左侧显示综合评分和"查看更多"按钮，右侧动态卡片显示作者和星级。',
+      'testimonials': '适用于您网站的完整板块：总评分、三条精选评论、验证标识和“查看所有评论”按钮。'
     },
     billingAndPlanTitle: '账单和方案',
     yourSubscription: '您的订阅',

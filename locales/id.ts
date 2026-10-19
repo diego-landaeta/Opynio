@@ -1383,7 +1383,8 @@ export default {
       'grid': 'Grid',
       'badge': 'Lencana',
       'wall': 'Dinding Ulasan',
-      'stars-carousel': 'Carousel Bintang'
+      'stars-carousel': 'Carousel Bintang',
+      'testimonials': 'Bagian ulasan'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Carousel interaktif yang menampilkan ulasan terbaik Anda beserta skor keseluruhan.',
@@ -1394,7 +1395,8 @@ export default {
       'grid': 'Menampilkan beberapa ulasan dalam format grid yang rapi dan teratur.',
       'badge': 'Lencana sederhana untuk menampilkan skor rata-rata Anda dengan cepat.',
       'wall': 'Dinding ulasan gaya "masonry" yang dinamis menampilkan banyak pendapat sekaligus.',
-      'stars-carousel': 'Carousel besar dengan skor keseluruhan dan tombol "Lihat selengkapnya" di kiri, serta kartu animasi di kanan yang menampilkan penulis + bintang.'
+      'stars-carousel': 'Carousel besar dengan skor keseluruhan dan tombol "Lihat selengkapnya" di kiri, serta kartu animasi di kanan yang menampilkan penulis + bintang.',
+      'testimonials': 'Bagian lengkap untuk situs Anda: skor keseluruhan, tiga ulasan pilihan, segel verifikasi, dan tombol “Lihat semua ulasan”.'
     },
     billingAndPlanTitle: 'Tagihan & Paket',
     yourSubscription: 'Langganan Anda',

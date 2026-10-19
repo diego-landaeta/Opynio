@@ -1381,7 +1381,8 @@ export default {
       'grid': '그리드',
       'badge': '배지',
       'wall': '리뷰 월',
-      'stars-carousel': '별점 캐러셀'
+      'stars-carousel': '별점 캐러셀',
+      'testimonials': '리뷰 섹션'
     },
     widgetDescriptions: {
       'horizontal-carousel': '최고의 리뷰와 전체 점수를 함께 표시하는 인터랙티브 캐러셀입니다.',
@@ -1392,7 +1393,8 @@ export default {
       'grid': '여러 리뷰를 깔끔하고 정돈된 그리드 형식으로 표시합니다.',
       'badge': '평균 점수를 빠르게 표시하는 간단한 배지입니다.',
       'wall': '한 번에 많은 의견을 표시하는 동적 "벽돌식" 리뷰 월입니다.',
-      'stars-carousel': '왼쪽에 전체 점수와 "더 보기" 버튼이 있고 오른쪽에 작성자 + 별점을 표시하는 애니메이션 카드가 있는 대형 캐러셀입니다.'
+      'stars-carousel': '왼쪽에 전체 점수와 "더 보기" 버튼이 있고 오른쪽에 작성자 + 별점을 표시하는 애니메이션 카드가 있는 대형 캐러셀입니다.',
+      'testimonials': '웹사이트용 완성형 섹션: 전체 평점, 주요 리뷰 3개, 인증 마크, “모든 리뷰 보기” 버튼.'
     },
     billingAndPlanTitle: '청구 & 플랜',
     yourSubscription: '구독',

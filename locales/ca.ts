@@ -1382,7 +1382,8 @@ export default {
       'grid': 'Graella',
       'badge': 'Insígnia',
       'wall': 'Mur de Ressenyes',
-      'stars-carousel': 'Carrusel d\'Estrelles'
+      'stars-carousel': 'Carrusel d\'Estrelles',
+      'testimonials': 'Secció de ressenyes'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Un carrusel interactiu que mostra les teves millors ressenyes juntament amb la teva puntuació general.',
@@ -1393,7 +1394,8 @@ export default {
       'grid': 'Mostra diverses ressenyes en un format de graella net i ordenat.',
       'badge': 'Una insígnia simple per mostrar ràpidament la teva puntuació mitjana.',
       'wall': 'Un mur de ressenyes dinàmic estil "masonry" que mostra moltes opinions a la vegada.',
-      'stars-carousel': 'Carrusel gran amb la teva nota global i un botó "Veure més" a l\'esquerra, i targetes animades a la dreta amb autor + estrelles.'
+      'stars-carousel': 'Carrusel gran amb la teva nota global i un botó "Veure més" a l\'esquerra, i targetes animades a la dreta amb autor + estrelles.',
+      'testimonials': 'Secció completa per al teu web: nota global, tres ressenyes destacades, segell de verificació i botó “Veure totes les ressenyes”.'
     },
     billingAndPlanTitle: 'Facturació i Pla',
     yourSubscription: 'La Teva Subscripció',

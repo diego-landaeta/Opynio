@@ -1381,7 +1381,8 @@ export default {
       'grid': 'Raster',
       'badge': 'Badge',
       'wall': 'Beoordelingsmuur',
-      'stars-carousel': 'Sterrencarrousel'
+      'stars-carousel': 'Sterrencarrousel',
+      'testimonials': 'Beoordelingssectie'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Een interactieve carrousel die je beste beoordelingen toont samen met je algemene score.',
@@ -1392,7 +1393,8 @@ export default {
       'grid': 'Toont meerdere beoordelingen in een nette en ordelijke rasterindeling.',
       'badge': 'Een eenvoudige badge om je gemiddelde score snel te tonen.',
       'wall': 'Een dynamische "masonry"-stijl beoordelingsmuur die veel meningen tegelijk toont.',
-      'stars-carousel': 'Grote carrousel met je algemene score en een "Meer bekijken"-knop links, en geanimeerde kaarten rechts met auteur en sterren.'
+      'stars-carousel': 'Grote carrousel met je algemene score en een "Meer bekijken"-knop links, en geanimeerde kaarten rechts met auteur en sterren.',
+      'testimonials': 'Een complete sectie voor je website: totaalscore, drie uitgelichte beoordelingen, verificatiezegel en de knop “Alle beoordelingen bekijken”.'
     },
     billingAndPlanTitle: 'Facturatie en abonnement',
     yourSubscription: 'Je abonnement',

@@ -1382,7 +1382,8 @@ export default {
       'grid': 'Grid',
       'badge': 'Badge',
       'wall': 'Review Wall',
-      'stars-carousel': 'Stars Carousel'
+      'stars-carousel': 'Stars Carousel',
+      'testimonials': 'Reviews Section'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'An interactive carousel that displays your best reviews alongside your overall score.',
@@ -1393,7 +1394,8 @@ export default {
       'grid': 'Displays multiple reviews in a clean and orderly grid format.',
       'badge': 'A simple badge to quickly show your average score.',
       'wall': 'A dynamic "masonry" style review wall that displays many opinions at once.',
-      'stars-carousel': 'Large carousel with your overall score and a "See more" button on the left, and animated cards on the right showing author + stars.'
+      'stars-carousel': 'Large carousel with your overall score and a "See more" button on the left, and animated cards on the right showing author + stars.',
+      'testimonials': 'A complete section for your site: overall score, three featured reviews, a verification seal and a “See all reviews” button.'
     },
     billingAndPlanTitle: 'Billing & Plan',
     yourSubscription: 'Your Subscription',

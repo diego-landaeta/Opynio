@@ -1380,7 +1380,8 @@ export default {
       'grid': 'Siatka',
       'badge': 'Odznaka',
       'wall': 'Ściana opinii',
-      'stars-carousel': 'Karuzela gwiazdek'
+      'stars-carousel': 'Karuzela gwiazdek',
+      'testimonials': 'Sekcja opinii'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Interaktywna karuzela wyświetlająca najlepsze opinie wraz z ogólną oceną.',
@@ -1391,7 +1392,8 @@ export default {
       'grid': 'Wyświetla wiele opinii w schludnym i uporządkowanym formacie siatki.',
       'badge': 'Prosta odznaka do szybkiego pokazania średniej oceny.',
       'wall': 'Dynamiczna ściana opinii w stylu "masonry" wyświetlająca wiele opinii naraz.',
-      'stars-carousel': 'Duża karuzela z ogólną oceną i przyciskiem "Zobacz więcej" po lewej, oraz animowanymi kartami po prawej pokazującymi autora i gwiazdki.'
+      'stars-carousel': 'Duża karuzela z ogólną oceną i przyciskiem "Zobacz więcej" po lewej, oraz animowanymi kartami po prawej pokazującymi autora i gwiazdki.',
+      'testimonials': 'Kompletna sekcja dla Twojej strony: ocena ogólna, trzy wyróżnione opinie, znak weryfikacji i przycisk „Zobacz wszystkie opinie”.'
     },
     billingAndPlanTitle: 'Płatności i plan',
     yourSubscription: 'Twoja subskrypcja',

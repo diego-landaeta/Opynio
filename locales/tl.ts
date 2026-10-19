@@ -1382,7 +1382,8 @@ export default {
       'grid': 'Grid',
       'badge': 'Badge',
       'wall': 'Review Wall',
-      'stars-carousel': 'Stars Carousel'
+      'stars-carousel': 'Stars Carousel',
+      'testimonials': 'Seksyon ng mga review'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Isang interactive na carousel na nagpapakita ng iyong pinakamagagandang review kasama ang iyong overall score.',
@@ -1393,7 +1394,8 @@ export default {
       'grid': 'Nagpapakita ng maraming review sa malinis at maayos na grid format.',
       'badge': 'Isang simpleng badge upang mabilis na ipakita ang iyong average score.',
       'wall': 'Isang dynamic na "masonry" style review wall na nagpapakita ng maraming opinyon sa isang pagkakataon.',
-      'stars-carousel': 'Malaking carousel kasama ang iyong overall score at isang "See more" button sa kaliwa, at mga animated card sa kanan na nagpapakita ng author + stars.'
+      'stars-carousel': 'Malaking carousel kasama ang iyong overall score at isang "See more" button sa kaliwa, at mga animated card sa kanan na nagpapakita ng author + stars.',
+      'testimonials': 'Kumpletong seksyon para sa iyong website: kabuuang rating, tatlong napiling review, selyo ng beripikasyon at button na “Tingnan lahat ng review”.'
     },
     billingAndPlanTitle: 'Billing at Plan',
     yourSubscription: 'Iyong Subscription',

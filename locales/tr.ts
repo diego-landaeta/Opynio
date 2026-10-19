@@ -2137,7 +2137,8 @@ export default {
       'grid': 'Izgara',
       'badge': 'Rozet',
       'wall': 'Yorum Duvarı',
-      'stars-carousel': 'Yıldız Karuseli'
+      'stars-carousel': 'Yıldız Karuseli',
+      'testimonials': 'Yorum bölümü'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'En iyi yorumlarınızı genel puanınızla birlikte gösteren etkileşimli bir karusel.',
@@ -2148,7 +2149,8 @@ export default {
       'grid': 'Birden fazla yorumu temiz ve düzenli bir ızgara biçiminde gösterir.',
       'badge': 'Ortalama puanınızı hızlıca göstermek için basit bir rozet.',
       'wall': 'Aynı anda birçok görüşü gösteren dinamik "taş duvar" tarzı yorum duvarı.',
-      'stars-carousel': 'Solda genel puanınız ve "Daha fazla gör" düğmesi, sağda yazar ve yıldızları gösteren animasyonlu kartlar bulunan büyük karusel.'
+      'stars-carousel': 'Solda genel puanınız ve "Daha fazla gör" düğmesi, sağda yazar ve yıldızları gösteren animasyonlu kartlar bulunan büyük karusel.',
+      'testimonials': 'Web siteniz için eksiksiz bir bölüm: genel puan, öne çıkan üç yorum, doğrulama mührü ve “Tüm yorumları gör” düğmesi.'
     },
     billingAndPlanTitle: 'Faturalandırma ve Plan',
     yourSubscription: 'Aboneliğiniz',

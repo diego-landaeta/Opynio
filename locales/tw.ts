@@ -1383,7 +1383,8 @@ export default {
       'grid': '網格',
       'badge': '徽章',
       'wall': '評論牆',
-      'stars-carousel': '星級輪播'
+      'stars-carousel': '星級輪播',
+      'testimonials': '評論專區'
     },
     widgetDescriptions: {
       'horizontal-carousel': '互動式輪播，展示您最好的評論和整體評分。',
@@ -1394,7 +1395,8 @@ export default {
       'grid': '以清晰有序的網格格式顯示多則評論。',
       'badge': '快速顯示平均評分的簡單徽章。',
       'wall': '動態「瀑布流」風格的評論牆，一次顯示許多意見。',
-      'stars-carousel': '大型輪播：左側顯示綜合評分和「查看更多」按鈕，右側動態卡片顯示作者和星級。'
+      'stars-carousel': '大型輪播：左側顯示綜合評分和「查看更多」按鈕，右側動態卡片顯示作者和星級。',
+      'testimonials': '適用於您網站的完整區塊：總評分、三則精選評論、驗證標章與「查看所有評論」按鈕。'
     },
     billingAndPlanTitle: '帳單與方案',
     yourSubscription: '您的訂閱',

@@ -113,12 +113,14 @@ import { GridPreview } from './widgets/GridWidget';
 import { BadgePreview } from './widgets/BadgeWidget';
 import { WallPreview } from './widgets/WallWidget';
 import { StarsCarouselPreview } from './widgets/StarsCarouselWidget';
+import { TestimonialsPreview } from './widgets/TestimonialsWidget';
 
 
 type WidgetCardConfig = WidgetConfig & { icon: string };
 
 const WIDGETS: WidgetCardConfig[] = [
     { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel', icon: 'fa-star' },
+    { name: 'testimonials', description: 'businessDashboard.widgetDescriptions.testimonials', component: TestimonialsPreview, type: 'testimonials', icon: 'fa-comments' },
     { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel', icon: 'fa-arrows-left-right' },
     { name: 'showcase', description: 'businessDashboard.widgetDescriptions.showcase', component: ShowcasePreview, type: 'showcase', icon: 'fa-store' },
     { name: 'large-carousel', description: 'businessDashboard.widgetDescriptions.large-carousel', component: LargeCarouselPreview, type: 'large-carousel', icon: 'fa-images' },

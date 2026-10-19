@@ -1383,7 +1383,8 @@ export default {
       'grid': 'Lưới',
       'badge': 'Huy hiệu',
       'wall': 'Tường đánh giá',
-      'stars-carousel': 'Bảng trượt sao'
+      'stars-carousel': 'Bảng trượt sao',
+      'testimonials': 'Khối đánh giá'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Bảng trượt tương tác hiển thị các đánh giá tốt nhất cùng với điểm tổng thể của bạn.',
@@ -1394,7 +1395,8 @@ export default {
       'grid': 'Hiển thị nhiều đánh giá theo dạng lưới gọn gàng và có trật tự.',
       'badge': 'Huy hiệu đơn giản để hiển thị nhanh điểm trung bình của bạn.',
       'wall': 'Tường đánh giá kiểu "masonry" động, hiển thị nhiều ý kiến cùng lúc.',
-      'stars-carousel': 'Bảng trượt lớn với điểm tổng thể và nút "Xem thêm" bên trái, và thẻ động hiển thị tác giả + sao bên phải.'
+      'stars-carousel': 'Bảng trượt lớn với điểm tổng thể và nút "Xem thêm" bên trái, và thẻ động hiển thị tác giả + sao bên phải.',
+      'testimonials': 'Một khối hoàn chỉnh cho website: điểm tổng, ba đánh giá nổi bật, dấu xác minh và nút “Xem tất cả đánh giá”.'
     },
     billingAndPlanTitle: 'Thanh toán & Gói dịch vụ',
     yourSubscription: 'Đăng ký của bạn',

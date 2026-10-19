@@ -1382,7 +1382,8 @@ export default {
       'grid': 'Grille',
       'badge': 'Badge',
       'wall': 'Mur d\'Avis',
-      'stars-carousel': 'Carrousel d\'Étoiles'
+      'stars-carousel': 'Carrousel d\'Étoiles',
+      'testimonials': 'Section d’avis'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Un carrousel interactif qui affiche vos meilleurs avis ainsi que votre note globale.',
@@ -1393,7 +1394,8 @@ export default {
       'grid': 'Affiche plusieurs avis dans un format de grille propre et ordonné.',
       'badge': 'Un badge simple pour afficher rapidement votre note moyenne.',
       'wall': 'Un mur d\'avis dynamique de style "masonry" qui affiche de nombreuses opinions à la fois.',
-      'stars-carousel': 'Grand carrousel avec votre note globale et un bouton "Voir plus" à gauche, et des cartes animées affichant l\'auteur + étoiles à droite.'
+      'stars-carousel': 'Grand carrousel avec votre note globale et un bouton "Voir plus" à gauche, et des cartes animées affichant l\'auteur + étoiles à droite.',
+      'testimonials': 'Section complète pour votre site : note globale, trois avis mis en avant, sceau de vérification et bouton « Voir tous les avis ».'
     },
     billingAndPlanTitle: 'Facturation et Plan',
     yourSubscription: 'Votre Abonnement',

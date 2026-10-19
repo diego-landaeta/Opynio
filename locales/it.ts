@@ -1382,7 +1382,8 @@ export default {
       'grid': 'Griglia',
       'badge': 'Badge',
       'wall': 'Muro di Recensioni',
-      'stars-carousel': 'Carosello di Stelle'
+      'stars-carousel': 'Carosello di Stelle',
+      'testimonials': 'Sezione recensioni'
     },
     widgetDescriptions: {
       'horizontal-carousel': 'Un carosello interattivo che mostra le tue migliori recensioni insieme al tuo punteggio generale.',
@@ -1393,7 +1394,8 @@ export default {
       'grid': 'Mostra più recensioni in un formato a griglia pulito e ordinato.',
       'badge': 'Un semplice badge per mostrare rapidamente il tuo punteggio medio.',
       'wall': 'Un muro di recensioni dinamico in stile "masonry" che mostra molte opinioni contemporaneamente.',
-      'stars-carousel': 'Carosello grande con il tuo punteggio complessivo e un pulsante "Vedi di più" a sinistra, e carte animate a destra con autore + stelle.'
+      'stars-carousel': 'Carosello grande con il tuo punteggio complessivo e un pulsante "Vedi di più" a sinistra, e carte animate a destra con autore + stelle.',
+      'testimonials': 'Sezione completa per il tuo sito: voto complessivo, tre recensioni in evidenza, sigillo di verifica e pulsante “Vedi tutte le recensioni”.'
     },
     billingAndPlanTitle: 'Fatturazione e Piano',
     yourSubscription: 'La Tua Sottoscrizione',
