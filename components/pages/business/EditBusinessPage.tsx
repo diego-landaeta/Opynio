@@ -387,6 +387,8 @@ const EditBusinessPage: React.FC = () => {
         website_url: '',
         twitter: '',
         instagram: '',
+        facebook: '',
+        linkedin: '',
         logo_url: '',
         google_maps_url: '',
         category: '',
@@ -420,6 +422,8 @@ const EditBusinessPage: React.FC = () => {
                 website_url: business.website_url || '',
                 twitter: (business.social_links as any)?.twitter || '',
                 instagram: (business.social_links as any)?.instagram || '',
+                facebook: (business.social_links as any)?.facebook || '',
+                linkedin: (business.social_links as any)?.linkedin || '',
                 logo_url: business.logo_url || '',
                 google_maps_url: business.google_maps_url || '',
                 category: business.category || '',
@@ -567,6 +571,8 @@ const EditBusinessPage: React.FC = () => {
             const social_links = {
                 twitter: formData.twitter.trim(),
                 instagram: formData.instagram.trim(),
+                facebook: formData.facebook.trim(),
+                linkedin: formData.linkedin.trim(),
             };
             
             const cleanedHorarios: BusinessHours = {};
@@ -589,7 +595,7 @@ const EditBusinessPage: React.FC = () => {
             const updates = withoutPaidProfileFields({
                 name: formData.name,
                 website_url: formData.website_url,
-                social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
+                social_links: Object.values(social_links).some(Boolean) ? social_links : null,
                 horarios: Object.keys(cleanedHorarios).length > 0 ? (cleanedHorarios as unknown as Json) : null,
                 logo_url: formData.logo_url,
                 google_maps_url: formData.google_maps_url,
@@ -926,6 +932,14 @@ const EditBusinessPage: React.FC = () => {
                             <div>
                                 <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editBusiness.instagram')}</label>
                                 <input id="instagram" type="text" value={formData.instagram} onChange={handleInputChange} placeholder={t('editBusiness.instagramPlaceholder')} className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
+                            </div>
+                            <div>
+                                <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Facebook</label>
+                                <input id="facebook" type="text" value={formData.facebook} onChange={handleInputChange} placeholder="minegocio" className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
+                            </div>
+                            <div>
+                                <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LinkedIn</label>
+                                <input id="linkedin" type="text" value={formData.linkedin} onChange={handleInputChange} placeholder="company/minegocio" className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
                             </div>
                         </div>
                         </PaidFieldGroup>

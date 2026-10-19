@@ -258,6 +258,15 @@ const ProductChooser: React.FC<{
     );
 };
 
+// Perfil social: acepta "usuario"/"company/x" (se antepone el dominio) o un enlace
+// https completo. Cualquier otro esquema (javascript:, data:) se descarta.
+const socialProfileUrl = (value: string, base: string): string => {
+    const v = value.trim();
+    if (/^https:\/\//i.test(v)) return v;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return '#';
+    return base + v.replace(/^\/+/, '');
+};
+
 const BusinessPage: React.FC = () => {
     const { identifier, countryCode } = useParams<{ identifier: string; countryCode: string }>();
     const navigate = useNavigate();
@@ -584,10 +593,12 @@ const BusinessPage: React.FC = () => {
             const links = socialLinksToDisplay as { [key: string]: string | undefined };
             return {
                 twitter: links.twitter,
-                instagram: links.instagram
+                instagram: links.instagram,
+                facebook: links.facebook,
+                linkedin: links.linkedin
             };
         }
-        return { twitter: null, instagram: null };
+        return { twitter: null, instagram: null, facebook: null, linkedin: null };
     }, [socialLinksToDisplay]);
 
     const currentYear = new Date().getFullYear();
@@ -1653,12 +1664,14 @@ const BusinessPage: React.FC = () => {
                             </div>
                         )}
                         {/* FIX: Corrected typo from `social` to `socialLinks.instagram` and completed the JSX. */}
-                        {(socialLinks.twitter || socialLinks.instagram) &&
+                        {(socialLinks.twitter || socialLinks.instagram || socialLinks.facebook || socialLinks.linkedin) &&
                             <div className="order-7 lg:order-none min-w-0 bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
                                 <h3 className="font-bold text-xs sm:text-sm md:text-base mb-2">{t('businessPage.socialMedia')}</h3>
                                 <div className="flex gap-3 text-lg sm:text-xl">
                                     {socialLinks.twitter && <a href={`https://twitter.com/${socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500"><i className="fab fa-twitter"></i></a>}
                                     {socialLinks.instagram && <a href={`https://instagram.com/${socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-pink-500"><i className="fab fa-instagram"></i></a>}
+                                    {socialLinks.facebook && <a href={socialProfileUrl(socialLinks.facebook, 'https://facebook.com/')} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-gray-500 hover:text-blue-600"><i className="fab fa-facebook"></i></a>}
+                                    {socialLinks.linkedin && <a href={socialProfileUrl(socialLinks.linkedin, 'https://linkedin.com/')} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-gray-500 hover:text-blue-700"><i className="fab fa-linkedin"></i></a>}
                                 </div>
                             </div>
                         }
