@@ -819,6 +819,7 @@ export default {
     min6Chars: "Minimum 6 characters",
     registering: "Registering...",
     createAccountButton: "Create Account",
+    legalNotice: 'By creating your account you accept: {terms} · {privacy}.',
     redirecting: "Redirecting...",
     continueWithGoogle: "Continue with Google",
     alreadyHaveAccountBusiness: "Already manage a business on Opynio?",

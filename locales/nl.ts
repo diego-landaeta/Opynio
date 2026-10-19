@@ -819,6 +819,7 @@ export default {
     min6Chars: "Minimaal 6 tekens",
     registering: "Registreren...",
     createAccountButton: "Account aanmaken",
+    legalNotice: 'Door een account aan te maken ga je akkoord met: {terms} · {privacy}.',
     redirecting: "Doorsturen...",
     continueWithGoogle: "Doorgaan met Google",
     alreadyHaveAccountBusiness: "Beheer je al een bedrijf op Opynio?",

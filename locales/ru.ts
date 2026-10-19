@@ -819,6 +819,7 @@ export default {
     min6Chars: "Минимум 6 символов",
     registering: "Регистрация...",
     createAccountButton: "Создать аккаунт",
+    legalNotice: 'Создавая аккаунт, вы принимаете: {terms} · {privacy}.',
     redirecting: "Перенаправление...",
     continueWithGoogle: "Продолжить с Google",
     alreadyHaveAccountBusiness: "Уже управляете компанией на Opynio?",

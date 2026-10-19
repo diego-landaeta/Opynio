@@ -820,6 +820,7 @@ export default {
     min6Chars: "حداقل 6 کاراکتر",
     registering: "در حال ثبت‌نام...",
     createAccountButton: "ایجاد حساب",
+    legalNotice: 'با ساخت حساب کاربری، موارد زیر را می‌پذیرید: {terms} · {privacy}.',
     redirecting: "در حال هدایت...",
     continueWithGoogle: "ادامه با گوگل",
     alreadyHaveAccountBusiness: "قبلا کسب‌وکاری در Opynio مدیریت می‌کنید؟",

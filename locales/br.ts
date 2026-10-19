@@ -821,6 +821,7 @@ export default {
     min6Chars: "Mínimo de 6 caracteres",
     registering: "Registrando...",
     createAccountButton: "Criar Conta",
+    legalNotice: 'Ao criar sua conta, você aceita: {terms} · {privacy}.',
     redirecting: "Redirecionando...",
     continueWithGoogle: "Continuar com o Google",
     alreadyHaveAccountBusiness: "Já gerencia um negócio na Opynio?",

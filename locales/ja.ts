@@ -818,6 +818,7 @@ export default {
     min6Chars: "最低6文字",
     registering: "登録中...",
     createAccountButton: "アカウントを作成",
+    legalNotice: 'アカウントを作成すると、次に同意したものとみなされます：{terms} · {privacy}',
     redirecting: "リダイレクト中...",
     continueWithGoogle: "Googleで続ける",
     alreadyHaveAccountBusiness: "既にOpynioで会社を管理していますか?",

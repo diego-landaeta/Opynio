@@ -819,6 +819,7 @@ export default {
     min6Chars: "न्यूनतम 6 अक्षर",
     registering: "पंजीकरण हो रहा है...",
     createAccountButton: "खाता बनाएँ",
+    legalNotice: 'खाता बनाकर आप इन्हें स्वीकार करते हैं: {terms} · {privacy}।',
     redirecting: "रीडायरेक्ट हो रहा है...",
     continueWithGoogle: "Google के साथ जारी रखें",
     alreadyHaveAccountBusiness: "क्या आप पहले से Opynio पर व्यवसाय प्रबंधित करते हैं?",

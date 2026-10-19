@@ -823,6 +823,7 @@ export default {
     min6Chars: "Mínimo 6 caracteres",
     registering: "Registrando...",
     createAccountButton: "Crear Cuenta",
+    legalNotice: 'Al crear tu cuenta aceptas: {terms} · {privacy}.',
     redirecting: "Redirigiendo...",
     continueWithGoogle: "Continuar con Google",
     alreadyHaveAccountBusiness: "¿Ya gestionas un negocio en Opynio?",

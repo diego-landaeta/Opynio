@@ -819,6 +819,7 @@ export default {
     min6Chars: "ন্যূনতম ৬ অক্ষর",
     registering: "নিবন্ধন হচ্ছে...",
     createAccountButton: "অ্যাকাউন্ট তৈরি করুন",
+    legalNotice: 'অ্যাকাউন্ট তৈরি করে আপনি এগুলো মেনে নিচ্ছেন: {terms} · {privacy}।',
     redirecting: "পুনঃনির্দেশিত হচ্ছে...",
     continueWithGoogle: "Google দিয়ে চালিয়ে যান",
     alreadyHaveAccountBusiness: "ইতিমধ্যে Opynio-তে একটি ব্যবসা পরিচালনা করেন?",

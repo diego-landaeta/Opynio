@@ -1,4 +1,4 @@
-import { supabase, attachProfiles } from './supabaseService';
+import { supabase, attachProfiles, fetchAllPages } from './supabaseService';
 
 // Optimized query for latest businesses with minimal data
 export const getLatestBusinessesOptimized = async (limit: number = 5, country?: string) => {
@@ -109,48 +109,51 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
   return result;
 };
 
-// Optimized query for featured reviews - simplified to avoid timeouts
+// Ultimas resenas de la portada: las aprobadas y ya publicadas mas recientes de
+// las empresas del pais (o de todas si no se indica). Antes se cogian 50 empresas
+// del pais SIN orden y solo se miraban sus resenas: la portada salia con 1 o 2,
+// no las ultimas, aunque hay miles. Ahora se parte de las 60 empresas del pais con
+// mas resenas (funcion del directorio, que ya cuenta las sedes) y se piden las
+// mas recientes de esas: rapido en cualquier pais. Filtrar con el join por
+// businesses.country daba statement timeout en paises con pocas resenas, y
+// reviews.country no sirve (es el pais de quien resena, no el de la empresa).
 export const getFeaturedReviewsOptimized = async (country?: string, limit: number = 10) => {
   try {
-    // Step 1: Get businesses first (optionally filtered by country)
-    let businessQuery = supabase
-      .from('businesses')
-      .select('id, name, country, category, logo_url, logo_tone')
-      .limit(50); // Limit businesses to avoid large IN clauses
-
+    let businessIds: string[] | null = null;
     if (country) {
-      businessQuery = businessQuery.eq('country', country);
+      const { data: empresas, error: empresasError } = await supabase.rpc('directory_businesses', {
+        p_country: country,
+        p_sort: 'reviews',
+        p_limit: 60,
+        p_offset: 0,
+      });
+      if (empresasError) {
+        console.error('Error fetching businesses for reviews:', empresasError);
+        // Mejor las ultimas de todos los paises que la seccion vacia.
+        return getFeaturedReviewsOptimized(undefined, limit);
+      }
+      businessIds = (empresas || []).filter((b: any) => Number(b.review_count) > 0).map((b: any) => b.id as string);
+      if (businessIds.length === 0) return [];
     }
 
-    const { data: businesses, error: bizError } = await businessQuery;
-
-    if (bizError) {
-      console.error('Error fetching businesses for reviews:', bizError);
-      throw bizError;
-    }
-
-    if (!businesses || businesses.length === 0) {
-      return [];
-    }
-
-    const businessIds = businesses.map(b => b.id);
-
-    // Step 2: Get reviews for these businesses - simple query without joins
-    const { data: reviews, error: reviewError } = await supabase
+    let query = supabase
       .from('reviews')
-      .select('id, rating, review_text, created_at, user_id, business_id, title, image_urls, audio_url, source, original_author_name, helpful_votes, not_helpful_votes')
+      .select('id, rating, review_text, created_at, user_id, business_id, title, image_urls, audio_url, source, original_author_name, helpful_votes, not_helpful_votes, businesses!inner(id, name, country, category, logo_url, logo_tone)')
       .eq('status', 'approved')
-      .lte('created_at', new Date().toISOString())
-      .in('business_id', businessIds)
+      .lte('created_at', new Date().toISOString());
+    if (businessIds) query = query.in('business_id', businessIds);
+
+    // Desempate: muchas resenas comparten created_at (importaciones en
+    // lote) y sin orden total el resultado no es estable.
+    const { data: reviews, error: reviewError } = await query
       .order('created_at', { ascending: false })
-      // Desempate: muchas resenas comparten created_at (importaciones en
-      // lote) y sin orden total el rango de cada pagina no es estable: una
-      // resena salia dos veces y otra nunca.
       .order('id', { ascending: false })
-      .limit(limit * 2); // Get extra to filter
+      .limit(limit)
+      .returns<any[]>();
 
     if (reviewError) {
       console.error('Error fetching reviews:', reviewError);
+      if (country) return getFeaturedReviewsOptimized(undefined, limit);
       throw reviewError;
     }
 
@@ -158,17 +161,9 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
       return [];
     }
 
-    // Step 3: Create business map and enrich reviews
-    const businessMap = new Map(businesses.map(b => [b.id, b]));
-
-    const enrichedReviews = reviews.map(review => ({
-      ...review,
-      businesses: businessMap.get(review.business_id) || null
-    }));
-
     // Autor: sin `profiles` la tarjeta de la portada ponia «Anonimo» a las
     // resenas de usuarios registrados que en la ficha salian con nombre.
-    return attachProfiles(enrichedReviews.slice(0, limit));
+    return attachProfiles(reviews);
   } catch (error) {
     console.error('Error in getFeaturedReviewsOptimized:', error);
     throw error;
@@ -472,26 +467,30 @@ const removeAccents = (text: string): string => {
 
 // Optimized query for searching businesses (accent-insensitive)
 export const searchBusinessesOptimized = async (searchTerm: string, filters: any = {}) => {
-  let query = supabase
-    .from('businesses')
-    .select('id, name, category, country, logo_url, logo_tone, description, sedes')
-    .order('name');
+  // Obtener TODOS los resultados para filtrar en el cliente (sin límite): se
+  // pagina porque la API corta en 1000 filas y hay más empresas que eso.
+  const data = await fetchAllPages(() => {
+    let query = supabase
+      .from('businesses')
+      .select('id, name, category, country, logo_url, logo_tone, description, sedes')
+      .order('name')
+      .order('id');
 
-  // Aplicar filtros primero para reducir el conjunto de datos
-  if (filters.country) {
-    query = query.eq('country', filters.country);
-  }
+    // Aplicar filtros primero para reducir el conjunto de datos
+    if (filters.country) {
+      query = query.eq('country', filters.country);
+    }
 
-  if (filters.category) {
-    // Categories in DB are stored as "Parent Category: Subcategory"
-    query = query.ilike('category', `${filters.category}%`);
-  }
+    if (filters.category) {
+      // Categories in DB are stored as "Parent Category: Subcategory"
+      query = query.ilike('category', `${filters.category}%`);
+    }
 
-  // Obtener TODOS los resultados para filtrar en el cliente (sin límite)
-  const { data, error } = await query;
-  if (error) throw error;
+    return query;
+  });
 
   // Si hay término de búsqueda, filtrar en el cliente para búsqueda sin acentos
+  searchTerm = (searchTerm || '').trim();
   if (searchTerm && data) {
     const normalizedSearch = removeAccents(searchTerm);
 
@@ -507,10 +506,11 @@ export const searchBusinessesOptimized = async (searchTerm: string, filters: any
       );
     });
 
-    return filtered.slice(0, 50); // Limitar a 50 resultados finales
+    // Limitar a 50 resultados finales; `total` lleva cuantas coinciden en realidad.
+    return Object.assign(filtered.slice(0, 50), { total: filtered.length });
   }
 
-  return (data || []).slice(0, 50);
+  return Object.assign((data || []).slice(0, 50), { total: (data || []).length });
 };
 
 export default {

@@ -80,13 +80,15 @@ const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.m
 
 const SearchResultsPage: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const query = searchParams.get('q') || '';
+    // Sin espacios alrededor: «  vitta  » (autocorrector del movil) no encontraba nada.
+    const query = (searchParams.get('q') || '').trim();
     const t = useTranslation();
     const tn = usePluralT();
 
     const [businesses, setBusinesses] = useState<BusinessSearchResult[]>([]);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewTotal, setReviewTotal] = useState(0);
+    const [businessTotal, setBusinessTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +109,8 @@ const SearchResultsPage: React.FC = () => {
                     getPublicReviews({ searchTerm: query }, 1, 10) // reuse getPublicReviews
                 ]);
                 setBusinesses(businessData);
+                // La lista se corta en 50; el titulo dice cuantas hay de verdad.
+                setBusinessTotal(businessData.total ?? businessData.length);
                 // Devuelve { reviews, totalCount }: el titulo decia siempre "10
                 // resenas encontradas" (el tamano de pagina), no el total.
                 const r: any = reviewData;
@@ -144,7 +148,7 @@ const SearchResultsPage: React.FC = () => {
                 ) : (
                     <div className="space-y-8 sm:space-y-10 md:space-y-12">
                         <section>
-                            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 dark:text-gray-100">{tn('businessesPage.businessesFound', businesses.length)}</h2>
+                            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 dark:text-gray-100">{tn('businessesPage.businessesFound', businessTotal)}</h2>
                             {businesses.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     {businesses.map(biz => <BusinessResultCard key={biz.id} business={biz} />)}

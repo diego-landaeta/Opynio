@@ -469,6 +469,24 @@ export const getBusinessByName = async (name: string) => {
       return ilikeResults[0];
     }
 
+    // Nombres guardados con espacios al principio o al final (ISEIM, ISEIH...):
+    // el enlace va recortado y no casa con eq/ilike. Se acepta solo si, recortado
+    // y sin distinguir mayusculas, es EXACTAMENTE el mismo nombre (no es una
+    // coincidencia parcial).
+    const patron = normalizedName.replace(/[\%_]/g, '\    // Aqui habia una busqueda por coincidencia parcial');
+    const { data: conEspacios } = await supabase
+      .from('businesses')
+      .select('*')
+      .ilike('name', `%${patron}%`)
+      .limit(5);
+    const mismoNombre = (conEspacios || []).find(
+      (b: any) => (b.name || '').normalize('NFC').trim().toLowerCase() === normalizedName.toLowerCase()
+    );
+    if (mismoNombre) {
+      setCache(cacheKey, mismoNombre);
+      return mismoNombre;
+    }
+
     // Aqui habia una busqueda por coincidencia parcial (ilike '%x%'). Hacia que
     // cualquier URL inexistente abriera otra empresa (/es/empresa/test ->
     // "Adm Test Negocio Asignado": soft-404 indexable), que el registro dijera
@@ -574,89 +592,46 @@ export const getBusinessListItemById = async (id: string) => {
   return data;
 };
 
+// PostgREST corta cada respuesta en 1000 filas (max_rows) sin dar error: con
+// 1.023 empresas, una lectura «completa» dejaba fuera las ultimas por orden
+// alfabetico (Vitta Clara no salia en el buscador). Se pagina con range();
+// `construir` debe devolver un builder NUEVO por pagina y con orden estable.
+export const fetchAllPages = async <T = any>(construir: () => any, tamPagina = 1000): Promise<T[]> => {
+  const filas: T[] = [];
+  for (let desde = 0; ; desde += tamPagina) {
+    const { data, error } = await construir().range(desde, desde + tamPagina - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    filas.push(...data);
+    if (data.length < tamPagina) break;
+  }
+  return filas;
+};
+
+// Autocompletado de empresas: la busqueda (sin acentos, por nombre y descripcion)
+// la hace la RPC del directorio en el servidor, no sobre las primeras 200 filas.
 export const searchBusinessList = async (searchTerm: string) => {
-  // Helper function for accent-insensitive search
-  const removeAccents = (text: string): string => {
-    return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-  };
-
-  // Fetch all businesses (or limit to reasonable amount)
-  const { data, error } = await supabase
-    .from('businesses')
-    .select('id, name, category, country, description')
-    .limit(200);
-
-  if (error) throw error;
-  if (!data) return [];
-
-  // Apply client-side accent-insensitive search
-  const normalizedSearch = removeAccents(searchTerm);
-  const filtered = data.filter(business => {
-    const normalizedName = removeAccents(business.name || '');
-    const normalizedCategory = removeAccents(business.category || '');
-    const normalizedDescription = removeAccents(business.description || '');
-    return normalizedName.includes(normalizedSearch) ||
-           normalizedCategory.includes(normalizedSearch) ||
-           normalizedDescription.includes(normalizedSearch);
-  });
-
-  return filtered.slice(0, 10); // Return top 10 results
+  return directoryPage({ searchTerm, sortOrder: 'relevance' }, 10, 0);
 };
 
 export const getBusinessIdAndNameList = async (searchTerm: string = '') => {
-  // Helper function for accent-insensitive search
-  const removeAccents = (text: string): string => {
-    return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-  };
-
-  let query = supabase
-    .from('businesses')
-    .select('id, name, country, category, description')
-    .order('name');
-
-  const { data, error } = await query.limit(200);
-  if (error) throw error;
-  if (!data) return [];
-
-  // If no search term, return all results (up to limit)
-  if (!searchTerm) {
-    return data.slice(0, 50);
-  }
-
-  // Apply client-side accent-insensitive search
-  const normalizedSearch = removeAccents(searchTerm);
-  const filtered = data.filter(business => {
-    const normalizedName = removeAccents(business.name || '');
-    const normalizedCategory = removeAccents(business.category || '');
-    const normalizedDescription = removeAccents(business.description || '');
-    return normalizedName.includes(normalizedSearch) ||
-           normalizedCategory.includes(normalizedSearch) ||
-           normalizedDescription.includes(normalizedSearch);
-  });
-
-  return filtered.slice(0, 50);
+  return directoryPage({ searchTerm, sortOrder: searchTerm ? 'relevance' : 'alphabetical' }, 50, 0);
 };
 
 export const getBusinessesWithLocations = async (country?: string) => {
-  let query = supabase
-    .from('businesses')
-    .select('id, name, category, country, latitude, longitude, sedes, logo_url, logo_tone')
-    .not('latitude', 'is', null)
-    .not('longitude', 'is', null);
+  return fetchAllPages(() => {
+    let query = supabase
+      .from('businesses')
+      .select('id, name, category, country, latitude, longitude, sedes, logo_url, logo_tone')
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
 
-  if (country) {
-    query = query.eq('country', country);
-  }
+    if (country) {
+      query = query.eq('country', country);
+    }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
+    return query.order('id');
+  });
 };
 
 export const updateBusinessProfile = async (businessId: string, updates: any) => {
@@ -802,7 +777,7 @@ const directoryPage = async (filters: DirectoryFilters | undefined, limit: numbe
     p_service_type: filters?.serviceType || 'all',
     p_category: filters?.category || null,
     p_countries: filters?.countries?.length ? filters.countries : null,
-    p_search: filters?.searchTerm || null,
+    p_search: filters?.searchTerm?.trim() || null,
     p_min_rating: hasRatingFilter ? (minRating ?? 0) : null,
     p_max_rating: hasRatingFilter ? (maxRating ?? 5) : null,
     p_sort: filters?.sortOrder || 'relevance',
@@ -943,30 +918,40 @@ export const getBusinessesWithReviewsPaginated = async (
 
     // Build business query - only select columns that exist in the table
     // review_count, avg_rating, and offers_international_services don't exist as columns
-    let businessQuery = supabase
-      .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes, description');
+    const buildBusinessQuery = () => {
+      let q = supabase
+        .from('businesses')
+        .select('id, name, country, logo_url, logo_tone, category, sedes, description');
 
-    // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
-    // We don't apply .ilike() here
+      // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
+      // We don't apply .ilike() here
 
-    // Apply category filter
-    if (filters.category) {
-      businessQuery = businessQuery.ilike('category', `${filters.category}%`);
+      // Apply category filter
+      if (filters.category) {
+        q = q.ilike('category', `${filters.category}%`);
+      }
+
+      // Apply businessIds filter (for location-based)
+      if (filters.businessIds && filters.businessIds.length > 0) {
+        q = q.in('id', filters.businessIds);
+      }
+
+      // Exclude already loaded businesses
+      if (excludeIds.length > 0) {
+        q = q.not('id', 'in', `(${excludeIds.join(',')})`);
+      }
+
+      return q.order('id');
+    };
+
+    // Get all matching businesses first (paginado: la API corta en 1000 filas)
+    let allBusinesses: any[] | null = null;
+    let businessError: any = null;
+    try {
+      allBusinesses = await fetchAllPages(buildBusinessQuery);
+    } catch (e) {
+      businessError = e;
     }
-
-    // Apply businessIds filter (for location-based)
-    if (filters.businessIds && filters.businessIds.length > 0) {
-      businessQuery = businessQuery.in('id', filters.businessIds);
-    }
-
-    // Exclude already loaded businesses
-    if (excludeIds.length > 0) {
-      businessQuery = businessQuery.not('id', 'in', `(${excludeIds.join(',')})`);
-    }
-
-    // Get all matching businesses first
-    const { data: allBusinesses, error: businessError } = await businessQuery;
 
     if (businessError) {
       console.error('Error fetching businesses:', businessError);
@@ -1586,9 +1571,16 @@ export const getBusinessCountByFilters = async (
 }> => {
   try {
     // Get all businesses with category, country and sedes
-    const { data: allBusinesses, error: allError } = await supabase
-      .from('businesses')
-      .select('id, country, sedes, category');
+    let allBusinesses: any[] | null = null;
+    let allError: any = null;
+    try {
+      allBusinesses = await fetchAllPages(() => supabase
+        .from('businesses')
+        .select('id, country, sedes, category')
+        .order('id'));
+    } catch (e) {
+      allError = e;
+    }
 
     if (allError) {
       console.error('Error fetching all businesses:', allError);
@@ -2299,7 +2291,7 @@ const getPublicReviewsSinAutor = async (
     // Busqueda por nombre: la hace el servidor (sin acentos, sin tope de 1000).
     if (filters.searchTerm && !filters.businessId) {
       const { data: encontradas, error: searchError } = await supabase.rpc('directory_businesses', {
-        p_search: filters.searchTerm,
+        p_search: filters.searchTerm.trim(),
         p_category: filters.category || null,
         p_limit: 300,
         p_offset: 0,

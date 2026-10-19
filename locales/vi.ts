@@ -820,6 +820,7 @@ export default {
     min6Chars: "Tối thiểu 6 ký tự",
     registering: "Đang đăng ký...",
     createAccountButton: "Tạo tài khoản",
+    legalNotice: 'Khi tạo tài khoản, bạn chấp nhận: {terms} · {privacy}.',
     redirecting: "Đang chuyển hướng...",
     continueWithGoogle: "Tiếp tục với Google",
     alreadyHaveAccountBusiness: "Đã quản lý doanh nghiệp trên Opynio?",

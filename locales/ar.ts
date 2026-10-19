@@ -821,6 +821,7 @@ export default {
     min6Chars: "6 أحرف كحد أدنى",
     registering: "جارٍ التسجيل...",
     createAccountButton: "إنشاء الحساب",
+    legalNotice: 'بإنشاء حسابك فإنك توافق على: {terms} · {privacy}.',
     redirecting: "جارٍ التوجيه...",
     continueWithGoogle: "المتابعة باستخدام Google",
     alreadyHaveAccountBusiness: "هل تدير بالفعل شركة على Opynio؟",

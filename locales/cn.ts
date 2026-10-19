@@ -819,6 +819,7 @@ export default {
     min6Chars: "至少6个字符",
     registering: "注册中...",
     createAccountButton: "创建账户",
+    legalNotice: '创建账户即表示你接受：{terms} · {privacy}。',
     redirecting: "重定向中...",
     continueWithGoogle: "使用Google继续",
     alreadyHaveAccountBusiness: "已经在 Opynio 上管理企业？",

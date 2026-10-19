@@ -244,7 +244,8 @@ const PricingPage = () => {
                         const isAnnual = billingCycle === 'annual';
                         const isEnterprise = plan.nameKey === 'pricingPage.planEnterprise';
                         const planName = plan.nameKey.replace('pricingPage.plan', '').toLowerCase();
-                        let ctaLinkTarget = plan.ctaLink;
+                        // El visitante conserva el ciclo elegido (anual/mensual) hasta el alta.
+                        let ctaLinkTarget = plan.ctaLink.includes('plan=') ? `${plan.ctaLink}&billingCycle=${billingCycle}` : plan.ctaLink;
 
                         // 1) Sin login: ir a /registro?type=business&plan=X (default).
                         // 2) Con login y SIN negocios: ir a /asignar-empresa?plan=X&billingCycle=Y.

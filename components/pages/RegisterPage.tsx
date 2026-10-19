@@ -41,6 +41,8 @@ const RegisterPage: React.FC = () => {
     // de ese pais (mezclar /es con una ruta en ingles da 404).
     const { country } = useCountry();
     const loginPath = localizedPathOrRoot('login', language, country);
+    const termsPath = localizedPathOrRoot('terms', language, country);
+    const privacyPath = localizedPathOrRoot('privacy', language, country);
 
     // Set register type from URL query parameter on initial load
     const location = ReactRouterDOM.useLocation();
@@ -326,6 +328,15 @@ const RegisterPage: React.FC = () => {
                         <span>{googleLoading ? t('registerPage.redirecting') : t('registerPage.continueWithGoogle')}</span>
                     </button>
                 </div>
+
+                {/* Aviso legal: el alta (con correo o con Google) implica aceptar los terminos y la privacidad. */}
+                <p className="mt-4 text-[11px] sm:text-xs text-center text-gray-500 dark:text-gray-400">
+                    {t('registerPage.legalNotice').split(/({terms}|{privacy})/).map((parte, i) => {
+                        if (parte === '{terms}') return <ReactRouterDOM.Link key={i} to={termsPath} className="underline hover:text-brand-green">{t('footer.termsOfUse')}</ReactRouterDOM.Link>;
+                        if (parte === '{privacy}') return <ReactRouterDOM.Link key={i} to={privacyPath} className="underline hover:text-brand-green">{t('footer.privacy')}</ReactRouterDOM.Link>;
+                        return <React.Fragment key={i}>{parte}</React.Fragment>;
+                    })}
+                </p>
 
                 <div className="mt-4 sm:mt-6 text-center">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">

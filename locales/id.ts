@@ -820,6 +820,7 @@ export default {
     min6Chars: "Minimal 6 karakter",
     registering: "Mendaftar...",
     createAccountButton: "Buat Akun",
+    legalNotice: 'Dengan membuat akun, Anda menyetujui: {terms} · {privacy}.',
     redirecting: "Mengalihkan...",
     continueWithGoogle: "Lanjutkan dengan Google",
     alreadyHaveAccountBusiness: "Sudah mengelola bisnis di Opynio?",

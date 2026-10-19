@@ -818,6 +818,7 @@ export default {
     min6Chars: "Minst 6 tecken",
     registering: "Registrerar...",
     createAccountButton: "Skapa konto",
+    legalNotice: 'Genom att skapa ett konto godkänner du: {terms} · {privacy}.',
     redirecting: "Omdirigerar...",
     continueWithGoogle: "Fortsätt med Google",
     alreadyHaveAccountBusiness: "Hanterar du redan ett företag på Opynio?",

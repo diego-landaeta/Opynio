@@ -130,6 +130,14 @@ const MobileMenu: React.FC<{
         { to: `${countryPrefix}/${paths.support}`, icon: "fa-solid fa-life-ring", label: t('header.support') },
     ], [countryPrefix, t, paths, language]);
 
+    // Escape cierra el menu abierto.
+    useEffect(() => {
+        if (!isOpen) return;
+        const alPulsar = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', alPulsar);
+        return () => document.removeEventListener('keydown', alPulsar);
+    }, [isOpen, onClose]);
+
     return (
         <>
             {/* Backdrop - tap to close */}
@@ -152,6 +160,9 @@ const MobileMenu: React.FC<{
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="menu-title"
+                // Cerrado: fuera del orden de Tab y de los lectores de pantalla.
+                inert={!isOpen}
+                aria-hidden={!isOpen}
             >
                 <div className="flex flex-col h-full">
                     <div className="flex justify-between items-center p-3 sm:p-4 border-b dark:border-zinc-800">

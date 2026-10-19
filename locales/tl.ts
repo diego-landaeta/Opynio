@@ -819,6 +819,7 @@ export default {
     min6Chars: "Minimum na 6 character",
     registering: "Nirerehistro...",
     createAccountButton: "Lumikha ng Account",
+    legalNotice: 'Sa paggawa ng account, sumasang-ayon ka sa: {terms} · {privacy}.',
     redirecting: "Nire-redirect...",
     continueWithGoogle: "Magpatuloy sa Google",
     alreadyHaveAccountBusiness: "Mayroon ka nang pinapamahalaang negosyo sa Opynio?",

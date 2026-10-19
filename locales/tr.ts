@@ -819,6 +819,7 @@ export default {
     min6Chars: "En az 6 karakter",
     registering: "Kaydediliyor...",
     createAccountButton: "Hesap Oluştur",
+    legalNotice: 'Hesap oluşturarak şunları kabul etmiş olursunuz: {terms} · {privacy}.',
     redirecting: "Yönlendiriliyor...",
     continueWithGoogle: "Google ile devam et",
     alreadyHaveAccountBusiness: "Opynio'da zaten bir işletme mi yönetiyorsunuz?",
