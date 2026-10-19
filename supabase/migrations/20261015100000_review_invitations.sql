@@ -108,5 +108,7 @@ REVOKE ALL ON FUNCTION public.mark_invitation_opened(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.mark_invitation_reviewed(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.mark_invitation_opened(uuid) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mark_invitation_reviewed(uuid) TO authenticated;
+-- Supabase concede EXECUTE a anon por defecto y REVOKE FROM PUBLIC no lo quita.
+REVOKE EXECUTE ON FUNCTION public.mark_invitation_reviewed(uuid) FROM anon;
 
 COMMIT;

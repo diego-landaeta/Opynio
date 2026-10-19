@@ -138,6 +138,19 @@ const MobileMenu: React.FC<{
         return () => document.removeEventListener('keydown', alPulsar);
     }, [isOpen, onClose]);
 
+    // Dialogo modal: al abrir el foco entra en el menu y al cerrar vuelve a quien
+    // lo abrio (antes se quedaba detras del menu, sin poder tabular dentro).
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        if (!isOpen) return;
+        const previo = document.activeElement as HTMLElement | null;
+        const temporizador = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+        return () => {
+            window.clearTimeout(temporizador);
+            if (previo && document.contains(previo)) previo.focus();
+        };
+    }, [isOpen]);
+
     return (
         <>
             {/* Backdrop - tap to close */}
@@ -169,7 +182,7 @@ const MobileMenu: React.FC<{
                         <Link to={countryPrefix || '/'} onClick={onClose} className="flex items-center gap-2">
                             <span id="menu-title" className="text-lg sm:text-xl font-bold text-brand-green truncate">{brandName}</span>
                         </Link>
-                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
+                        <button ref={closeButtonRef} onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
                             <i className="fa-solid fa-times"></i>
                         </button>
                     </div>
