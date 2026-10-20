@@ -13,7 +13,7 @@ import LazyRender from '../LazyRender';
 import { useTranslation, useI18n, localizedPathOrRoot, toBcp47 } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
+import { useUserErrorNotifier } from '../../utils/userFacingError';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg flex items-center gap-4">
@@ -32,7 +32,7 @@ const ProfilePage: React.FC = () => {
     const { user, profile, businesses, loading: authLoading } = useAuth();
     const { showNotification } = useNotification();
     // Errores de pago/portal traducidos, con enlace a Soporte (utils/userFacingError).
-    const { notifyError, showUserError } = useUserErrorNotifier();
+    const { notifyError } = useUserErrorNotifier();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
     // La resena propia no se edita ni se borra: se solicita su eliminacion
@@ -90,35 +90,8 @@ const ProfilePage: React.FC = () => {
     // business_owner con al menos un negocio. Antes de eso debe registrar empresa.
     const canBuyV2 = !!user && isBusinessOwner && hasBusiness && !isOnV2;
 
-    const handleBuyV2 = async () => {
-        if (!primaryBusinessId) return;
-        setV2Loading(true);
-        try {
-            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                body: { plan: 'v2', billingCycle: 'monthly', businessId: primaryBusinessId },
-            });
-            if (error) {
-                const info = await getUserFacingError(error, { flow: 'checkout' });
-                // 409 duplicate_subscription → ya tiene v2 → al portal en su lugar.
-                if (info.kind === 'duplicateSubscription') {
-                    await handleOpenPortal();
-                    return;
-                }
-                showUserError(info);
-                setV2Loading(false);
-                return;
-            }
-            if (data?.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error('create-checkout-session: respuesta sin url');
-            }
-        } catch (err) {
-            await notifyError(err, { flow: 'checkout' });
-            setV2Loading(false);
-        }
-    };
-
+    // La compra del plan «v2» (0,50 €/mes, plan de pruebas de Stripe en vivo) ya no se
+    // ofrece desde el perfil: los planes de verdad se contratan en /planes.
     const handleOpenPortal = async () => {
         setV2Loading(true);
         try {
@@ -295,9 +268,11 @@ const ProfilePage: React.FC = () => {
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                                        {paidPlan ? `${t('businessDashboard.currentPlan')}: ${t(`businessDashboard.${paidPlan}PlanName`)}` : t('profilePage.premiumTitle')}
+                                        {isOnV2
+                                            ? t('profilePage.premiumTitle')
+                                            : `${t('businessDashboard.currentPlan')}: ${t(`businessDashboard.${paidPlan ?? (profile?.plan === 'enterprise' ? 'enterprise' : 'free')}PlanName`)}`}
                                     </h2>
-                                    {!paidPlan && (
+                                    {isOnV2 && (
                                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                             {t('profilePage.premiumBody')}
                                         </p>
@@ -322,19 +297,7 @@ const ProfilePage: React.FC = () => {
                                         : <i className="fa-solid fa-credit-card"></i>}
                                     <span>{v2Loading ? t('common.openingPortal') : t('profilePage.managePlan')}</span>
                                 </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleBuyV2}
-                                    disabled={v2Loading}
-                                    className="bg-brand-green text-white font-bold py-2.5 px-5 rounded-lg hover:bg-opacity-90 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {v2Loading
-                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        : <i className="fa-solid fa-rocket"></i>}
-                                    <span>{v2Loading ? t('common.redirectingToStripe') : t('profilePage.activatePlan')}</span>
-                                </button>
-                            )}
+                            ) : null}
                         </div>
                     )}
                 </div>
