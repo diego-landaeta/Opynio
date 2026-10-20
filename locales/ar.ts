@@ -2422,7 +2422,7 @@ export default {
     case6Result: '+25% تحويل في العروض',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: 'هل تريد أن تكون قصة النجاح التالية؟',
     ctaDesc: 'انضم إلى الشركات التي تثق بـ Opynio لإدارة سمعتها على الإنترنت.',
     ctaButton: 'ابدأ مجاناً',

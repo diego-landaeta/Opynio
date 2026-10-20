@@ -2584,7 +2584,7 @@ export default {
     case6Result: '+25% de conversión en propuestas',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     // CTA
     ctaTitle: '¿Quieres ser el próximo caso de éxito?',
     ctaDesc: 'Únete a las empresas que ya confían en Opynio para gestionar su reputación online.',

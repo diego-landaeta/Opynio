@@ -1922,7 +1922,7 @@ export default {
     case6Result: 'Tekliflerde %25 dönüşüm artışı',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: 'Bir Sonraki Başarı Hikâyesi Siz Olmak İster misiniz?',
     ctaDesc: 'Çevrimiçi itibarını yönetmek için Opynio\'ya güvenen şirketlere katılın.',
     ctaButton: 'Ücretsiz Başla',

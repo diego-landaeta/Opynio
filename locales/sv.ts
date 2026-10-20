@@ -2418,7 +2418,7 @@ export default {
     case6Result: '+25% konvertering på offerter',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: 'Vill du bli nästa framgångshistoria?',
     ctaDesc: 'Gå med företagen som redan litar på Opynio för att hantera sitt online-rykte.',
     ctaButton: 'Börja gratis',

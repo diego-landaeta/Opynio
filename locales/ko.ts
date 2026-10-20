@@ -2419,7 +2419,7 @@ export default {
     case6Result: '제안 전환율 +25%',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: '다음 성공 사례가 되고 싶으신가요?',
     ctaDesc: '이미 Opynio를 신뢰하여 온라인 평판을 관리하는 회사들에 합류하세요.',
     ctaButton: '무료로 시작',

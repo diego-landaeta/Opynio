@@ -2420,7 +2420,7 @@ export default {
     case6Result: 'प्रस्तावों पर +25% रूपांतरण',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: 'अगली सफलता की कहानी बनना चाहते हैं?',
     ctaDesc: 'उन कंपनियों से जुड़ें जो पहले से ही अपनी ऑनलाइन प्रतिष्ठा प्रबंधित करने के लिए Opynio पर भरोसा करती हैं।',
     ctaButton: 'मुफ़्त में शुरू करें',

@@ -2421,7 +2421,7 @@ export default {
     case6Result: '+25%提案轉換率',
     case6Link: 'agenciaia.ai',
     case6OpynioUrl: '/es/empresa/Agencia_IA',
-    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2025/09/Agencia-IA-Fondo-Blanco.png',
+    case6Logo: 'https://agenciaia.ai/wp-content/uploads/2026/10/logo-agencia-ia-1024x341.png',
     ctaTitle: '想成為下一個成功案例嗎？',
     ctaDesc: '加入已經信任Opynio管理線上聲譽的企業。',
     ctaButton: '免費開始',
