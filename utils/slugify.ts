@@ -6,12 +6,14 @@
  * Convierte un texto a slug limpio para URLs
  * - Minúsculas
  * - Sin acentos
- * - Sin caracteres especiales
+ * - Sin caracteres especiales, emojis ni ideogramas
  * - Espacios convertidos a guiones bajos
  *
  * @example
  * slugify("Café María & Compañía") // "cafe_maria_compania"
  * slugify("EMPRESA | Servicios S.A.") // "empresa_servicios_sa"
+ * slugify("Via Brasil Boutique✨") // "via_brasil_boutique"
+ * slugify("CHILA 湘遇湖南菜") // "chila"
  */
 export function slugify(text: string): string {
   if (!text) return '';
@@ -23,6 +25,7 @@ export function slugify(text: string): string {
     .replace(/ñ/g, 'n')                              // ñ → n (después de normalize)
     .replace(/[|,;:'"!?¿¡@#$%^&*()+=\[\]{}\\/<>]/g, '') // eliminar caracteres especiales
     .replace(/\./g, '')                              // eliminar puntos
+    .replace(/[^a-z0-9\s_-]/g, '')                   // emojis, ideogramas y cualquier otro carácter no latino
     .replace(/\s+/g, '_')                            // espacios → guiones bajos
     .replace(/-+/g, '_')                             // guiones → guiones bajos
     .replace(/_+/g, '_')                             // múltiples _ → uno solo
