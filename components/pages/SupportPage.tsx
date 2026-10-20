@@ -426,6 +426,8 @@ const SupportPage: React.FC = () => {
     const TabButton: React.FC<{ tabId: ActiveTab; icon: string; label: string }> = ({ tabId, icon, label }) => (
         <button
             onClick={() => setActiveTab(tabId)}
+            aria-label={label}
+            aria-current={activeTab === tabId ? 'page' : undefined}
             className={`flex items-center justify-center gap-1.5 px-2 sm:px-4 py-3 font-semibold border-b-2 transition-colors text-xs sm:text-sm whitespace-nowrap ${
                 activeTab === tabId
                 ? 'border-brand-green text-brand-green'
