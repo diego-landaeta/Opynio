@@ -20,7 +20,9 @@ import {
 import { getSuggestedReplies, AI_ENABLED } from '../../../../services/geminiService';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { useConfirm } from '../../../../contexts/ConfirmContext';
+import { Link } from 'react-router-dom';
 import { useTranslation } from '../../../../contexts/i18nContext';
+import { useDashboardSections } from './useDashboardSections';
 import { usePluralT } from '../../../../utils/plural';
 import { useUserErrorNotifier } from '../../../../utils/userFacingError';
 
@@ -47,6 +49,9 @@ const DashboardReviews: React.FC = () => {
     const { confirm } = useConfirm();
     const t = useTranslation();
     const tn = usePluralT();
+    // Subruta de Invitaciones, para el acceso del estado vacio.
+    const { sections } = useDashboardSections();
+    const invitationsSubpath = sections.find(sec => sec.id === 'invitations')?.subpath;
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
     const [respondingTo, setRespondingTo] = useState<number | null>(null);
@@ -326,6 +331,28 @@ const DashboardReviews: React.FC = () => {
                          {reviews.length === 0 ? (
                             <div className="text-center py-8 sm:py-10 text-sm sm:text-base text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800/50 rounded-lg">
                                 <p className="font-semibold">{t('businessDashboard.noReviewsYet')}</p>
+                                {/* Sin reseñas, la pantalla era un callejon sin salida: se ofrece
+                                    lo que lleva a conseguirlas. El Resumen tiene el enlace
+                                    publico para compartir; Invitaciones, el envio a clientes. */}
+                                <p className="mt-1 text-xs sm:text-sm">{t('businessDashboard.emptyReviewsHint')}</p>
+                                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                                    <Link
+                                        to=".."
+                                        className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-lg bg-brand-green text-white font-semibold text-sm hover:bg-opacity-90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-green"
+                                    >
+                                        <i className="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                                        {t('businessDashboard.emptyReviewsShare')}
+                                    </Link>
+                                    {invitationsSubpath && (
+                                        <Link
+                                            to={`../${invitationsSubpath}`}
+                                            className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-200 font-semibold text-sm hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+                                        >
+                                            <i className="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                            {t('businessDashboard.emptyReviewsInvite')}
+                                        </Link>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             reviews.map(review => (

@@ -45,7 +45,7 @@ const Footer: React.FC = () => {
 
   return (
     <footer className="bg-brand-dark text-gray-300 footer-always-dark">
-      <div className="container mx-auto px-3 sm:px-4 pt-10 sm:pt-12 md:pt-16 pb-6 sm:pb-8">
+      <div className="container mx-auto px-3 sm:px-4 pt-10 sm:pt-12 md:pt-16 pb-24 sm:pb-8">
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8">
           <div className="col-span-2 sm:col-span-2 lg:col-span-1">
              <Link to={countryPrefix || '/'} className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -55,28 +55,28 @@ const Footer: React.FC = () => {
 
           <div>
             <h3 className="font-bold text-white mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.aboutUs')}</h3>
-            <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-              <li><Link to={`${countryPrefix}/${paths.about}`} className="hover:text-white transition-colors inline-block">{t('footer.aboutOpynio')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.howItWorks}`} className="hover:text-white transition-colors inline-block">{t('header.howItWorks')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.caseStudies}`} className="hover:text-white transition-colors inline-block">{t('header.caseStudies')}</Link></li>
+            <ul className="space-y-0 sm:space-y-2 text-xs sm:text-sm">
+              <li><Link to={`${countryPrefix}/${paths.about}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.aboutOpynio')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.howItWorks}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.howItWorks')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.caseStudies}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.caseStudies')}</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="font-bold text-white mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.resources')}</h3>
-            <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-              <li><Link to={`${countryPrefix}/${paths.faq}`} className="hover:text-white transition-colors inline-block">{t('header.faq')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.support}`} className="hover:text-white transition-colors inline-block">{t('footer.help')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.explore}`} className="hover:text-white transition-colors inline-block">{t('header.explore')}</Link></li>
+            <ul className="space-y-0 sm:space-y-2 text-xs sm:text-sm">
+              <li><Link to={`${countryPrefix}/${paths.faq}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.faq')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.support}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.help')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.explore}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.explore')}</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="font-bold text-white mb-3 sm:mb-4 text-sm sm:text-base">{t('footer.businesses')}</h3>
-            <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-              <li><Link to={`${countryPrefix}/${paths.forBusinesses}`} className="hover:text-white transition-colors inline-block">{t('header.forBusinessesMenu')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.widgets}`} className="hover:text-white transition-colors inline-block">{t('header.widgets')}</Link></li>
-              <li><Link to={`${countryPrefix}/${paths.pricing}`} className="hover:text-white transition-colors inline-block">{t('footer.pricingAndPlans')}</Link></li>
+            <ul className="space-y-0 sm:space-y-2 text-xs sm:text-sm">
+              <li><Link to={`${countryPrefix}/${paths.forBusinesses}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.forBusinessesMenu')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.widgets}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('header.widgets')}</Link></li>
+              <li><Link to={`${countryPrefix}/${paths.pricing}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.pricingAndPlans')}</Link></li>
             </ul>
           </div>
 
@@ -85,7 +85,7 @@ const Footer: React.FC = () => {
             <p className="text-xs sm:text-sm">
               {/* Contacto = formulario de contacto de «Sobre nosotros» (no el de
                   soporte al cliente, que sigue en «Recursos»). */}
-              <Link to={`${countryPrefix}/${paths.about}#contacto`} className="hover:text-white transition-colors">
+              <Link to={`${countryPrefix}/${paths.about}#contacto`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">
                 <i className="fa-regular fa-envelope mr-2" aria-hidden="true"></i>{t('footer.writeToUs')}
               </Link>
             </p>
@@ -125,10 +125,10 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Enlaces legales: aviso legal, términos de uso y privacidad/cookies. */}
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-            <Link to={`${countryPrefix}/${paths.legal}`} className="hover:text-white transition-colors">{t('footer.legalNotice')}</Link>
-            <Link to={`${countryPrefix}/${paths.terms}`} className="hover:text-white transition-colors">{t('footer.termsOfUse')}</Link>
-            <Link to={`${countryPrefix}/${paths.privacy}`} className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 sm:pr-20">
+            <Link to={`${countryPrefix}/${paths.legal}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.legalNotice')}</Link>
+            <Link to={`${countryPrefix}/${paths.terms}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.termsOfUse')}</Link>
+            <Link to={`${countryPrefix}/${paths.privacy}`} className="hover:text-white transition-colors inline-block py-3.5 sm:py-0">{t('footer.privacy')}</Link>
           </div>
         </div>
 

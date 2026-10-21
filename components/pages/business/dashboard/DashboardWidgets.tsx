@@ -113,12 +113,14 @@ import { GridPreview } from './widgets/GridWidget';
 import { BadgePreview } from './widgets/BadgeWidget';
 import { WallPreview } from './widgets/WallWidget';
 import { StarsCarouselPreview } from './widgets/StarsCarouselWidget';
+import { TestimonialsPreview } from './widgets/TestimonialsWidget';
 
 
 type WidgetCardConfig = WidgetConfig & { icon: string };
 
 const WIDGETS: WidgetCardConfig[] = [
     { name: 'stars-carousel', description: 'businessDashboard.widgetDescriptions.stars-carousel', component: StarsCarouselPreview, type: 'stars-carousel', icon: 'fa-star' },
+    { name: 'testimonials', description: 'businessDashboard.widgetDescriptions.testimonials', component: TestimonialsPreview, type: 'testimonials', icon: 'fa-comments' },
     { name: 'horizontal-carousel', description: 'businessDashboard.widgetDescriptions.horizontal-carousel', component: HorizontalCarouselPreview, type: 'horizontal-carousel', icon: 'fa-arrows-left-right' },
     { name: 'showcase', description: 'businessDashboard.widgetDescriptions.showcase', component: ShowcasePreview, type: 'showcase', icon: 'fa-store' },
     { name: 'large-carousel', description: 'businessDashboard.widgetDescriptions.large-carousel', component: LargeCarouselPreview, type: 'large-carousel', icon: 'fa-images' },
@@ -348,6 +350,10 @@ const DashboardWidgets: React.FC = () => {
                             datos (5.0 y 123 reseñas). Para un producto sin reseñas eso
                             contradiría al widget real, que mostrará 0: se avisa aquí mismo,
                             pegado a las cifras que no son suyas. */}
+                        <p className="mb-3 text-xs sm:text-sm text-sky-800 dark:text-sky-200 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-lg p-2.5 flex items-start gap-2">
+                            <i className="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                            <span>{t('businessDashboard.widgetPreviewExampleNotice')}</span>
+                        </p>
                         {selectedProduct && (selectedProduct.review_count ?? 0) === 0 && (
                             <p className="mb-3 text-xs sm:text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 flex items-start gap-2">
                                 <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>

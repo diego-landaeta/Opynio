@@ -372,6 +372,7 @@ const BusinessesPage: React.FC = () => {
                     <button
                         onClick={() => goToPage(page - 1)}
                         disabled={page === 1 || loading}
+                        aria-label={t('businessesPage.previous')}
                         className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 hover:border-brand-green hover:text-brand-green dark:hover:border-brand-green"
                     >
                         <i className="fa-solid fa-chevron-left text-xs"></i>
@@ -388,6 +389,7 @@ const BusinessesPage: React.FC = () => {
                     <button
                         onClick={() => goToPage(page + 1)}
                         disabled={page === totalPages || loading}
+                        aria-label={t('businessesPage.next')}
                         className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-brand-green text-white hover:bg-opacity-90 shadow-md"
                     >
                         <span className="hidden sm:inline">{t('businessesPage.next')}</span>

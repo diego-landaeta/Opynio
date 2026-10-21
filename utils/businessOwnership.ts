@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCountry } from '../contexts/CountryContext';
 import { useI18n, pathTranslations, getLanguageForCountryCode, localizedPathOrRoot, type Language } from '../contexts/i18nContext';
 import type { Business } from '../types';
+import { businessUrlId } from './slugify';
 
 /** Secciones del panel de empresa que se pueden abrir directamente. */
 export type DashboardSection =
@@ -18,14 +19,14 @@ export type DashboardSection =
  * idioma y prefijo del país de la empresa (o el idioma actual si no tiene país).
  */
 export function getBusinessDashboardPath(
-    business: Pick<Business, 'name'> & { country?: string | null },
+    business: Pick<Business, 'name'> & { slug?: string | null; country?: string | null },
     section?: DashboardSection,
     fallbackLanguage: Language = 'es',
 ): string {
     const lang = business.country ? getLanguageForCountryCode(business.country) : fallbackLanguage;
     const rutas = pathTranslations[lang] ?? pathTranslations.es;
     const prefijo = business.country ? `/${business.country.toLowerCase()}` : '';
-    const base = `${prefijo}/${rutas.businessDashboard.replace(':businessName', encodeURIComponent(business.name.trim().replace(/ /g, '_')))}`;
+    const base = `${prefijo}/${rutas.businessDashboard.replace(':businessName', businessUrlId(business))}`;
     return section ? `${base}/${rutas[section]}` : base;
 }
 

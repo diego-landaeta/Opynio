@@ -37,7 +37,7 @@ type EmailData = {
   factor_type?: string;
 };
 
-type HookUser = { email?: string; new_email?: string; phone?: string };
+type HookUser = { email?: string; new_email?: string; phone?: string; user_metadata?: Record<string, unknown> };
 
 // email_action_type de Auth -> plantilla.
 const PLANTILLA_DE: Record<string, string> = {
@@ -145,7 +145,11 @@ Deno.serve(async (req) => {
   }
 
   const tipo = email_data?.email_action_type;
-  const clave = PLANTILLA_DE[tipo];
+  // Alta de empresa (signUpBusiness guarda intended_role y redirige a /post-acceso?type=business):
+  // mismo diseno, con el texto de empresa.
+  const esEmpresa = tipo === "signup" && (user?.user_metadata?.intended_role === "business_owner"
+    || /[?&]type=business(&|#|$)/.test(email_data.redirect_to ?? ""));
+  const clave = esEmpresa ? "confirmation_business" : PLANTILLA_DE[tipo];
   const plantilla = clave ? PLANTILLAS[clave] : undefined;
   if (!plantilla) return fallo(400, `Tipo de correo no soportado: ${tipo}`);
 

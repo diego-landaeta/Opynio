@@ -17,13 +17,9 @@ interface RatingDistributionProps {
 const RatingDistribution: React.FC<RatingDistributionProps> = ({ distribution, totalReviews, subtitle, isLoading = false, errorMessage = null, emptyMessage }) => {
     const t = useTranslation();
     const isScoped = subtitle != null;
-    // La tarjeta de la empresa sin resenas se queda como estaba. La de un
-    // producto se pinta siempre: si no, al elegir uno sin resenas no quedaria
-    // claro de que habla el aviso.
-    if (!isScoped && totalReviews === 0) {
-        return <p className="text-sm text-gray-500 dark:text-gray-400">{t('businessPage.notEnoughDataForSummary')}</p>;
-    }
-
+    // La tarjeta se pinta siempre, tambien sin resenas. Antes, la de la empresa
+    // sin resenas devolvia solo el aviso del resumen con IA («No hay suficientes
+    // resenas con texto...»), suelto y sin titulo: no era una distribucion.
     return (
         <div
             data-testid="rating-distribution"
@@ -39,8 +35,8 @@ const RatingDistribution: React.FC<RatingDistributionProps> = ({ distribution, t
             )}
             {errorMessage ? (
                 <p role="alert" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{errorMessage}</p>
-            ) : isScoped && !isLoading && totalReviews === 0 ? (
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{emptyMessage || t('businessPage.notEnoughDataForSummary')}</p>
+            ) : !isLoading && totalReviews === 0 ? (
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{emptyMessage || t('businessPage.noRatingsYet')}</p>
             ) : (
                 <div className={`space-y-1.5 ${isLoading ? 'animate-pulse' : ''}`}>
                     {[5, 4, 3, 2, 1].map(star => {

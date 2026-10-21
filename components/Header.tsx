@@ -130,6 +130,27 @@ const MobileMenu: React.FC<{
         { to: `${countryPrefix}/${paths.support}`, icon: "fa-solid fa-life-ring", label: t('header.support') },
     ], [countryPrefix, t, paths, language]);
 
+    // Escape cierra el menu abierto.
+    useEffect(() => {
+        if (!isOpen) return;
+        const alPulsar = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', alPulsar);
+        return () => document.removeEventListener('keydown', alPulsar);
+    }, [isOpen, onClose]);
+
+    // Dialogo modal: al abrir el foco entra en el menu y al cerrar vuelve a quien
+    // lo abrio (antes se quedaba detras del menu, sin poder tabular dentro).
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        if (!isOpen) return;
+        const previo = document.activeElement as HTMLElement | null;
+        const temporizador = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+        return () => {
+            window.clearTimeout(temporizador);
+            if (previo && document.contains(previo)) previo.focus();
+        };
+    }, [isOpen]);
+
     return (
         <>
             {/* Backdrop - tap to close */}
@@ -152,13 +173,16 @@ const MobileMenu: React.FC<{
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="menu-title"
+                // Cerrado: fuera del orden de Tab y de los lectores de pantalla.
+                inert={!isOpen}
+                aria-hidden={!isOpen}
             >
                 <div className="flex flex-col h-full">
                     <div className="flex justify-between items-center p-3 sm:p-4 border-b dark:border-zinc-800">
                         <Link to={countryPrefix || '/'} onClick={onClose} className="flex items-center gap-2">
                             <span id="menu-title" className="text-lg sm:text-xl font-bold text-brand-green truncate">{brandName}</span>
                         </Link>
-                        <button onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
+                        <button ref={closeButtonRef} onClick={onClose} className="text-gray-500 dark:text-gray-400 text-xl sm:text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center" aria-label={t('header.closeMenu')}>
                             <i className="fa-solid fa-times"></i>
                         </button>
                     </div>
@@ -474,8 +498,21 @@ const Header: React.FC = () => {
             if (moreDropdownRef.current && !moreDropdownRef.current.contains(target)) setMoreDropdownOpen(false);
             if (companyDropdownRef.current && !companyDropdownRef.current.contains(target)) setCompanyDropdownOpen(false);
         };
+        // Escape cierra los desplegables (notificaciones, cuenta, idioma, Mas...).
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            setUserDropdownOpen(false);
+            setNotifDropdownOpen(false);
+            setLangDropdownOpen(false);
+            setMoreDropdownOpen(false);
+            setCompanyDropdownOpen(false);
+        };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
     }, []);
 
     const NotificationPrompt: React.FC = () => (
@@ -504,7 +541,7 @@ const Header: React.FC = () => {
     
     const NotificationDropdown: React.FC = () => (
         <div className="relative" ref={notifDropdownRef}>
-            <button onClick={handleNotifClick} className="relative text-gray-600 dark:text-gray-300 hover:text-brand-green transition-colors text-xl w-10 h-10 flex items-center justify-center rounded-full"><i className="fa-regular fa-bell"></i>{unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">{unreadCount}</span>}</button>
+            <button onClick={handleNotifClick} aria-label={t('header.notifications')} aria-expanded={notifDropdownOpen} aria-haspopup="true" className="relative text-gray-600 dark:text-gray-300 hover:text-brand-green transition-colors text-xl w-10 h-10 flex items-center justify-center rounded-full"><i className="fa-regular fa-bell" aria-hidden="true"></i>{unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">{unreadCount}</span>}</button>
             {notifDropdownOpen && (<div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-800 rounded-md shadow-lg z-50 border border-gray-100 dark:border-zinc-700"><div className="px-4 py-3 border-b dark:border-zinc-700"><h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t('header.notifications')}</h3></div><div className="max-h-96 overflow-y-auto">{notifications.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">{t('header.noNotifications')}</p> : notifications.map(n => <NotificationItem key={n.id} notification={n} onClick={() => setNotifDropdownOpen(false)} />)}</div></div>)}
         </div>
     );
@@ -551,6 +588,7 @@ const Header: React.FC = () => {
                                 <div className="relative" ref={moreDropdownRef}>
                                     <button
                                         onClick={() => setMoreDropdownOpen(v => !v)}
+                                        aria-expanded={moreDropdownOpen}
                                         className="flex items-center gap-1.5 hover:text-brand-green transition-colors"
                                     >
                                         <span>{t('header.more')}</span>

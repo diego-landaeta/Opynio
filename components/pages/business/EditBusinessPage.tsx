@@ -6,7 +6,7 @@ import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
 import type { BusinessHours, Json, Business, Sede } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { CATEGORIES, COUNTRIES, SEDE_COUNTRIES } from '../../../constants';
+import { CATEGORIES, SEDE_COUNTRIES } from '../../../constants';
 import Meta from '../../Meta';
 import L from 'leaflet';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode, localizedPath } from '../../../contexts/i18nContext';
@@ -15,6 +15,7 @@ import { useCountry } from '../../../contexts/CountryContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import SectionLock from './dashboard/SectionLock';
 import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields } from '../../../utils/planFeatures';
+import { businessUrlId } from '../../../utils/slugify';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -83,13 +84,18 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                 <span>{t(`businessPage.day_${day}`)}</span>
             </label>
 
-            <div className={`grid grid-cols-2 items-center gap-2 transition-opacity ${isClosed ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+            {/* Dia cerrado (tambien los que aun no tienen horario, p. ej. el domingo):
+                antes eran dos campos de hora vacios y apagados que parecian no existir.
+                Ahora se lee «Cerrado»; al marcar el dia aparecen los campos. */}
+            {isClosed ? (
+                <p className="p-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">{t('common.closed')}</p>
+            ) : (
+            <div className="grid grid-cols-2 items-center gap-2">
                 <div className="relative">
                     <input
                         type="time"
-                        value={isClosed ? '' : value.open}
+                        value={value.open}
                         onChange={(e) => handleTimeChange('open', e.target.value)}
-                        disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
                         aria-label={`${t('editBusiness.opens')} · ${t(`businessPage.day_${day}`)}`}
                     />
@@ -98,15 +104,15 @@ const DaySchedule: React.FC<{ day: keyof BusinessHours; value: { open: string; c
                  <div className="relative">
                     <input
                         type="time"
-                        value={isClosed ? '' : value.close}
+                        value={value.close}
                         onChange={(e) => handleTimeChange('close', e.target.value)}
-                        disabled={isClosed}
                         className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-white dark:bg-zinc-700 text-xs sm:text-sm dark:text-gray-200"
                         aria-label={`${t('editBusiness.closes')} · ${t(`businessPage.day_${day}`)}`}
                     />
                     <i className="fa-regular fa-clock absolute right-2 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-400 pointer-events-none"></i>
                 </div>
             </div>
+            )}
         </div>
     )
 };
@@ -381,6 +387,8 @@ const EditBusinessPage: React.FC = () => {
         website_url: '',
         twitter: '',
         instagram: '',
+        facebook: '',
+        linkedin: '',
         logo_url: '',
         google_maps_url: '',
         category: '',
@@ -402,6 +410,8 @@ const EditBusinessPage: React.FC = () => {
     
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
+    const mapResizeRef = useRef<ResizeObserver | null>(null);
+    useEffect(() => () => { mapResizeRef.current?.disconnect(); }, []);
     const markerRef = useRef<L.Marker | null>(null);
     const initialDataLoaded = useRef(false);
 
@@ -412,6 +422,8 @@ const EditBusinessPage: React.FC = () => {
                 website_url: business.website_url || '',
                 twitter: (business.social_links as any)?.twitter || '',
                 instagram: (business.social_links as any)?.instagram || '',
+                facebook: (business.social_links as any)?.facebook || '',
+                linkedin: (business.social_links as any)?.linkedin || '',
                 logo_url: business.logo_url || '',
                 google_maps_url: business.google_maps_url || '',
                 category: business.category || '',
@@ -436,12 +448,23 @@ const EditBusinessPage: React.FC = () => {
             mapRef.current = L.map(mapContainerRef.current, {
                 center: [40.416775, -3.703790], // Default center on Spain
                 zoom: 6,
+                // La rueda del raton baja la pagina; el mapa solo hace zoom con la
+                // rueda despues de pulsarlo y deja de hacerlo al salir.
+                scrollWheelZoom: false,
             });
+            mapRef.current.on('click', () => mapRef.current?.scrollWheelZoom.enable());
+            mapRef.current.on('mouseout', () => mapRef.current?.scrollWheelZoom.disable());
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(mapRef.current);
 
             setTimeout(() => mapRef.current?.invalidateSize(), 100);
+            // El contenedor cambia de tamano despues de cargar (el formulario
+            // sigue pintandose): sin recalcular, salian teselas sueltas sobre gris.
+            if (typeof ResizeObserver !== 'undefined') {
+                mapResizeRef.current = new ResizeObserver(() => mapRef.current?.invalidateSize());
+                mapResizeRef.current.observe(mapContainerRef.current);
+            }
         }
 
         const map = mapRef.current;
@@ -548,6 +571,8 @@ const EditBusinessPage: React.FC = () => {
             const social_links = {
                 twitter: formData.twitter.trim(),
                 instagram: formData.instagram.trim(),
+                facebook: formData.facebook.trim(),
+                linkedin: formData.linkedin.trim(),
             };
             
             const cleanedHorarios: BusinessHours = {};
@@ -570,7 +595,7 @@ const EditBusinessPage: React.FC = () => {
             const updates = withoutPaidProfileFields({
                 name: formData.name,
                 website_url: formData.website_url,
-                social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
+                social_links: Object.values(social_links).some(Boolean) ? social_links : null,
                 horarios: Object.keys(cleanedHorarios).length > 0 ? (cleanedHorarios as unknown as Json) : null,
                 logo_url: formData.logo_url,
                 google_maps_url: formData.google_maps_url,
@@ -590,16 +615,18 @@ const EditBusinessPage: React.FC = () => {
             if (updatedBusiness) {
                 setBusinesses(prev => prev.map(b => b.id === updatedBusiness.id ? { ...b, ...updatedBusiness } : b));
                 updateBusiness(updatedBusiness);
-                // Renombrada: la URL del panel lleva el nombre; con el viejo, al
-                // recargar salia "Negocio no encontrado".
-                if (updatedBusiness.name && updatedBusiness.name !== business.name) {
-                    const viejo = encodeURIComponent(business.name.replace(/ /g, '_'));
-                    const nuevo = encodeURIComponent(updatedBusiness.name.replace(/ /g, '_'));
-                    const actual = window.location.pathname;
-                    const conNombreNuevo = actual.includes(`/${viejo}/`) || actual.endsWith(`/${viejo}`)
-                        ? actual.replace(`/${viejo}`, `/${nuevo}`)
-                        : null;
-                    if (conNombreNuevo) navigate(conNombreNuevo, { replace: true });
+                // Con slug guardado, renombrar no cambia la URL del panel. Una
+                // empresa SIN slug usa el del nombre: si cambia, se sigue la URL
+                // (con la vieja, al recargar saldria "Negocio no encontrado").
+                const viejo = businessUrlId(business);
+                const nuevo = businessUrlId(updatedBusiness);
+                if (nuevo && viejo !== nuevo) {
+                    const segs = window.location.pathname.split('/');
+                    const i = segs.findIndex(s => { try { return decodeURIComponent(s).toLowerCase() === viejo; } catch { return s.toLowerCase() === viejo; } });
+                    if (i >= 0) {
+                        segs[i] = nuevo;
+                        navigate(segs.join('/'), { replace: true });
+                    }
                 }
             }
             
@@ -745,7 +772,10 @@ const EditBusinessPage: React.FC = () => {
                                     required
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent dark:text-gray-200"
                                 >
-                                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{countryNameOf(c.code, c.name)}</option>)}
+                                    {/* Misma lista que «Añadir sede» (SEDE_COUNTRIES): COUNTRIES no trae
+                                        Venezuela ni China y el desplegable de pais y el de sede se contradecian. */}
+                                    {SEDE_COUNTRIES.filter(c => !c.disabled || c.code === formData.country).map(c => <option key={c.code} value={c.code}>{countryNameOf(c.code, c.name)}</option>)}
+                                    {formData.country && !SEDE_COUNTRIES.some(c => c.code === formData.country) && <option value={formData.country}>{formData.country}</option>}
                                 </select>
                             </div>
                         </div>
@@ -854,6 +884,7 @@ const EditBusinessPage: React.FC = () => {
                                     type="button"
                                     onClick={handleAddressSearch}
                                     disabled={isSearchingAddress}
+                                    aria-label={t('editBusiness.searchAddressButton')}
                                     className="bg-brand-dark text-white font-semibold px-4 py-3 rounded-lg w-16 h-[48px] flex items-center justify-center"
                                 >
                                     {isSearchingAddress ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <i className="fa-solid fa-search"></i>}
@@ -902,6 +933,14 @@ const EditBusinessPage: React.FC = () => {
                                 <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('editBusiness.instagram')}</label>
                                 <input id="instagram" type="text" value={formData.instagram} onChange={handleInputChange} placeholder={t('editBusiness.instagramPlaceholder')} className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
                             </div>
+                            <div>
+                                <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Facebook</label>
+                                <input id="facebook" type="text" value={formData.facebook} onChange={handleInputChange} placeholder="minegocio" className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
+                            </div>
+                            <div>
+                                <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LinkedIn</label>
+                                <input id="linkedin" type="text" value={formData.linkedin} onChange={handleInputChange} placeholder="company/minegocio" className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-gray-50 dark:bg-zinc-700 dark:text-gray-200"/>
+                            </div>
                         </div>
                         </PaidFieldGroup>
                         
@@ -929,7 +968,7 @@ const EditBusinessPage: React.FC = () => {
                                 const lang = business.country ? getLanguageForCountryCode(business.country) : language;
                                 const paths = pathTranslations[lang] ?? pathTranslations.es;
                                 const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
-                                const slug = encodeURIComponent(business.name.replace(/ /g, '_'));
+                                const slug = businessUrlId(business);
                                 navigate(`${countryPrefix}/${paths.businessDashboard.replace(':businessName', slug)}`);
                             }} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
                                 {t('common.cancel')}

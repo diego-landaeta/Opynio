@@ -7,6 +7,7 @@ import { useCountry } from '../../contexts/CountryContext';
 import { supabase } from '../../services/supabaseService';
 import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
 import { COUNTRIES } from '../../constants';
+import { PLAN_MONTHLY_PRICE, ANNUAL_PRICE_FACTOR } from '../../utils/planPrices';
 
 // FAQ Item Component
 const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ question, children }) => {
@@ -127,7 +128,7 @@ const PricingPage = () => {
         {
             nameKey: 'pricingPage.planStarter',
             audienceKey: 'pricingPage.starterAudience',
-            price: { monthly: 95 },
+            price: { monthly: PLAN_MONTHLY_PRICE.starter },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=starter`,
             features: [
@@ -143,7 +144,7 @@ const PricingPage = () => {
         {
             nameKey: 'pricingPage.planGrowth',
             audienceKey: 'pricingPage.growthAudience',
-            price: { monthly: 215 },
+            price: { monthly: PLAN_MONTHLY_PRICE.growth },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=growth`,
             features: [
@@ -162,7 +163,7 @@ const PricingPage = () => {
         {
             nameKey: 'pricingPage.planPro',
             audienceKey: 'pricingPage.proAudience',
-            price: { monthly: 419 },
+            price: { monthly: PLAN_MONTHLY_PRICE.pro },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=pro`,
             features: [
@@ -243,7 +244,8 @@ const PricingPage = () => {
                         const isAnnual = billingCycle === 'annual';
                         const isEnterprise = plan.nameKey === 'pricingPage.planEnterprise';
                         const planName = plan.nameKey.replace('pricingPage.plan', '').toLowerCase();
-                        let ctaLinkTarget = plan.ctaLink;
+                        // El visitante conserva el ciclo elegido (anual/mensual) hasta el alta.
+                        let ctaLinkTarget = plan.ctaLink.includes('plan=') ? `${plan.ctaLink}&billingCycle=${billingCycle}` : plan.ctaLink;
 
                         // 1) Sin login: ir a /registro?type=business&plan=X (default).
                         // 2) Con login y SIN negocios: ir a /asignar-empresa?plan=X&billingCycle=Y.
@@ -273,11 +275,11 @@ const PricingPage = () => {
                                             isAnnual ? (
                                                 <>
                                                     <span className="text-3xl sm:text-4xl font-extrabold text-brand-dark dark:text-gray-100">
-                                                        €{((plan.price as {monthly: number}).monthly * 12 * 0.75).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        €{((plan.price as {monthly: number}).monthly * 12 * ANNUAL_PRICE_FACTOR).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </span>
                                                     <span className="text-gray-500 dark:text-gray-400 font-medium">{t('pricingPage.perYear')}</span>
                                                     <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mt-1">
-                                                        ({t('pricingPage.equivalentToPerMonth', { price: (((plan.price as {monthly: number}).monthly * 12 * 0.75) / 12).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })})
+                                                        ({t('pricingPage.equivalentToPerMonth', { price: (((plan.price as {monthly: number}).monthly * 12 * ANNUAL_PRICE_FACTOR) / 12).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })})
                                                     </p>
                                                 </>
                                             ) : (

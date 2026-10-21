@@ -10,10 +10,10 @@ import RequestReviewDeletionModal, { reviewIdFromDeletionSubject } from '../Requ
 import MySupportTickets from '../support/MySupportTickets';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
-import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot, toBcp47 } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
+import { useUserErrorNotifier } from '../../utils/userFacingError';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg flex items-center gap-4">
@@ -32,7 +32,7 @@ const ProfilePage: React.FC = () => {
     const { user, profile, businesses, loading: authLoading } = useAuth();
     const { showNotification } = useNotification();
     // Errores de pago/portal traducidos, con enlace a Soporte (utils/userFacingError).
-    const { notifyError, showUserError } = useUserErrorNotifier();
+    const { notifyError } = useUserErrorNotifier();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
     // La resena propia no se edita ni se borra: se solicita su eliminacion
@@ -84,39 +84,14 @@ const ProfilePage: React.FC = () => {
     }, [authLoading, user, profile, isAdmin, isBusinessOwner, language, country, navigate]);
 
     const isOnV2 = profile?.plan === 'v2';
+    // Starter/Growth/Pro: ya paga un plan de verdad; se muestra el suyo y se gestiona en el portal.
+    const paidPlan = (['starter', 'growth', 'pro'] as const).find(p => p === profile?.plan) ?? null;
     // El bloque de gestión de suscripción sólo aparece cuando el usuario YA es
     // business_owner con al menos un negocio. Antes de eso debe registrar empresa.
     const canBuyV2 = !!user && isBusinessOwner && hasBusiness && !isOnV2;
 
-    const handleBuyV2 = async () => {
-        if (!primaryBusinessId) return;
-        setV2Loading(true);
-        try {
-            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                body: { plan: 'v2', billingCycle: 'monthly', businessId: primaryBusinessId },
-            });
-            if (error) {
-                const info = await getUserFacingError(error, { flow: 'checkout' });
-                // 409 duplicate_subscription → ya tiene v2 → al portal en su lugar.
-                if (info.kind === 'duplicateSubscription') {
-                    await handleOpenPortal();
-                    return;
-                }
-                showUserError(info);
-                setV2Loading(false);
-                return;
-            }
-            if (data?.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error('create-checkout-session: respuesta sin url');
-            }
-        } catch (err) {
-            await notifyError(err, { flow: 'checkout' });
-            setV2Loading(false);
-        }
-    };
-
+    // La compra del plan «v2» (0,50 €/mes, plan de pruebas de Stripe en vivo) ya no se
+    // ofrece desde el perfil: los planes de verdad se contratan en /planes.
     const handleOpenPortal = async () => {
         setV2Loading(true);
         try {
@@ -223,7 +198,7 @@ const ProfilePage: React.FC = () => {
                                 {profile.username && user.email && <span className="mx-2">&middot;</span>}
                                 {user.email}
                             </p>
-                             <span className={`mt-2 inline-block text-xs font-semibold px-3 py-1 rounded-full capitalize ${roleInfo.badgeColor}`}>
+                             <span className={`mt-2 inline-block text-xs font-semibold px-3 py-1 rounded-full ${roleInfo.badgeColor}`}>
                                 {roleInfo.name}
                             </span>
                         </div>
@@ -244,8 +219,7 @@ const ProfilePage: React.FC = () => {
                     <div className="mt-8">
                          <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">{t('profilePage.accountInfo')}</h2>
                          <div className="mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.userId')}</span> {user.id}</p>
-                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.registeredOn')}</span> {new Date(user.created_at).toLocaleDateString(language)}</p>
+                            <p><span className="font-medium text-gray-800 dark:text-gray-200">{t('profilePage.registeredOn')}</span> {new Date(user.created_at).toLocaleDateString(toBcp47(language), { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                          </div>
                     </div>
 
@@ -293,10 +267,16 @@ const ProfilePage: React.FC = () => {
                         <div className="mt-8 pt-6 border-t dark:border-zinc-700">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">{t('profilePage.premiumTitle')}</h2>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        {t('profilePage.premiumBody')}
-                                    </p>
+                                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                                        {isOnV2
+                                            ? t('profilePage.premiumTitle')
+                                            : `${t('businessDashboard.currentPlan')}: ${t(`businessDashboard.${paidPlan ?? (profile?.plan === 'enterprise' ? 'enterprise' : 'free')}PlanName`)}`}
+                                    </h2>
+                                    {isOnV2 && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            {t('profilePage.premiumBody')}
+                                        </p>
+                                    )}
                                 </div>
                                 <ReactRouterDOM.Link
                                     to={pathTo('pricing')}
@@ -305,7 +285,7 @@ const ProfilePage: React.FC = () => {
                                     {t('profilePage.seeAllPlans')} <i className="fa-solid fa-arrow-right ml-1"></i>
                                 </ReactRouterDOM.Link>
                             </div>
-                            {isOnV2 ? (
+                            {isOnV2 || paidPlan ? (
                                 <button
                                     type="button"
                                     onClick={handleOpenPortal}
@@ -317,19 +297,7 @@ const ProfilePage: React.FC = () => {
                                         : <i className="fa-solid fa-credit-card"></i>}
                                     <span>{v2Loading ? t('common.openingPortal') : t('profilePage.managePlan')}</span>
                                 </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleBuyV2}
-                                    disabled={v2Loading}
-                                    className="bg-pink-600 text-white font-bold py-2.5 px-5 rounded-lg hover:bg-pink-700 transition-colors shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {v2Loading
-                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        : <i className="fa-solid fa-rocket"></i>}
-                                    <span>{v2Loading ? t('common.redirectingToStripe') : t('profilePage.activatePlan')}</span>
-                                </button>
-                            )}
+                            ) : null}
                         </div>
                     )}
                 </div>

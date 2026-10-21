@@ -3,6 +3,8 @@ import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardCont
 import { getBusinessAnalytics, getBusinessProducts } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { getSectionAccess } from '../../../../utils/planFeatures';
 import SectionLock from './SectionLock';
 
 
@@ -212,13 +214,19 @@ const DashboardAnalytics: React.FC = () => {
 
     const { business } = useBusinessDashboard();
     const t = useTranslation();
+    const { profile } = useAuth();
     const [loading, setLoading] = useState(true);
     const [analyticsData, setAnalyticsData] = useState<any>(null);
     const [dateRange, setDateRange] = useState<DateRange>(30);
 
+    // Con la seccion bloqueada (plan o funcion apagada) no hay datos que filtrar:
+    // ni se piden ni se muestran los filtros de fecha (antes seguian activos
+    // encima de la pantalla del candado).
+    const desbloqueada = !!profile && !getSectionAccess(profile, 'analytics').locked;
+
     useEffect(() => {
         const loadAnalytics = async () => {
-            if (!business) return;
+            if (!business || !desbloqueada) return;
             setLoading(true);
             try {
                 const data = await getBusinessAnalytics(business.id, dateRange);
@@ -231,7 +239,7 @@ const DashboardAnalytics: React.FC = () => {
             }
         };
         loadAnalytics();
-    }, [business, dateRange]);
+    }, [business, dateRange, desbloqueada]);
     
     const dateFilters: { labelKey: string; value: DateRange }[] = [
         { labelKey: 'businessDashboard.last30Days', value: 30 },
@@ -240,22 +248,25 @@ const DashboardAnalytics: React.FC = () => {
     ];
 
     useEffect(() => {
-        if (!business?.id) return;
+        if (!business?.id || !desbloqueada) return;
         let cancelado = false;
         getBusinessProducts(business.id)
             .then(lista => { if (!cancelado) setProductosConNota(lista.filter((p: any) => p.is_active)); })
             .catch(() => { /* sin tablas: la analítica se queda como estaba */ });
         return () => { cancelado = true; };
-    }, [business?.id]);
+    }, [business?.id, desbloqueada]);
 
     return (
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.analyticsTitle')}</h1>
+                 {desbloqueada && (
                  <div className="flex items-center gap-1 sm:gap-2 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg w-full sm:w-auto">
                     {dateFilters.map(filter => (
                         <button
                             key={filter.value}
+                            type="button"
+                            aria-pressed={dateRange === filter.value}
                             onClick={() => setDateRange(filter.value)}
                             className={`flex-1 sm:flex-none py-1.5 sm:py-2 px-2 sm:px-4 rounded-md font-semibold transition-all text-xs sm:text-sm ${dateRange === filter.value ? 'bg-white dark:bg-zinc-700 shadow' : 'text-gray-600 dark:text-gray-400'}`}
                         >
@@ -263,9 +274,10 @@ const DashboardAnalytics: React.FC = () => {
                         </button>
                     ))}
                 </div>
+                 )}
             </div>
 
-            <SectionLock section="analytics" title={t('businessDashboard.advancedAnalyticsLockTitle')} subtitleKey="businessDashboard.advancedAnalyticsLockSubtitle">
+            <SectionLock section="analytics" title={t('businessDashboard.advancedAnalyticsLockTitle')}>
                 {loading ? (
                      <div className="flex justify-center items-center h-64 sm:h-96"><Spinner /></div>
                 ) : !analyticsData || analyticsData.totalReviews === 0 ? (

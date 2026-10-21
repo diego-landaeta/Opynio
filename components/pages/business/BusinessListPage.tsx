@@ -5,12 +5,14 @@ import Spinner from '../../Spinner';
 import BusinessLogo from '../../BusinessLogo';
 import { Link, useNavigate } from 'react-router-dom';
 import Meta from '../../Meta';
-import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode, toBcp47 } from '../../../contexts/i18nContext';
 import { supabase } from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
+import { businessUrlId } from '../../../utils/slugify';
+import { planNameKey } from '../../../utils/planFeatures';
 
 const DeleteConfirmModal: React.FC<{
     businessName: string;
@@ -60,7 +62,7 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
     // Si no hay country, se cae al idioma actual del usuario.
     const { language } = useI18n();
     const dashLang = business.country ? getLanguageForCountryCode(business.country) : language;
-    const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', encodeURIComponent(business.name.replace(/ /g, '_')));
+    const dashboardPath = (pathTranslations[dashLang] ?? pathTranslations.es).businessDashboard.replace(':businessName', businessUrlId(business));
     const countryPrefix = business.country ? `/${business.country.toLowerCase()}` : '';
     const businessSlug = (business as any).slug as string | undefined;
     const publicUrl = businessSlug
@@ -111,8 +113,9 @@ const BusinessCard: React.FC<{ business: Business; onDelete: (businessId: string
                     <button
                         onClick={() => setShowDeleteModal(true)}
                         disabled={isDeleting}
-                        className="text-red-500 hover:text-red-700 dark:hover:text-red-400 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                        className="ml-3 shrink-0 text-red-500 hover:text-red-700 dark:hover:text-red-400 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                         title={t('myBusinesses.deleteBusiness')}
+                        aria-label={t('myBusinesses.deleteBusiness')}
                     >
                         <i className="fa-solid fa-trash-can"></i>
                     </button>
@@ -218,6 +221,8 @@ const BusinessListPage: React.FC = () => {
     const canCreateBusiness = businesses.length < limit;
 
     const featuresForCurrentPlan = PLAN_FEATURES[currentPlan] || [];
+    const includedFeatures = featuresForCurrentPlan.filter(f => !f.comingSoon);
+    const comingSoonFeatures = featuresForCurrentPlan.filter(f => f.comingSoon);
 
     // Use country directly - don't infer from language
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
@@ -292,12 +297,13 @@ const BusinessListPage: React.FC = () => {
                             <div>
                                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('myBusinesses.yourCurrentPlan')}</h2>
                                 <div className="flex items-center gap-3 mt-2">
-                                    <span className="font-bold text-lg text-brand-green capitalize">{profile.plan}</span>
+                                    {/* Nombre traducido del plan, el mismo del panel (antes: el valor crudo, «free» / «starter»). */}
+                                    <span className="font-bold text-lg text-brand-green">{t(planNameKey(currentPlan))}</span>
                                     {profile.billing_cycle && <span className="text-sm text-gray-500 dark:text-gray-400 capitalize">({profile.billing_cycle === 'monthly' ? t('myBusinesses.billingCycleMonthly') : t('myBusinesses.billingCycleAnnual')})</span>}
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     {profile.plan_expires_at 
-                                        ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' }) })
+                                        ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }) })
                                         : (profile.plan === 'free' ? t('myBusinesses.freePlanActive') : t('myBusinesses.supportForRenewal'))
                                     }
                                 </p>
@@ -322,18 +328,36 @@ const BusinessListPage: React.FC = () => {
                          {featuresForCurrentPlan.length > 0 && (
                             <>
                                 <hr className="my-6 dark:border-zinc-700"/>
-                                <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-4">{t('myBusinesses.featuresIncludedInYourPlan')}</h3>
-                                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                                {featuresForCurrentPlan.map(feature => (
-                                    <li key={feature.key} className="flex items-start gap-3">
-                                        <i className={`${feature.icon} text-brand-green mt-1 w-5 text-center`}></i>
-                                        <span className="flex-1 text-gray-700 dark:text-gray-300">
-                                            {t(feature.key)}
-                                            {feature.comingSoon && <span className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold ml-2">({t('common.comingSoon')})</span>}
-                                        </span>
-                                    </li>
-                                ))}
-                                </ul>
+                                {/* Las ya disponibles y las «Próximamente» van en bloques separados: no se presenta como incluido lo que aún no existe. */}
+                                {includedFeatures.length > 0 && (
+                                    <>
+                                        <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-4">{t('myBusinesses.featuresIncludedInYourPlan')}</h3>
+                                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                                        {includedFeatures.map(feature => (
+                                            <li key={feature.key} className="flex items-start gap-3">
+                                                <i className={`${feature.icon} text-brand-green mt-1 w-5 text-center`}></i>
+                                                <span className="flex-1 text-gray-700 dark:text-gray-300">{t(feature.key)}</span>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    </>
+                                )}
+                                {comingSoonFeatures.length > 0 && (
+                                    <>
+                                        <h3 className={`font-semibold text-gray-700 dark:text-gray-200 mb-4 ${includedFeatures.length > 0 ? 'mt-6' : ''}`}>{t('myBusinesses.featuresComingSoon')}</h3>
+                                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                                        {comingSoonFeatures.map(feature => (
+                                            <li key={feature.key} className="flex items-start gap-3">
+                                                <i className={`${feature.icon} text-gray-400 dark:text-gray-500 mt-1 w-5 text-center`}></i>
+                                                <span className="flex-1 text-gray-600 dark:text-gray-400">
+                                                    {t(feature.key)}
+                                                    <span className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold ml-2">({t('common.comingSoon')})</span>
+                                                </span>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>

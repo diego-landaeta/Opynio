@@ -4,7 +4,7 @@ import AudioPlayer from '../AudioPlayer';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Database, Business, BusinessListItem } from '../../types';
 import { CATEGORIES } from '../../constants';
-import { createReview, userHasReviewedBusiness, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, getPublicBusinessProducts, linkOwnReviewToProduct } from '../../services/supabaseService';
+import { registerInvitationOpened, registerInvitationReviewed, createReview, userHasReviewedBusiness, searchBusinessList, getBusinessListItemById, userCreateBusiness, getPublicProductById, getPublicBusinessProducts, linkOwnReviewToProduct } from '../../services/supabaseService';
 import { generateReviewDraft, AI_ENABLED } from '../../services/geminiService';
 import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
@@ -230,6 +230,13 @@ const WriteReviewPage: React.FC = () => {
     const paramsDeLaUrl = new URLSearchParams(location.search);
     const preselectedBusinessId = location.state?.businessId || paramsDeLaUrl.get('businessId') || undefined;
     const productoSolicitado = paramsDeLaUrl.get('producto') || null;
+    // Enlace de una invitacion de la empresa (?invitacion=<uuid>): se marca como
+    // abierta al entrar y como reseña escrita al publicar.
+    const invitacionId = paramsDeLaUrl.get('invitacion');
+    useEffect(() => {
+        if (invitacionId) registerInvitationOpened(invitacionId, preselectedBusinessId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [invitacionId]);
     // Producto sobre el que se está opinando, si se llegó desde su widget.
     const [productoDeLaResena, setProductoDeLaResena] = useState<{ id: string; business_id: string; name: string } | null>(null);
 
@@ -702,6 +709,9 @@ const WriteReviewPage: React.FC = () => {
                     console.error('No se pudo asociar la reseña al producto:', linkError);
                 }
             }
+
+            // Invitacion de la empresa: pasa a 'reseña escrita' (si falla, no importa).
+            registerInvitationReviewed(invitacionId, selectedBusinessId).catch(() => {});
 
             setShowSuccessModal(true);
             resetForm();

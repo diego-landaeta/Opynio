@@ -1562,6 +1562,7 @@ const ExplorePage: React.FC = () => {
                     <button
                         onClick={() => goToReviewPage(page - 1)}
                         disabled={page === 1 || loading || loadingMore}
+                        aria-label={t('businessesPage.previous')}
                         className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-white dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 hover:border-brand-green hover:text-brand-green dark:hover:border-brand-green"
                     >
                         <i className="fa-solid fa-chevron-left text-xs"></i>
@@ -1584,6 +1585,7 @@ const ExplorePage: React.FC = () => {
                             }
                         }}
                         disabled={!hasMore || loading || loadingMore}
+                        aria-label={t('businessesPage.next')}
                         className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-brand-green text-white hover:bg-opacity-90 shadow-md"
                     >
                         {loadingMore ? (
@@ -2673,13 +2675,13 @@ const ExplorePage: React.FC = () => {
                 <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">{exploreSubtitle}</p>
             </div>
              <div className="flex items-center gap-1 sm:gap-2 mb-6 sm:mb-8 justify-center p-1 bg-gray-100 dark:bg-zinc-800 rounded-lg">
-                <button onClick={() => setActiveTab('manual')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'manual' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+                <button onClick={() => setActiveTab('manual')} aria-label={t('explorePage.exploreManual')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'manual' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-sliders"></i> <span className="hidden sm:inline">{t('explorePage.exploreManual')}</span>
                 </button>
-                {AI_ENABLED && <button onClick={() => setActiveTab('ai')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'ai' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+                {AI_ENABLED && <button onClick={() => setActiveTab('ai')} aria-label={t('explorePage.exploreAI')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'ai' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-wand-magic-sparkles"></i> <span className="hidden sm:inline">{t('explorePage.exploreAI')}</span>
                 </button>}
-                <button onClick={() => setActiveTab('map')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'map' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
+                <button onClick={() => setActiveTab('map')} aria-label={t('explorePage.exploreMap')} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 font-semibold rounded-md transition-colors text-xs sm:text-sm flex items-center gap-1 sm:gap-2 ${activeTab === 'map' ? 'bg-white dark:bg-zinc-700 text-gray-800 dark:text-white shadow' : 'bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}>
                     <i className="fa-solid fa-map-location-dot"></i> <span className="hidden sm:inline">{t('explorePage.exploreMap')}</span>
                 </button>
             </div>
