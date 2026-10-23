@@ -225,9 +225,9 @@ const DashboardWidgets: React.FC = () => {
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            showNotification('Descarga iniciada.', 'success');
+            showNotification(t('common.downloadStarted'), 'success');
         } catch (err) {
-            showNotification('No se pudo iniciar la descarga.', 'error');
+            showNotification(t('common.downloadFailed'), 'error');
             console.error('Could not initiate download: ', err);
         }
     };
@@ -360,8 +360,16 @@ const DashboardWidgets: React.FC = () => {
                                 <span>{t('businessDashboard.widgetScopeProductWarning')}</span>
                             </p>
                         )}
-                        <div className={`p-3 sm:p-4 rounded-lg overflow-x-auto ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
-                            <selectedWidget.component business={previewTarget} theme={theme} lang={previewLang} isProduct={!!selectedProduct} productName={selectedProduct?.name} />
+                        {/* La etiqueta va sobre la propia vista previa (como en las pantallas con
+                            candado): las cifras y los autores de aqui son de ejemplo y el aviso de
+                            arriba, solo, se pasa por alto. */}
+                        <div className="relative">
+                            <span className="pointer-events-none absolute top-2 right-2 z-10 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 shadow-sm">
+                                {t('businessDashboard.lockExampleBadge')}
+                            </span>
+                            <div className={`p-3 sm:p-4 rounded-lg overflow-x-auto ${theme === 'dark' ? 'bg-zinc-900' : 'bg-gray-100'}`}>
+                                <selectedWidget.component business={previewTarget} theme={theme} lang={previewLang} isProduct={!!selectedProduct} productName={selectedProduct?.name} />
+                            </div>
                         </div>
                     </div>
 

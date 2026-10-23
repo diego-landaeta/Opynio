@@ -1,4 +1,6 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect, useRef } from 'react';
+import { useTranslation } from '../contexts/i18nContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ModalProps {
     title: string;
@@ -7,6 +9,10 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
+    const t = useTranslation();
+    const overlayRef = useRef<HTMLDivElement>(null);
+    // El foco entra en el dialogo, no se escapa con Tab y vuelve al cerrar.
+    useFocusTrap(overlayRef, true, { focusOnOpen: true, restoreFocus: true });
     // Escape cierra, como la X y el clic fuera.
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -16,7 +22,9 @@ const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-modal-overlay"
+            ref={overlayRef}
+            tabIndex={-1}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-modal-overlay focus:outline-none"
             aria-modal="true"
             role="dialog"
             aria-labelledby="modal-title"
@@ -29,7 +37,7 @@ const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
                 <button
                     onClick={onClose}
                     className="absolute top-2 right-2 sm:top-3 sm:right-3 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-                    aria-label="Cerrar modal"
+                    aria-label={t('common.close')}
                 >
                     <i className="fa-solid fa-times text-lg sm:text-xl"></i>
                 </button>

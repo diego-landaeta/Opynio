@@ -1,21 +1,29 @@
 import { pathTranslations, getLanguageForCountryCode, type Language } from '../contexts/i18nContext';
 
 /**
- * Generates a business profile path based on the business name and country
- * @param businessOrName - The business object with name, or just a string name
+ * Generates a business profile path based on the business slug (or, without
+ * it, the name) and country
+ * @param businessOrName - The business object with name (and slug when known), or just a string name
  * @param countryCodeArg - The country code (e.g., 'ES', 'US')
  * @returns The generated path for the business profile
  */
 export function generateBusinessPath(
-  businessOrName: string | { name: string; country?: string | null },
+  businessOrName: string | { name?: string | null; slug?: string | null; country?: string | null },
   countryCodeArg?: string
 ): string {
   let name: string;
   let country: string;
+  let slug = '';
 
   if (typeof businessOrName === 'object' && businessOrName !== null) {
-    name = businessOrName.name;
+    name = businessOrName.name || '';
     country = businessOrName.country || 'es';
+    // El slug es la URL canonica de la ficha (minusculas, sin acentos): el
+    // enlace va directo a ella en vez de pasar por el nombre y que el cliente
+    // redirija. Solo se usa si ya esta en minusculas (BusinessPage busca por
+    // slug en minusculas); sin slug utilizable, el comportamiento de siempre.
+    const candidato = typeof businessOrName.slug === 'string' ? businessOrName.slug.trim() : '';
+    if (candidato && candidato === candidato.toLowerCase()) slug = candidato;
   } else {
     name = typeof businessOrName === 'string' ? businessOrName : '';
     country = countryCodeArg || 'es';
@@ -28,7 +36,7 @@ export function generateBusinessPath(
   // Trim the name to remove leading/trailing spaces, then replace internal spaces with underscores
   const trimmedName = name.trim();
   const nameWithUnderscores = trimmedName.replace(/ /g, '_');
-  const encodedName = encodeURIComponent(nameWithUnderscores);
+  const encodedName = slug ? encodeURIComponent(slug) : encodeURIComponent(nameWithUnderscores);
 
   // Generate the path using the translated business path template
   const businessPath = paths.business.replace(':identifier', encodedName);

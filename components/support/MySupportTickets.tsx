@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, localizedPathOrRoot, getLocaleFromLanguage } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { useUserErrorNotifier } from '../../utils/userFacingError';
 import Spinner from '../Spinner';
@@ -106,7 +106,7 @@ const MySupportTickets: React.FC = () => {
     const current = tickets.find(tk => tk.id === openId) || null;
     const ownerLabel = profile?.name || profile?.username || user.email || '';
     const supportPath = localizedPathOrRoot('support', language, country);
-    const fecha = (iso: string) => new Date(iso).toLocaleDateString(language);
+    const fecha = (iso: string) => new Date(iso).toLocaleDateString(getLocaleFromLanguage(language));
 
     const handleReply = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -185,7 +185,7 @@ const MySupportTickets: React.FC = () => {
                             ownerLabel={ownerLabel}
                             staffLabel={t('supportPage.ticketStaffAuthor')}
                             viewerIsStaff={false}
-                            locale={language}
+                            locale={getLocaleFromLanguage(language)}
                         />
                     )}
 

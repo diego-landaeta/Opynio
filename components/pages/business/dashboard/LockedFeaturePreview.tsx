@@ -1,9 +1,12 @@
 import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
+import { useTranslation, useI18n, getLocaleFromLanguage, toBcp47 } from '../../../../contexts/i18nContext';
 import { PLAN_HIERARCHY, planNameKey, type DashboardSectionId } from '../../../../utils/planFeatures';
-import { PAID_PLAN_ORDER, PLAN_MONTHLY_PRICE, annualPrice, formatPlanPrice, type PaidPlanId } from '../../../../utils/planPrices';
+import {
+    NEW_PRICING_ENABLED, PAID_PLAN_ORDER, isAnnualToggleAvailable, PRICES_INCLUDE_VAT, TRIAL_MONTHS, TRIAL_REMINDER_DAYS, annualPrice, firstChargeDateFromToday,
+    formatAmount, formatPlanPrice, maxAnnualSavingsPercent, monthlyPrice, priceFor, type PaidPlanKey,
+} from '../../../../utils/planPrices';
 import type { Plan } from '../../../../types';
 import { usePricingHref } from './useDashboardSections';
 
@@ -275,15 +278,27 @@ const FEATURES: Record<PreviewSectionId, {
 
 const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     const t = useTranslation();
+    const { language } = useI18n();
     const { profile } = useAuth();
     const pricingHref = usePricingHref();
-    const [anual, setAnual] = useState(false);
+    const [anualElegido, setAnual] = useState(false);
+    // Sin el anual disponible en todos los planes (AVAILABLE_BILLING_CYCLES) no se
+    // ofrece el interruptor: se enseña solo el pago mensual.
+    const anualDisponible = isAnnualToggleAvailable();
+    const anual = anualDisponible && anualElegido;
 
     const nivelMin = PLAN_HIERARCHY[minPlan];
     const planActual = profile?.plan ?? 'free';
 
+    // Prueba gratuita (solo con NEW_PRICING_ENABLED): quien ya paga un plan no la ve,
+    // porque la prueba es de un solo uso y la aplica el servidor (create-checkout-session).
+    const conPrueba = NEW_PRICING_ENABLED && planActual === 'free';
+    const ciclo = anual ? 'annual' : 'monthly';
+    const fechaPrimerCobro = firstChargeDateFromToday().toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' });
+
     return (
         <div>
+            {anualDisponible && (
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mb-5">
                 <span className={`text-sm font-semibold ${anual ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>{t('pricingPage.monthlyPayment')}</span>
                 <button
@@ -297,16 +312,30 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                     <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${anual ? 'translate-x-6' : 'translate-x-1'}`}></span>
                 </button>
                 <span className={`text-sm font-semibold ${anual ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{t('pricingPage.annualPayment')}</span>
-                <span className="rounded-full bg-yellow-200 text-yellow-900 text-xs font-bold px-2.5 py-0.5">{t('pricingPage.save25Percent')}</span>
+                <span className="rounded-full bg-yellow-200 text-yellow-900 text-xs font-bold px-2.5 py-0.5">{NEW_PRICING_ENABLED ? t('pricingPage.saveUpToPercent', { percent: maxAnnualSavingsPercent() }) : t('pricingPage.save25Percent')}</span>
             </div>
+            )}
+            {conPrueba && (
+                <p className="mb-5 text-center">
+                    <span className="inline-block rounded-2xl bg-green-50 dark:bg-green-900/30 text-brand-green font-bold text-sm sm:text-base px-4 py-2">
+                        <i className="fa-solid fa-gift mr-2" aria-hidden="true"></i>
+                        {t(anual ? 'pricingPage.trialHeadlineAnnual' : 'pricingPage.trialHeadline', {
+                            months: String(TRIAL_MONTHS),
+                            starter: formatAmount(priceFor('starter', ciclo), true),
+                            growth: formatAmount(priceFor('growth', ciclo), true),
+                            pro: formatAmount(priceFor('pro', ciclo), true),
+                        })}
+                    </span>
+                </p>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 pt-3">
-                {PAID_PLAN_ORDER.map((id: PaidPlanId) => {
+                {PAID_PLAN_ORDER.map((id: PaidPlanKey) => {
                     const destacado = id === minPlan;
                     const incluida = PLAN_HIERARCHY[id] >= nivelMin;
                     const esActual = planActual === id;
-                    const mensual = PLAN_MONTHLY_PRICE[id];
-                    const total = annualPrice(mensual);
+                    const mensual = monthlyPrice(id);
+                    const total = annualPrice(id);
                     const nombre = t(planNameKey(id));
                     return (
                         <div
@@ -323,20 +352,26 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                 {anual ? (
                                     <>
                                         <p>
-                                            <span className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">€{formatPlanPrice(total)}</span>
+                                            <span className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">€{formatAmount(total, NEW_PRICING_ENABLED)}</span>
                                             <span className="text-gray-500 dark:text-gray-400 font-medium">{t('pricingPage.perYear')}</span>
                                         </p>
                                         <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mt-1">
-                                            ({t('pricingPage.equivalentToPerMonth', { price: formatPlanPrice(total / 12) })})
+                                            ({t('pricingPage.equivalentToPerMonth', { price: formatAmount(total / 12, NEW_PRICING_ENABLED) })})
                                         </p>
                                     </>
                                 ) : (
                                     <p>
-                                        <span className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">€{formatPlanPrice(mensual)}</span>
+                                        <span className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">€{formatAmount(mensual, NEW_PRICING_ENABLED)}</span>
                                         <span className="text-gray-500 dark:text-gray-400 font-medium">{t('pricingPage.perMonth')}</span>
                                     </p>
                                 )}
                             </div>
+                            {conPrueba && (
+                                <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    {t('pricingPage.trialCardNote', { amount: formatPlanPrice(id, ciclo), date: fechaPrimerCobro })}
+                                    {anual && <span className="block mt-1">{t('pricingPage.trialAnnualNote')}</span>}
+                                </p>
+                            )}
                             <p className={`flex items-center justify-center gap-2 text-sm font-semibold mb-4 ${incluida ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
                                 <i className={`fa-solid ${incluida ? 'fa-check' : 'fa-minus'}`} aria-hidden="true"></i>
                                 {incluida ? t(`${K}lockPlanIncluded`) : t(`${K}lockPlanNotIncluded`)}
@@ -349,7 +384,7 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                         to={pricingHref}
                                         className={`block w-full text-center font-bold py-3 px-4 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800 ${destacado ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50'}`}
                                     >
-                                        {t(`${K}lockChoosePlan`, { plan: nombre })}
+                                        {conPrueba ? t('pricingPage.trialCta', { months: String(TRIAL_MONTHS) }) : t(`${K}lockChoosePlan`, { plan: nombre })}
                                     </Link>
                                 )}
                             </div>
@@ -357,6 +392,12 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                     );
                 })}
             </div>
+            {conPrueba && (
+                <p className="mt-5 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+                    {t('pricingPage.trialFooter', { months: String(TRIAL_MONTHS), days: String(TRIAL_REMINDER_DAYS) })}
+                    <span className="block mt-1">{PRICES_INCLUDE_VAT ? t('pricingPage.vatIncluded') : t('pricingPage.vatExcluded')}</span>
+                </p>
+            )}
         </div>
     );
 };

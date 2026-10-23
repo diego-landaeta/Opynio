@@ -38,8 +38,11 @@ Crea una Stripe Checkout Session.
 
 - **Input**: `{ plan, billingCycle, businessId | businessData }`.
 - **Validaciones server-side** (en este orden):
-  - Plan ∈ {starter, growth, pro, v2}; cycle ∈ {monthly, annual}. Los price IDs
-    viven en `supabase/functions/_shared/stripePlans.ts`.
+  - Plan ∈ {starter, growth, pro}; cycle ∈ {monthly, annual}. `v2` (plan de
+    pruebas) sigue en el mapa para que el webhook resuelva las suscripciones que
+    ya existen, pero NO se contrata por checkout ni se acepta como destino del
+    portal (`isSelfServePlan`, 400 `invalid_plan`). Los price IDs viven en
+    `supabase/functions/_shared/stripePlans.ts`.
   - **Una sola suscripción por usuario** (24/09/2026): si tiene **cualquier**
     suscripción viva (`active|trialing|past_due`), no se crea Checkout. Se mira
     en Stripe (`subscriptions.list` del customer + `retrieve` de las que la BD da

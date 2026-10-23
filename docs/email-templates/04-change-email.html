@@ -25,6 +25,10 @@
       .text-muted { color: #a1a1aa !important; }
       .pill-old { background-color: #18181b !important; border-color: #27272a !important; color: #d4d4d8 !important; }
       .footer-link { color: #a1a1aa !important; }
+      .text-brand { color: #34d399 !important; }
+      .warn-text { color: #fbbf24 !important; }
+      .text-strong { color: #d4d4d8 !important; }
+      .divider-bg { background-color: #27272a !important; }
     }
   </style>
 </head>
@@ -38,7 +42,7 @@
       <td align="center" style="padding:24px 16px 24px 16px;">
 
         <!-- HERO -->
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:100%;max-width:600px;background:linear-gradient(135deg,#059669 0%,#10b981 50%,#34d399 100%);border-radius:20px 20px 0 0;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" bgcolor="#10b981" style="width:100%;max-width:600px;background-color:#10b981;background:linear-gradient(135deg,#059669 0%,#10b981 50%,#34d399 100%);border-radius:20px 20px 0 0;">
           <tr>
             <td align="center" class="hero-mobile" style="padding:22px 24px 20px 24px;">
               <table role="presentation" width="100%" class="container" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
@@ -80,7 +84,7 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" class="px-mobile" style="padding:14px 40px 0 40px;">
-                          <p class="h-eyebrow-mobile" style="margin:0; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#10b981;">
+                          <p class="h-eyebrow-mobile text-brand" style="margin:0; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#047857;">
                             Cambio de email
                           </p>
                           <h1 class="h1-mobile text-dark" style="margin:10px 0 0 0; font-size:26px; line-height:33px; font-weight:800; color:#18181b; letter-spacing:-0.025em;">
@@ -100,14 +104,14 @@
                           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="email-stack">
                             <tr>
                               <td valign="middle" align="center">
-                                <p class="h-eyebrow-mobile" style="margin:0 0 8px 0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#a1a1aa;">Antiguo</p>
+                                <p class="h-eyebrow-mobile text-muted" style="margin:0 0 8px 0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#6b6b73;">Antiguo</p>
                                 <span class="pill-old text-dark" style="display:inline-block; padding:10px 16px; background-color:#fafaf9; border:1px solid #e7e5e4; border-radius:999px; font-size:13px; color:#52525b; word-break:break-all;">{{ .Email }}</span>
                               </td>
                               <td valign="middle" width="48" align="center">
                                 <img src="https://web.opynio.com/email-icons/inline-arrow.png" width="24" height="24" alt="" style="display:inline-block; vertical-align:middle; border:0;">
                               </td>
                               <td valign="middle" align="center">
-                                <p class="h-eyebrow-mobile" style="margin:0 0 8px 0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#10b981;">Nuevo</p>
+                                <p class="h-eyebrow-mobile text-brand" style="margin:0 0 8px 0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#047857;">Nuevo</p>
                                 <span style="display:inline-block; padding:10px 16px; background-color:#ecfdf5; border:1px solid #6ee7b7; border-radius:999px; font-size:13px; font-weight:600; color:#065f46; word-break:break-all;">{{ .NewEmail }}</span>
                               </td>
                             </tr>
@@ -121,7 +125,7 @@
                         <td align="center" class="px-mobile" style="padding:22px 40px 8px 40px;">
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
-                              <td align="center" style="border-radius:14px; background-color:#10b981; box-shadow:0 12px 24px -6px rgba(16,185,129,0.45);">
+                              <td align="center" style="mso-padding-alt:18px 44px; border-radius:14px; background-color:#10b981; box-shadow:0 12px 24px -6px rgba(16,185,129,0.45);">
                                 <a href="{{ .ConfirmationURL }}" target="_blank"
                                    class="btn-mobile"
                                    style="display:inline-block; padding:18px 44px; font-size:16px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:14px; background-color:#10b981; letter-spacing:0.01em;">
@@ -141,7 +145,7 @@
                             ¿No funciona el botón? Pega este enlace en tu navegador:
                           </p>
                           <p style="margin:8px 0 0 0; font-size:12px; line-height:18px; text-align:center; word-break:break-all;">
-                            <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#10b981; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                            <a class="text-brand" href="{{ .ConfirmationURL }}" target="_blank" style="color:#047857; text-decoration:underline;">{{ .ConfirmationURL }}</a>
                           </p>
                         </td>
                       </tr>
@@ -150,7 +154,7 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td class="px-mobile" style="padding:32px 56px 48px 56px;">
-                          <p class="text-muted" style="margin:0; font-size:12px; line-height:18px; color:#a1a1aa; text-align:center;">
+                          <p class="text-muted" style="margin:0; font-size:12px; line-height:18px; color:#6b6b73; text-align:center;">
                             Si no solicitaste este cambio, ignora este email. Tu cuenta seguirá usando tu email actual.
                           </p>
                         </td>
@@ -171,16 +175,16 @@
               <table role="presentation" width="600" class="container" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
                 <tr>
                   <td align="center">
-                    <a href="https://web.opynio.com" target="_blank" style="text-decoration:none; color:#10b981; font-size:18px; font-weight:800; letter-spacing:-0.02em;">Opynio</a>
-                    <p class="text-muted" style="margin:8px 0 0 0; font-size:12px; line-height:18px; color:#a1a1aa;">
+                    <a class="text-brand" href="https://web.opynio.com" target="_blank" style="text-decoration:none; color:#047857; font-size:18px; font-weight:800; letter-spacing:-0.02em;">Opynio</a>
+                    <p class="text-muted" style="margin:8px 0 0 0; font-size:12px; line-height:18px; color:#6b6b73;">
                       Reseñas auténticas. Empresas de confianza.
                     </p>
-                    <p class="text-muted" style="margin:16px 0 0 0; font-size:12px; line-height:18px; color:#a1a1aa;">
-                      <a href="https://web.opynio.com" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">web.opynio.com</a>
+                    <p class="text-muted" style="margin:16px 0 0 0; font-size:12px; line-height:18px; color:#6b6b73;">
+                      <a href="https://web.opynio.com" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">web.opynio.com</a>
                       &nbsp;·&nbsp;
-                      <a href="https://web.opynio.com/empresas" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">Empresas</a>
+                      <a href="https://web.opynio.com/empresas" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">Empresas</a>
                       &nbsp;·&nbsp;
-                      <a href="https://web.opynio.com/soporte" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">Soporte</a>
+                      <a href="https://web.opynio.com/soporte" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">Soporte</a>
                     </p>
                   </td>
                 </tr>

@@ -20,6 +20,11 @@ type InvitationRow = {
     message: string | null;
 };
 
+// Los mismos que en supabase/functions/send-invitation-email/index.ts (el
+// servidor es quien manda; esto solo evita ir y volver para un error evidente).
+const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+const INVITATIONS_MAX_PER_SEND = 50;
+
 const STATUS_STYLE: Record<InvitationRow['status'], string> = {
     sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
     opened: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
@@ -91,6 +96,19 @@ const DashboardInvitations: React.FC = () => {
         const emailList = emails.split(/[\s,;]+/).map(e => e.trim()).filter(e => e);
         if(emailList.length === 0) {
             showNotification(t('businessDashboard.pleaseEnterOneEmail'), 'error');
+            return;
+        }
+        // Mismos criterios que la funcion (send-invitation-email): sin repetir,
+        // en minusculas y solo validos. Asi se dice QUE falla: ningun email
+        // valido, o demasiados (con el maximo y cuantos hay), en vez de un solo
+        // aviso para las dos cosas.
+        const validos = [...new Set(emailList.map(e => e.toLowerCase()))].filter(e => EMAIL_RE.test(e) && e.length <= 254);
+        if (validos.length === 0) {
+            showNotification(t('businessDashboard.invitationsNoValid', { example: emailList[0].slice(0, 60) }), 'error');
+            return;
+        }
+        if (validos.length > INVITATIONS_MAX_PER_SEND) {
+            showNotification(t('businessDashboard.invitationsTooMany', { max: INVITATIONS_MAX_PER_SEND, count: validos.length }), 'error');
             return;
         }
 

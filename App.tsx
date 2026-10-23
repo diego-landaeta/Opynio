@@ -114,6 +114,7 @@ const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordP
 const ResetPasswordPage = lazy(() => import('./components/pages/ResetPasswordPage'));
 const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
 const AdminDashboardPage = lazy(() => import('./components/pages/admin/AdminDashboardPage'));
+const AdminPerformancePage = lazy(() => import('./components/pages/admin/AdminPerformancePage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const BusinessDashboardPage = lazy(() => import('./components/pages/business/BusinessDashboardPage'));
 const BusinessListPage = lazy(() => import('./components/pages/business/BusinessListPage'));
@@ -505,10 +506,10 @@ const App = () => {
     <ErrorBoundary>
     <ThemeProvider>
         <NotificationProvider>
-        <ConfirmProvider>
             <AuthProvider>
                 <CountryProvider>
                     <I18nProvider>
+                    <ConfirmProvider>
                         <BrowserRouter>
                             <ScrollToTop />
                             <Routes>
@@ -585,6 +586,7 @@ const App = () => {
                                     <Route path="admin" element={<AdminRoute><Outlet /></AdminRoute>}>
                                         <Route index element={<Navigate to="panel" replace />} />
                                         <Route path="panel" element={<AdminDashboardPage />} />
+                                        <Route path="rendimiento" element={<AdminPerformancePage />} />
                                         <Route path="empresa/editar/:businessId" element={<AdminEditBusinessPage />} />
                                         <Route path="empresa/crear" element={<AdminCreateBusinessPage />} />
                                         <Route path="scraping" element={<AdminScrapingPage />} />
@@ -680,10 +682,10 @@ const App = () => {
                                 </Route>
                             </Routes>
                         </BrowserRouter>
+                    </ConfirmProvider>
                     </I18nProvider>
                 </CountryProvider>
             </AuthProvider>
-        </ConfirmProvider>
         </NotificationProvider>
     </ThemeProvider>
     </ErrorBoundary>

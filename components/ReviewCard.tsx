@@ -377,7 +377,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
                         {review.image_urls.map((url, index) => (
                             <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block">
-                                <LazyImage src={url} alt={`Imagen de reseña ${index + 1}`} width={200} height={96} className="w-full h-20 sm:h-24 object-cover rounded-md border border-gray-200 dark:border-zinc-700 hover:opacity-90 transition-opacity" />
+                                <LazyImage src={url} alt={t('common.reviewImageAlt', { n: index + 1 })} width={200} height={96} className="w-full h-20 sm:h-24 object-cover rounded-md border border-gray-200 dark:border-zinc-700 hover:opacity-90 transition-opacity" />
                             </a>
                         ))}
                     </div>
@@ -385,7 +385,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
             </div>
             
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-zinc-700">
-                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm min-w-0">
                     {(() => {
                         const authorInfo = getAuthorInfo();
                         return (
@@ -397,7 +397,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                                         <span className="text-xs sm:text-sm dark:text-gray-200">{authorInfo.name.charAt(0).toUpperCase()}</span>
                                     )}
                                 </div>
-                                <div className="flex flex-col gap-0.5">
+                                <div className="flex flex-col gap-0.5 min-w-0 break-words">
                                     <span className="text-gray-500 dark:text-gray-400">
                                         {t('common.reviewBy')} <span className="font-medium text-gray-800 dark:text-gray-200">{authorInfo.name}</span>
                                     </span>

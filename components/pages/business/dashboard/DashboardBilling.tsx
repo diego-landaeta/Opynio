@@ -5,7 +5,9 @@ import { supabase } from '../../../../services/supabaseService';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { Plan } from '../../../../types';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useTranslation, useI18n, pathTranslations } from '../../../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, toBcp47 } from '../../../../contexts/i18nContext';
+import { useTrialStatus } from '../../../../hooks/useTrialStatus';
+import { isPaidPlanKey, formatPlanPrice } from '../../../../utils/planPrices';
 
 const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
     free: 0,
@@ -23,6 +25,8 @@ const DashboardBilling: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const [isPortalLoading, setIsPortalLoading] = useState(false);
+    // Solo devuelve algo con NEW_PRICING_ENABLED y una suscripcion en 'trialing'.
+    const trial = useTrialStatus();
 
     if (!business || !profile) {
         return null;
@@ -73,6 +77,25 @@ const DashboardBilling: React.FC = () => {
 
             <div className="bg-white dark:bg-zinc-800 p-5 sm:p-6 md:p-8 rounded-lg sm:rounded-xl shadow-sm border dark:border-zinc-700 max-w-2xl">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6">{t('businessDashboard.yourSubscription')}</h2>
+
+                {trial && isPaidPlanKey(plan) && (
+                    <div className="mb-4 sm:mb-6 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 sm:p-4 text-sm sm:text-base text-green-900 dark:text-green-100">
+                        <p className="font-bold">
+                            <i className="fa-solid fa-gift mr-2" aria-hidden="true"></i>
+                            {t(trial.daysLeft === 1 ? 'pricingPage.trialStatusOne' : 'pricingPage.trialStatus', {
+                                days: String(trial.daysLeft),
+                                plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+                                price: formatPlanPrice(plan, billing_cycle === 'annual' ? 'annual' : 'monthly') + t(billing_cycle === 'annual' ? 'pricingPage.perYear' : 'pricingPage.perMonth'),
+                            })}
+                        </p>
+                        <p className="mt-1 text-xs sm:text-sm opacity-90">
+                            {t('pricingPage.trialNextCharge', {
+                                amount: formatPlanPrice(plan, billing_cycle === 'annual' ? 'annual' : 'monthly'),
+                                date: trial.endsAt.toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }),
+                            })}
+                        </p>
+                    </div>
+                )}
 
                 <div className="space-y-3 sm:space-y-4">
                     <div className="flex justify-between items-center py-2.5 sm:py-3 border-b dark:border-zinc-700 gap-3">

@@ -10,7 +10,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { finishBusinessSignup, getUserProfile, getBusinessesForOwner, clearCache } from '../../../services/supabaseService';
+import { finishBusinessSignup, getUserProfile, getBusinessesForOwner, clearCache, businessNameExists } from '../../../services/supabaseService';
+import { cleanBusinessName, isBusinessNameConflict } from '../../../utils/businessName';
 import Meta from '../../Meta';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { COUNTRIES, CATEGORIES } from '../../../constants';
@@ -32,6 +33,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
     const [businessMapsUrl, setBusinessMapsUrl] = useState('');
     const [wizardStep, setWizardStep] = useState<'business' | 'personalization'>('business');
     const [loading, setLoading] = useState(false);
+    // Comprobando si el nombre ya existe (paso 1): evita doble envio y deja el boton en espera.
+    const [comprobandoNombre, setComprobandoNombre] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // Enlace recomendado (Soporte, Planes...) del error del servidor. Va atado al
     // texto: si otra validacion cambia `error`, el enlace deja de mostrarse.
@@ -101,30 +104,60 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         if (meta?.country) setBusinessCountry(String(meta.country));
     }, [user]);
 
+    // Nombre como se guardara: sin espacios en los extremos ni repetidos.
+    const nombreLimpio = cleanBusinessName(businessName);
+
+    // Aviso ANTES de enviar: en produccion `businesses.name` es UNIQUE y el
+    // servidor solo contestaba con un error tecnico (o con el de la URL de Maps).
+    // Misma comparacion que el registro: sin mayusculas, sin tildes, espacios colapsados.
+    const nombreOcupado = async (): Promise<boolean> => {
+        if (!(await businessNameExists(nombreLimpio))) return false;
+        setError(t('businessWizard.errNameTaken'));
+        setErrorAction(null);
+        return true;
+    };
+
+    const continuarAPersonalizacion = async () => {
+        if (!nombreLimpio) {
+            setError(t('businessWizard.errNameRequired'));
+            return;
+        }
+        setComprobandoNombre(true);
+        try {
+            if (await nombreOcupado()) return;
+        } finally {
+            setComprobandoNombre(false);
+        }
+        setError(null);
+        setBusinessName(nombreLimpio);
+        setWizardStep('personalization');
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (wizardStep === 'business') {
-            if (!businessName.trim()) {
-                setError(t('businessWizard.errNameRequired'));
-                return;
-            }
-            setError(null);
-            setWizardStep('personalization');
+            if (!comprobandoNombre) await continuarAPersonalizacion();
             return;
         }
         if (!user) {
             setError(t('businessWizard.errNoSession'));
             return;
         }
-        if (!businessName.trim()) {
+        if (!nombreLimpio) {
             setError(t('businessWizard.errNameEmpty'));
             return;
         }
         setLoading(true);
         setError(null);
         try {
+            // Vuelta atras y nombre cambiado: se comprueba otra vez.
+            if (await nombreOcupado()) {
+                setWizardStep('business');
+                setLoading(false);
+                return;
+            }
             await finishBusinessSignup(user.id, {
-                name: businessName.trim(),
+                name: nombreLimpio,
                 country: businessCountry,
                 category: businessCategory.trim() || 'Sectores Emergentes y Otros', // "General" no es una categoria (se veia cruda)
                 description: businessDescription.trim() || undefined,
@@ -163,7 +196,7 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                 if (updatedProfile) setProfile(updatedProfile);
                 if (newBusinesses) {
                     setBusinesses(newBusinesses);
-                    const created = newBusinesses.find(b => b.name === businessName.trim()) || newBusinesses[0];
+                    const created = newBusinesses.find(b => b.name === nombreLimpio) || newBusinesses[0];
                     newBusinessUrlId = created ? businessUrlId(created) : null;
                 }
             } catch (refetchErr) {
@@ -185,6 +218,16 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
         } catch (err) {
             // Antes salia el texto de Postgres («duplicate key value violates
             // unique constraint...», «Has alcanzado el límite...» solo en espanol).
+            // El nombre ya existe (UNIQUE en produccion; otra alta se adelanto
+            // entre la comprobacion y el envio): mismo aviso que la comprobacion
+            // previa y de vuelta al campo del nombre.
+            if (isBusinessNameConflict(err)) {
+                setError(t('businessWizard.errNameTaken'));
+                setErrorAction(null);
+                setWizardStep('business');
+                setLoading(false);
+                return;
+            }
             const info = await getUserFacingError(err, { flow: 'businessSignup' });
             const text = t(info.key);
             const action = actionFor(info.action);
@@ -391,7 +434,11 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                                         id="businessName"
                                                         type="text"
                                                         value={businessName}
-                                                        onChange={(e) => setBusinessName(e.target.value)}
+                                                        onChange={(e) => {
+                                                            setBusinessName(e.target.value);
+                                                            if (error === t('businessWizard.errNameTaken')) setError(null);
+                                                        }}
+                                                        aria-invalid={error === t('businessWizard.errNameTaken') || undefined}
                                                         required
                                                         autoFocus
                                                         placeholder={t('common.placeholders.businessName')}
@@ -540,15 +587,8 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
                                     {wizardStep === 'business' ? (
                                         <button
                                             type="button"
-                                            disabled={!businessName.trim()}
-                                            onClick={() => {
-                                                if (!businessName.trim()) {
-                                                    setError(t('businessWizard.errNameRequired'));
-                                                    return;
-                                                }
-                                                setError(null);
-                                                setWizardStep('personalization');
-                                            }}
+                                            disabled={!businessName.trim() || comprobandoNombre}
+                                            onClick={continuarAPersonalizacion}
                                             className="group w-full bg-gradient-to-r from-emerald-500 to-brand-green text-white font-bold py-4 rounded-xl text-base sm:text-lg shadow-lg shadow-brand-green/30 hover:shadow-xl hover:shadow-brand-green/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:from-gray-400 disabled:to-gray-400 disabled:shadow-none disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2 mt-2"
                                         >
                                             <span>{t('businessWizard.continue')}</span>

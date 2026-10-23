@@ -12,6 +12,7 @@ import {
     updateBusinessProduct,
     deleteBusinessProduct,
   uploadProductImage,
+  INVALID_IMAGE_CODE,
 } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import Modal from '../../../Modal';
@@ -201,9 +202,14 @@ const ProductFormModal: React.FC<{
                                             const url = await uploadProductImage(business.id, fichero);
                                             setForm(f => ({ ...f, image_url: url }));
                                         } catch (error: any) {
-                                            // Traducido: Storage responde en ingles («The object exceeded...»).
-                                            const info = await getUserFacingError(error, { fallbackKey: 'businessDashboard.productImageUploadFailed' });
-                                            setImagenError(t(info.key));
+                                            if (error?.code === INVALID_IMAGE_CODE) {
+                                                // No es una imagen de verdad (p. ej. un texto con extension .png).
+                                                setImagenError(t('businessDashboard.productImageInvalid'));
+                                            } else {
+                                                // Traducido: Storage responde en ingles («The object exceeded...»).
+                                                const info = await getUserFacingError(error, { fallbackKey: 'businessDashboard.productImageUploadFailed' });
+                                                setImagenError(t(info.key));
+                                            }
                                         } finally {
                                             setSubiendo(false);
                                         }

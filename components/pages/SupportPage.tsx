@@ -245,6 +245,13 @@ const SupportPage: React.FC = () => {
             showNotification(t('supportPage.mustLogInToReportBug'), 'error');
             return;
         }
+        // El `required` nativo acepta «   »: se exige texto de verdad.
+        if (!bugFormData.description.trim()) {
+            setBugFormData(prev => ({ ...prev, description: '' }));
+            showNotification(t('supportPage.bugDescriptionRequired'), 'error');
+            document.getElementById('description')?.focus();
+            return;
+        }
         setIsSubmitting(true);
         try {
             // Solo columnas que existen en local Y en produccion (migracion

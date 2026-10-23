@@ -24,6 +24,10 @@
       .text-muted { color: #a1a1aa !important; }
       .code-bg { background-color: #0c0c0e !important; border-color: #27272a !important; color: #f4f4f5 !important; }
       .footer-link { color: #a1a1aa !important; }
+      .text-brand { color: #34d399 !important; }
+      .warn-text { color: #fbbf24 !important; }
+      .text-strong { color: #d4d4d8 !important; }
+      .divider-bg { background-color: #27272a !important; }
     }
   </style>
 </head>
@@ -37,7 +41,7 @@
       <td align="center" style="padding:24px 16px 24px 16px;">
 
         <!-- HERO -->
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" style="width:100%;max-width:600px;background:linear-gradient(135deg,#059669 0%,#10b981 50%,#34d399 100%);border-radius:20px 20px 0 0;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="container" bgcolor="#10b981" style="width:100%;max-width:600px;background-color:#10b981;background:linear-gradient(135deg,#059669 0%,#10b981 50%,#34d399 100%);border-radius:20px 20px 0 0;">
           <tr>
             <td align="center" class="hero-mobile" style="padding:22px 24px 20px 24px;">
               <table role="presentation" width="100%" class="container" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
@@ -79,7 +83,7 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" class="px-mobile" style="padding:14px 40px 0 40px;">
-                          <p class="h-eyebrow-mobile" style="margin:0; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#10b981;">
+                          <p class="h-eyebrow-mobile text-brand" style="margin:0; font-size:12px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#047857;">
                             Verificación de identidad
                           </p>
                           <h1 class="h1-mobile text-dark" style="margin:10px 0 0 0; font-size:26px; line-height:33px; font-weight:800; color:#18181b; letter-spacing:-0.025em;">
@@ -99,7 +103,7 @@
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
                             <tr>
                               <td class="code-bg code-mobile" align="center" style="background-color:#ecfdf5; border:2px dashed #6ee7b7; border-radius:16px; padding:28px 40px;">
-                                <span class="text-dark" style="font-family:'SFMono-Regular','Consolas','Menlo','Monaco',monospace; font-size:38px; font-weight:800; letter-spacing:12px; color:#065f46;">
+                                <span class="text-dark" style="font-family:'SFMono-Regular','Consolas','Menlo','Monaco',monospace; font-size:38px; font-weight:800; letter-spacing:12px; padding-left:12px; color:#065f46;">
                                   {{ .Token }}
                                 </span>
                               </td>
@@ -125,13 +129,13 @@
                         <td class="px-mobile" style="padding:40px 56px 48px 56px;">
                           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                             <tr>
-                              <td height="1" style="height:1px; line-height:1px; font-size:0; background-color:#e7e5e4;">&nbsp;</td>
+                              <td height="1" class="divider-bg" style="height:1px; line-height:1px; font-size:0; background-color:#e7e5e4;">&nbsp;</td>
                             </tr>
                           </table>
-                          <p class="text-muted" style="margin:24px 0 0 0; font-size:12px; line-height:18px; color:#a1a1aa; text-align:center;">
-                            <strong style="font-weight:700; color:#52525b;">El código expira en 5 minutos.</strong><br>
+                          <p class="text-muted" style="margin:24px 0 0 0; font-size:12px; line-height:18px; color:#6b6b73; text-align:center;">
+                            <strong class="text-strong" style="font-weight:700; color:#52525b;">El código es válido durante 24 horas.</strong><br>
                             Si no solicitaste esta confirmación, alguien puede estar intentando acceder a tu cuenta.
-                            <a href="https://web.opynio.com/soporte" target="_blank" style="color:#10b981; text-decoration:underline;">Avísanos cuanto antes.</a>
+                            <a class="text-brand" href="https://web.opynio.com/soporte" target="_blank" style="color:#047857; text-decoration:underline;">Avísanos cuanto antes.</a>
                           </p>
                         </td>
                       </tr>
@@ -151,16 +155,16 @@
               <table role="presentation" width="600" class="container" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
                 <tr>
                   <td align="center">
-                    <a href="https://web.opynio.com" target="_blank" style="text-decoration:none; color:#10b981; font-size:18px; font-weight:800; letter-spacing:-0.02em;">Opynio</a>
-                    <p class="text-muted" style="margin:8px 0 0 0; font-size:12px; line-height:18px; color:#a1a1aa;">
+                    <a class="text-brand" href="https://web.opynio.com" target="_blank" style="text-decoration:none; color:#047857; font-size:18px; font-weight:800; letter-spacing:-0.02em;">Opynio</a>
+                    <p class="text-muted" style="margin:8px 0 0 0; font-size:12px; line-height:18px; color:#6b6b73;">
                       Reseñas auténticas. Empresas de confianza.
                     </p>
-                    <p class="text-muted" style="margin:16px 0 0 0; font-size:12px; line-height:18px; color:#a1a1aa;">
-                      <a href="https://web.opynio.com" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">web.opynio.com</a>
+                    <p class="text-muted" style="margin:16px 0 0 0; font-size:12px; line-height:18px; color:#6b6b73;">
+                      <a href="https://web.opynio.com" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">web.opynio.com</a>
                       &nbsp;·&nbsp;
-                      <a href="https://web.opynio.com/empresas" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">Empresas</a>
+                      <a href="https://web.opynio.com/empresas" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">Empresas</a>
                       &nbsp;·&nbsp;
-                      <a href="https://web.opynio.com/soporte" target="_blank" class="footer-link" style="color:#71717a; text-decoration:none;">Soporte</a>
+                      <a href="https://web.opynio.com/soporte" target="_blank" class="footer-link" style="color:#52525b; text-decoration:none;">Soporte</a>
                     </p>
                   </td>
                 </tr>

@@ -2,7 +2,7 @@
 
 Diseño consistente con la marca Opynio (verde `#10b981`, tipografía Inter, layout
 table-based para máxima compatibilidad cross-client). Sin emojis: todos los
-iconos son SVG inline al estilo Heroicons / Feather.
+iconos son PNG alojados en `https://web.opynio.com/email-icons/` (carpeta `public/email-icons`).
 
 ## Archivos
 
@@ -38,15 +38,10 @@ Cada plantilla usa solo las variables que aplican a su flujo:
 - `{{ .Email }}` — change email (email actual).
 - `{{ .NewEmail }}` — change email (email nuevo).
 
-## Compatibilidad de los SVG
+## Iconos
 
-Los SVG inline funcionan en:
-- Apple Mail (macOS, iOS) — perfecto.
-- Gmail web — perfecto.
-- Outlook 365 web — perfecto.
-- Outlook desktop (Windows) — **degrada**: muestra el icono como rectángulo
-  vacío. El resto del diseño se ve correctamente. Si la mayor parte de tus
-  usuarios viven en Outlook desktop, hay que migrar los iconos a PNG en CDN.
+Los iconos son `<img>` PNG (24x24 y 16x16 px) con `alt=""` (decorativos). Se ven igual en Outlook de escritorio;
+si se bloquean las imágenes, el correo sigue siendo legible (el botón y el enlace en claro no dependen de ellas).
 
 ## Personalización rápida
 
@@ -67,8 +62,6 @@ query — verá la versión clara siempre, lo cual es aceptable.
 
 ## Próximos pasos sugeridos
 
-- Subir los iconos a un CDN propio (ej. `cdn.opynio.com/email/`) y migrar los
-  `<svg>` a `<img>` para soporte universal en Outlook desktop.
 - Añadir una versión en inglés (Supabase no soporta múltiples templates por
   idioma de forma nativa; opciones: switching server-side antes de mandar el
   email, o un servicio de email transaccional como Resend/Postmark con
@@ -80,3 +73,12 @@ Las plantillas se compactaron (issue #3): cabecera y tarjeta del mismo ancho (60
 y el botón visible sin hacer scroll. La **1b** es la de **cuentas de empresa**: la usa `send-auth-email` cuando el alta
 viene de `signUpBusiness` (`intended_role = business_owner` o `?type=business` en el redirect). Estos ficheros son la
 copia de referencia; lo que se envía vive en `supabase/functions/send-auth-email/plantillas.ts`.
+
+## Nota (23/10/2026, revisión de QA)
+
+- Cabecera: `bgcolor` y `background-color` verde de respaldo. Sin él, en clientes que no pintan gradientes (Outlook de escritorio) el logo blanco quedaba sobre fondo claro e invisible.
+- Botón: `mso-padding-alt` en la celda para que Outlook de escritorio conserve el relleno (ignora el `padding` del `<a>`).
+- Modo oscuro: clases `text-brand`, `warn-text`, `text-strong` y `divider-bg` (antes el aviso amarillo de «Restablecer contraseña» y «El código expira en 5 minutos» eran casi ilegibles).
+- Contraste en modo claro: texto verde `#047857` en eyebrows, enlace en claro y logo del pie; gris pequeño `#6b6b73`. El texto blanco del botón sobre `#10b981` (2,5:1) es decisión de marca y queda como está.
+- Código de reautenticación centrado (compensa el `letter-spacing` final).
+- Caducidad (23/10/2026): Supabase Auth usa un único «Email OTP Expiration» para todos los enlaces y códigos de correo. Valor REAL en producción, leído con la API de gestión: 86400 s = 24 horas. Todos los textos dicen «24 horas». Ojo: `otp_expiry = 3600` de `supabase/config.toml` es solo del entorno local y no refleja producción. Si se cambia el valor en el panel de Supabase, hay que cambiar a la vez estos textos.

@@ -601,6 +601,23 @@ const BusinessPage: React.FC = () => {
         return { twitter: null, instagram: null, facebook: null, linkedin: null };
     }, [socialLinksToDisplay]);
 
+    // Enlace de cada red, o null si el valor no sirve (esquema no https, vacio...).
+    // X e Instagram aceptan usuario, @usuario o URL https, igual que Facebook y
+    // LinkedIn: antes una URL pegada en X daba twitter.com/https://x.com/...
+    const socialHrefs = useMemo(() => {
+        const href = (valor: string | null | undefined, base: string): string | null => {
+            if (!valor || !valor.trim()) return null;
+            const url = socialProfileUrl(valor.trim().replace(/^@/, ''), base);
+            return url === '#' ? null : url;
+        };
+        return {
+            twitter: href(socialLinks.twitter, 'https://twitter.com/'),
+            instagram: href(socialLinks.instagram, 'https://instagram.com/'),
+            facebook: href(socialLinks.facebook, 'https://facebook.com/'),
+            linkedin: href(socialLinks.linkedin, 'https://linkedin.com/'),
+        };
+    }, [socialLinks]);
+
     const currentYear = new Date().getFullYear();
 
     const metaTitle = useMemo(() => {
@@ -1602,10 +1619,10 @@ const BusinessPage: React.FC = () => {
                             )}
                             <div className="text-[11px] sm:text-xs md:text-sm space-y-2 pt-2 border-t dark:border-zinc-700">
                                 <div className="flex items-start gap-2"><i className="fa-solid fa-tags w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.category')}:</strong><br/><span className="break-words">{displayCategory}</span></div></div>
-                                {hasSedeLocation && <div className="flex items-start gap-2"><i className="fa-solid fa-map-marker-alt w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.googleMaps')}:</strong><br/><a href={googleMapsUrlToDisplay || '#'} target="_blank" rel="noopener noreferrer" className="text-brand-green hover:underline break-all">{t('businessPage.viewOnGoogleMaps')}</a></div></div>}
-                                {contactEmailToDisplay && <div className="flex items-start gap-2"><i className="fa-solid fa-envelope w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.contactEmail')}:</strong><br/><a href={`mailto:${contactEmailToDisplay}`} className="text-brand-green hover:underline break-all">{contactEmailToDisplay}</a></div></div>}
-                                {contactPhoneToDisplay && <div className="flex items-start gap-2"><i className="fa-solid fa-phone w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.phone')}:</strong><br/><button onClick={() => { navigator.clipboard.writeText(contactPhoneToDisplay!); showNotification(t('businessPage.phoneCopied'), 'success'); }} className="text-brand-green hover:underline break-words text-left">{contactPhoneToDisplay}</button></div></div>}
-                                {schedule && <div className="flex items-start gap-2"><i className="fa-solid fa-clock w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.schedule')}:</strong><br/><span className={isOpen ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>{isOpen ? t('businessPage.openNow') : t('businessPage.closedNow')}</span> <button onClick={() => setIsScheduleModalOpen(true)} className="text-brand-green hover:underline text-[10px] sm:text-xs ml-1">({t('businessPage.viewSchedule')})</button></div></div>}
+                                {hasSedeLocation && <div className="flex items-start gap-2"><i className="fa-solid fa-map-marker-alt w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.googleMaps')}:</strong><br/><a href={googleMapsUrlToDisplay || '#'} target="_blank" rel="noopener noreferrer" className="inline-block py-2 -my-2 text-brand-green hover:underline break-all">{t('businessPage.viewOnGoogleMaps')}</a></div></div>}
+                                {contactEmailToDisplay && <div className="flex items-start gap-2"><i className="fa-solid fa-envelope w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.contactEmail')}:</strong><br/><a href={`mailto:${contactEmailToDisplay}`} className="inline-block py-2 -my-2 text-brand-green hover:underline break-all">{contactEmailToDisplay}</a></div></div>}
+                                {contactPhoneToDisplay && <div className="flex items-start gap-2"><i className="fa-solid fa-phone w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.phone')}:</strong><br/><button onClick={() => { navigator.clipboard.writeText(contactPhoneToDisplay!); showNotification(t('businessPage.phoneCopied'), 'success'); }} className="inline-block py-2 -my-2 text-brand-green hover:underline break-words text-left">{contactPhoneToDisplay}</button></div></div>}
+                                {schedule && <div className="flex items-start gap-2"><i className="fa-solid fa-clock w-3 text-center text-gray-400 pt-0.5 flex-shrink-0"></i><div className="min-w-0"><strong className="text-gray-700 dark:text-gray-300">{t('businessPage.schedule')}:</strong><br/><span className={isOpen ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>{isOpen ? t('businessPage.openNow') : t('businessPage.closedNow')}</span> <button onClick={() => setIsScheduleModalOpen(true)} className="inline-block py-2 -my-2 text-brand-green hover:underline text-[10px] sm:text-xs ml-1">({t('businessPage.viewSchedule')})</button></div></div>}
                             </div>
                         </div>
 
@@ -1664,14 +1681,14 @@ const BusinessPage: React.FC = () => {
                             </div>
                         )}
                         {/* FIX: Corrected typo from `social` to `socialLinks.instagram` and completed the JSX. */}
-                        {(socialLinks.twitter || socialLinks.instagram || socialLinks.facebook || socialLinks.linkedin) &&
+                        {(socialHrefs.twitter || socialHrefs.instagram || socialHrefs.facebook || socialHrefs.linkedin) &&
                             <div className="order-7 lg:order-none min-w-0 bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border dark:border-zinc-700">
                                 <h3 className="font-bold text-xs sm:text-sm md:text-base mb-2">{t('businessPage.socialMedia')}</h3>
                                 <div className="flex gap-3 text-lg sm:text-xl">
-                                    {socialLinks.twitter && <a href={`https://twitter.com/${socialLinks.twitter}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500"><i className="fab fa-twitter"></i></a>}
-                                    {socialLinks.instagram && <a href={`https://instagram.com/${socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-pink-500"><i className="fab fa-instagram"></i></a>}
-                                    {socialLinks.facebook && <a href={socialProfileUrl(socialLinks.facebook, 'https://facebook.com/')} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-gray-500 hover:text-blue-600"><i className="fab fa-facebook"></i></a>}
-                                    {socialLinks.linkedin && <a href={socialProfileUrl(socialLinks.linkedin, 'https://linkedin.com/')} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-gray-500 hover:text-blue-700"><i className="fab fa-linkedin"></i></a>}
+                                    {socialHrefs.twitter && <a href={socialHrefs.twitter} target="_blank" rel="noopener noreferrer" aria-label="X" className="inline-block px-2 py-2 -mx-2 -my-2 text-gray-500 hover:text-blue-500"><i className="fab fa-twitter"></i></a>}
+                                    {socialHrefs.instagram && <a href={socialHrefs.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="inline-block px-2 py-2 -mx-2 -my-2 text-gray-500 hover:text-pink-500"><i className="fab fa-instagram"></i></a>}
+                                    {socialHrefs.facebook && <a href={socialHrefs.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="inline-block px-2 py-2 -mx-2 -my-2 text-gray-500 hover:text-blue-600"><i className="fab fa-facebook"></i></a>}
+                                    {socialHrefs.linkedin && <a href={socialHrefs.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="inline-block px-2 py-2 -mx-2 -my-2 text-gray-500 hover:text-blue-700"><i className="fab fa-linkedin"></i></a>}
                                 </div>
                             </div>
                         }
