@@ -3951,16 +3951,15 @@ export interface ContactMessage {
 }
 
 export const sendContactMessage = async (input: { kind: ContactKind; name: string; email: string; message: string }) => {
-  const { error } = await supabase.from('contact_messages').insert({
-    kind: input.kind,
-    name: input.name.trim(),
-    email: input.email.trim(),
-    message: input.message.trim(),
-  });
+  const datos = { name: input.name.trim(), email: input.email.trim(), message: input.message.trim() };
+  const { error } = await supabase.from('contact_messages').insert({ kind: input.kind, ...datos });
   if (error) {
     if (/contact_rate_limited/.test(error.message || '')) throw new Error('CONTACT_RATE_LIMITED');
     throw error;
   }
+  // Avisa al equipo por correo (notify-contact-message). El mensaje ya esta guardado: si el aviso falla no se
+  // le dice a la persona que su mensaje no se envio; el equipo lo ve igualmente en /admin/soporte.
+  supabase.functions.invoke('notify-contact-message', { body: datos }).then(() => {}, () => {});
 };
 
 export const adminListContactMessages = async (status: 'new' | 'read' | 'archived' | 'all' = 'all'): Promise<ContactMessage[]> => {
