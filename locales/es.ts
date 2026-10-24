@@ -1756,6 +1756,8 @@ export default {
     ovCountAppealsMany: '<b>{count} apelaciones</b>',
     ovCountSupportOne: '<b>{count} solicitud de soporte</b>',
     ovCountSupportMany: '<b>{count} solicitudes de soporte</b>',
+    ovCountContactOne: '<b>{count} mensaje de contacto</b>',
+    ovCountContactMany: '<b>{count} mensajes de contacto</b>',
     ovCountPastDueOne: '<b>{count} pago fallido</b>',
     ovCountPastDueMany: '<b>{count} pagos fallidos</b>',
     ovReviewsTitle: 'Reseñas por moderar',

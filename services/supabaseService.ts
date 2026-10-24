@@ -3971,6 +3971,13 @@ export const adminListContactMessages = async (status: 'new' | 'read' | 'archive
   return (data || []) as ContactMessage[];
 };
 
+// Mensajes de contacto sin leer (los lee el admin en /admin/soporte, pestana «Contacto»): la portada del panel los cuenta.
+export const adminContactNewCount = async (): Promise<number> => {
+  const { count, error } = await supabase.from('contact_messages').select('id', { count: 'exact', head: true }).eq('status', 'new');
+  if (error) throw error;
+  return count || 0;
+};
+
 export const adminSetContactMessageStatus = async (id: number, status: 'new' | 'read' | 'archived') => {
   const { error } = await supabase.from('contact_messages').update({ status }).eq('id', id);
   if (error) throw error;

@@ -4,6 +4,7 @@ import {
     getAdminDashboardOverview,
     deleteBusinessesWithoutReviews,
     adminSupportTicketCounts,
+    adminContactNewCount,
     AdminOverviewMissingError,
     type AdminOverview,
     type OverviewReviewFilter,
@@ -51,6 +52,8 @@ const AdminDashboardPage: React.FC = () => {
     const [data, setData] = useState<AdminOverview | null>(null);
     // Soporte va aparte: si las tablas de tickets no existen (entornos reconstruidos), el resto carga igual.
     const [support, setSupport] = useState<number | null>(null);
+    // Mensajes del formulario de contacto sin leer (tabla propia): tambien son trabajo pendiente del equipo.
+    const [contactNew, setContactNew] = useState<number | null>(null);
     const [status, setStatus] = useState<Status>('loading');
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<OverviewReviewFilter>('all');
@@ -67,7 +70,7 @@ const AdminDashboardPage: React.FC = () => {
     const load = useCallback(async (isRefresh: boolean) => {
         const id = ++reqId.current;
         if (isRefresh) setRefreshing(true); else setStatus('loading');
-        const [ov, sup] = await Promise.allSettled([getAdminDashboardOverview(), adminSupportTicketCounts()]);
+        const [ov, sup, con] = await Promise.allSettled([getAdminDashboardOverview(), adminSupportTicketCounts(), adminContactNewCount()]);
         if (id !== reqId.current) return;
         if (ov.status === 'fulfilled') {
             setData(ov.value);
@@ -79,6 +82,7 @@ const AdminDashboardPage: React.FC = () => {
             else setStatus(ov.reason instanceof AdminOverviewMissingError ? 'missing' : 'error');
         }
         setSupport(sup.status === 'fulfilled' ? sup.value.open : null);
+        setContactNew(con.status === 'fulfilled' ? con.value : null);
         setRefreshing(false);
     }, []);
 
@@ -124,7 +128,8 @@ const AdminDashboardPage: React.FC = () => {
         claims: { count: data?.claims.open, late: isLate(data?.claims.oldest, now) },
         appeals: { count: data?.appeals.open, late: isLate(data?.appeals.oldest, now) },
         bugs: { count: data?.bugs.open, late: isLate(data?.bugs.oldest, now) },
-        support: { count: support },
+        // «Soporte» agrupa los tickets abiertos y los mensajes de contacto sin leer (las dos pestañas de /admin/soporte).
+        support: { count: support === null && contactNew === null ? null : (support ?? 0) + (contactNew ?? 0) },
     };
 
     /** Frase de cabecera con los datos reales; las cifras en negrita salen de las propias claves. */
@@ -136,6 +141,7 @@ const AdminDashboardPage: React.FC = () => {
         if (claims.open > 0) extras.push(one(claims.open, 'ovCountClaims'));
         if (appeals.open > 0) extras.push(one(appeals.open, 'ovCountAppeals'));
         if (support && support > 0) extras.push(one(support, 'ovCountSupport'));
+        if (contactNew && contactNew > 0) extras.push(one(contactNew, 'ovCountContact'));
         if (pastDue.count > 0) extras.push(one(pastDue.count, 'ovCountPastDue'));
         if (reviews.pending === 0 && extras.length === 0) return tk('ovLeadNothing');
         const first = reviews.pending > 0
