@@ -27,6 +27,8 @@ export type LogoTone = 'light' | 'dark';
 export interface SimpleBusiness {
   id: string;
   name: string;
+  // Identificador canonico de la URL publica (/empresa/<slug>); null si la empresa aun no lo tiene.
+  slug?: string | null;
   country: string | null;
   logo_url?: string | null;
   /**

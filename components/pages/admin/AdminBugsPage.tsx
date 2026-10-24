@@ -9,7 +9,7 @@ import Modal from '../../Modal';
 import { useTranslation } from '../../../contexts/i18nContext';
 import AdminBackLink from './AdminBackLink';
 
-type ActiveTab = 'open' | 'in_progress' | 'resolved' | 'all';
+type ActiveTab = 'open' | 'in_progress' | 'resolved' | 'closed' | 'all';
 
 // Captura del reporte: el bucket bug_screenshots es privado, se muestra con
 // una URL firmada que caduca en una hora.
@@ -79,13 +79,15 @@ const AdminBugsPage: React.FC = () => {
         }
     };
 
-    const handleDeleteBug = async () => {
+    // Antes se llamaba "Eliminar" y mostraba "eliminado", pero solo cierra el
+    // informe (status 'closed'): la fila se conserva. Ahora el nombre dice lo que
+    // hace y la confirmacion explica que no se borra.
+    const handleCloseBug = async () => {
         if (!selectedBug) return;
-        // Borraba sin preguntar aunque la clave del aviso existia.
         const ok = await confirm({
-            title: t('common.delete'),
-            message: t('adminBugsPage.confirmDelete'),
-            confirmText: t('common.delete'),
+            title: t('adminBugsPage.closeAction'),
+            message: t('adminBugsPage.confirmClose'),
+            confirmText: t('adminBugsPage.closeAction'),
             cancelText: t('common.cancel'),
             danger: true,
         });
@@ -96,11 +98,11 @@ const AdminBugsPage: React.FC = () => {
             const captura = (selectedBug as any).screenshot_path as string | null | undefined;
             if (captura) await deleteBugScreenshot(captura);
             await updateBugReport(selectedBug.id, captura ? { status: 'closed', screenshot_path: null } : { status: 'closed' });
-            showNotification(t('adminBugsPage.bugDeleted', { id: selectedBug.id }), 'success');
+            showNotification(t('adminBugsPage.bugClosed', { id: selectedBug.id }), 'success');
             setBugs(prev => prev.filter(b => b.id !== selectedBug.id));
             setIsActionModalOpen(false);
         } catch (error: any) {
-            showNotification(error.message || t('adminBugsPage.errorDeletingBug'), 'error');
+            showNotification(error.message || t('adminBugsPage.errorClosingBug'), 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -149,6 +151,7 @@ const AdminBugsPage: React.FC = () => {
                             <TabButton tab="open" label={t('adminBugsPage.open')} />
                             <TabButton tab="in_progress" label={t('adminBugsPage.in_progress')} />
                             <TabButton tab="resolved" label={t('adminBugsPage.resolved')} />
+                            <TabButton tab="closed" label={t('adminBugsPage.closed')} />
                             <TabButton tab="all" label={t('common.all')} />
                         </nav>
                     </div>
@@ -252,9 +255,11 @@ const AdminBugsPage: React.FC = () => {
                             />
                         </div>
                         <div className="flex justify-between gap-3 pt-4 border-t dark:border-zinc-700">
-                            <button onClick={() => handleDeleteBug()} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">
-                                {isSubmitting ? t('common.deleting') : t('common.delete')}
-                            </button>
+                            {selectedBug.status !== 'closed' ? (
+                                <button onClick={() => handleCloseBug()} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">
+                                    {isSubmitting ? t('adminBugsPage.closing') : t('adminBugsPage.closeAction')}
+                                </button>
+                            ) : <span />}
                             <div className="flex gap-3">
                                 {selectedBug.status === 'open' && (
                                     <button onClick={() => handleUpdateStatus('in_progress')} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">{t('adminBugsPage.markInProgress')}</button>

@@ -356,20 +356,21 @@ const BusinessDashboardPage: React.FC = () => {
             onBusinessChange={(changes) => setBusiness(prev => (prev ? { ...prev, ...changes } : prev))}
         >
             <Meta
-                title={`${seccionActual} de ${business.name} - Opynio`}
-                description={`Gestiona el perfil de ${business.name} en Opynio. Responde a reseñas, analiza tus estadísticas y mejora tu reputación online.`}
+                title={t('businessDashboard.dashboardMetaTitle', { section: seccionActual, business: business.name })}
+                description={t('businessDashboard.dashboardMetaDescription', { business: business.name })}
             />
             <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 -mt-6 sm:-mt-8">
                 <DashboardMobileNav />
                 <DashboardSidebar />
-                <main className="flex-grow min-w-0">
+                {/* div, no main: el <main> de la pagina ya lo pone App y dos landmarks main son HTML invalido. */}
+                <div className="flex-grow min-w-0">
                     {/* Cada seccion es un chunk lazy. Sin este Suspense propio, el del App
                         sustituia TODO el panel (menu y titulo de pestana incluidos) por un
                         spinner mientras se descargaba la seccion. Asi solo cambia el contenido. */}
                     <React.Suspense fallback={<div className="flex justify-center items-center py-12 sm:py-16"><Spinner /></div>}>
                         <ReactRouterDOM.Outlet />
                     </React.Suspense>
-                </main>
+                </div>
             </div>
         </BusinessDashboardProvider>
     );

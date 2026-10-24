@@ -229,6 +229,11 @@ const AdminUrlManagerPage: React.FC = () => {
     }
   };
 
+  // La correccion en lote solo toca empresas SIN slug (las problematicas). Las que
+  // ya tienen slug tienen una URL que funciona: no se cambia ni se redirige en lote
+  // (se pueden editar a mano con "Editar").
+  const selectableBusinesses = businesses.filter(b => !b.slug);
+
   // Toggle selection
   const toggleSelection = (id: string) => {
     const newSelection = new Set(selectedBusinesses);
@@ -242,19 +247,21 @@ const AdminUrlManagerPage: React.FC = () => {
 
   // Select all - uses businesses already filtered by server
   const selectAll = () => {
-    if (selectedBusinesses.size === businesses.length && businesses.length > 0) {
+    if (selectableBusinesses.length > 0 && selectedBusinesses.size === selectableBusinesses.length) {
       setSelectedBusinesses(new Set());
     } else {
-      setSelectedBusinesses(new Set(businesses.map(b => b.id)));
+      setSelectedBusinesses(new Set(selectableBusinesses.map(b => b.id)));
     }
   };
 
   // Batch update
   const handleBatchUpdate = async () => {
-    if (selectedBusinesses.size === 0) return;
+    // Salvaguarda: solo ids de empresas sin slug, aunque la seleccion trajera otras.
+    const idsACorregir = Array.from(selectedBusinesses).filter(id => !businesses.find(b => b.id === id)?.slug);
+    if (idsACorregir.length === 0) return;
     const ok = await confirm({
       title: t('admin.urlManager.batchUpdate') || 'Actualizar en lote',
-      message: t('admin.urlManager.confirmBatchUpdate').replace('{count}', String(selectedBusinesses.size)),
+      message: t('admin.urlManager.confirmBatchUpdate').replace('{count}', String(idsACorregir.length)),
       confirmText: t('common.confirm') || 'Confirmar',
       cancelText: t('common.cancel') || 'Cancelar',
     });
@@ -262,7 +269,7 @@ const AdminUrlManagerPage: React.FC = () => {
 
     setBatchProcessing(true);
     try {
-      const updates = Array.from(selectedBusinesses).map(id => {
+      const updates = idsACorregir.map(id => {
         const business = businesses.find(b => b.id === id);
         // Construir la URL original exacta para la redirección
         // Si no tiene slug, usar el nombre URL-encoded (como aparece en el navegador)
@@ -452,7 +459,8 @@ const AdminUrlManagerPage: React.FC = () => {
                     <th className="text-left py-3 px-4">
                       <input
                         type="checkbox"
-                        checked={selectedBusinesses.size === businesses.length && businesses.length > 0}
+                        checked={selectableBusinesses.length > 0 && selectedBusinesses.size === selectableBusinesses.length}
+                        disabled={selectableBusinesses.length === 0}
                         onChange={selectAll}
                         className="rounded"
                       />
@@ -481,6 +489,8 @@ const AdminUrlManagerPage: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={selectedBusinesses.has(business.id)}
+                          disabled={!!business.slug}
+                          title={business.slug ? t('admin.urlManager.hasSlugNoBatch') : undefined}
                           onChange={() => toggleSelection(business.id)}
                           className="rounded"
                         />

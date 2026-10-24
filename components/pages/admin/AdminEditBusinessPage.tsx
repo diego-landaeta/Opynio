@@ -301,7 +301,15 @@ const AdminEditBusinessPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!businessId) return;
-        
+
+        // Un nombre en blanco ('   ') pasa el `required` del input: se rechaza aqui,
+        // antes de tocar nada (tambien el slug).
+        const nombre = formData.name.trim();
+        if (!nombre) {
+            setError('El nombre de la empresa es obligatorio.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -337,7 +345,7 @@ const AdminEditBusinessPage: React.FC = () => {
             const slugUpdate = {};
 
             const updates = {
-                name: formData.name,
+                name: nombre,
                 ...slugUpdate,
                 website_url: formData.website_url,
                 social_links: (social_links.twitter || social_links.instagram) ? social_links : null,
@@ -498,8 +506,19 @@ const AdminEditBusinessPage: React.FC = () => {
                                 className="w-full p-3 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-200 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
                             >
                                 <option value="" disabled>{t('editBusiness.selectCategory')}</option>
+                                {/* Igual que la pagina del dueño (EditBusinessPage): una categoria sin
+                                    subcategoria ("Educación y Formación") o desconocida ("Servicios",
+                                    "Sectores Emergentes y Otros") se muestra tal cual. Antes no coincidia
+                                    con ninguna opcion y el select enseñaba la primera ("Restaurantes"). */}
+                                {formData.category
+                                    && !Object.entries(CATEGORIES).some(([main, subs]) =>
+                                        formData.category === main || subs.some(sub => formData.category === `${main}:${sub}`))
+                                    && (
+                                    <option value={formData.category}>{formData.category.replace(/_/g, ' ')}</option>
+                                )}
                                 {Object.entries(CATEGORIES).map(([mainCategory, subCategories]) => (
                                     <optgroup key={mainCategory} label={t(`categories.${mainCategory}`)}>
+                                        <option value={mainCategory}>{t(`categories.${mainCategory}`)}</option>
                                         {subCategories.map(subCategory => {
                                             const fullCategory = `${mainCategory}:${subCategory}`;
                                             return (

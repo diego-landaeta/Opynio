@@ -1,263 +1,405 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAdminDashboardStats, deleteBusinessesWithoutReviews, getPendingReviewCount, adminSupportTicketCounts } from '../../../services/supabaseService';
+import {
+    getAdminDashboardOverview,
+    deleteBusinessesWithoutReviews,
+    adminSupportTicketCounts,
+    adminContactNewCount,
+    AdminOverviewMissingError,
+    type AdminOverview,
+    type OverviewReviewFilter,
+} from '../../../services/supabaseService';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
-import Spinner from '../../Spinner';
 import Meta from '../../Meta';
-import { useTranslation, useI18n, pathTranslations } from '../../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations, getLocaleFromLanguage } from '../../../contexts/i18nContext';
+import AdminPanelSidebar from './panel/AdminPanelSidebar';
+import WeekComparison from './panel/WeekComparison';
+import RichText from './panel/RichText';
+import { ActionLink, EmptyQueue, PanelSkeleton, QueueCard, QueueRow, ReviewItem } from './panel/PanelParts';
+import { isLate, joinList, pathOf, relativeAge, useNumberFormats } from './panel/overviewUtils';
 
-const StatCard: React.FC<{ title: string; value: number; icon: string; color: string; bgColor: string }> = ({ title, value, icon, color, bgColor }) => (
-    <div className={`${bgColor} p-4 sm:p-5 rounded-xl border border-white/10 relative overflow-hidden`}>
-        <div className="relative z-10">
-            <p className="text-white/80 text-sm font-medium mb-1">{title}</p>
-            <p className="text-3xl sm:text-4xl font-bold text-white">{value?.toLocaleString() ?? 0}</p>
-        </div>
-        <div className={`absolute -right-2 -bottom-2 text-white/20 text-6xl sm:text-7xl`}>
-            <i className={`fa-solid ${icon}`}></i>
-        </div>
-    </div>
-);
-
-const ToolCard: React.FC<{
-    badge?: number; title: string; icon: string; link: string; description: string; color: string; comingSoon?: boolean }> = ({ badge, title, icon, link, description, color, comingSoon }) => {
-    const inner = (
-        <>
-            <div className={`p-3 rounded-xl ${color} text-white flex-shrink-0 ${comingSoon ? 'opacity-60' : ''}`}>
-                <i className={`fa-solid ${icon} text-lg`}></i>
-            </div>
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className={`font-bold text-gray-800 dark:text-gray-100 ${comingSoon ? '' : 'group-hover:text-brand-green'} transition-colors`}>{title}</h3>
-                    {/* El numero no se comunica solo con color: lleva su propia
-                        etiqueta accesible con lo que significa. */}
-                    {!!badge && badge > 0 && (
-                        <span
-                            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-700"
-                            aria-label={`${badge} pendientes de revisar`}
-                        >
-                            {badge}
-                        </span>
-                    )}
-                    {comingSoon && (
-                        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
-                            Próximamente
-                        </span>
-                    )}
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{description}</p>
-            </div>
-            {!comingSoon && <i className="fa-solid fa-chevron-right text-gray-300 dark:text-zinc-600 group-hover:text-brand-green transition-colors ml-auto self-center"></i>}
-        </>
-    );
-    const baseCls = 'group flex items-start gap-4 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 transition-all';
-    if (comingSoon) {
-        return (
-            <div className={`${baseCls} opacity-75 cursor-not-allowed`} aria-disabled="true" title="En desarrollo">
-                {inner}
-            </div>
-        );
-    }
-    return (
-        <Link to={link} className={`${baseCls} hover:border-brand-green dark:hover:border-brand-green hover:shadow-md`}>
-            {inner}
-        </Link>
-    );
+const es = pathTranslations.es;
+const PATHS = {
+    moderation: `/${es.adminReviewModeration}`,
+    claims: `/${es.adminClaims}`,
+    appeals: `/${es.adminReviewAppeals}`,
+    bugs: `/${es.adminBugs}`,
+    users: `/${es.adminUsers}`,
+    performance: '/admin/rendimiento',
 };
 
-const SectionTitle: React.FC<{ icon: string; title: string; color: string }> = ({ icon, title, color }) => (
-    <div className="flex items-center gap-3 mb-4">
-        <div className={`w-1 h-6 rounded-full ${color}`}></div>
-        <i className={`fa-solid ${icon} ${color.replace('bg-', 'text-')} text-lg`}></i>
-        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">{title}</h2>
-    </div>
-);
+type Status = 'loading' | 'ready' | 'error' | 'missing';
+
+const FILTERS: { id: OverviewReviewFilter; labelKey: string }[] = [
+    { id: 'all', labelKey: 'ovFilterAll' },
+    { id: 'late', labelKey: 'ovFilterLate' },
+    { id: 'low', labelKey: 'ovFilterLow' },
+    { id: 'image', labelKey: 'ovFilterImage' },
+];
+
+const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800';
 
 const AdminDashboardPage: React.FC = () => {
-    const [stats, setStats] = useState({ users: 0, businesses: 0, reviews: 0 });
-    const [pendientes, setPendientes] = useState(0);
-    const [soporteAbiertas, setSoporteAbiertas] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [isDeletingEmpty, setIsDeletingEmpty] = useState(false);
-    const { showNotification } = useNotification();
-    const { confirm } = useConfirm();
     const t = useTranslation();
     const { language } = useI18n();
+    const locale = getLocaleFromLanguage(language);
+    const f = useNumberFormats(locale);
+    const tk = useCallback((k: string, p?: Record<string, string | number>) => t(`adminDashboard.${k}`, p), [t]);
+    const { showNotification } = useNotification();
+    const { confirm } = useConfirm();
+
+    const [data, setData] = useState<AdminOverview | null>(null);
+    // Soporte va aparte: si las tablas de tickets no existen (entornos reconstruidos), el resto carga igual.
+    const [support, setSupport] = useState<number | null>(null);
+    // Mensajes del formulario de contacto sin leer (tabla propia): tambien son trabajo pendiente del equipo.
+    const [contactNew, setContactNew] = useState<number | null>(null);
+    const [status, setStatus] = useState<Status>('loading');
+    const [refreshing, setRefreshing] = useState(false);
+    const [filter, setFilter] = useState<OverviewReviewFilter>('all');
+    const [deleting, setDeleting] = useState(false);
+    const reqId = useRef(0);
+    // Refs para que load() no cambie de identidad (t y showNotification cambian en cada render del contexto) y la carga sea una sola.
+    const dataRef = useRef<AdminOverview | null>(null);
+    dataRef.current = data;
+    const tRef = useRef(t);
+    tRef.current = t;
+    const notifyRef = useRef(showNotification);
+    notifyRef.current = showNotification;
+
+    const load = useCallback(async (isRefresh: boolean) => {
+        const id = ++reqId.current;
+        if (isRefresh) setRefreshing(true); else setStatus('loading');
+        const [ov, sup, con] = await Promise.allSettled([getAdminDashboardOverview(), adminSupportTicketCounts(), adminContactNewCount()]);
+        if (id !== reqId.current) return;
+        if (ov.status === 'fulfilled') {
+            setData(ov.value);
+            setStatus('ready');
+        } else {
+            console.error('Error cargando la portada del panel de administración:', ov.reason);
+            // Con datos ya en pantalla, un fallo al actualizar los conserva y avisa; sin datos, pantalla de error.
+            if (isRefresh && dataRef.current) notifyRef.current(tRef.current('adminDashboard.perfRefreshError'), 'error');
+            else setStatus(ov.reason instanceof AdminOverviewMissingError ? 'missing' : 'error');
+        }
+        setSupport(sup.status === 'fulfilled' ? sup.value.open : null);
+        setContactNew(con.status === 'fulfilled' ? con.value : null);
+        setRefreshing(false);
+    }, []);
 
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const data = await getAdminDashboardStats();
-                setStats(data);
-                // La cola de moderacion no estaba a la vista en ningun sitio.
-                setPendientes(await getPendingReviewCount());
-                // Solicitudes de soporte esperando respuesta. Aparte: si la
-                // migracion de tickets aun no esta, el panel carga igual.
-                try {
-                    setSoporteAbiertas((await adminSupportTicketCounts()).open);
-                } catch (e) {
-                    console.error('Error fetching support counts:', e);
-                }
-            } catch (error) {
-                console.error("Error fetching admin stats:", error);
-                showNotification(t('adminDashboard.errorLoadingDashboardData'), 'error');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchStats();
-    }, [showNotification, t]);
+        load(false);
+        return () => { reqId.current++; };
+        // Una sola carga al entrar: las actualizaciones las pide la persona.
+    }, []);
 
-    const handleDeleteEmptyBusinesses = async () => {
-        const ok = await confirm({
-            title: t('adminDashboard.deleteEmpty') || 'Eliminar negocios vacíos',
-            message: t('adminDashboard.confirmDeleteEmpty'),
-            confirmText: t('common.delete') || 'Eliminar',
-            cancelText: t('common.cancel') || 'Cancelar',
-            danger: true,
-        });
-        if (!ok) return;
-        setIsDeletingEmpty(true);
+    // «Ahora» = el reloj del servidor al calcular los datos: las antigüedades no dependen de la hora del equipo.
+    const now = useMemo(() => (data ? new Date(data.generatedAt).getTime() || Date.now() : Date.now()), [data]);
+
+    const handleDeleteEmpty = async () => {
+        if (!data || deleting) return;
+        setDeleting(true);
         try {
-            const deletedCount = await deleteBusinessesWithoutReviews();
-            showNotification(t('adminDashboard.deleteEmptySuccess', { count: deletedCount }), 'success');
-            // Refresh stats
-            const data = await getAdminDashboardStats();
-            setStats(data);
+            // El numero que ve quien confirma tiene que ser el de AHORA, no el de hace diez minutos.
+            const fresh = await getAdminDashboardOverview().catch(() => null);
+            const count = (fresh ?? data).totals.emptyBusinesses;
+            if (fresh) setData(fresh);
+            if (count === 0) return;
+            const ok = await confirm({
+                title: tk('deleteEmpty'),
+                message: tk(count === 1 ? 'ovConfirmDeleteOne' : 'ovConfirmDeleteMany', { count: f.n(count) }),
+                confirmText: t('common.delete'),
+                cancelText: t('common.cancel'),
+                danger: true,
+            });
+            if (!ok) return;
+            const deleted = await deleteBusinessesWithoutReviews();
+            showNotification(tk('deleteEmptySuccess', { count: deleted }), 'success');
+            await load(true);
         } catch (error) {
-            console.error("Error deleting empty businesses:", error);
-            showNotification(t('adminDashboard.errorDeletingEmpty'), 'error');
+            console.error('Error eliminando empresas vacías:', error);
+            showNotification(tk('errorDeletingEmpty'), 'error');
         } finally {
-            setIsDeletingEmpty(false);
+            setDeleting(false);
         }
     };
 
-    if (loading) {
-        return <div className="flex justify-center items-center h-64"><Spinner /></div>;
+    const sidebarQueues = {
+        moderation: { count: data?.reviews.pending, late: isLate(data?.reviews.oldest, now) },
+        claims: { count: data?.claims.open, late: isLate(data?.claims.oldest, now) },
+        appeals: { count: data?.appeals.open, late: isLate(data?.appeals.oldest, now) },
+        bugs: { count: data?.bugs.open, late: isLate(data?.bugs.oldest, now) },
+        // «Soporte» agrupa los tickets abiertos y los mensajes de contacto sin leer (las dos pestañas de /admin/soporte).
+        support: { count: support === null && contactNew === null ? null : (support ?? 0) + (contactNew ?? 0) },
+    };
+
+    /** Frase de cabecera con los datos reales; las cifras en negrita salen de las propias claves. */
+    const lead = (() => {
+        if (!data) return '';
+        const { reviews, claims, appeals, pastDue } = data;
+        const one = (n: number, base: string) => tk(n === 1 ? `${base}One` : `${base}Many`, { count: f.n(n) });
+        const extras: string[] = [];
+        if (claims.open > 0) extras.push(one(claims.open, 'ovCountClaims'));
+        if (appeals.open > 0) extras.push(one(appeals.open, 'ovCountAppeals'));
+        if (support && support > 0) extras.push(one(support, 'ovCountSupport'));
+        if (contactNew && contactNew > 0) extras.push(one(contactNew, 'ovCountContact'));
+        if (pastDue.count > 0) extras.push(one(pastDue.count, 'ovCountPastDue'));
+        if (reviews.pending === 0 && extras.length === 0) return tk('ovLeadNothing');
+        const first = reviews.pending > 0
+            ? tk(reviews.pending === 1 ? 'ovLeadReviewsOne' : 'ovLeadReviewsMany', {
+                count: f.n(reviews.pending),
+                age: relativeAge(reviews.oldest, locale, now),
+            })
+            : tk('ovLeadNoReviews');
+        return extras.length ? `${first} ${tk('ovLeadAlso', { list: joinList(extras, locale) })}` : first;
+    })();
+
+    const seeAll = (to: string, n: number, queue: string, feminine = true) => ({
+        to,
+        text: n === 1 ? tk('ovSeeOpen') : tk(feminine ? 'ovSeeAllF' : 'ovSeeAllM', { count: f.n(n) }),
+        ariaLabel: `${n === 1 ? tk('ovSeeOpen') : tk(feminine ? 'ovSeeAllF' : 'ovSeeAllM', { count: f.n(n) })}: ${queue}`,
+    });
+
+    const header = (
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:min-h-[44px]">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800 dark:text-gray-100 break-words">{tk('ovTitle')}</h1>
+            {status === 'ready' && data && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2 flex-shrink-0">
+                    <span>{tk('perfUpdatedAt', { time: new Date(data.generatedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })}</span>
+                    <button
+                        type="button"
+                        onClick={() => load(true)}
+                        disabled={refreshing}
+                        aria-busy={refreshing}
+                        className={`inline-flex items-center gap-1.5 min-h-[44px] px-2 font-semibold text-emerald-700 dark:text-emerald-400 hover:underline disabled:opacity-60 rounded ${FOCUS}`}
+                    >
+                        <i className={`fa-solid fa-rotate ${refreshing ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden="true"></i>
+                        {tk('perfRefresh')}
+                    </button>
+                </p>
+            )}
+        </div>
+    );
+
+    let body: React.ReactNode;
+    if (status === 'loading') {
+        body = <PanelSkeleton />;
+    } else if (status === 'error' || status === 'missing' || !data) {
+        body = (
+            <div role="alert" className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-red-200 dark:border-red-800 p-6 sm:p-8">
+                <div className="flex items-start gap-3">
+                    <i className="fa-solid fa-triangle-exclamation text-xl text-red-600 dark:text-red-400 mt-0.5" aria-hidden="true"></i>
+                    <div className="min-w-0">
+                        <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">{tk('perfLoadError')}</h2>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{status === 'missing' ? tk('ovMissing') : tk('perfLoadErrorHint')}</p>
+                        <button
+                            type="button"
+                            onClick={() => load(false)}
+                            className={`mt-4 min-h-[44px] px-5 rounded-lg bg-red-700 text-white font-semibold hover:bg-red-800 transition-colors ${FOCUS}`}
+                        >
+                            {tk('perfRetry')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    } else {
+        const { reviews, claims, appeals, bugs, pastDue, week, totals } = data;
+        const shown = reviews.items[filter];
+        const remaining = Math.max(0, reviews.counts[filter] - shown.length);
+        const reviewsTitle = tk('ovReviewsTitle');
+        body = (
+            <div className="space-y-5">
+                <p className="text-base text-gray-700 dark:text-gray-300 max-w-3xl leading-relaxed" data-testid="panel-lead">
+                    <RichText text={lead} />
+                </p>
+
+                <QueueCard
+                    id="cola-resenas"
+                    title={reviewsTitle}
+                    seeAll={reviews.pending > 0 ? seeAll(PATHS.moderation, reviews.pending, reviewsTitle) : undefined}
+                >
+                    {reviews.pending === 0 ? (
+                        <EmptyQueue hint={tk('ovEmptyReviews')} />
+                    ) : (
+                        <>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{tk('ovReviewsHint')}</p>
+                            <div role="group" aria-label={tk('ovFilterAria')} className="flex flex-wrap gap-2 mt-3 mb-4">
+                                {FILTERS.map(p => {
+                                    const active = filter === p.id;
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setFilter(p.id)}
+                                            aria-pressed={active}
+                                            className={`min-h-[44px] sm:min-h-[36px] px-3.5 rounded-full text-xs sm:text-[13px] font-semibold transition-colors ${FOCUS} ${
+                                                active
+                                                    ? 'bg-emerald-700 text-white dark:bg-brand-green dark:text-zinc-900'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-600'
+                                            }`}
+                                        >
+                                            {tk(p.labelKey)} ({f.n(reviews.counts[p.id])})
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {shown.length === 0 ? (
+                                <EmptyQueue hint={tk('ovEmptyFilter')} />
+                            ) : (
+                                <ul className="space-y-3">
+                                    {shown.map(r => <ReviewItem key={r.id} review={r} now={now} reviewTo={PATHS.moderation} />)}
+                                </ul>
+                            )}
+                            {remaining > 0 && (
+                                <Link
+                                    to={PATHS.moderation}
+                                    className={`mt-3 flex items-center justify-center min-h-[44px] text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:underline rounded ${FOCUS}`}
+                                >
+                                    {tk('ovMoreReviews', { count: f.n(remaining) })}
+                                    <i className="fa-solid fa-arrow-right text-xs ml-1.5" aria-hidden="true"></i>
+                                </Link>
+                            )}
+                        </>
+                    )}
+                </QueueCard>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                    <QueueCard id="cola-reclamaciones" title={tk('ovNavClaims')} seeAll={claims.open > 0 ? seeAll(PATHS.claims, claims.open, tk('ovNavClaims')) : undefined}>
+                        {claims.items.length === 0 ? <EmptyQueue hint={tk('ovEmptyClaims')} /> : (
+                            <ul>
+                                {claims.items.map(c => (
+                                    <QueueRow
+                                        key={c.id}
+                                        business={c.business}
+                                        title={c.business.name || t('adminClaims.businessDeleted')}
+                                        sub={tk('ovClaimedBy', { user: c.claimant || t('adminClaims.userNotFound') })}
+                                        since={c.since}
+                                        now={now}
+                                        action={<ActionLink to={PATHS.claims} label={tk('ovResolve')} ariaLabel={`${tk('ovResolve')}: ${c.business.name || ''}`} />}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </QueueCard>
+
+                    <QueueCard id="cola-pagos" title={tk('ovPastDueTitle')}>
+                        {pastDue.items.length === 0 ? <EmptyQueue hint={tk('ovEmptyPastDue')} /> : (
+                            <>
+                                <ul>
+                                    {pastDue.items.map(s => {
+                                        const plan = s.plan && s.plan !== 'free' ? tk('ovPastDuePlan', { plan: planLabel(s.plan, t) }) : null;
+                                        const state = tk(s.status === 'unpaid' ? 'ovPastDueUnpaid' : 'ovPastDueRetrying');
+                                        const who = s.user || s.username || '—';
+                                        return (
+                                            <QueueRow
+                                                key={s.id}
+                                                fallbackIcon="fa-credit-card"
+                                                title={who}
+                                                sub={plan ? `${plan} · ${state}` : state}
+                                                since={s.since}
+                                                now={now}
+                                                action={(s.username || s.user)
+                                                    ? <ActionLink to={`${PATHS.users}?q=${encodeURIComponent(s.username || s.user || '')}`} label={tk('ovViewUser')} ariaLabel={`${tk('ovViewUser')}: ${who}`} />
+                                                    : null}
+                                            />
+                                        );
+                                    })}
+                                </ul>
+                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{tk('ovPastDueNote')}</p>
+                            </>
+                        )}
+                    </QueueCard>
+
+                    <QueueCard id="cola-errores" title={tk('ovBugsTitle')} seeAll={bugs.open > 0 ? seeAll(PATHS.bugs, bugs.open, tk('ovBugsTitle'), false) : undefined}>
+                        {bugs.items.length === 0 ? <EmptyQueue hint={tk('ovEmptyBugs')} /> : (
+                            <ul>
+                                {bugs.items.map(b => {
+                                    const page = pathOf(b.pageUrl);
+                                    const device = b.mobile === null ? '' : tk(b.mobile ? 'ovDeviceMobile' : 'ovDeviceDesktop');
+                                    return (
+                                        <QueueRow
+                                            key={b.id}
+                                            fallbackIcon="fa-bug"
+                                            title={b.title || page || '—'}
+                                            sub={[page, device].filter(Boolean).join(' · ') || undefined}
+                                            since={b.since}
+                                            now={now}
+                                            action={<ActionLink to={PATHS.bugs} label={tk('ovOpen')} ariaLabel={`${tk('ovOpen')}: ${b.title}`} />}
+                                        />
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </QueueCard>
+
+                    <QueueCard id="cola-apelaciones" title={tk('ovNavAppeals')} seeAll={appeals.open > 0 ? seeAll(PATHS.appeals, appeals.open, tk('ovNavAppeals')) : undefined}>
+                        {appeals.items.length === 0 ? <EmptyQueue hint={tk('ovEmptyAppeals')} /> : (
+                            <ul>
+                                {appeals.items.map(a => (
+                                    <QueueRow
+                                        key={a.id}
+                                        business={a.business}
+                                        title={a.business.name || t('adminClaims.businessDeleted')}
+                                        sub={a.reason || tk('ovAppealDefault')}
+                                        since={a.since}
+                                        now={now}
+                                        action={<ActionLink to={PATHS.appeals} label={tk('ovReview')} ariaLabel={`${tk('ovReview')}: ${a.business.name || ''}`} />}
+                                    />
+                                ))}
+                            </ul>
+                        )}
+                    </QueueCard>
+                </div>
+
+                <QueueCard
+                    id="semana"
+                    title={tk('ovWeekTitle')}
+                    seeAll={{ to: PATHS.performance, text: tk('ovPerformance'), ariaLabel: tk('ovPerformance') }}
+                >
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{tk('ovWeekHint')}</p>
+                    <WeekComparison week={week} totals={totals} />
+                </QueueCard>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {totals.emptyBusinesses > 0 ? (
+                        <>
+                            {tk('ovMaint')}{' '}
+                            <button
+                                type="button"
+                                onClick={handleDeleteEmpty}
+                                disabled={deleting}
+                                aria-busy={deleting}
+                                className={`inline-flex items-center min-h-[44px] underline underline-offset-2 text-red-700 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-60 rounded ${FOCUS}`}
+                            >
+                                {deleting && <span className="w-3 h-3 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+                                {tk('ovMaintDelete', { count: f.n(totals.emptyBusinesses) })}
+                            </button>
+                        </>
+                    ) : tk('ovMaintNone')}
+                </p>
+            </div>
+        );
     }
 
     return (
         <>
-            <Meta title={`${t('adminDashboard.title')} - Opynio`} description={t('adminDashboard.subtitle')} />
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('adminDashboard.title')}</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Gestiona la plataforma Opynio</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                         <button
-                            onClick={handleDeleteEmptyBusinesses}
-                            disabled={isDeletingEmpty}
-                            className="bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400 font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 text-sm"
-                            title={t('adminDashboard.deleteEmptyTooltip')}
-                        >
-                            {isDeletingEmpty ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-trash-can"></i>}
-                            <span>{t('adminDashboard.deleteEmpty')}</span>
-                        </button>
-                        <Link to={`/${pathTranslations.es.adminCreateBusiness}`} className="bg-brand-green text-white font-semibold py-2 px-4 rounded-lg hover:bg-opacity-90 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
-                            <i className="fa-solid fa-plus"></i>
-                            <span>{t('adminDashboard.createBusiness')}</span>
-                        </Link>
-                    </div>
-                </div>
-
-                {/* Una tarjeta con un numero entre otras diez pasa desapercibida.
-                    Si hay cola, se dice arriba del todo y con su atajo. */}
-                {pendientes > 0 && (
-                    <Link
-                        to={`/${pathTranslations.es.adminReviewModeration}`}
-                        className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
-                    >
-                        <i className="fa-solid fa-clock text-orange-600 dark:text-orange-400 flex-shrink-0" aria-hidden="true"></i>
-                        <span className="text-sm text-orange-900 dark:text-orange-100">
-                            <strong>{pendientes}</strong>{' '}
-                            {pendientes === 1 ? 'reseña espera moderación' : 'reseñas esperan moderación'}
-                            {' '}— no se ven en ninguna ficha hasta que se aprueben.
-                        </span>
-                        <span className="ml-auto text-sm font-semibold text-orange-800 dark:text-orange-200 whitespace-nowrap">
-                            Revisar <i className="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
-                        </span>
-                    </Link>
-                )}
-
-                {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <StatCard title={t('adminDashboard.totalUsers')} value={stats.users} icon="fa-users" color="text-blue-500" bgColor="bg-gradient-to-br from-blue-500 to-blue-600" />
-                    <StatCard title={t('adminDashboard.totalBusinesses')} value={stats.businesses} icon="fa-store" color="text-emerald-500" bgColor="bg-gradient-to-br from-emerald-500 to-emerald-600" />
-                    <StatCard title={t('adminDashboard.totalReviews')} value={stats.reviews} icon="fa-star" color="text-amber-500" bgColor="bg-gradient-to-br from-amber-500 to-amber-600" />
-                </div>
-
-                {/* Tools Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-                    {/* Moderación */}
-                    <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-2xl p-5 border dark:border-zinc-700">
-                        <SectionTitle icon="fa-shield-halved" title="Moderación" color="bg-orange-500" />
-                        <div className="space-y-3">
-                            <ToolCard title={t('adminDashboard.moderateReviews')} icon="fa-comments" link={`/${pathTranslations.es.adminReviewModeration}`} description="Aprueba o rechaza nuevas reseñas." color="bg-orange-500" badge={pendientes} />
-                            <ToolCard title={t('adminDashboard.reviewAppeals')} icon="fa-flag" link={`/${pathTranslations.es.adminReviewAppeals}`} description="Revisa apelaciones de reseñas rechazadas." color="bg-orange-400" />
-                            <ToolCard title={t('adminDashboard.bugs')} icon="fa-bug" link={`/${pathTranslations.es.adminBugs}`} description="Gestiona informes de errores de usuarios." color="bg-red-500" />
-                            <ToolCard title="Soporte" icon="fa-headset" link="/admin/soporte" description="Atiende tickets, dudas y solicitudes de los clientes." color="bg-pink-500" badge={soporteAbiertas} />
-                        </div>
-                    </div>
-
-                    {/* Usuarios y Empresas */}
-                    <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-2xl p-5 border dark:border-zinc-700">
-                        <SectionTitle icon="fa-users" title="Usuarios y Empresas" color="bg-blue-500" />
-                        <div className="space-y-3">
-                            <ToolCard title={t('adminDashboard.users')} icon="fa-users-cog" link={`/${pathTranslations.es.adminUsers}`} description="Gestiona usuarios, roles y permisos." color="bg-blue-500" />
-                            <ToolCard title={t('adminDashboard.businessClaims')} icon="fa-user-shield" link={`/${pathTranslations.es.adminClaims}`} description="Revisa solicitudes de reclamación de empresas." color="bg-indigo-500" />
-                            <ToolCard title={t('adminDashboard.enterprisePlan')} icon="fa-building" link={`/${pathTranslations.es.adminEnterprise}`} description="Gestiona clientes del plan Enterprise." color="bg-purple-500" />
-                        </div>
-                    </div>
-
-                    {/* Gestión de Contenido */}
-                    <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-2xl p-5 border dark:border-zinc-700">
-                        <SectionTitle icon="fa-database" title="Gestión de Contenido" color="bg-emerald-500" />
-                        <div className="space-y-3">
-                            <ToolCard title={t('adminDashboard.scraping')} icon="fa-robot" link={`/${pathTranslations.es.adminScraping}`} description="Importa empresas masivamente desde Google Maps." color="bg-emerald-500" />
-                            <ToolCard title={t('adminDashboard.bulkEdit')} icon="fa-pen-to-square" link={`/${pathTranslations.es.adminBulkEdit}`} description="Edita múltiples empresas rápidamente." color="bg-teal-500" />
-                            <ToolCard title={t('adminDashboard.featuredBusinesses')} icon="fa-star" link={`/${pathTranslations.es.adminFeatured}`} description={t('adminDashboard.featuredBusinessesDesc')} color="bg-yellow-500" />
-                            <ToolCard title={t('adminDashboard.urlManager')} icon="fa-link" link={`/${pathTranslations.es.adminUrls}`} description={t('adminDashboard.urlManagerDesc')} color="bg-cyan-500" />
-                        </div>
-                    </div>
-
-                    {/* Acceso Rápido */}
-                    <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-2xl p-5 border dark:border-zinc-700">
-                        <SectionTitle icon="fa-bolt" title="Acciones Rápidas" color="bg-brand-green" />
-                        <div className="grid grid-cols-2 gap-3">
-                            <Link to={`/${pathTranslations.es.adminCreateBusiness}`} className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green transition-all hover:shadow-md text-center">
-                                <div className="w-12 h-12 rounded-full bg-brand-green/10 flex items-center justify-center">
-                                    <i className="fa-solid fa-plus text-brand-green text-xl"></i>
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nueva Empresa</span>
-                            </Link>
-                            <Link to={`/${pathTranslations.es.adminReviewModeration}`} className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green transition-all hover:shadow-md text-center">
-                                <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
-                                    <i className="fa-solid fa-check-double text-orange-500 text-xl"></i>
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Moderar</span>
-                            </Link>
-                            <Link to={`/${pathTranslations.es.adminUsers}`} className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green transition-all hover:shadow-md text-center">
-                                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                    <i className="fa-solid fa-user-gear text-blue-500 text-xl"></i>
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Usuarios</span>
-                            </Link>
-                            <Link to={`/${pathTranslations.es.adminClaims}`} className="flex flex-col items-center justify-center gap-2 bg-white dark:bg-zinc-800 p-4 rounded-xl border dark:border-zinc-700 hover:border-brand-green dark:hover:border-brand-green transition-all hover:shadow-md text-center">
-                                <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                                    <i className="fa-solid fa-clipboard-check text-indigo-500 text-xl"></i>
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reclamaciones</span>
-                            </Link>
-                        </div>
-                    </div>
+            <Meta title={`${tk('ovTitle')} - Opynio`} description={tk('ovTitle')} />
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 -mt-6 sm:-mt-8">
+                <AdminPanelSidebar queues={sidebarQueues} />
+                <div className="flex-grow min-w-0 space-y-5">
+                    {header}
+                    {body}
                 </div>
             </div>
         </>
     );
 };
+
+/** Nombre visible de un plan: la clave del panel de empresa y, si no existe, el propio identificador. */
+function planLabel(plan: string, t: (k: string) => string): string {
+    const key = `businessDashboard.${plan === 'v2' ? 'pro' : plan}PlanName`;
+    const v = t(key);
+    return v === key ? plan.charAt(0).toUpperCase() + plan.slice(1) : v;
+}
 
 export default AdminDashboardPage;

@@ -62,6 +62,9 @@ const DashboardReviews: React.FC = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [editingResponseId, setEditingResponseId] = useState<number | null>(null);
     const [editedResponseText, setEditedResponseText] = useState('');
+    // Respuesta vacia o de solo espacios: antes el boton no hacia nada ni decia nada.
+    const [respondError, setRespondError] = useState(false);
+    const [editError, setEditError] = useState(false);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isSuggesting, setIsSuggesting] = useState<number | null>(null);
     const [suggestedReplies, setSuggestedReplies] = useState<{ reviewId: number; suggestions: string[] } | null>(null);
@@ -244,14 +247,30 @@ const DashboardReviews: React.FC = () => {
         }
     };
 
+    // Tras responder, editar o borrar una respuesta hay que refrescar lo que ya se
+    // ve, no volver a la primera pagina: con 100+ resenas cargadas la lista se
+    // quedaba en 20 y la resena que se acababa de tocar desaparecia de pantalla.
+    const recargarCargadas = async () => {
+        if (!business) return;
+        const data = await getReviewsForBusiness(business.id, 1, Math.max(page, 1) * PAGE_SIZE);
+        setReviews(data);
+        try {
+            const links = await getReviewProductLinks(data.map(r => String(r.id)));
+            setProductLinks(links);
+        } catch (linkError) {
+            console.error('No se pudieron recargar las asignaciones a productos:', linkError);
+        }
+    };
+
     const handleRespondSubmit = async (e: React.FormEvent<HTMLFormElement>, reviewId: number) => {
         e.preventDefault();
-        if (!responseText.trim() || !business || !profile) return;
+        if (!responseText.trim()) { setRespondError(true); return; }
+        if (!business || !profile) return;
+        setRespondError(false);
         setIsSubmitting(true);
         try {
             await submitReviewResponse(String(reviewId), responseText.trim());
-            setPage(1);
-            await fetchReviewsPage(1);
+            await recargarCargadas();
             setResponseText('');
             setRespondingTo(null);
         } catch (error) {
@@ -272,27 +291,28 @@ const DashboardReviews: React.FC = () => {
         if (!ok) return;
         try {
             await deleteReviewResponse(responseId);
-            setPage(1);
-            await fetchReviewsPage(1);
+            await recargarCargadas();
         } catch (error) {
             await notifyError(error, { fallbackKey: 'businessDashboard.errorDeletingResponse' });
         }
     };
 
     const handleEditClick = (response: any) => {
+        setEditError(false);
         setEditingResponseId(response.id);
         setEditedResponseText(response.response_text);
     };
     
     const handleSaveEdit = async (e: React.FormEvent, responseId: number) => {
         e.preventDefault();
+        if (!editedResponseText.trim()) { setEditError(true); return; }
+        setEditError(false);
         setIsSavingEdit(true);
         try {
-            await updateReviewResponse(responseId, editedResponseText);
+            await updateReviewResponse(responseId, editedResponseText.trim());
             setEditingResponseId(null);
             setEditedResponseText('');
-            setPage(1);
-            await fetchReviewsPage(1);
+            await recargarCargadas();
         } catch (error) {
             await notifyError(error, { fallbackKey: 'businessDashboard.errorSavingEditedResponse' });
         } finally {
@@ -413,9 +433,10 @@ const DashboardReviews: React.FC = () => {
                                                     {editingResponseId === response.id ? (
                                                         <form onSubmit={(e) => handleSaveEdit(e, response.id)}>
                                                             <h4 className="text-xs sm:text-sm font-semibold mb-2">{t('businessDashboard.editingResponse')}</h4>
-                                                            <textarea value={editedResponseText} onChange={(e) => setEditedResponseText(e.target.value)} required className="w-full p-2 sm:p-2.5 border rounded-md bg-transparent text-sm sm:text-base" rows={3}/>
+                                                            <textarea value={editedResponseText} onChange={(e) => { setEditedResponseText(e.target.value); if (editError) setEditError(false); }} required aria-invalid={editError || undefined} aria-describedby={editError ? `edit-error-${response.id}` : undefined} className="w-full p-2 sm:p-2.5 border rounded-md bg-transparent text-sm sm:text-base" rows={3}/>
+                                                            {editError && <p id={`edit-error-${response.id}`} role="alert" className="mt-1.5 text-xs sm:text-sm text-red-600 dark:text-red-400">{t('businessDashboard.responseEmptyError')}</p>}
                                                             <div className="flex items-center justify-end gap-2 sm:gap-3 mt-2">
-                                                                <button type="button" onClick={() => setEditingResponseId(null)} className="text-xs sm:text-sm font-semibold">{t('common.cancel')}</button>
+                                                                <button type="button" onClick={() => { setEditingResponseId(null); setEditError(false); }} className="text-xs sm:text-sm font-semibold">{t('common.cancel')}</button>
                                                                 <button type="submit" disabled={isSavingEdit} className="bg-brand-green text-white font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{isSavingEdit ? t('common.saving') : t('common.save')}</button>
                                                             </div>
                                                         </form>
@@ -433,15 +454,16 @@ const DashboardReviews: React.FC = () => {
                                             ))
                                         ) : respondingTo === review.id ? (
                                             <form onSubmit={(e) => handleRespondSubmit(e, review.id)}>
-                                                <textarea value={responseText} onChange={(e) => setResponseText(e.target.value)} placeholder={t('common.placeholders.writeResponse')} required className="w-full p-2 sm:p-2.5 border rounded-md bg-transparent text-sm sm:text-base" rows={3}/>
+                                                <textarea value={responseText} onChange={(e) => { setResponseText(e.target.value); if (respondError) setRespondError(false); }} placeholder={t('common.placeholders.writeResponse')} required aria-invalid={respondError || undefined} aria-describedby={respondError ? `respond-error-${review.id}` : undefined} className="w-full p-2 sm:p-2.5 border rounded-md bg-transparent text-sm sm:text-base" rows={3}/>
+                                                {respondError && <p id={`respond-error-${review.id}`} role="alert" className="mt-1.5 text-xs sm:text-sm text-red-600 dark:text-red-400">{t('businessDashboard.responseEmptyError')}</p>}
                                                 <div className="flex justify-end gap-2 sm:gap-3 mt-2">
-                                                    <button type="button" onClick={() => setRespondingTo(null)} className="text-xs sm:text-sm font-semibold">{t('common.cancel')}</button>
+                                                    <button type="button" onClick={() => { setRespondingTo(null); setRespondError(false); }} className="text-xs sm:text-sm font-semibold">{t('common.cancel')}</button>
                                                     <button type="submit" disabled={isSubmitting} className="bg-brand-green text-white font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{isSubmitting ? t('common.sending') : t('common.submit')}</button>
                                                 </div>
                                             </form>
                                         ) : (
                                             <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
-                                                <button onClick={() => setRespondingTo(review.id)} className="bg-green-100 text-brand-green font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{t('businessDashboard.respond')}</button>
+                                                <button onClick={() => { setRespondError(false); setRespondingTo(review.id); }} className="bg-green-100 text-brand-green font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm">{t('businessDashboard.respond')}</button>
                                                 {AI_ENABLED && <button
                                                     onClick={() => handleSuggestReplies(review)}
                                                     disabled={isSuggesting === review.id || !review.review_text || profile?.plan === 'free'}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAdminClaims, resolveClaim } from '../../../services/supabaseService';
+import { getAdminClaims, resolveClaim, getClaimCurrentOwner, type ClaimOwnerInfo } from '../../../services/supabaseService';
 import type { Claim } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
 import Spinner from '../../Spinner';
@@ -22,6 +22,14 @@ const AdminClaimsPage: React.FC = () => {
     const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
     const [adminNotes, setAdminNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Dueno actual de la empresa reclamada (si ya tiene uno) y confirmacion del traspaso.
+    const [currentOwner, setCurrentOwner] = useState<ClaimOwnerInfo | null>(null);
+    const [ownerLoading, setOwnerLoading] = useState(false);
+    const [confirmReplace, setConfirmReplace] = useState(false);
+    const ownerId = (selectedClaim?.businesses as any)?.owner_id as string | null | undefined;
+    const ownerIsClaimant = !!ownerId && ownerId === selectedClaim?.user_id;
+    const needsOwnerConfirm = !!ownerId && !ownerIsClaimant;
+    const ownerLabel = currentOwner ? (currentOwner.name || (currentOwner.username ? '@' + currentOwner.username : currentOwner.id)) : '';
 
     const fetchClaims = useCallback(async (status: ActiveTab) => {
         setLoading(true);
@@ -43,13 +51,13 @@ const AdminClaimsPage: React.FC = () => {
         if (!selectedClaim) return;
         setIsSubmitting(true);
         try {
-            await resolveClaim(selectedClaim.id, newStatus, adminNotes);
+            await resolveClaim(selectedClaim.id, newStatus, adminNotes, { confirmReplaceOwner: confirmReplace });
             showNotification(`Reclamación #${selectedClaim.id} ha sido ${newStatus === 'approved' ? 'aprobada' : 'rechazada'}.`, 'success');
             // Optimistic update: remove from the current list
             setClaims(prev => prev.filter(c => c.id !== selectedClaim.id));
             setIsActionModalOpen(false);
         } catch (error: any) {
-            showNotification(error.message || 'Error al resolver la reclamación.', 'error');
+            showNotification(error.message === 'OWNER_CONFIRM_REQUIRED' ? t('adminClaims.ownerConfirmNeeded') : (error.message || 'Error al resolver la reclamación.'), 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -58,8 +66,22 @@ const AdminClaimsPage: React.FC = () => {
     const handleOpenModal = (claim: Claim) => {
         setSelectedClaim(claim);
         setAdminNotes(claim.admin_notes || '');
+        setConfirmReplace(false);
+        setCurrentOwner(null);
         setIsActionModalOpen(true);
     };
+
+    // Al abrir el modal: quien es el dueno actual (nombre, @usuario y correo).
+    useEffect(() => {
+        if (!isActionModalOpen || !ownerId || ownerId === selectedClaim?.user_id) return;
+        let vigente = true;
+        setOwnerLoading(true);
+        getClaimCurrentOwner(ownerId)
+            .then(info => { if (vigente) setCurrentOwner(info); })
+            .catch(() => { if (vigente) setCurrentOwner({ id: ownerId, name: null, username: null, email: null }); })
+            .finally(() => { if (vigente) setOwnerLoading(false); });
+        return () => { vigente = false; };
+    }, [isActionModalOpen, ownerId, selectedClaim?.user_id]);
 
     const TabButton: React.FC<{ tab: ActiveTab; label: string }> = ({ tab, label }) => (
         <button
@@ -168,7 +190,7 @@ const AdminClaimsPage: React.FC = () => {
                                         <span className="font-bold text-gray-900 dark:text-gray-100">#{claim.id}</span>
                                         <StatusBadge status={claim.status} />
                                     </div>
-                                    <div className="space-y-1.5 text-sm">
+                                    <div className="space-y-1.5 text-sm break-words min-w-0">
                                         <p><span className="text-gray-600 dark:text-gray-400">{t('adminClaims.headerUser')}:</span> <span className="text-gray-900 dark:text-gray-100">{claim.profiles?.name || t('adminClaims.userNotFound')}</span></p>
                                         <p><span className="text-gray-600 dark:text-gray-400">{t('adminClaims.headerBusiness')}:</span> <span className="text-gray-900 dark:text-gray-100 font-medium">{claim.businesses?.name || t('adminClaims.businessDeleted')}</span></p>
                                         <p><span className="text-gray-600 dark:text-gray-400">{t('adminClaims.headerDate')}:</span> <span className="text-gray-900 dark:text-gray-100">{new Date(claim.created_at).toLocaleDateString()}</span></p>
@@ -190,8 +212,8 @@ const AdminClaimsPage: React.FC = () => {
                 <Modal title={t('adminClaims.reviewModalTitle', { id: selectedClaim.id })} onClose={() => setIsActionModalOpen(false)}>
                     <div className="py-4 space-y-4">
                         <div className="text-sm space-y-3">
-                            <p><strong>{t('adminClaims.modalUser')}</strong> {selectedClaim.profiles?.name || t('adminClaims.userNotFound')}{selectedClaim.profiles?.username && ` (@${selectedClaim.profiles.username})`}</p>
-                            <p><strong>{t('adminClaims.modalBusiness')}</strong> {selectedClaim.businesses?.name}</p>
+                            <p className="break-words"><strong>{t('adminClaims.modalUser')}</strong> {selectedClaim.profiles?.name || t('adminClaims.userNotFound')}{selectedClaim.profiles?.username && ` (@${selectedClaim.profiles.username})`}</p>
+                            <p className="break-words"><strong>{t('adminClaims.modalBusiness')}</strong> {selectedClaim.businesses?.name}</p>
                             <p><strong>{t('adminClaims.modalOpynioUrl')}</strong> <a href={selectedClaim.opynio_url || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{selectedClaim.opynio_url}</a></p>
                         </div>
                         <div className="p-3 bg-gray-50 dark:bg-zinc-700/50 rounded-lg border dark:border-zinc-600 text-sm">
@@ -200,6 +222,32 @@ const AdminClaimsPage: React.FC = () => {
                             <p><strong>{t('adminClaims.modalPhone')}</strong> {(selectedClaim.user_provided_info as any)?.phone}</p>
                             <p className="mt-2"><strong>{t('adminClaims.modalComments')}</strong><br/>{(selectedClaim.user_provided_info as any)?.comments || t('adminClaims.modalNoComments')}</p>
                         </div>
+                        {ownerIsClaimant && (
+                            <p className="p-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200 text-sm">{t('adminClaims.ownerSame')}</p>
+                        )}
+                        {needsOwnerConfirm && (
+                            <div role="alert" className="p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100 text-sm space-y-2">
+                                <h4 className="font-semibold"><i className="fa-solid fa-triangle-exclamation mr-2" aria-hidden="true"></i>{t('adminClaims.ownerWarnTitle')}</h4>
+                                {ownerLoading || !currentOwner ? (
+                                    <p>{t('adminClaims.ownerChecking')}</p>
+                                ) : (
+                                    <>
+                                        <p>{t('adminClaims.ownerWarnBody', {
+                                            owner: ownerLabel,
+                                            business: selectedClaim.businesses?.name || '',
+                                            claimant: selectedClaim.profiles?.name || selectedClaim.profiles?.username || '',
+                                        }).split('{owner}').join(ownerLabel) /* t() solo sustituye la primera aparicion */}</p>
+                                        <p className="font-mono text-xs break-all" data-testid="current-owner">
+                                            {[currentOwner.name, currentOwner.username && '@' + currentOwner.username, currentOwner.email].filter(Boolean).join(' · ') || currentOwner.id}
+                                        </p>
+                                    </>
+                                )}
+                                <label className="flex items-start gap-2 font-medium cursor-pointer">
+                                    <input type="checkbox" className="mt-1" checked={confirmReplace} onChange={(e) => setConfirmReplace(e.target.checked)} />
+                                    <span>{t('adminClaims.ownerConfirm')}</span>
+                                </label>
+                            </div>
+                        )}
                         <div>
                             <label htmlFor="adminNotes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminDashboard.adminNotes')}</label>
                             <textarea
@@ -212,7 +260,7 @@ const AdminClaimsPage: React.FC = () => {
                         </div>
                         <div className="flex justify-end gap-3 pt-4 border-t dark:border-zinc-700">
                             <button onClick={() => handleResolveClaim('rejected')} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{t('adminClaims.rejectAction')}</button>
-                            <button onClick={() => handleResolveClaim('approved')} disabled={isSubmitting} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{isSubmitting ? t('common.processing') : t('adminClaims.approveAction')}</button>
+                            <button onClick={() => handleResolveClaim('approved')} disabled={isSubmitting || (needsOwnerConfirm && !confirmReplace)} className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{isSubmitting ? t('common.processing') : t('adminClaims.approveAction')}</button>
                         </div>
                     </div>
                 </Modal>

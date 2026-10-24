@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserPassword } from '../../services/supabaseService';
 import * as ReactRouterDOM from 'react-router-dom';
@@ -19,19 +19,13 @@ const ResetPasswordPage: React.FC = () => {
     // de la UI) daba 404.
     const { country } = useCountry();
     const loginPath = localizedPathOrRoot('login', language, country);
+    const forgotPath = localizedPathOrRoot('forgotPassword', language, country);
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<React.ReactNode | null>(null);
     const [success, setSuccess] = useState(false);
-
-    useEffect(() => {
-        // If the user lands here without a recovery session, redirect them.
-        if (!authLoading && !session?.user) {
-            navigate(loginPath, { replace: true });
-        }
-    }, [session, authLoading, navigate, loginPath]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -63,8 +57,30 @@ const ResetPasswordPage: React.FC = () => {
         }
     };
     
-    if (authLoading || !session) {
+    if (authLoading) {
         return <div className="text-center p-5 sm:p-8 text-sm sm:text-base">Cargando...</div>;
+    }
+
+    // Sin sesion de recuperacion (enlace caducado, ya usado o pagina abierta a
+    // pelo): antes redirigia al login sin decir nada. Ahora se explica y se
+    // lleva a pedir otro enlace. Si la sesion llega despues, aparece el formulario.
+    if (!session?.user) {
+        return (
+            <>
+                <Meta title={t('resetPasswordPage.linkExpiredTitle') + " - Opynio"} description={t('resetPasswordPage.linkExpiredMessage')} noindex={true} />
+                <div className="max-w-md mx-auto bg-white dark:bg-zinc-800 p-5 sm:p-6 md:p-8 rounded-xl shadow-lg mt-6 sm:mt-8 md:mt-10 text-center" data-testid="reset-link-expired">
+                    <i className="fa-solid fa-circle-exclamation text-4xl sm:text-5xl text-amber-500 mb-3 sm:mb-4" aria-hidden="true"></i>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{t('resetPasswordPage.linkExpiredTitle')}</h1>
+                    <p role="alert" className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mt-2 mb-5 sm:mb-6">{t('resetPasswordPage.linkExpiredMessage')}</p>
+                    <ReactRouterDOM.Link to={forgotPath} className="inline-block w-full bg-brand-green text-white font-bold py-2.5 sm:py-3 rounded-lg text-base sm:text-lg hover:bg-opacity-90 transition-colors shadow-md">
+                        {t('resetPasswordPage.requestNewLink')}
+                    </ReactRouterDOM.Link>
+                    <p className="mt-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        <ReactRouterDOM.Link to={loginPath} className="font-semibold text-brand-green hover:underline">{t('forgotPasswordPage.backToLoginLink')}</ReactRouterDOM.Link>
+                    </p>
+                </div>
+            </>
+        );
     }
 
     if (success) {

@@ -12,7 +12,10 @@ import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
 import { businessUrlId } from '../../../utils/slugify';
-import { planNameKey } from '../../../utils/planFeatures';
+import { planNameKey, isPlanFeatureComingSoon } from '../../../utils/planFeatures';
+import { AI_ENABLED } from '../../../services/geminiService';
+import { useTrialStatus } from '../../../hooks/useTrialStatus';
+import { isPaidPlanKey, formatPlanPrice } from '../../../utils/planPrices';
 
 const DeleteConfirmModal: React.FC<{
     businessName: string;
@@ -157,7 +160,8 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
     starter: [
         { key: 'pricingPage.starterFeature2', icon: 'fa-solid fa-paper-plane' },
         { key: 'pricingPage.starterFeature3', icon: 'fa-solid fa-puzzle-piece' },
-        { key: 'pricingPage.starterFeature4', icon: 'fa-solid fa-robot' },
+        // Las respuestas con IA estan apagadas (AI_ENABLED): se anuncian como proximas hasta que vuelvan.
+        { key: 'pricingPage.starterFeature4', icon: 'fa-solid fa-robot', comingSoon: !AI_ENABLED },
         { key: 'pricingPage.starterFeature5', icon: 'fa-solid fa-filter' },
         { key: 'pricingPage.starterFeature6', icon: 'fa-solid fa-file-csv', comingSoon: true },
         { key: 'pricingPage.starterFeature7', icon: 'fa-solid fa-plug-circle-bolt', comingSoon: true },
@@ -166,19 +170,19 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
         { key: 'pricingPage.growthFeature1', icon: 'fa-solid fa-star' },
         { key: 'pricingPage.growthFeature3', icon: 'fa-solid fa-puzzle-piece' },
         { key: 'pricingPage.growthFeature4', icon: 'fa-solid fa-store' },
-        { key: 'pricingPage.growthFeature5', icon: 'fa-solid fa-box-archive' },
+        { key: 'pricingPage.growthFeature5', icon: 'fa-solid fa-box-archive', comingSoon: true },
         { key: 'pricingPage.growthFeature6', icon: 'fa-solid fa-qrcode' },
         { key: 'pricingPage.growthFeature7', icon: 'fa-solid fa-magnifying-glass-chart' },
-        { key: 'pricingPage.growthFeature8', icon: 'fa-solid fa-robot' },
+        { key: 'pricingPage.growthFeature8', icon: 'fa-solid fa-robot', comingSoon: !AI_ENABLED },
         { key: 'pricingPage.growthFeature9', icon: 'fa-solid fa-code', comingSoon: true },
         { key: 'pricingPage.growthFeature10', icon: 'fa-solid fa-chart-line', comingSoon: true },
     ],
     pro: [
         { key: 'pricingPage.proFeature1', icon: 'fa-solid fa-star' },
         { key: 'pricingPage.proFeature3', icon: 'fa-brands fa-whatsapp' },
-        { key: 'pricingPage.proFeature4', icon: 'fa-solid fa-tags' },
-        { key: 'pricingPage.proFeature5', icon: 'fa-solid fa-filter-circle-dollar' },
-        { key: 'pricingPage.proFeature6', icon: 'fa-solid fa-bell' },
+        { key: 'pricingPage.proFeature4', icon: 'fa-solid fa-tags', comingSoon: true },
+        { key: 'pricingPage.proFeature5', icon: 'fa-solid fa-filter-circle-dollar', comingSoon: true },
+        { key: 'pricingPage.proFeature6', icon: 'fa-solid fa-bell', comingSoon: true },
         { key: 'pricingPage.proFeature7', icon: 'fa-solid fa-table-cells-large', comingSoon: true },
         { key: 'pricingPage.proFeature8', icon: 'fa-solid fa-code-compare', comingSoon: true },
         { key: 'pricingPage.proFeature9', icon: 'fa-solid fa-headset', comingSoon: true },
@@ -196,6 +200,8 @@ const BusinessListPage: React.FC = () => {
     const { language } = useI18n();
     const { country } = useCountry();
     const [billingLoading, setBillingLoading] = useState(false);
+    // Solo devuelve algo con NEW_PRICING_ENABLED y una suscripcion en 'trialing'.
+    const trial = useTrialStatus();
 
     if (loading) {
         return <div className="flex justify-center items-center h-64"><Spinner /></div>;
@@ -221,8 +227,8 @@ const BusinessListPage: React.FC = () => {
     const canCreateBusiness = businesses.length < limit;
 
     const featuresForCurrentPlan = PLAN_FEATURES[currentPlan] || [];
-    const includedFeatures = featuresForCurrentPlan.filter(f => !f.comingSoon);
-    const comingSoonFeatures = featuresForCurrentPlan.filter(f => f.comingSoon);
+    const includedFeatures = featuresForCurrentPlan.filter(f => !f.comingSoon && !isPlanFeatureComingSoon(f.key));
+    const comingSoonFeatures = featuresForCurrentPlan.filter(f => f.comingSoon || isPlanFeatureComingSoon(f.key));
 
     // Use country directly - don't infer from language
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
@@ -301,6 +307,15 @@ const BusinessListPage: React.FC = () => {
                                     <span className="font-bold text-lg text-brand-green">{t(planNameKey(currentPlan))}</span>
                                     {profile.billing_cycle && <span className="text-sm text-gray-500 dark:text-gray-400 capitalize">({profile.billing_cycle === 'monthly' ? t('myBusinesses.billingCycleMonthly') : t('myBusinesses.billingCycleAnnual')})</span>}
                                 </div>
+                                {trial && isPaidPlanKey(profile.plan) && (
+                                    <p className="text-sm font-semibold text-brand-green mt-1">
+                                        {t(trial.daysLeft === 1 ? 'pricingPage.trialStatusOne' : 'pricingPage.trialStatus', {
+                                            days: String(trial.daysLeft),
+                                            plan: profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1),
+                                            price: formatPlanPrice(profile.plan, profile.billing_cycle === 'annual' ? 'annual' : 'monthly') + t(profile.billing_cycle === 'annual' ? 'pricingPage.perYear' : 'pricingPage.perMonth'),
+                                        })}
+                                    </p>
+                                )}
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     {profile.plan_expires_at 
                                         ? t('myBusinesses.planRenewsOn', { date: new Date(profile.plan_expires_at).toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' }) })

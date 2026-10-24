@@ -10,6 +10,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../../../contexts/i18nContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import { AI_ENABLED } from '../../../../services/geminiService';
+import TrialStatusBanner from '../../../TrialStatusBanner';
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: string }> = ({ title, value, icon }) => (
     <div className="bg-white dark:bg-zinc-800 p-4 sm:p-5 md:p-6 rounded-lg shadow-sm flex items-center justify-between border dark:border-zinc-700">
@@ -64,9 +66,10 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
         return `${PUBLIC_BASE_URL}/${langCode}/${businessPath}/${identifier}`;
     }, [businessName, businessSlug, businessCountry]);
 
+    // Mensaje para los clientes, en el idioma del panel (antes salia siempre en espanol).
     const suggestedMessage = useMemo(
-        () => `¡Hola! Si has tenido una buena experiencia con ${businessName}, ¿podrías compartirla con una reseña en Opynio? Tu opinión nos ayuda muchísimo. Aquí tienes el enlace: ${publicUrl}`,
-        [businessName, publicUrl]
+        () => t('businessDashboard.shareSuggestedMessage', { business: businessName, url: publicUrl }),
+        [businessName, publicUrl, t]
     );
 
     // QR estilizado: color verde de marca, alta corrección de errores (H)
@@ -81,16 +84,16 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
         try {
             await navigator.clipboard.writeText(text);
             setCopiedField(field);
-            showNotification(field === 'url' ? '¡Enlace copiado!' : '¡Mensaje copiado!', 'success');
+            showNotification(field === 'url' ? t('common.linkCopied') : t('common.messageCopied'), 'success');
             setTimeout(() => setCopiedField(null), 2000);
         } catch {
-            showNotification('No se pudo copiar — copia manualmente.', 'error');
+            showNotification(t('common.copyFailed'), 'error');
         }
     };
 
     const encodedMessage = encodeURIComponent(suggestedMessage);
     const encodedUrl = encodeURIComponent(publicUrl);
-    const encodedSubject = encodeURIComponent(`¿Te animarías a dejar una reseña a ${businessName}?`);
+    const encodedSubject = encodeURIComponent(t('businessDashboard.shareEmailSubject', { business: businessName }));
 
     const shareLinks = [
         {
@@ -194,7 +197,7 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
                                 <div className="relative w-36 h-36 sm:w-44 sm:h-44">
                                     <img
                                         src={qrSrc}
-                                        alt={`Código QR para dejar una reseña a ${businessName}`}
+                                        alt={t('common.qrCodeAlt', { name: businessName })}
                                         width={176}
                                         height={176}
                                         loading="lazy"
@@ -243,7 +246,7 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
                             href={s.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title={`Compartir por ${s.label}`}
+                            title={t('businessDashboard.shareVia', { channel: s.label })}
                             className="group flex flex-col items-center gap-1.5 sm:gap-2"
                         >
                             <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${s.color} text-white flex items-center justify-center shadow-md transition-all group-hover:-translate-y-0.5 group-hover:shadow-lg`}>
@@ -337,10 +340,14 @@ const DashboardOverview: React.FC = () => {
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.dashboardOverview')}</h1>
 
+            {/* Solo con la prueba gratuita activa (NEW_PRICING_ENABLED + suscripcion en 'trialing'). */}
+            <TrialStatusBanner />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 <StatCard title={t('businessDashboard.totalReviews')} value={stats.totalReviews} icon="fa-star" />
                 <StatCard title={t('businessDashboard.averageRating')} value={stats.averageRating.toFixed(1)} icon="fa-star-half-alt" />
-                {creditLimit > 0 && (
+                {/* Sin IA (AI_ENABLED apagado) no hay nada que gastar: no se enseña el contador. */}
+                {AI_ENABLED && creditLimit > 0 && (
                      <StatCard title={t('businessDashboard.aiCreditsUsed')} value={`${creditsUsed} / ${creditLimit.toLocaleString()}`} icon="fa-robot" />
                 )}
             </div>

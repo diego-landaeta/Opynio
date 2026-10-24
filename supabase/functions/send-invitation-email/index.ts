@@ -2,7 +2,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { enviarBrevo, leerClaveBrevo } from "../_shared/brevo.ts";
+import { enviarBrevo, enviosRestantesBrevo, leerClaveBrevo } from "../_shared/brevo.ts";
 
 // Type declarations for Deno environment
 declare const Deno: {
@@ -134,6 +134,18 @@ serve(async (req) => {
     } catch (e) {
       console.error("send-invitation-email: sin clave de Brevo:", e);
       return createErrorResponse("Configuración incompleta del servicio de correo.", 500);
+    }
+
+    // Cupo de la cuenta de Brevo (plan Free compartido). Con el cupo agotado Brevo contesta
+    // 201 sin enviar nada y el panel decia «Enviada» (issue #5). Se mira ANTES de reservar la
+    // cuota del dueno. Si no se puede saber (API caida, sin tope diario), no se bloquea.
+    const enviosRestantes = await enviosRestantesBrevo(brevoKey);
+    if (enviosRestantes !== null && enviosRestantes < recipients.length) {
+      console.warn(`send-invitation-email: cupo de Brevo insuficiente (quedan ${enviosRestantes}, se piden ${recipients.length}).`);
+      return createErrorResponse(
+        "El servicio de correo ha alcanzado su límite diario de envíos. No se ha enviado nada ni se ha gastado tu cuota: inténtalo de nuevo más tarde.",
+        503,
+      );
     }
 
     // 4c. Cuota diaria. Se reserva ANTES de enviar y cuenta aunque el envio

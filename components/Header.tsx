@@ -11,7 +11,8 @@ import { VAPID_PUBLIC_KEY, LANGUAGES, COUNTRIES, PUSH_NOTIFICATIONS_ENABLED } fr
 import { urlBase64ToUint8Array } from '../utils/urlBase64ToUint8Array';
 import { Json } from '../types';
 import SettingsMenu from './SettingsMenu';
-import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode, isHomeRoute } from '../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, Language, useAutoTranslation, getLanguageForCountryCode, getLocaleFromLanguage, isHomeRoute } from '../contexts/i18nContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useNotification } from '../contexts/NotificationContext';
 import { useCountry, CountryCode, useSwitchCountry } from '../contexts/CountryContext';
 
@@ -141,6 +142,9 @@ const MobileMenu: React.FC<{
     // Dialogo modal: al abrir el foco entra en el menu y al cerrar vuelve a quien
     // lo abrio (antes se quedaba detras del menu, sin poder tabular dentro).
     const closeButtonRef = useRef<HTMLButtonElement>(null);
+    // aria-modal sin trampa dejaba que Tab saliera al contenido de detras.
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(dialogRef, isOpen);
     useEffect(() => {
         if (!isOpen) return;
         const previo = document.activeElement as HTMLElement | null;
@@ -170,6 +174,7 @@ const MobileMenu: React.FC<{
             </div>
             <div
                 className={`fixed top-0 left-0 h-full w-[88vw] max-w-[320px] sm:w-80 bg-white dark:bg-zinc-900 shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="menu-title"
@@ -199,7 +204,7 @@ const MobileMenu: React.FC<{
                                 </div>
                                 <div className="truncate min-w-0">
                                     <p className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-100 truncate">{profile.name}</p>
-                                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">@{profile.username || 'Ver Perfil'}</p>
+                                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{profile.username ? `@${profile.username}` : t('homepage.viewProfile')}</p>
                                 </div>
                             </Link>
                         )}
@@ -311,7 +316,7 @@ const NotificationItem: React.FC<{ notification: any, onClick: () => void }> = (
         : empresa
             ? `${countryPrefix}/${paths.business.split('/:sede').join('').replace(':identifier', encodeURIComponent(empresa))}`
             : `${countryPrefix}/${paths.profile}`;
-    const localeForDate = language;
+    const localeForDate = getLocaleFromLanguage(language);
 
     return (
         <Link 
@@ -632,7 +637,7 @@ const Header: React.FC = () => {
                         <div className="xl:hidden flex items-center gap-1 sm:gap-2">
                             {showCountrySelector && <SettingsMenu buttonClassName="text-gray-600 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-green transition-colors text-lg sm:text-xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center rounded-full" />}
                             {user && <NotificationDropdown />}
-                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label={t('header.openMenu')}><i className="fa-solid fa-bars"></i></button>
+                            <button onClick={() => setIsMenuOpen(true)} className="text-gray-600 dark:text-gray-300 text-xl sm:text-2xl w-8 sm:w-10 h-8 sm:h-10 flex items-center justify-center" aria-label={t('header.openMenu')} aria-haspopup="dialog" aria-expanded={isMenuOpen}><i className="fa-solid fa-bars"></i></button>
                         </div>
                     </div>
                 </div>

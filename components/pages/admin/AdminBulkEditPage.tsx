@@ -287,17 +287,26 @@ const AdminBulkEditPage: React.FC = () => {
     };
 
     const handleSaveChanges = async () => {
-        const updates = Object.entries(editedBusinesses).map(([id, payload]) => ({ id, payload }));
+        // El nombre se guarda recortado y nunca vacio (antes se podia dejar una
+        // empresa sin nombre: el aviso decia «guardado» y name quedaba en '').
+        const updates = Object.entries(editedBusinesses).map(([id, payload]) => ({
+            id,
+            payload: typeof payload.name === 'string' ? { ...payload, name: payload.name.trim() } : payload,
+        }));
         if (updates.length === 0) {
             showNotification(t('adminBulkEdit.noChangesToSave'), 'info');
+            return;
+        }
+        if (updates.some(u => typeof u.payload.name === 'string' && u.payload.name === '')) {
+            showNotification('El nombre de la empresa no puede estar vacío.', 'error');
             return;
         }
         setIsSaving(true);
         try {
             await adminBulkUpdateBusinesses(updates as any);
             showNotification(t('adminBulkEdit.changesSavedSuccess'), 'success');
-            const changedIds = new Set(Object.keys(editedBusinesses));
-            setBusinesses(prev => prev.map(biz => changedIds.has(biz.id) ? { ...biz, ...editedBusinesses[biz.id] } : biz));
+            const savedById = new Map(updates.map(u => [u.id, u.payload]));
+            setBusinesses(prev => prev.map(biz => savedById.has(biz.id) ? { ...biz, ...savedById.get(biz.id) } : biz));
             setEditedBusinesses({});
         } catch (error: any) {
             showNotification(error.message || t('adminBulkEdit.errorSavingChanges'), 'error');

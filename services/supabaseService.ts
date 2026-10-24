@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { slugify } from '../utils/slugify';
-import type { ReviewSubject, Notification } from '../types';
+import { normalizeBusinessNameKey, businessNameCandidatePattern } from '../utils/businessName';
+import { detectImageKind, IMAGE_KIND_MIME, IMAGE_KIND_EXT } from '../utils/imageSignature';
+import type { ReviewSubject, Notification, LogoTone } from '../types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../constants';
 
 // Initialize Supabase client - Updated 2025-12-16 with performance optimizations
@@ -327,6 +329,12 @@ export const updateUserProfile = async (userId: string, updates: any) => {
  * - Un admin no puede quitarse a si mismo el rol de admin (se quedaria fuera
  *   del panel sin que nadie lo avise). La pagina ya lo impide; esto es la red.
  * - Si el rol no cambia, no escribe nada.
+ * - Dos escrituras no atomicas (rol y empresa): primero el rol (lo que puede
+ *   fallar por permisos) y despues la empresa. Si la empresa falla se restaura
+ *   el rol anterior, asi el estado vuelve al original y el admin puede repetir.
+ *   (Al reves, un fallo del rol dejaba una empresa huerfana a nombre de alguien
+ *   sin el rol. Y con el rol ya cambiado un reintento no creaba la empresa: el
+ *   atajo "si el rol no cambia" salia antes.)
  */
 export const updateUserRole = async (userId: string, role: string, businessName?: string) => {
   const { data: current, error: currentError } = await supabase
@@ -346,17 +354,30 @@ export const updateUserRole = async (userId: string, role: string, businessName?
   if (current.role === role) return current;
 
   const nombre = businessName?.trim();
+  let crearEmpresa = false;
   if (role === 'business_owner' && nombre) {
     const { count, error: countError } = await supabase
       .from('businesses')
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', userId);
     if (countError) throw countError;
+    crearEmpresa = !count;
+  }
 
-    if (!count) {
-      // Generar slug automáticamente
-      const slug = await generateUniqueSlug(nombre);
+  // 1. El rol.
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
+    .select()
+    .single();
 
+  if (error) throw error;
+
+  // 2. La empresa, si hace falta.
+  if (crearEmpresa) {
+    try {
+      const slug = await generateUniqueSlug(nombre!);
       const { error: businessError } = await supabase
         .from('businesses')
         .insert([{
@@ -368,20 +389,22 @@ export const updateUserRole = async (userId: string, role: string, businessName?
         }])
         .select()
         .single();
-
       if (businessError) throw businessError;
+    } catch (fallo: any) {
+      // Volver al rol de antes: ni empresa ni cambio de rol a medias.
+      const { error: restoreError } = await supabase
+        .from('profiles')
+        .update({ role: current.role })
+        .eq('id', userId);
+      const motivo = fallo?.message || 'error desconocido';
+      throw new Error(
+        restoreError
+          ? `No se pudo crear la empresa (${motivo}) y tampoco restaurar el rol anterior: el usuario ha quedado como "${role}" sin empresa. Corrígelo a mano.`
+          : `No se pudo crear la empresa (${motivo}). No se ha cambiado el rol del usuario.`
+      );
     }
   }
 
-  // Update the user's role
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
-    .select()
-    .single();
-
-  if (error) throw error;
   return data;
 };
 
@@ -473,7 +496,7 @@ export const getBusinessByName = async (name: string) => {
     // el enlace va recortado y no casa con eq/ilike. Se acepta solo si, recortado
     // y sin distinguir mayusculas, es EXACTAMENTE el mismo nombre (no es una
     // coincidencia parcial).
-    const patron = normalizedName.replace(/[\%_]/g, '\    // Aqui habia una busqueda por coincidencia parcial');
+    const patron = normalizedName.replace(/[%_\\]/g, '\\$&');
     const { data: conEspacios } = await supabase
       .from('businesses')
       .select('*')
@@ -515,6 +538,36 @@ export const getBusinessByName = async (name: string) => {
   } catch (error) {
     console.error('Error in getBusinessByName:', error);
     return null;
+  }
+};
+
+/**
+ * ¿Hay ya una empresa con este nombre? Misma comparacion que el aviso de la
+ * pantalla: sin mayusculas, sin tildes y con los espacios colapsados («Academía
+ * Local» y «academia  local» son «Academia Local»). En produccion `name` es
+ * UNIQUE pero sensible a todo eso, asi que el servidor deja pasar variantes que
+ * al usuario le parecen la misma empresa. `excludeId` = la propia empresa (al
+ * renombrarla). Sin cache: es una comprobacion previa a enviar.
+ *
+ * Si la consulta falla devuelve false: no bloquea el alta por un fallo de red
+ * (el servidor tiene la ultima palabra y su error tambien se traduce).
+ */
+export const businessNameExists = async (name: string, excludeId?: string | null): Promise<boolean> => {
+  const key = normalizeBusinessNameKey(name);
+  if (!key) return false;
+  try {
+    let query = supabase
+      .from('businesses')
+      .select('id, name')
+      .ilike('name', businessNameCandidatePattern(name))
+      .limit(200);
+    if (excludeId) query = query.neq('id', excludeId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).some((b: any) => normalizeBusinessNameKey(b.name) === key);
+  } catch (error) {
+    console.warn('businessNameExists: no se pudo comprobar el nombre:', error);
+    return false;
   }
 };
 
@@ -622,7 +675,7 @@ export const getBusinessesWithLocations = async (country?: string) => {
   return fetchAllPages(() => {
     let query = supabase
       .from('businesses')
-      .select('id, name, category, country, latitude, longitude, sedes, logo_url, logo_tone')
+      .select('id, name, slug, category, country, latitude, longitude, sedes, logo_url, logo_tone')
       .not('latitude', 'is', null)
       .not('longitude', 'is', null);
 
@@ -921,7 +974,7 @@ export const getBusinessesWithReviewsPaginated = async (
     const buildBusinessQuery = () => {
       let q = supabase
         .from('businesses')
-        .select('id, name, country, logo_url, logo_tone, category, sedes, description');
+        .select('id, name, slug, country, logo_url, logo_tone, category, sedes, description');
 
       // NOTE: searchTerm filter will be applied client-side for accent-insensitive search
       // We don't apply .ilike() here
@@ -1119,7 +1172,7 @@ export const getBusinessesWithStatsOnly = async (
     // We'll shuffle them first on the server side with random order
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes')
+      .select('id, name, slug, country, logo_url, logo_tone, category, sedes')
       .limit(50); // Limit to prevent too many IDs in .in() clause
 
     if (country) {
@@ -1217,7 +1270,7 @@ export const getFeaturedBusinessesWithStats = async (
     // Step 1: Get featured businesses (limited to avoid timeout)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured, featured_order')
+      .select('id, name, slug, country, logo_url, logo_tone, category, sedes, is_featured, featured_order')
       .eq('is_featured', true)
       .limit(30); // Limit to avoid timeout
 
@@ -1251,7 +1304,7 @@ export const getFeaturedBusinessesWithStats = async (
 
     let randomQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes, is_featured');
+      .select('id, name, slug, country, logo_url, logo_tone, category, sedes, is_featured');
 
     if (country) {
       randomQuery = randomQuery.eq('country', country);
@@ -1772,7 +1825,7 @@ const getOneReviewPerBusiness = async (
     // Step 1: Get businesses with filters (limit to avoid too many queries)
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes')
+      .select('id, name, slug, country, logo_url, logo_tone, category, sedes')
       .limit(100); // Limit businesses to avoid timeout
 
     if (filters.searchTerm) {
@@ -1898,6 +1951,7 @@ const getOneReviewPerBusiness = async (
     const businessMap = new Map(filteredBusinesses.map(b => [b.id, {
       id: b.id,
       name: b.name,
+      slug: b.slug,
       country: b.country,
       logo_url: b.logo_url,
       logo_tone: b.logo_tone,
@@ -1953,7 +2007,7 @@ const getVariedReviews = async (
     // The limit was causing issues when there are many businesses in a category
     let businessQuery = supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category, sedes, description');
+      .select('id, name, slug, country, logo_url, logo_tone, category, sedes, description');
 
     // El pais se filtra en la consulta, ANTES del limite de 100: antes se
     // cogian 100 empresas cualesquiera y luego se filtraba por pais, asi que un
@@ -2211,6 +2265,7 @@ const getVariedReviews = async (
     const businessMap = new Map(filteredBusinesses.map(b => [b.id, {
       id: b.id,
       name: b.name,
+      slug: b.slug,
       logo_url: b.logo_url,
       logo_tone: b.logo_tone,
       country: b.country,
@@ -2422,7 +2477,7 @@ const getPublicReviewsSinAutor = async (
     // Fetch business data separately
     const { data: businesses, error: businessError } = await supabase
       .from('businesses')
-      .select('id, name, country, logo_url, logo_tone, category')
+      .select('id, name, slug, country, logo_url, logo_tone, category')
       .in('id', businessIds);
 
     if (businessError) {
@@ -2602,7 +2657,7 @@ export const getRejectedReviewsForUser = async (userId: string) => {
     // Fetch business data separately
     const { data: businesses, error: businessError } = await supabase
       .from('businesses')
-      .select('id, name')
+      .select('id, name, slug')
       .in('id', businessIds);
 
     if (businessError) {
@@ -2611,7 +2666,7 @@ export const getRejectedReviewsForUser = async (userId: string) => {
     }
 
     // Create a map of business data
-    const businessMap = new Map(businesses?.map(b => [b.id, { name: b.name }]) || []);
+    const businessMap = new Map(businesses?.map(b => [b.id, { name: b.name, slug: b.slug }]) || []);
 
     // Enrich reviews with business data
     const enrichedReviews = reviews.map(review => ({
@@ -2656,7 +2711,7 @@ export const getReviewsForUser = async (userId: string) => {
     // Fetch business data separately
     const { data: businesses, error: businessError } = await supabase
       .from('businesses')
-      .select('id, name')
+      .select('id, name, slug')
       .in('id', businessIds);
 
     if (businessError) {
@@ -2665,7 +2720,7 @@ export const getReviewsForUser = async (userId: string) => {
     }
 
     // Create a map of business data
-    const businessMap = new Map(businesses?.map(b => [b.id, { name: b.name }]) || []);
+    const businessMap = new Map(businesses?.map(b => [b.id, { name: b.name, slug: b.slug }]) || []);
 
     // Enrich reviews with business data
     const enrichedReviews = reviews.map(review => ({
@@ -2972,8 +3027,11 @@ export const getAdminUsersPaginated = async (
   pageSize: number,
   filters: { searchTerm?: string; role?: string } = {}
 ) => {
+  // admin_list_users hace ILIKE '%' || busqueda || '%': % y _ son comodines. Se
+  // escapan aqui (ILIKE usa \ como escape) para que busquen el caracter literal.
+  const busqueda = filters.searchTerm?.trim().replace(/[%_\\]/g, '\\$&');
   const { data, error } = await supabase.rpc('admin_list_users', {
-    p_search: filters.searchTerm || null,
+    p_search: busqueda || null,
     p_role: filters.role || null,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
@@ -3102,7 +3160,7 @@ export const getAdminReviewAppeals = async (options?: { status?: string }) => {
   // salian solo las pendientes.
   let query = supabase
     .from('review_appeals')
-    .select('*, reviews(*, businesses(name))')
+    .select('*, reviews(*, businesses(name, slug))')
     .order('created_at', { ascending: false });
   const status = options?.status ?? 'pending';
   if (status !== 'all') {
@@ -3111,6 +3169,19 @@ export const getAdminReviewAppeals = async (options?: { status?: string }) => {
   const { data, error } = await query;
   if (error) throw error;
   return attachProfiles(data || [], 'id, name, username');
+};
+
+// Fecha de publicacion que hay que escribir al aprobar una resena: la ORIGINAL si
+// ya estuvo publicada (aprobar de nuevo tras rechazarla no cambia su fecha ni su
+// posicion publica) y la de ahora solo la primera vez.
+const fechaPublicacionAlAprobar = async (reviewId: string): Promise<string> => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('published_at')
+    .eq('id', reviewId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.published_at as string | null) || new Date().toISOString();
 };
 
 export const resolveReviewAppeal = async (appealId: string, resolution: string, adminNotes: string) => {
@@ -3127,7 +3198,7 @@ export const resolveReviewAppeal = async (appealId: string, resolution: string, 
   if (resolution === 'approved' && data?.review_id) {
     const { error: reviewError } = await supabase
       .from('reviews')
-      .update({ status: 'approved', rejection_reason: null, published_at: new Date().toISOString() })
+      .update({ status: 'approved', rejection_reason: null, published_at: await fechaPublicacionAlAprobar(data.review_id) })
       .eq('id', data.review_id);
     if (reviewError) throw reviewError;
   }
@@ -3145,7 +3216,7 @@ export const getAdminReviews = async (
     .from('reviews')
     // country: ReviewCard lo usa para no pedir a Google traducir es->es
     // cuando el texto es demasiado corto para detectar su idioma.
-    .select('*, businesses(name, country)')
+    .select('*, businesses(name, slug, country)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -3183,7 +3254,7 @@ export const adminUpdateReviewStatus = async (reviewId: string, status: string, 
   }
   if (status === 'approved') {
     updates.rejection_reason = null;
-    updates.published_at = new Date().toISOString();
+    updates.published_at = await fechaPublicacionAlAprobar(reviewId);
   }
 
   const { data, error } = await supabase
@@ -3213,6 +3284,304 @@ export const getAdminDashboardStats = async () => {
     businesses: businessesRes.count ?? 0,
     reviews: reviewsRes.count ?? 0,
   };
+};
+
+// ==================== RENDIMIENTO DE LA PLATAFORMA (admin) ====================
+
+export interface PlatformTopBusiness {
+  id: string;
+  name: string;
+  // URL canonica de la ficha; ausente si admin_platform_stats aun no la devuelve.
+  slug?: string | null;
+  country: string | null;
+  reviews: number;
+  avgRating: number;
+}
+
+/**
+ * Cifras globales para /admin/rendimiento. Cada bloque es `null` cuando no se
+ * pudo calcular (tabla ausente en el entorno, o funcion `admin_platform_stats`
+ * sin aplicar y se muestran solo los conteos basicos): la pantalla pinta
+ * «no disponible» en ese bloque en vez de romperse.
+ */
+export interface PlatformStats {
+  generatedAt: string;
+  /** true = la RPC no existe y solo hay conteos basicos. */
+  partial: boolean;
+  users: { total: number; new7d: number | null; new30d: number | null; byRole: Record<string, number> | null; byPlan: Record<string, number> | null } | null;
+  businesses: { total: number; withOwner: number | null; featured: number | null; withoutReviews: number | null; new30d: number | null; byPlan: Record<string, number> | null } | null;
+  reviews: {
+    published: number; pending: number; new7d: number | null; new30d: number | null;
+    oldestPending: string | null; avgRating: number | null;
+    ratingDistribution: Record<string, number> | null; bySource: Record<string, number> | null;
+  } | null;
+  subscriptions: { byStatus: Record<string, number>; cancelAtPeriodEnd: number; pastDue: number; paidByPlan: Record<string, number> } | null;
+  requests: { claimsOpen: number; bugsOpen: number; appealsOpen: number } | null;
+  scraping: { queuePending: number; queueFailed: number; queueScheduled: number; queueCompleted: number; sessionsRunning: number | null; lastSessionAt: string | null } | null;
+  trends: { weekStart: string; reviews: number; signups: number }[] | null;
+  top: { byReviews: PlatformTopBusiness[]; byRating: PlatformTopBusiness[]; minReviews: number } | null;
+}
+
+const num = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
+const countMap = (v: unknown): Record<string, number> | null => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out: Record<string, number> = {};
+  for (const [k, n] of Object.entries(v as Record<string, unknown>)) out[k] = num(n);
+  return out;
+};
+const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Convierte el jsonb de admin_platform_stats en un objeto tipado y sin sorpresas. */
+export const normalizePlatformStats = (raw: any): PlatformStats => {
+  const r = isObj(raw) ? raw : {};
+  const topList = (v: unknown): PlatformTopBusiness[] =>
+    Array.isArray(v)
+      ? v.filter(isObj).map(b => ({ id: String(b.id), name: String(b.name ?? ''), slug: typeof b.slug === 'string' && b.slug ? b.slug : null, country: b.country ?? null, reviews: num(b.reviews), avgRating: num(b.avg_rating) }))
+      : [];
+  return {
+    generatedAt: typeof r.generated_at === 'string' ? r.generated_at : new Date().toISOString(),
+    partial: false,
+    users: isObj(r.users) ? {
+      total: num(r.users.total), new7d: numOrNull(r.users.new_7d), new30d: numOrNull(r.users.new_30d),
+      byRole: countMap(r.users.by_role), byPlan: countMap(r.users.by_plan),
+    } : null,
+    businesses: isObj(r.businesses) ? {
+      total: num(r.businesses.total), withOwner: numOrNull(r.businesses.with_owner), featured: numOrNull(r.businesses.featured),
+      withoutReviews: numOrNull(r.businesses.without_reviews), new30d: numOrNull(r.businesses.new_30d), byPlan: countMap(r.businesses.by_plan),
+    } : null,
+    reviews: isObj(r.reviews) ? {
+      published: num(r.reviews.published), pending: num(r.reviews.pending),
+      new7d: numOrNull(r.reviews.new_7d), new30d: numOrNull(r.reviews.new_30d),
+      oldestPending: typeof r.reviews.oldest_pending === 'string' ? r.reviews.oldest_pending : null,
+      avgRating: numOrNull(r.reviews.avg_rating),
+      ratingDistribution: countMap(r.reviews.rating_distribution), bySource: countMap(r.reviews.by_source),
+    } : null,
+    subscriptions: isObj(r.subscriptions) ? {
+      byStatus: countMap(r.subscriptions.by_status) ?? {}, cancelAtPeriodEnd: num(r.subscriptions.cancel_at_period_end),
+      pastDue: num(r.subscriptions.past_due), paidByPlan: countMap(r.subscriptions.paid_by_plan) ?? {},
+    } : null,
+    requests: isObj(r.requests) ? {
+      claimsOpen: num(r.requests.claims_open), bugsOpen: num(r.requests.bugs_open), appealsOpen: num(r.requests.appeals_open),
+    } : null,
+    scraping: isObj(r.scraping) ? {
+      queuePending: num(r.scraping.queue_pending), queueFailed: num(r.scraping.queue_failed),
+      queueScheduled: num(r.scraping.queue_scheduled), queueCompleted: num(r.scraping.queue_completed),
+      sessionsRunning: numOrNull(r.scraping.sessions_running),
+      lastSessionAt: typeof r.scraping.last_session_at === 'string' ? r.scraping.last_session_at : null,
+    } : null,
+    trends: Array.isArray(r.trends)
+      ? r.trends.filter(isObj).map(w => ({ weekStart: String(w.week_start), reviews: num(w.reviews), signups: num(w.signups) }))
+      : null,
+    top: isObj(r.top) ? { byReviews: topList(r.top.by_reviews), byRating: topList(r.top.by_rating), minReviews: num(r.top.min_reviews_for_rating) || 5 } : null,
+  };
+};
+
+/**
+ * Lee admin_platform_stats(). Si la funcion aun no esta en la base (migracion
+ * sin aplicar: PGRST202 / 42883 / 404) cae a unos conteos basicos con las
+ * tablas que el admin ya lee por RLS, marcando `partial`. Cualquier otro error
+ * se lanza.
+ */
+export const getAdminPlatformStats = async (): Promise<PlatformStats> => {
+  const { data, error } = await supabase.rpc('admin_platform_stats');
+  if (!error) return normalizePlatformStats(data);
+
+  const e = error as { code?: string; message?: string; status?: number };
+  const funcionAusente = e.code === 'PGRST202' || e.code === '42883' || e.status === 404
+    || /admin_platform_stats/.test(e.message || '') && /(could not find|does not exist|not found)/i.test(e.message || '');
+  if (!funcionAusente) throw error;
+
+  const head = (table: string, build?: (q: any) => any) => {
+    const q = supabase.from(table).select('*', { count: 'exact', head: true });
+    return build ? build(q) : q;
+  };
+  const dia = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
+  const [users, users7, users30, biz, published, pending, claims, bugs, appeals] = await Promise.all([
+    head('profiles'),
+    head('profiles', q => q.gte('created_at', dia(7))),
+    head('profiles', q => q.gte('created_at', dia(30))),
+    head('businesses'),
+    head('reviews', q => q.eq('status', 'approved').lte('created_at', new Date().toISOString())),
+    head('reviews', q => q.eq('status', 'pending')),
+    head('claims', q => q.in('status', ['pending', 'in_review'])),
+    head('bug_reports', q => q.in('status', ['open', 'in_progress'])),
+    head('review_appeals', q => q.eq('status', 'pending')),
+  ]);
+  const fallo = [users, biz, published, pending].find(r => r.error);
+  if (fallo?.error) throw fallo.error;
+  return {
+    generatedAt: new Date().toISOString(),
+    partial: true,
+    users: { total: users.count ?? 0, new7d: users7.error ? null : users7.count ?? 0, new30d: users30.error ? null : users30.count ?? 0, byRole: null, byPlan: null },
+    businesses: { total: biz.count ?? 0, withOwner: null, featured: null, withoutReviews: null, new30d: null, byPlan: null },
+    reviews: { published: published.count ?? 0, pending: pending.count ?? 0, new7d: null, new30d: null, oldestPending: null, avgRating: null, ratingDistribution: null, bySource: null },
+    subscriptions: null,
+    requests: claims.error || bugs.error || appeals.error ? null : { claimsOpen: claims.count ?? 0, bugsOpen: bugs.count ?? 0, appealsOpen: appeals.count ?? 0 },
+    scraping: null,
+    trends: null,
+    top: null,
+  };
+};
+
+// ==================== PORTADA DEL PANEL DE ADMIN (colas de trabajo) ====================
+
+export type OverviewReviewFilter = 'all' | 'late' | 'low' | 'image';
+
+export interface OverviewBusinessRef {
+  name: string | null;
+  country: string | null;
+  logoUrl: string | null;
+  logoTone: LogoTone | null;
+}
+export interface OverviewReview {
+  id: string;
+  rating: number;
+  title: string;
+  /** Hasta 300 caracteres, con «…» si el texto era mas largo. */
+  excerpt: string;
+  since: string;
+  images: number;
+  business: OverviewBusinessRef;
+  category: string | null;
+  author: string | null;
+}
+export interface OverviewClaim { id: string; since: string; business: OverviewBusinessRef; claimant: string | null }
+export interface OverviewAppeal { id: string; since: string; business: OverviewBusinessRef; reason: string }
+export interface OverviewBug { id: string; since: string; title: string; pageUrl: string | null; mobile: boolean | null }
+export interface OverviewPastDue { id: string; since: string | null; status: string; plan: string | null; user: string | null; username: string | null }
+export interface OverviewPair { current: number; previous: number }
+
+export interface AdminOverview {
+  generatedAt: string;
+  reviews: {
+    pending: number;
+    oldest: string | null;
+    counts: Record<OverviewReviewFilter, number>;
+    items: Record<OverviewReviewFilter, OverviewReview[]>;
+  };
+  claims: { open: number; oldest: string | null; items: OverviewClaim[] };
+  appeals: { open: number; oldest: string | null; items: OverviewAppeal[] };
+  bugs: { open: number; oldest: string | null; items: OverviewBug[] };
+  pastDue: { count: number; oldest: string | null; items: OverviewPastDue[] };
+  week: {
+    reviews: OverviewPair;
+    users: OverviewPair;
+    businesses: OverviewPair;
+    avgRating: { current: number | null; previous: number | null };
+  };
+  totals: {
+    users: number;
+    businesses: number;
+    businessesWithOwner: number;
+    businessesWithoutReviews: number;
+    reviewsPublished: number;
+    /** Lo que borra «Eliminar empresas vacias» (businesses_without_reviews). */
+    emptyBusinesses: number;
+  };
+}
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
+const idOf = (v: unknown): string => String(v ?? '');
+const businessRef = (o: Record<string, any>): OverviewBusinessRef => ({
+  name: str(o.business_name),
+  country: str(o.business_country),
+  logoUrl: str(o.business_logo_url),
+  logoTone: o.business_logo_tone === 'light' || o.business_logo_tone === 'dark' ? o.business_logo_tone : null,
+});
+const asList = <T,>(v: unknown, map: (o: Record<string, any>) => T): T[] => (Array.isArray(v) ? v.filter(isObj).map(map) : []);
+const pair = (v: unknown): OverviewPair => (isObj(v) ? { current: num(v.this), previous: num(v.prev) } : { current: 0, previous: 0 });
+const ELLIPSIS_AT = 300;
+const clip = (v: unknown, max: number): string => {
+  const s = typeof v === 'string' ? v : '';
+  return s.length > max ? `${s.slice(0, max).trimEnd()}…` : s;
+};
+
+/** Convierte el jsonb de admin_dashboard_overview en un objeto tipado y sin sorpresas. */
+export const normalizeAdminOverview = (raw: any): AdminOverview => {
+  const r = isObj(raw) ? raw : {};
+  const rv = isObj(r.reviews) ? r.reviews : {};
+  const counts = isObj(rv.counts) ? rv.counts : {};
+  const items = isObj(rv.items) ? rv.items : {};
+  const reviewItem = (o: Record<string, any>): OverviewReview => ({
+    id: idOf(o.id),
+    rating: Math.min(5, Math.max(0, num(o.rating))),
+    title: clip(o.title, 200),
+    excerpt: clip(o.excerpt, ELLIPSIS_AT),
+    since: String(o.since ?? ''),
+    images: num(o.images),
+    business: businessRef(o),
+    category: str(o.business_category),
+    author: str(o.author),
+  });
+  const block = (v: unknown) => (isObj(v) ? v : {});
+  const claims = block(r.claims), appeals = block(r.appeals), bugs = block(r.bugs), due = block(r.past_due);
+  const week = block(r.week), totals = block(r.totals);
+  const avg = block(week.avg_rating);
+  return {
+    generatedAt: typeof r.generated_at === 'string' ? r.generated_at : new Date().toISOString(),
+    reviews: {
+      pending: num(rv.pending),
+      oldest: str(rv.oldest_pending),
+      counts: { all: num(counts.all), late: num(counts.late), low: num(counts.low), image: num(counts.image) },
+      items: {
+        all: asList(items.all, reviewItem), late: asList(items.late, reviewItem),
+        low: asList(items.low, reviewItem), image: asList(items.image, reviewItem),
+      },
+    },
+    claims: {
+      open: num(claims.open), oldest: str(claims.oldest),
+      items: asList(claims.items, o => ({ id: idOf(o.id), since: String(o.since ?? ''), business: businessRef(o), claimant: str(o.claimant) })),
+    },
+    appeals: {
+      open: num(appeals.open), oldest: str(appeals.oldest),
+      items: asList(appeals.items, o => ({ id: idOf(o.id), since: String(o.since ?? ''), business: businessRef(o), reason: clip(o.reason, 160) })),
+    },
+    bugs: {
+      open: num(bugs.open), oldest: str(bugs.oldest),
+      items: asList(bugs.items, o => ({ id: idOf(o.id), since: String(o.since ?? ''), title: clip(o.title, 160), pageUrl: str(o.page_url), mobile: typeof o.mobile === 'boolean' ? o.mobile : null })),
+    },
+    pastDue: {
+      count: num(due.count), oldest: str(due.oldest),
+      items: asList(due.items, o => ({ id: idOf(o.id), since: str(o.since), status: String(o.status ?? 'past_due'), plan: str(o.plan), user: str(o.user), username: str(o.username) })),
+    },
+    week: {
+      reviews: pair(week.reviews), users: pair(week.users), businesses: pair(week.businesses),
+      avgRating: { current: numOrNull(avg.this), previous: numOrNull(avg.prev) },
+    },
+    totals: {
+      users: num(totals.users), businesses: num(totals.businesses),
+      businessesWithOwner: num(totals.businesses_with_owner), businessesWithoutReviews: num(totals.businesses_without_reviews),
+      reviewsPublished: num(totals.reviews_published), emptyBusinesses: num(totals.empty_businesses),
+    },
+  };
+};
+
+/** Error de getAdminDashboardOverview cuando la funcion de la base de datos aun no esta aplicada. */
+export class AdminOverviewMissingError extends Error {
+  constructor() {
+    super('Falta la función admin_dashboard_overview en la base de datos.');
+    this.name = 'AdminOverviewMissingError';
+  }
+}
+
+/**
+ * Lee admin_dashboard_overview(): las colas de trabajo con sus 5 primeros
+ * elementos, la semana actual frente a la anterior y los totales, en UNA
+ * llamada. Si la funcion no esta (migracion sin aplicar: PGRST202 / 42883 /
+ * 404) lanza AdminOverviewMissingError; cualquier otro error se relanza tal cual.
+ */
+export const getAdminDashboardOverview = async (): Promise<AdminOverview> => {
+  const { data, error } = await supabase.rpc('admin_dashboard_overview');
+  if (!error) return normalizeAdminOverview(data);
+  const e = error as { code?: string; message?: string; status?: number };
+  const ausente = e.code === 'PGRST202' || e.code === '42883' || e.status === 404
+    || (/admin_dashboard_overview/.test(e.message || '') && /(could not find|does not exist|not found)/i.test(e.message || ''));
+  if (ausente) throw new AdminOverviewMissingError();
+  throw error;
 };
 
 export const deleteBusinessesWithoutReviews = async () => {
@@ -3289,7 +3658,7 @@ export const getAdminClaims = async (options?: { status?: string }) => {
     .from('claims')
     .select(`
       *,
-      businesses(name, country),
+      businesses(name, country, owner_id),
       profiles!claims_user_id_fkey(name, username)
     `)
     .order('created_at', { ascending: false });
@@ -3303,7 +3672,54 @@ export const getAdminClaims = async (options?: { status?: string }) => {
   return data || [];
 };
 
-export const resolveClaim = async (claimId: number, status: string, adminNotes: string) => {
+export interface ClaimOwnerInfo {
+  id: string;
+  name: string | null;
+  username: string | null;
+  email: string | null;
+}
+
+// Dueno actual de una empresa, para que el admin lo vea antes de aprobar una
+// reclamacion que se la quitaria. El correo solo lo da admin_list_users (profiles
+// no lo tiene): mejor esfuerzo; si no aparece se ensena nombre y @usuario.
+export const getClaimCurrentOwner = async (ownerId: string): Promise<ClaimOwnerInfo> => {
+  const { data: perfil, error } = await supabase
+    .from('profiles')
+    .select('id, name, username')
+    .eq('id', ownerId)
+    .maybeSingle();
+  if (error) throw error;
+  const info: ClaimOwnerInfo = {
+    id: ownerId,
+    name: perfil?.name ?? null,
+    username: perfil?.username ?? null,
+    email: null,
+  };
+  const termino = (perfil?.username || perfil?.name || '').replace(/[%_\\]/g, '\\$&');
+  if (termino) {
+    try {
+      const { data } = await supabase.rpc('admin_list_users', { p_search: termino, p_role: null, p_limit: 50, p_offset: 0 });
+      const fila = ((data || []) as any[]).find(u => u.id === ownerId);
+      info.email = fila?.email ?? null;
+    } catch {
+      // sin correo: no bloquea la revision
+    }
+  }
+  return info;
+};
+
+/**
+ * Resuelve una reclamacion. Al aprobar sobre una empresa que YA tiene otro
+ * dueno hay que pasar `confirmReplaceOwner: true` (el admin lo confirma en el
+ * modal); sin eso se rechaza, para que el traspaso nunca sea silencioso. El
+ * dueno anterior queda anotado en las notas de la reclamacion.
+ */
+export const resolveClaim = async (
+  claimId: number,
+  status: string,
+  adminNotes: string,
+  opts: { confirmReplaceOwner?: boolean } = {}
+) => {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Primero obtener el claim para saber el business_id y user_id
@@ -3315,33 +3731,64 @@ export const resolveClaim = async (claimId: number, status: string, adminNotes: 
 
   if (claimError) throw claimError;
 
+  let notasFinales = adminNotes;
+
   // Si se aprueba, asignar la empresa al usuario y actualizar su rol
   if (status === 'approved' && claim) {
-    console.log('🔄 Asignando empresa:', { business_id: claim.business_id, user_id: claim.user_id });
+    // 0. Dueno actual: se lee ahora (el del modal pudo cambiar entre medias).
+    const { data: empresa, error: empresaError } = await supabase
+      .from('businesses')
+      .select('owner_id')
+      .eq('id', claim.business_id)
+      .single();
+    if (empresaError) throw empresaError;
 
-    // 1. Asignar la empresa al usuario
-    const { data: updateData, error: updateError } = await supabase
+    const duenoPrevio: string | null = empresa?.owner_id ?? null;
+    if (duenoPrevio && duenoPrevio !== claim.user_id) {
+      if (!opts.confirmReplaceOwner) {
+        throw new Error('OWNER_CONFIRM_REQUIRED');
+      }
+      const previo = await getClaimCurrentOwner(duenoPrevio).catch(() => null);
+      const quien = previo
+        ? `${previo.name || 'sin nombre'}${previo.username ? ` (@${previo.username})` : ''}${previo.email ? ` <${previo.email}>` : ''}`
+        : 'desconocido';
+      const nota = `[Dueño anterior: ${quien}, id ${duenoPrevio}]`;
+      notasFinales = adminNotes ? `${adminNotes}\n${nota}` : nota;
+    }
+
+    // 1. Asignar la empresa al usuario. El UPDATE exige que el dueno siga siendo
+    // el que se ha visto: si cambio entre medias, 0 filas y error claro.
+    let asignar = supabase
       .from('businesses')
       .update({ owner_id: claim.user_id })
-      .eq('id', claim.business_id)
-      .select('id, owner_id');
-
-    console.log('📊 Resultado update empresa:', { updateData, updateError });
+      .eq('id', claim.business_id);
+    asignar = duenoPrevio ? asignar.eq('owner_id', duenoPrevio) : asignar.is('owner_id', null);
+    const { data: updateData, error: updateError } = await asignar.select('id, owner_id');
 
     if (updateError) throw updateError;
     if (!updateData || updateData.length === 0) {
-      throw new Error('No se pudo asignar la empresa. Verifica los permisos RLS en Supabase.');
+      throw new Error('No se pudo asignar la empresa: su dueño ha cambiado mientras la revisabas, o faltan permisos. Recarga la lista y vuelve a revisarla.');
     }
 
-    // 2. Actualizar el rol del usuario a business_owner para que pueda acceder al dashboard
-    const { error: roleError } = await supabase
+    // 2. Actualizar el rol del usuario a business_owner para que pueda acceder al dashboard.
+    // Solo si es un usuario normal: un admin que reclama una empresa conserva su
+    // rol (antes pasaba a business_owner y perdia el acceso al panel; mismo
+    // criterio que upgrade_user_to_business_owner, migracion 20260924240000).
+    const { data: claimantProfile, error: claimantError } = await supabase
       .from('profiles')
-      .update({ role: 'business_owner' })
-      .eq('id', claim.user_id);
+      .select('role')
+      .eq('id', claim.user_id)
+      .single();
+    if (claimantError) throw claimantError;
 
-    console.log('📊 Resultado update rol:', { roleError });
+    if (claimantProfile?.role === 'authenticated') {
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: 'business_owner' })
+        .eq('id', claim.user_id);
 
-    if (roleError) throw roleError;
+      if (roleError) throw roleError;
+    }
   }
 
   // Actualizar el claim
@@ -3349,7 +3796,7 @@ export const resolveClaim = async (claimId: number, status: string, adminNotes: 
     .from('claims')
     .update({
       status,
-      admin_notes: adminNotes,
+      admin_notes: notasFinales,
       resolved_at: new Date().toISOString(),
       resolved_by: user?.id || null
     })
@@ -3504,16 +3951,15 @@ export interface ContactMessage {
 }
 
 export const sendContactMessage = async (input: { kind: ContactKind; name: string; email: string; message: string }) => {
-  const { error } = await supabase.from('contact_messages').insert({
-    kind: input.kind,
-    name: input.name.trim(),
-    email: input.email.trim(),
-    message: input.message.trim(),
-  });
+  const datos = { name: input.name.trim(), email: input.email.trim(), message: input.message.trim() };
+  const { error } = await supabase.from('contact_messages').insert({ kind: input.kind, ...datos });
   if (error) {
     if (/contact_rate_limited/.test(error.message || '')) throw new Error('CONTACT_RATE_LIMITED');
     throw error;
   }
+  // Avisa al equipo por correo (notify-contact-message). El mensaje ya esta guardado: si el aviso falla no se
+  // le dice a la persona que su mensaje no se envio; el equipo lo ve igualmente en /admin/soporte.
+  supabase.functions.invoke('notify-contact-message', { body: datos }).then(() => {}, () => {});
 };
 
 export const adminListContactMessages = async (status: 'new' | 'read' | 'archived' | 'all' = 'all'): Promise<ContactMessage[]> => {
@@ -3522,6 +3968,13 @@ export const adminListContactMessages = async (status: 'new' | 'read' | 'archive
   const { data, error } = await q;
   if (error) throw error;
   return (data || []) as ContactMessage[];
+};
+
+// Mensajes de contacto sin leer (los lee el admin en /admin/soporte, pestana «Contacto»): la portada del panel los cuenta.
+export const adminContactNewCount = async (): Promise<number> => {
+  const { count, error } = await supabase.from('contact_messages').select('id', { count: 'exact', head: true }).eq('status', 'new');
+  if (error) throw error;
+  return count || 0;
 };
 
 export const adminSetContactMessageStatus = async (id: number, status: 'new' | 'read' | 'archived') => {
@@ -3686,7 +4139,9 @@ export const adminListSupportTickets = async (opts: { status?: string; type?: st
   const { data, error } = await supabase.rpc('admin_list_support_tickets', {
     p_status: opts.status || null,
     p_type: opts.type || null,
-    p_search: opts.search?.trim() || null,
+    // La RPC usa ILIKE (y un atajo "#123" por numero): se escapan % _ \ para que
+    // sean literales; los digitos y el # no cambian.
+    p_search: opts.search?.trim().replace(/[%_\\]/g, '\\$&') || null,
     p_limit: opts.limit ?? 25,
     p_offset: opts.offset ?? 0,
   });
@@ -3760,6 +4215,8 @@ export const getEnterpriseUsers = async () => {
 export const searchAssignableUsers = async (searchTerm: string) => {
   // Comas, parentesis y comodines rompen o amplian el filtro .or() de PostgREST.
   const limpio = searchTerm.replace(/[,()%_*\\]/g, ' ').trim();
+  // Solo comodines o signos: nada que buscar (antes quedaba "%%" y devolvia 20 usuarios cualquiera).
+  if (!limpio) return [];
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, username')
@@ -4276,6 +4733,8 @@ export const getBusinessesWithProblematicUrls = async (
   try {
     const offset = (page - 1) * pageSize;
     const hasSearch = searchTerm && searchTerm.trim();
+    // % y _ son comodines de ILIKE: se escapan para que busquen el caracter literal.
+    const escapedSearch = hasSearch ? searchTerm!.trim().replace(/[%_\\]/g, '\\$&') : '';
 
     // Conteo de empresas SIN slug (siempre mostrar este número en el tab)
     const { count: problematicCount, error: problemCountError } = await supabase
@@ -4293,7 +4752,7 @@ export const getBusinessesWithProblematicUrls = async (
 
     if (hasSearch) {
       // Buscar en todas las empresas
-      countQuery = countQuery.ilike('name', `%${searchTerm!.trim()}%`);
+      countQuery = countQuery.ilike('name', `%${escapedSearch}%`);
     } else {
       // Solo empresas sin slug
       countQuery = countQuery.is('slug', null);
@@ -4309,7 +4768,7 @@ export const getBusinessesWithProblematicUrls = async (
 
     if (hasSearch) {
       // Buscar en todas las empresas
-      dataQuery = dataQuery.ilike('name', `%${searchTerm!.trim()}%`);
+      dataQuery = dataQuery.ilike('name', `%${escapedSearch}%`);
     } else {
       // Solo empresas sin slug
       dataQuery = dataQuery.is('slug', null);
@@ -4347,6 +4806,19 @@ export const batchUpdateSlugs = async (
     console.log(`[batchUpdateSlugs] Procesando ${i + 1}/${updates.length}:`, update.originalUrlSlug);
 
     try {
+      // Red de seguridad: este lote es solo para empresas SIN slug. Una que ya lo
+      // tiene tiene una URL que funciona: no se cambia ni se redirige aqui.
+      const { data: actual, error: actualError } = await supabase
+        .from('businesses')
+        .select('slug')
+        .eq('id', update.businessId)
+        .maybeSingle();
+      if (actualError) throw actualError;
+      if (actual?.slug) {
+        results.errors.push(`${update.originalUrlSlug}: omitida, ya tiene slug (${actual.slug})`);
+        continue;
+      }
+
       const result = await updateBusinessSlug(
         update.businessId,
         update.newSlug,
@@ -4549,12 +5021,23 @@ export const getPendingReviewCount = async (): Promise<number> => {
   return count ?? 0;
 };
 
+/** Codigo del error de uploadProductImage cuando el fichero no es una imagen de verdad. */
+export const INVALID_IMAGE_CODE = 'INVALID_IMAGE';
+
 export const uploadProductImage = async (businessId: string, fichero: File): Promise<string> => {
-  const extension = (fichero.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const ruta = `productos/${businessId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+  // El tipo declarado sale de la extension («falso.png» = image/png aunque sea
+  // texto) y el bucket solo mira eso: se comprueba tambien la firma real.
+  const tipoPermitido = !fichero.type || Object.values(IMAGE_KIND_MIME).includes(fichero.type);
+  const tipoReal = tipoPermitido ? await detectImageKind(fichero) : null;
+  if (!tipoReal) {
+    throw Object.assign(new Error('El fichero no es una imagen PNG, JPG, WebP o GIF.'), { code: INVALID_IMAGE_CODE });
+  }
+  // Extension y tipo segun el CONTENIDO, no segun el nombre.
+  const ruta = `productos/${businessId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${IMAGE_KIND_EXT[tipoReal]}`;
   const { error } = await supabase.storage
     .from('business_logos')
-    .upload(ruta, fichero, { cacheControl: '31536000', upsert: false });
+    // Con un Blob, storage-js usa el tipo del propio Blob y no la opcion contentType.
+    .upload(ruta, fichero.slice(0, fichero.size, IMAGE_KIND_MIME[tipoReal]), { cacheControl: '31536000', upsert: false, contentType: IMAGE_KIND_MIME[tipoReal] });
   if (error) throw error;
   return supabase.storage.from('business_logos').getPublicUrl(ruta).data.publicUrl;
 };

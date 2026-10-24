@@ -19,6 +19,7 @@ import { useCountry } from '../../contexts/CountryContext';
 import { getBusinessDashboardPath } from '../../utils/businessOwnership';
 import OwnBusinessBadge from '../OwnBusinessBadge';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
+import { useListboxNav } from '../../hooks/useListboxNav';
 
 type ReviewType = 'text' | 'audio';
 type RecordingStatus = 'idle' | 'recording' | 'stopped';
@@ -87,7 +88,7 @@ interface ReviewDraft {
     };
 }
 
-const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect: (business: BusinessListItem) => void, isOwn?: boolean }> = ({ business, onSelect, isOwn = false }) => {
+const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect: (business: BusinessListItem) => void, isOwn?: boolean, optionProps?: React.HTMLAttributes<HTMLLIElement> }> = ({ business, onSelect, isOwn = false, optionProps }) => {
     const t = useTranslation();
 
     const getCategoryTranslation = (categoryString: string | null): string => {
@@ -125,13 +126,14 @@ const BusinessSearchResultItem: React.FC<{ business: BusinessListItem, onSelect:
 
     return (
         <li
+            {...optionProps}
             // Su propio negocio sale en la lista (si no, "no encontrado"
             // confunde), pero no se puede elegir.
             onClick={isOwn ? undefined : () => onSelect(business)}
             aria-disabled={isOwn || undefined}
             title={isOwn ? t('businessPage.cannotReviewOwnBusiness') : undefined}
             data-own-business={isOwn ? 'true' : undefined}
-            className={`px-4 py-2 flex items-center gap-3 ${isOwn ? 'cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer'}`}
+            className={`px-4 py-2 flex items-center gap-3 aria-selected:bg-gray-100 dark:aria-selected:bg-zinc-700 ${isOwn ? 'cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer'}`}
         >
             <BusinessLogo
                 logoUrl={business.logo_url}
@@ -409,6 +411,17 @@ const WriteReviewPage: React.FC = () => {
         }
     };
 
+    // Teclado de la lista de empresas: flechas, Enter, Escape (hooks/useListboxNav.ts).
+    // Tu propia empresa sale en la lista pero no se puede elegir: Enter la ignora.
+    const businessNav = useListboxNav({
+        idBase: 'write-review-business',
+        items: searchResults,
+        open: isResultsVisible && !selectedBusinessId,
+        onSelect: (biz: BusinessListItem) => { if (!misEmpresas.some(b => b.id === biz.id)) handleSelectBusiness(biz); },
+        onClose: () => setIsResultsVisible(false),
+        onOpen: () => setIsResultsVisible(true),
+    });
+
     // Helper to convert File/Blob to a serializable format (Data URL)
     const blobToDataUrl = (blob: Blob): Promise<string> =>
         new Promise((resolve, reject) => {
@@ -655,10 +668,10 @@ const WriteReviewPage: React.FC = () => {
         }
 
         const missingFields: string[] = [];
-        if (!selectedBusinessId) missingFields.push(t('business'));
-        if (!category) missingFields.push(t('category'));
+        if (!selectedBusinessId) missingFields.push(t('common.business'));
+        if (!category) missingFields.push(t('common.category'));
         if (rating === 0) missingFields.push(t('rating'));
-        if (!title.trim()) missingFields.push(t('title'));
+        if (!title.trim()) missingFields.push(t('common.title'));
         // Una resena de audio sin audio saldria vacia (solo titulo y estrellas).
         if (reviewType === 'audio' && !audioBlob) missingFields.push(t('writeReviewPage.reviewTypeAudio'));
 
@@ -951,7 +964,7 @@ const WriteReviewPage: React.FC = () => {
                     </div>
                      <div className={`w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gray-50 dark:bg-zinc-700/50 border dark:border-zinc-700 rounded-lg flex items-center justify-center transition-all duration-300 ${selectedBusinessId ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
                         {selectedBusinessLogoUrl ? (
-                            <img src={selectedBusinessLogoUrl} alt="Logo de la empresa" width={112} height={112} loading="lazy" decoding="async" className="w-full h-full object-contain p-2" />
+                            <img src={selectedBusinessLogoUrl} alt={t('common.businessLogoAlt')} width={112} height={112} loading="lazy" decoding="async" className="w-full h-full object-contain p-2" />
                         ) : selectedBusinessId ? (
                             <i className="fa-solid fa-store text-3xl sm:text-4xl md:text-5xl text-gray-300 dark:text-gray-600"></i>
                         ) : null}
@@ -1055,6 +1068,7 @@ const WriteReviewPage: React.FC = () => {
                                 required
                                 placeholder={t('writeReviewPage.searchBusinessPlaceholder')}
                                 autoComplete="off"
+                                {...businessNav.inputProps}
                                 className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 dark:text-gray-200 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
                             />
                             {isSearching && (
@@ -1082,19 +1096,17 @@ const WriteReviewPage: React.FC = () => {
                                 </Link>
                             </div>
                         )}
-                        {isResultsVisible && !selectedBusinessId && (
-                             <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                {searchResults.length > 0 ? (
-                                    searchResults.map(biz => (
-                                        <BusinessSearchResultItem key={biz.id} business={biz} onSelect={handleSelectBusiness} isOwn={misEmpresas.some(b => b.id === biz.id)} />
-                                    ))
-                                 ) : (
-                                    <li className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
-                                        {t('writeReviewPage.noBusinessFound')}
-                                    </li>
-                                )}
+                        {isResultsVisible && !selectedBusinessId && (searchResults.length > 0 ? (
+                             <ul {...businessNav.listProps} aria-label={t('writeReviewPage.searchBusinessPlaceholder')} className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                {searchResults.map((biz, index) => (
+                                    <BusinessSearchResultItem key={biz.id} business={biz} onSelect={handleSelectBusiness} isOwn={misEmpresas.some(b => b.id === biz.id)} optionProps={businessNav.optionProps(index)} />
+                                ))}
                             </ul>
-                        )}
+                        ) : (
+                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-lg px-4 py-3 text-center text-gray-500 dark:text-gray-400">
+                                {t('writeReviewPage.noBusinessFound')}
+                            </div>
+                        ))}
                     </div>
 
                     <div>

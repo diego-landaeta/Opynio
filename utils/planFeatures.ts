@@ -1,4 +1,5 @@
 import type { Plan, Profile } from '../types';
+import { AI_ENABLED } from '../services/geminiService';
 
 /**
  * Qué plan desbloquea cada cosa del panel de empresa. UNICA fuente de verdad:
@@ -100,3 +101,38 @@ export const withoutPaidProfileFields = <T extends Record<string, unknown>>(upda
     for (const campo of PROFILE_PAID_FIELDS) delete limpio[campo];
     return limpio as Partial<T>;
 };
+
+/**
+ * Funciones que anuncia la pagina de Planes y que TODAVIA no existen en el panel
+ * (revision QA del 23/10/2026: se buscaron una a una en el codigo y en el navegador).
+ * UNICA fuente: la usan la pagina de Planes y «Mis negocios» para marcarlas
+ * «Proximamente» en vez de venderlas como incluidas. Al implementar una, quitar
+ * su clave de aqui.
+ */
+const FUNCIONES_PROXIMAMENTE: ReadonlySet<string> = new Set([
+    "pricingPage.starterFeature5",    // Filtros basicos de reseñas (el panel no tiene filtros)
+    "pricingPage.starterFeature6",    // Exportacion de datos (CSV)
+    "pricingPage.starterFeature7",    // Integracion con Google Reviews
+    "pricingPage.growthFeature5",     // Archivo de reseñas
+    "pricingPage.growthFeature9",     // Acceso a API
+    "pricingPage.growthFeature10",    // Informes de rendimiento
+    "pricingPage.proFeature3",        // Invitaciones por WhatsApp (solo existe «compartir»)
+    "pricingPage.proFeature4",        // Etiquetado avanzado de reseñas
+    "pricingPage.proFeature5",        // Filtros de sentimiento con IA
+    "pricingPage.proFeature6",        // Alertas de reseñas negativas
+    "pricingPage.proFeature7",        // Comparacion con competidores
+    "pricingPage.proFeature8",        // Mayor limite de API
+    "pricingPage.proFeature9",        // Soporte prioritario
+    "pricingPage.enterpriseFeature2", // Invitaciones ilimitadas (hoy: 200 al dia y 50 por envio)
+    "pricingPage.enterpriseFeature7", // Informes ejecutivos en PDF
+]);
+
+// Dependen de la IA, que esta apagada a proposito (services/geminiService.ts).
+const FUNCIONES_CON_IA: ReadonlySet<string> = new Set([
+    "pricingPage.starterFeature4",
+    "pricingPage.growthFeature8",
+    "pricingPage.enterpriseFeature4",
+]);
+
+export const isPlanFeatureComingSoon = (key: string): boolean =>
+    FUNCIONES_PROXIMAMENTE.has(key) || (!AI_ENABLED && FUNCIONES_CON_IA.has(key));
