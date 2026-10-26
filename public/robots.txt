@@ -5,6 +5,8 @@
 
 # Reglas generales para todos los crawlers
 User-agent: *
+# Bing lo respeta (antes tenia su propio grupo con 2 s); Google lo ignora.
+Crawl-delay: 2
 Allow: /
 
 # === Países permitidos (cualquier path bajo /xx/ ya pasa por Allow: / arriba,

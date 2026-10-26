@@ -267,8 +267,9 @@ const socialProfileUrl = (value: string, base: string): string => {
     return base + v.replace(/^\/+/, '');
 };
 
-// Interruptor del marcado schema.org «Product» de la ficha (ver productSchemaData). Apagado por decisión de SEO.
-const EMITIR_SCHEMA_PRODUCT = false;
+// Interruptor del marcado schema.org «Product» de la ficha (ver productSchemaData). Encendido = comportamiento de hoy;
+// la decisión de apagarlo (auditorías SEO del 25 y 26/10) está pendiente de Diego.
+const EMITIR_SCHEMA_PRODUCT = true;
 
 const BusinessPage: React.FC = () => {
     const { identifier, countryCode } = useParams<{ identifier: string; countryCode: string }>();
@@ -681,7 +682,7 @@ const BusinessPage: React.FC = () => {
 
     // Schema Product - Google muestra estrellas para Product (no para LocalBusiness)
     // Según directrices de Google: https://developers.google.com/search/docs/appearance/structured-data/product
-    // APAGADO (auditorías SEO del 25 y 26/10/2026): una empresa no es un Product y la «Offer» de 0 € es inventada
+    // Candidato a APAGAR (auditorías SEO del 25 y 26/10/2026): una empresa no es un Product y la «Offer» de 0 € es inventada
     // (la ficha no vende nada); además duplicaba el aggregateRating y las reseñas del nodo de empresa. Marcar
     // ofertas que no existen es marcado engañoso y puede acabar en una acción manual de Google. La contrapartida es
     // que Google pueda dejar de mostrar estrellas en los resultados: si se quiere volver, poner true y desplegar.
