@@ -113,6 +113,7 @@ const RegisterPage = lazy(() => import('./components/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./components/pages/ResetPasswordPage'));
 const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
+const AdminLayout = lazy(() => import('./components/pages/admin/AdminLayout'));
 const AdminDashboardPage = lazy(() => import('./components/pages/admin/AdminDashboardPage'));
 const AdminPerformancePage = lazy(() => import('./components/pages/admin/AdminPerformancePage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
@@ -585,6 +586,8 @@ const App = () => {
                                     
                                     <Route path="admin" element={<AdminRoute><Outlet /></AdminRoute>}>
                                         <Route index element={<Navigate to="panel" replace />} />
+                                        {/* Capa comun: el lateral del panel se queda en TODOS los apartados de /admin */}
+                                        <Route element={<AdminLayout />}>
                                         <Route path="panel" element={<AdminDashboardPage />} />
                                         <Route path="rendimiento" element={<AdminPerformancePage />} />
                                         <Route path="empresa/editar/:businessId" element={<AdminEditBusinessPage />} />
@@ -600,6 +603,7 @@ const App = () => {
                                         <Route path="enterprise" element={<AdminEnterprisePage />} />
                                         <Route path="destacados" element={<AdminFeaturedBusinessesPage />} />
                                         <Route path="urls" element={<AdminUrlManagerPage />} />
+                                        </Route>
                                     </Route>
 
                                     {/* Legacy redirects */}

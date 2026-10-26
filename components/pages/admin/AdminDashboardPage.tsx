@@ -13,7 +13,7 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 import Meta from '../../Meta';
 import { useTranslation, useI18n, pathTranslations, getLocaleFromLanguage } from '../../../contexts/i18nContext';
-import AdminPanelSidebar from './panel/AdminPanelSidebar';
+import { useAdminQueuesPublisher } from './AdminLayout';
 import WeekComparison from './panel/WeekComparison';
 import RichText from './panel/RichText';
 import { ActionLink, EmptyQueue, PanelSkeleton, QueueCard, QueueRow, ReviewItem } from './panel/PanelParts';
@@ -60,6 +60,7 @@ const AdminDashboardPage: React.FC = () => {
     const [deleting, setDeleting] = useState(false);
     const reqId = useRef(0);
     // Refs para que load() no cambie de identidad (t y showNotification cambian en cada render del contexto) y la carga sea una sola.
+    const publishQueues = useAdminQueuesPublisher();
     const dataRef = useRef<AdminOverview | null>(null);
     dataRef.current = data;
     const tRef = useRef(t);
@@ -131,6 +132,13 @@ const AdminDashboardPage: React.FC = () => {
         // «Soporte» agrupa los tickets abiertos y los mensajes de contacto sin leer (las dos pestañas de /admin/soporte).
         support: { count: support === null && contactNew === null ? null : (support ?? 0) + (contactNew ?? 0) },
     };
+
+    // La capa comun (AdminLayout) pinta el lateral: se le publican los contadores ya calculados.
+    useEffect(() => {
+        if (data) publishQueues(sidebarQueues);
+        // sidebarQueues se recalcula en cada render; solo importa cuando cambian los datos.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, support, contactNew]);
 
     /** Frase de cabecera con los datos reales; las cifras en negrita salen de las propias claves. */
     const lead = (() => {
@@ -384,12 +392,9 @@ const AdminDashboardPage: React.FC = () => {
     return (
         <>
             <Meta title={`${tk('ovTitle')} - Opynio`} description={tk('ovTitle')} />
-            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 -mt-6 sm:-mt-8">
-                <AdminPanelSidebar queues={sidebarQueues} />
-                <div className="flex-grow min-w-0 space-y-5">
-                    {header}
-                    {body}
-                </div>
+            <div className="space-y-5">
+                {header}
+                {body}
             </div>
         </>
     );
