@@ -53,6 +53,7 @@ export function construirAviso(d: DatosAviso): { asunto: string; html: string } 
       html: `
       <p>Hello,</p>
       <p>Your free trial of Opynio ends on <strong>${fecha}</strong>. That day your <strong>${plan}</strong> plan starts and <strong>${importe}</strong> ${cada} will be charged to the card you gave us.</p>
+      <p>Until that day you have full access to every feature, with no limits. From then on you will have what the <strong>${plan}</strong> plan includes.</p>
       <p>You don't need to do anything to continue. If you would rather change plan or cancel, do it before that date and you will not be charged.</p>
       ${boton(d.enlace, "Change plan or cancel")}
       <p style="color:#6b7280;font-size:13px">In your panel, press «Manage billing» to open the secure payment portal.</p>
@@ -65,6 +66,7 @@ export function construirAviso(d: DatosAviso): { asunto: string; html: string } 
     html: `
       <p>Hola,</p>
       <p>Tu prueba gratuita de Opynio termina el <strong>${fecha}</strong>. Ese día empieza tu plan <strong>${plan}</strong> y se cobrarán <strong>${importe}</strong> ${cada} a la tarjeta que nos indicaste.</p>
+      <p>Hasta ese día tienes acceso completo a todas las funciones, sin límites. Desde entonces tendrás lo que incluye el plan <strong>${plan}</strong>.</p>
       <p>Si quieres continuar, no tienes que hacer nada. Si prefieres cambiar de plan o cancelar, hazlo antes de esa fecha y no se te cobrará nada.</p>
       ${boton(d.enlace, "Cambiar de plan o cancelar")}
       <p style="color:#6b7280;font-size:13px">En tu panel, pulsa «Gestionar facturación» para abrir el portal de pago seguro.</p>
