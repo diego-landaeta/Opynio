@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { detectLanguageFromPath, LANGUAGE_DEFAULT_COUNTRY, pathTranslations, getLanguageForCountryCode } from '../contexts/i18nContext';
+import { isServedUrlPrefix } from '../constants';
 
 const unSegmento = (v: unknown): v is string => typeof v === 'string' && !/[/:]/.test(v);
 
@@ -20,6 +21,9 @@ interface MetaProps {
   canonical?: string; // URL canónica específica (opcional)
   ogImage?: string; // Imagen para Open Graph (opcional)
   noindex?: boolean; // Evitar indexación de páginas privadas
+  // noindex pero SIN «nofollow» (login, registro). No usar noindex+nofollow para páginas que deben seguir
+  // devolviendo 200 al prerender: el servidor de prerender convierte «noindex, nofollow» en un 404.
+  noindexFollow?: boolean;
   isPremium?: boolean; // Metaetiquetas mejoradas para empresas premium
 }
 
@@ -33,6 +37,7 @@ const Meta: React.FC<MetaProps> = ({
   canonical,
   ogImage = 'https://opynio.com/wp-content/uploads/2025/09/Logo-opynio.png',
   noindex = false,
+  noindexFollow = false,
   isPremium = false,
 }) => {
   const location = useLocation();
@@ -90,6 +95,8 @@ const Meta: React.FC<MetaProps> = ({
     // IMPORTANTE: Siempre establecer el valor explícitamente para evitar problemas de timing
     if (noindex) {
       setMetaTag('meta[name="robots"]', 'robots', 'noindex, nofollow');
+    } else if (noindexFollow) {
+      setMetaTag('meta[name="robots"]', 'robots', 'noindex, follow');
     } else {
       // Para páginas normales, establecer index, follow (sobrescribir cualquier valor previo)
       setMetaTag('meta[name="robots"]', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
@@ -154,15 +161,19 @@ const Meta: React.FC<MetaProps> = ({
     setMetaTag('meta[name="twitter:image"]', 'twitter:image', ogImage);
 
     // 6. Hreflang tags (internacional SEO)
-    // Detectar TODOS los prefijos de idioma/país (incluyendo gb, ad, cn que se usan en hreflang)
-    const allLangCodes = 'es|en|br|pt|ca|fr|de|it|mx|ar|co|pe|ve|cl|ec|gt|cr|pa|uy|us|gb|ad|cn|sg|ie|at|tr';
+    // Prefijo de país/idioma de la URL: cualquiera de los que sirve la app (isServedUrlPrefix: los 50 países del
+    // selector más los alias). Antes era una lista escrita a mano con 27 códigos: en las páginas de los otros 24
+    // países (/jp, /nl, /kr…) el prefijo no se quitaba y las alternativas salían como /es/jp (404) en las 37
+    // etiquetas hreflang y en el x-default.
+    const primerSegmento = currentPath.split('/').filter(Boolean)[0] || '';
+    const prefijoDeLaUrl = isServedUrlPrefix(primerSegmento) ? primerSegmento : '';
 
     // Extraer el path SIN el código de país
     // Ejemplos:
     //   /es/explorar -> /explorar
     //   /es -> '' (vacío, es la home del país)
     //   /mx/empresa/Test -> /empresa/Test
-    let pathWithoutLang = currentPath.replace(new RegExp(`^/(${allLangCodes})(?=/|$)`), '');
+    let pathWithoutLang = prefijoDeLaUrl ? currentPath.slice(prefijoDeLaUrl.length + 1) : currentPath;
 
     // Normalizar: si es solo '/', convertir a '' para evitar doble slash
     if (pathWithoutLang === '/') {
@@ -250,6 +261,21 @@ const Meta: React.FC<MetaProps> = ({
         { code: 'en-IE', path: rutaPara('ie') },     // English (Ireland)
         { code: 'en-CA', path: rutaPara('ca') },     // English (Canada)
         { code: 'de-AT', path: rutaPara('at') },     // Deutsch (Österreich)
+        // Países que se sirven (están en el sitemap) y ningún hreflang nombraba. El idioma de cada uno es el que
+        // sirve la app (getLanguageForCountryCode): español, inglés británico, árabe o chino tradicional.
+        { code: 'es-EC', path: rutaPara('ec') },     // Ecuador
+        { code: 'es-GT', path: rutaPara('gt') },     // Guatemala
+        { code: 'es-CR', path: rutaPara('cr') },     // Costa Rica
+        { code: 'es-PA', path: rutaPara('pa') },     // Panamá
+        { code: 'es-UY', path: rutaPara('uy') },     // Uruguay
+        { code: 'es-VE', path: rutaPara('ve') },     // Venezuela
+        { code: 'en-NZ', path: rutaPara('nz') },     // New Zealand
+        { code: 'en-ZA', path: rutaPara('za') },     // South Africa
+        { code: 'en-NG', path: rutaPara('ng') },     // Nigeria
+        { code: 'ar-SA', path: rutaPara('sa') },     // السعودية
+        { code: 'ar-KW', path: rutaPara('kw') },     // الكويت
+        { code: 'ar-EG', path: rutaPara('eg') },     // مصر
+        { code: 'zh-HK', path: rutaPara('hk') },     // 香港
       ];
 
       // Añadir hreflang para cada idioma
@@ -280,7 +306,7 @@ const Meta: React.FC<MetaProps> = ({
     return () => {
       // No removemos nada aquí porque las tags se sobrescriben dinámicamente
     };
-  }, [title, description, canonical, ogImage, noindex, isPremium, location]);
+  }, [title, description, canonical, ogImage, noindex, noindexFollow, isPremium, location]);
 
   return null; // This component does not render anything
 };

@@ -226,7 +226,8 @@ const BusinessesPage: React.FC = () => {
 
     // Otra página de país: vuelve al ámbito de ese país.
     useEffect(() => { setScopeAllCountries(false); }, [contentCountry]);
-    const metaTitle = `${t('businessesPage.businessesDirectoryTitle')} - ${brandName}`;
+    // El título del directorio ya nombra la marca («… en Opynio»): se sustituye por la marca del país en vez de añadirla otra vez.
+    const metaTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
     const metaDescription = t('businessesPage.businessesDirectorySubtitle').replace('Opynio', brandName);
     const businessesTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
 

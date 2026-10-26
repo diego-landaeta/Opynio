@@ -247,6 +247,7 @@ const RegisterPage: React.FC = () => {
             <Meta
                 title={t('meta.registerTitle')}
                 description={t('meta.registerDesc')}
+                noindexFollow
             />
             <div className="max-w-[95vw] sm:max-w-md mx-auto bg-white dark:bg-zinc-800 p-4 sm:p-6 md:p-8 rounded-xl shadow-lg mt-4 sm:mt-8 md:mt-10">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-brand-dark dark:text-gray-100">{t('registerPage.title')}</h1>

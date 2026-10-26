@@ -91,6 +91,7 @@ const LoginPage: React.FC = () => {
             <Meta
                 title={t('meta.loginTitle')}
                 description={t('meta.loginDesc')}
+                noindexFollow
             />
             <div className="max-w-[95vw] sm:max-w-md mx-auto bg-white dark:bg-zinc-800 p-4 sm:p-6 md:p-8 rounded-lg sm:rounded-xl shadow-lg mt-4 sm:mt-8 md:mt-10">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-1.5 sm:mb-2 text-center text-brand-dark dark:text-gray-100">{t('loginPage.title')}</h1>

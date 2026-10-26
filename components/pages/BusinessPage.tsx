@@ -267,6 +267,9 @@ const socialProfileUrl = (value: string, base: string): string => {
     return base + v.replace(/^\/+/, '');
 };
 
+// Interruptor del marcado schema.org «Product» de la ficha (ver productSchemaData). Apagado por decisión de SEO.
+const EMITIR_SCHEMA_PRODUCT = false;
+
 const BusinessPage: React.FC = () => {
     const { identifier, countryCode } = useParams<{ identifier: string; countryCode: string }>();
     const navigate = useNavigate();
@@ -654,7 +657,7 @@ const BusinessPage: React.FC = () => {
         if (contactPhoneToDisplay) data.telephone = contactPhoneToDisplay;
         if (contactEmailToDisplay) data.email = contactEmailToDisplay;
         if (hasSedeLocation) { data.geo = { "@type": "GeoCoordinates", "latitude": latitudeToDisplay, "longitude": longitudeToDisplay }; }
-        if (hasSedeLocation && googleMapsUrlToDisplay) data.address = { "@type": "PostalAddress" };
+        // No se emite un PostalAddress vacío: Google lo marca como dato incompleto y la ficha no tiene dirección postal estructurada.
         if (totalReviews > 0) {
             data.aggregateRating = {
                 "@type": "AggregateRating",
@@ -678,8 +681,12 @@ const BusinessPage: React.FC = () => {
 
     // Schema Product - Google muestra estrellas para Product (no para LocalBusiness)
     // Según directrices de Google: https://developers.google.com/search/docs/appearance/structured-data/product
+    // APAGADO (auditorías SEO del 25 y 26/10/2026): una empresa no es un Product y la «Offer» de 0 € es inventada
+    // (la ficha no vende nada); además duplicaba el aggregateRating y las reseñas del nodo de empresa. Marcar
+    // ofertas que no existen es marcado engañoso y puede acabar en una acción manual de Google. La contrapartida es
+    // que Google pueda dejar de mostrar estrellas en los resultados: si se quiere volver, poner true y desplegar.
     const productSchemaData = useMemo(() => {
-        if (!business || totalReviews === 0) return null;
+        if (!EMITIR_SCHEMA_PRODUCT || !business || totalReviews === 0) return null;
 
         const reviewsForSchema = reviews.filter(r => r.review_text && r.review_text.trim() !== '').slice(0, 10);
         const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
@@ -750,6 +757,25 @@ const BusinessPage: React.FC = () => {
 
         return productData;
     }, [business, reviews, totalReviews, averageRating, logoToDisplay, activeCountryCode]);
+
+    // Migas de pan (Inicio > Empresas > Empresa) con URLs que existen: Google puede mostrar la ruta en el resultado.
+    const breadcrumbSchemaData = useMemo(() => {
+        if (!business) return null;
+        const slug = (business as any).slug || encodeURIComponent(business.name.replace(/ /g, '_'));
+        const prefix = (activeCountryCode || business.country || 'es').toLowerCase();
+        const targetLang = getLanguageForCountryCode(activeCountryCode || business.country);
+        const paths = pathTranslations[targetLang] || pathTranslations.es;
+        const base = `https://web.opynio.com/${prefix}`;
+        return {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": t('header.home'), "item": base },
+                { "@type": "ListItem", "position": 2, "name": t('header.businesses'), "item": `${base}/${paths.businesses}` },
+                { "@type": "ListItem", "position": 3, "name": business.name, "item": `${base}/${paths.business.replace(':identifier', slug)}` },
+            ],
+        };
+    }, [business, activeCountryCode, t]);
 
     const displayCategory = useMemo(() => {
         const categoryString = business?.category;
@@ -1294,6 +1320,7 @@ const BusinessPage: React.FC = () => {
             <Meta title={metaTitle} description={metaDescription} canonical={canonicalUrl} noindex={isWrongCountry} />
             {schemaData && <Schema data={schemaData} id="schema-localbusiness" />}
             {productSchemaData && <Schema data={productSchemaData} id="schema-product" />}
+            {breadcrumbSchemaData && <Schema data={breadcrumbSchemaData} id="schema-breadcrumb" />}
             <style>{iconStyle}</style>
 
             <div className="space-y-4 sm:space-y-6">
