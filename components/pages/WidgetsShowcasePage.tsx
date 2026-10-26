@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { COUNTRIES } from '../../constants';
 import { useBusinessStartPath } from '../../utils/businessOwnership';
 
@@ -64,6 +65,7 @@ const WidgetsShowcasePage: React.FC = () => {
   const t = useTranslation();
   const { language } = useI18n();
   const { country } = useCountry();
+  const { contentCountry } = useContentCountry();
   const [activeWidget, setActiveWidget] = useState('carousel');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
@@ -76,7 +78,7 @@ const WidgetsShowcasePage: React.FC = () => {
   const ctaPath = useBusinessStartPath('dashboardWidgets');
 
   // SEO: Obtener nombre del país para títulos únicos
-  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
   const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
   const widgets = [
@@ -94,7 +96,7 @@ const WidgetsShowcasePage: React.FC = () => {
     <>
       <Meta
         title={`${t('widgetsPage.metaTitle')}${countryInTitle}`}
-        description={`${t('widgetsPage.metaDescription')}${countryInTitle}.`}
+        description={descriptionWithCountry(t('widgetsPage.metaDescription'), countryInTitle)}
       />
 
       <div className="max-w-6xl mx-auto">

@@ -105,6 +105,7 @@ const useNavGroups = (queues: SidebarQueues, pathname: string) => {
     ];
     const datosBase: NavItem[] = [
         { key: 'users', to: `/${es.adminUsers}`, icon: 'fa-users', label: tk('users') },
+        { key: 'payments', to: '/admin/pagos', icon: 'fa-credit-card', label: tk('ovNavPayments') },
         { key: 'enterprise', to: `/${es.adminEnterprise}`, icon: 'fa-building', label: tk('enterprisePlan') },
         { key: 'featured', to: `/${es.adminFeatured}`, icon: 'fa-star', label: tk('ovNavFeatured') },
         { key: 'urls', to: `/${es.adminUrls}`, icon: 'fa-link', label: tk('ovNavUrls') },

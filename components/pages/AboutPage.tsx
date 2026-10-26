@@ -4,7 +4,8 @@ import ContactForm from '../ContactForm';
 import type { ContactKind } from '../../services/supabaseService';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { COUNTRIES } from '../../constants';
 
 // Value card component
@@ -45,6 +46,7 @@ const AboutPage: React.FC = () => {
   const t = useTranslation();
   const { language } = useI18n();
   const { country } = useCountry();
+  const { contentCountry } = useContentCountry();
   const location = useLocation();
   // Tipo del formulario de contacto: «Trabaja con nosotros» lo abre en su tipo.
   const [contactKind, setContactKind] = useState<ContactKind>('contact');
@@ -61,7 +63,7 @@ const AboutPage: React.FC = () => {
   const paths = pathTranslations[country ? getLanguageForCountryCode(country) : language] || pathTranslations.es;
 
   // SEO: Obtener nombre del país para títulos únicos
-  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
   const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
   const values = [
@@ -75,7 +77,7 @@ const AboutPage: React.FC = () => {
     <>
       <Meta
         title={`${t('aboutPage.metaTitle')}${countryInTitle}`}
-        description={`${t('aboutPage.metaDescription')}${countryInTitle}.`}
+        description={descriptionWithCountry(t('aboutPage.metaDescription'), countryInTitle)}
       />
 
       <div className="max-w-6xl mx-auto">

@@ -268,7 +268,7 @@ const RegisterPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                     <div>
                         <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{registerType === 'user' ? t('registerPage.yourFullName') : t('registerPage.yourNameContact')}</label>
-                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required maxLength={100} placeholder={registerType === 'business' ? t('common.placeholders.businessName') : t('registerPage.fullNamePlaceholder')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
+                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required maxLength={100} placeholder={t('registerPage.fullNamePlaceholder')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
                     </div>
 
                     <div>

@@ -55,6 +55,13 @@ const LoginPage: React.FC = () => {
         return () => window.removeEventListener('pageshow', onPageShow);
     }, []);
 
+    // Viene de «escribir reseña»: se le dice por que le pedimos entrar (el segmento de la ruta va en el idioma de cada pais).
+    const cameFromWriteReview = (() => {
+        const from = (location.state as { from?: { pathname?: string } } | null)?.from;
+        const segmentos = (from?.pathname || '').split('/').filter(Boolean).map(s => { try { return decodeURIComponent(s); } catch { return s; } });
+        return Object.values(pathTranslations).some(p => segmentos.includes((p as { writeReview?: string }).writeReview ?? ''));
+    })();
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setLoading(true);
@@ -95,7 +102,10 @@ const LoginPage: React.FC = () => {
             />
             <div className="max-w-[95vw] sm:max-w-md mx-auto bg-white dark:bg-zinc-800 p-4 sm:p-6 md:p-8 rounded-lg sm:rounded-xl shadow-lg mt-4 sm:mt-8 md:mt-10">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-1.5 sm:mb-2 text-center text-brand-dark dark:text-gray-100">{t('loginPage.title')}</h1>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 text-center">{t('loginPage.welcomeBack')}</p>
+                <p className={`text-sm sm:text-base text-gray-600 dark:text-gray-400 text-center ${cameFromWriteReview ? 'mb-3' : 'mb-6 sm:mb-8'}`}>{t('loginPage.welcomeBack')}</p>
+                {cameFromWriteReview && (
+                    <p role="status" className="mb-6 sm:mb-8 text-sm sm:text-base font-semibold text-center text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-brand-green/10 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">{t('loginPage.writeReviewNotice')}</p>
+                )}
 
                 {error && (
                     <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg relative mb-4 sm:mb-6 text-sm sm:text-base" role="alert">

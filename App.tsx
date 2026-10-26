@@ -116,6 +116,7 @@ const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
 const AdminLayout = lazy(() => import('./components/pages/admin/AdminLayout'));
 const AdminDashboardPage = lazy(() => import('./components/pages/admin/AdminDashboardPage'));
 const AdminPerformancePage = lazy(() => import('./components/pages/admin/AdminPerformancePage'));
+const AdminPaymentsPage = lazy(() => import('./components/pages/admin/AdminPaymentsPage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const BusinessDashboardPage = lazy(() => import('./components/pages/business/BusinessDashboardPage'));
 const BusinessListPage = lazy(() => import('./components/pages/business/BusinessListPage'));
@@ -590,6 +591,7 @@ const App = () => {
                                         <Route element={<AdminLayout />}>
                                         <Route path="panel" element={<AdminDashboardPage />} />
                                         <Route path="rendimiento" element={<AdminPerformancePage />} />
+                                        <Route path="pagos" element={<AdminPaymentsPage />} />
                                         <Route path="empresa/editar/:businessId" element={<AdminEditBusinessPage />} />
                                         <Route path="empresa/crear" element={<AdminCreateBusinessPage />} />
                                         <Route path="scraping" element={<AdminScrapingPage />} />

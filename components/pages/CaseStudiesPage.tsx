@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { COUNTRIES } from '../../constants';
 import { useBusinessStartPath } from '../../utils/businessOwnership';
 
@@ -461,6 +462,7 @@ const CaseStudiesPage: React.FC = () => {
   const t = useTranslation();
   const { language } = useI18n();
   const { country } = useCountry();
+  const { contentCountry } = useContentCountry();
 
   const countryPrefix = country ? `/${country.toLowerCase()}` : '';
   // Rutas en el idioma del PAIS del prefijo, no en el de la UI (/es + ruta
@@ -469,7 +471,7 @@ const CaseStudiesPage: React.FC = () => {
   const ctaPath = useBusinessStartPath();
 
   // SEO: Obtener nombre del país para títulos únicos
-  const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+  const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
   const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
   const caseStudies = [
@@ -545,7 +547,7 @@ const CaseStudiesPage: React.FC = () => {
     <>
       <Meta
         title={`${t('caseStudiesPage.metaTitle')}${countryInTitle}`}
-        description={`${t('caseStudiesPage.metaDescription')}${countryInTitle}.`}
+        description={descriptionWithCountry(t('caseStudiesPage.metaDescription'), countryInTitle)}
       />
 
       {/* CSS for animations */}

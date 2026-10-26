@@ -3,7 +3,8 @@ import Meta from '../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations, toBcp47 } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { supabase } from '../../services/supabaseService';
 import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
 import { COUNTRIES } from '../../constants';
@@ -64,7 +65,7 @@ const PricingPage = () => {
     const [openingPortal, setOpeningPortal] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
-    const { country } = useCountry();
+    const { contentCountry } = useContentCountry();
 
     // Si el user ya tiene al menos un negocio, "elegir plan" se interpreta como
     // upgrade del plan de la empresa existente (Stripe checkout directo) en
@@ -157,7 +158,7 @@ const PricingPage = () => {
     });
 
     // SEO: Obtener nombre del país para títulos únicos
-    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
     const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     const plans = [
@@ -219,7 +220,8 @@ const PricingPage = () => {
             audienceKey: 'pricingPage.enterpriseAudience',
             priceKey: 'pricingPage.customPrice',
             ctaKey: 'pricingPage.contactSales',
-            ctaLink: `/${pathTranslations[language].support}`,
+            // Sin login: el formulario de contacto de «Sobre nosotros» (Soporte exige iniciar sesión).
+            ctaLink: `/${pathTranslations[language].about}#contacto`,
             features: [
                 { key: 'pricingPage.enterpriseFeature1', icon: 'fa-solid fa-infinity' },
                 { key: 'pricingPage.enterpriseFeature2', icon: 'fa-solid fa-paper-plane' },
@@ -238,7 +240,7 @@ const PricingPage = () => {
         <>
             <Meta
                 title={`${t('footer.pricingAndPlans')} - Opynio${countryInTitle}`}
-                description={`${t('pricingPage.findPerfectPlanSubtitle')}${countryInTitle}.`}
+                description={descriptionWithCountry(t('pricingPage.findPerfectPlanSubtitle'), countryInTitle)}
             />
             <div className="py-12">
                 {/* Header */}

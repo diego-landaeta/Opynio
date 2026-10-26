@@ -111,6 +111,13 @@ const Meta: React.FC<MetaProps> = ({
       currentPath = currentPath.slice(0, -1);
     }
 
+    // El prefijo de país va siempre en minúsculas en la canonical (/ES -> /es); el resto de la ruta no se toca.
+    const segmentosRuta = currentPath.split('/');
+    if (/^[A-Za-z]{2}$/.test(segmentosRuta[1] || '')) {
+      segmentosRuta[1] = segmentosRuta[1].toLowerCase();
+      currentPath = segmentosRuta.join('/');
+    }
+
     // La canonical NUNCA debe incluir query params (sort, filter, page, etc.)
     // Si se pasa una canonical explícita, usarla; si no, construir el canonical:
     //   - Para paths con country prefix → canonical = URL actual.

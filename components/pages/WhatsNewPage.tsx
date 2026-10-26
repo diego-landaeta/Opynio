@@ -3,7 +3,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import Meta from '../Meta';
 import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
 import { COUNTRIES } from '../../constants';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 
 interface Feature {
     icon: string;
@@ -215,16 +216,17 @@ const WhatsNewPage: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const { country } = useCountry();
+  const { contentCountry } = useContentCountry();
 
     // SEO: Obtener nombre del país para títulos únicos
-    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
     const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     return (
         <>
             <Meta
                 title={`${t('meta.whatsNewTitle')}${countryInTitle}`}
-                description={`${t('whatsNew.subtitle')}${countryInTitle}.`}
+                description={descriptionWithCountry(t('whatsNew.subtitle'), countryInTitle)}
             />
             <div className="max-w-5xl mx-auto space-y-10 sm:space-y-16">
                 {/* Hero Section */}

@@ -480,7 +480,7 @@ const ExplorePage: React.FC = () => {
     const brandName = brandNameOf(contentCountry);
     const contentCountryName = contentCountry ? countryNameOf(contentCountry, countryInfo?.name || contentCountry) : '';
     // meta.exploreTitle ya termina en « - Opynio» en los 31 idiomas: se quita para que la marca salga una sola vez.
-    const metaTitle = `${t('meta.exploreTitle').replace(/s*[-–—|]s*Opynios*$/i, '')} - ${brandName}`;
+    const metaTitle = `${t('meta.exploreTitle').replace(/\s*[-–—|]\s*Opynio\s*$/i, '')} - ${brandName}`;
     const metaDescription = t('meta.exploreDesc').replace('Opynio', brandName);
     const exploreTitle = t('explorePage.exploreTitle').replace('Opynio', brandName);
     const exploreSubtitle = t('explorePage.exploreSubtitle').replace('Opynio', brandName);

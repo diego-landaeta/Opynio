@@ -3971,6 +3971,60 @@ export const adminListContactMessages = async (status: 'new' | 'read' | 'archive
 };
 
 // Mensajes de contacto sin leer (los lee el admin en /admin/soporte, pestana «Contacto»): la portada del panel los cuenta.
+// ---- Pagos del panel de admin (RPC admin_payments_overview, solo lectura, solo admin) ----
+export interface AdminPaymentRow {
+  id: string;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  periodStart: string | null;
+  periodEnd: string | null;
+  createdAt: string | null;
+  endedAt: string | null;
+  priceId: string | null;
+  /** Importe del precio en la unidad menor (céntimos); null si el precio no está en la BD. */
+  amount: number | null;
+  currency: string | null;
+  interval: string | null;
+  productName: string | null;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  plan: string | null;
+  trialUntil: string | null;
+  stripeCustomerId: string | null;
+  businessCount: number;
+  businesses: string[];
+}
+
+export interface AdminPaymentsOverview {
+  generatedAt: string;
+  rows: AdminPaymentRow[];
+}
+
+export class AdminPaymentsMissingError extends Error {
+  constructor() {
+    super('Falta la función admin_payments_overview en la base de datos.');
+    this.name = 'AdminPaymentsMissingError';
+  }
+}
+
+export const adminPaymentsOverview = async (): Promise<AdminPaymentsOverview> => {
+  const { data, error } = await supabase.rpc('admin_payments_overview');
+  if (error) {
+    const e = error as { code?: string; message?: string; status?: number };
+    const ausente = e.code === 'PGRST202' || e.code === '42883' || e.status === 404
+      || (/admin_payments_overview/.test(e.message || '') && /(could not find|does not exist|not found)/i.test(e.message || ''));
+    if (ausente) throw new AdminPaymentsMissingError();
+    throw error;
+  }
+  const d = (data ?? {}) as { generatedAt?: string; rows?: unknown };
+  const rows = (Array.isArray(d.rows) ? d.rows : []) as AdminPaymentRow[];
+  return {
+    generatedAt: d.generatedAt || new Date().toISOString(),
+    rows: rows.map(r => ({ ...r, businesses: Array.isArray(r.businesses) ? r.businesses : [], businessCount: Number(r.businessCount) || 0 })),
+  };
+};
+
 export const adminContactNewCount = async (): Promise<number> => {
   const { count, error } = await supabase.from('contact_messages').select('id', { count: 'exact', head: true }).eq('status', 'new');
   if (error) throw error;
