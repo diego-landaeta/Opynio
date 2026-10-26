@@ -194,7 +194,7 @@ const ProfilePage: React.FC = () => {
                         </div>
                         <div className="flex-grow min-w-0 max-w-full">
                             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 break-words">{profile.name}</h1>
-                            <p className="text-gray-500 dark:text-gray-400">
+                            <p className="text-gray-500 dark:text-gray-400 break-words [overflow-wrap:anywhere]">
                                 {profile.username && <span className="font-semibold">@{profile.username}</span>}
                                 {profile.username && user.email && <span className="mx-2">&middot;</span>}
                                 {user.email}
