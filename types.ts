@@ -107,6 +107,8 @@ export interface Profile {
   plan: Plan;
   billing_cycle?: 'monthly' | 'annual' | null;
   plan_expires_at?: string | null;
+  // Fin del acceso completo de la prueba gratuita (issue #11). La escribe el webhook de Stripe; NULL = sin prueba.
+  trial_full_access_until?: string | null;
   ai_credits_used?: number;
   ai_credits_last_reset?: string | null;
   ai_credit_limit?: number | null;

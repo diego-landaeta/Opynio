@@ -12,7 +12,7 @@ import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import { useCountry } from '../../../contexts/CountryContext';
 import Modal from '../../Modal';
 import { businessUrlId } from '../../../utils/slugify';
-import { planNameKey, isPlanFeatureComingSoon } from '../../../utils/planFeatures';
+import { planNameKey, isPlanFeatureComingSoon, effectivePlan } from '../../../utils/planFeatures';
 import { AI_ENABLED } from '../../../services/geminiService';
 import { useTrialStatus } from '../../../hooks/useTrialStatus';
 import { isPaidPlanKey, formatPlanPrice } from '../../../utils/planPrices';
@@ -217,13 +217,15 @@ const BusinessListPage: React.FC = () => {
     };
 
     const currentPlan = profile?.plan || 'free';
+    // Plan con el que se decide el tope: durante la prueba gratuita, el mas alto (issue #11).
+    const accessPlan = effectivePlan(profile);
     // For enterprise users, use their custom business_limit if set, otherwise use Infinity
     // For admins, always use Infinity
     const limit = profile?.role === 'admin'
         ? Infinity
         : (currentPlan === 'enterprise' && profile?.business_limit)
             ? profile.business_limit
-            : PLAN_LIMITS[currentPlan];
+            : PLAN_LIMITS[accessPlan];
     const canCreateBusiness = businesses.length < limit;
 
     const featuresForCurrentPlan = PLAN_FEATURES[currentPlan] || [];

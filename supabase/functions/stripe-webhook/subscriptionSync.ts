@@ -81,3 +81,17 @@ export async function pickRemainingPrimary(
   }
   return { primary: null, stale };
 }
+
+/**
+ * Fin del acceso completo de la prueba gratuita (issue #11), en ISO, mientras la
+ * suscripcion esta en 'trialing'; null en cualquier otro caso (activa, pasada de
+ * pago, cancelada...). Es lo que se guarda en profiles.trial_full_access_until:
+ * la base de datos da el plan mas alto mientras esa fecha este en el futuro
+ * (plan_efectivo, migracion 20261026100000). profiles.plan NO cambia: sigue siendo
+ * el plan elegido, que es el que se cobrara al acabar la prueba.
+ */
+export function trialAccessUntil(sub: { status: string; trial_end?: number | null }): string | null {
+  return sub.status === "trialing" && typeof sub.trial_end === "number" && Number.isFinite(sub.trial_end) && sub.trial_end > 0
+    ? new Date(sub.trial_end * 1000).toISOString()
+    : null;
+}

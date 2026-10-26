@@ -15,7 +15,7 @@ import { useCountryName } from '../../../utils/countryName';
 import { useCountry } from '../../../contexts/CountryContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import SectionLock from './dashboard/SectionLock';
-import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields } from '../../../utils/planFeatures';
+import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields, effectivePlan } from '../../../utils/planFeatures';
 import { businessUrlId } from '../../../utils/slugify';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -380,7 +380,7 @@ const EditBusinessPage: React.FC = () => {
     const { language } = useI18n();
     const { country: urlCountry } = useCountry();
     // Plan del USUARIO (profiles.plan): logo, redes y sedes son de pago.
-    const paidFieldsUnlocked = canEditPaidProfileFields(profile?.plan);
+    const paidFieldsUnlocked = canEditPaidProfileFields(effectivePlan(profile));
     const pricingHref = localizedPath('pricing', language, urlCountry);
 
     const [formData, setFormData] = useState({
@@ -624,7 +624,7 @@ const EditBusinessPage: React.FC = () => {
                 country: formData.country,
                 sedes: otherSedes.length > 0 ? otherSedes as unknown as Json : null,
                 offers_international_services: offersInternational,
-            }, profile?.plan);
+            }, effectivePlan(profile));
 
             const updatedBusiness = await updateBusinessProfile(business.id, updates);
 

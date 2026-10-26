@@ -5,6 +5,7 @@ import Spinner from '../Spinner';
 import BusinessLogo from '../BusinessLogo';
 import { Link } from 'react-router-dom';
 import Meta from '../Meta';
+import { effectivePlan } from '../../utils/planFeatures';
 
 const BusinessCard: React.FC<{ business: Business }> = ({ business }) => {
     const [imageError, setImageError] = useState(false);
@@ -50,7 +51,7 @@ const BusinessListPage: React.FC = () => {
     };
 
     const currentPlan = profile?.plan || 'free';
-    const limit = PLAN_LIMITS[currentPlan];
+    const limit = PLAN_LIMITS[effectivePlan(profile)];
     const canCreateBusiness = businesses.length < limit;
     
     return (

@@ -20,7 +20,7 @@ import StarRating from '../../../StarRating';
 import BusinessLogo from '../../../BusinessLogo';
 import { useTranslation, pathTranslations } from '../../../../contexts/i18nContext';
 import { usePluralT } from '../../../../utils/plural';
-import { getSectionAccess } from '../../../../utils/planFeatures';
+import { getSectionAccess, effectivePlan } from '../../../../utils/planFeatures';
 import { getUserFacingError, useUserErrorNotifier } from '../../../../utils/userFacingError';
 import SectionLock from './SectionLock';
 
@@ -534,7 +534,8 @@ const DashboardProducts: React.FC = () => {
     // que comprobarlo tambien aqui: si no, un plan sin acceso ve el boton y abre
     // el formulario.
     const tieneAcceso = !!profile && !getSectionAccess(profile, 'products').locked;
-    const limiteDeProductos = profile ? PLAN_PRODUCT_LIMITS[profile.plan] : 0;
+    // Durante la prueba gratuita (issue #11) el tope es el del plan mas alto; la BD aplica lo mismo (plan_efectivo).
+    const limiteDeProductos = profile ? PLAN_PRODUCT_LIMITS[effectivePlan(profile)] : 0;
     const limiteAlcanzado = products.length >= limiteDeProductos;
     const hasProducts = tieneAcceso && products.length > 0 && !isLoading && !loadError;
 

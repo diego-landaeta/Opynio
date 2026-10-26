@@ -22,6 +22,27 @@ export const PLAN_HIERARCHY: Record<Plan, number> = {
 export const hasPlanAccess = (current: Plan | null | undefined, required: Plan): boolean =>
     (PLAN_HIERARCHY[current ?? 'free'] ?? 0) >= PLAN_HIERARCHY[required];
 
+/**
+ * ¿Esta en la prueba gratuita con acceso completo (issue #11)? La fecha la escribe el webhook de Stripe
+ * mientras la suscripcion esta en 'trialing'; el servidor aplica la misma regla (plan_efectivo, migracion
+ * 20261026100000). Pasada la fecha, o sin ella, no hay acceso completo.
+ */
+export const hasFullAccessTrial = (
+    profile: Pick<Profile, 'trial_full_access_until'> | null | undefined,
+    now: number = Date.now(),
+): boolean => {
+    const fin = profile?.trial_full_access_until ? Date.parse(profile.trial_full_access_until) : NaN;
+    return Number.isFinite(fin) && fin > now;
+};
+
+/**
+ * Plan con el que se DECIDE el acceso: durante la prueba, el mas alto; despues, el que eligio.
+ * profiles.plan (el elegido, el que se cobrara) no cambia: para MOSTRAR el plan se sigue usando ese.
+ */
+export const effectivePlan = (
+    profile: Pick<Profile, 'plan' | 'trial_full_access_until'> | null | undefined,
+): Plan => (hasFullAccessTrial(profile) ? 'enterprise' : (profile?.plan ?? 'free'));
+
 /** Clave de traducción con el nombre visible de un plan. */
 export const planNameKey = (plan: Plan): string =>
     `businessDashboard.${plan === 'v2' ? 'pro' : plan}PlanName`;
@@ -67,11 +88,11 @@ export interface SectionAccess {
 }
 
 export const getSectionAccess = (
-    profile: Pick<Profile, 'plan' | 'feature_permissions'> | null | undefined,
+    profile: Pick<Profile, 'plan' | 'feature_permissions' | 'trial_full_access_until'> | null | undefined,
     id: DashboardSectionId,
 ): SectionAccess => {
     const def = DASHBOARD_SECTIONS.find(s => s.id === id)!;
-    if (!hasPlanAccess(profile?.plan, def.minPlan)) {
+    if (!hasPlanAccess(effectivePlan(profile), def.minPlan)) {
         return { locked: true, reason: 'plan', minPlan: def.minPlan };
     }
     if (profile?.plan === 'enterprise' && profile.feature_permissions) {

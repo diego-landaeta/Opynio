@@ -26,7 +26,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
 import { runCheckoutCompletion } from "./checkoutCompletion.ts";
-import { pickRemainingPrimary, shouldSyncProfile, type SubscriptionRow } from "./subscriptionSync.ts";
+import { pickRemainingPrimary, shouldSyncProfile, trialAccessUntil, type SubscriptionRow } from "./subscriptionSync.ts";
 import { LIVE_SUBSCRIPTION_STATUSES, planNameFromPrice } from "../_shared/stripePlans.ts";
 import { businessNameCandidates } from "../_shared/businessName.ts";
 
@@ -207,7 +207,7 @@ async function syncProfileFromSubscription(
   if (!planName) return;
   const { error: profErr } = await supabaseAdmin
     .from("profiles")
-    .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: endISO })
+    .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: endISO, trial_full_access_until: trialAccessUntil(subscription) })
     .eq("id", userId);
   if (profErr) throw profErr;
 }
@@ -431,6 +431,16 @@ serve(async (req) => {
           (message) => console.warn(`${message} [event ${event.id}]`),
         );
         if (rpcError) throw rpcError;
+
+        // Prueba gratuita con acceso completo (issue #11): la RPC escribe el plan elegido; la fecha
+        // de fin del acceso completo (solo mientras la suscripcion esta en 'trialing') se guarda aparte.
+        {
+          const { error: trialErr } = await supabaseAdmin
+            .from("profiles")
+            .update({ trial_full_access_until: trialAccessUntil(subscription) })
+            .eq("id", userId);
+          if (trialErr) throw trialErr;
+        }
 
         console.log(
           `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}` +
@@ -716,7 +726,7 @@ serve(async (req) => {
           if (planName) {
             const { error: profErr } = await supabaseAdmin
               .from("profiles")
-              .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: otherEnd })
+              .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: otherEnd, trial_full_access_until: trialAccessUntil(other) })
               .eq("id", subRow.user_id);
             if (profErr) throw profErr;
           }
@@ -728,7 +738,7 @@ serve(async (req) => {
 
         const { error: profErr } = await supabaseAdmin
           .from("profiles")
-          .update({ plan: "free", billing_cycle: null, plan_expires_at: null })
+          .update({ plan: "free", billing_cycle: null, plan_expires_at: null, trial_full_access_until: null })
           .eq("id", subRow.user_id);
         if (profErr) throw profErr;
 

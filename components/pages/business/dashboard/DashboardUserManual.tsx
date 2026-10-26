@@ -4,7 +4,7 @@ import { Plan } from '../../../../types';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../../../contexts/i18nContext';
 import Spinner from '../../../Spinner';
-import { planNameKey, PROFILE_PAID_MIN_PLAN, type DashboardSectionId } from '../../../../utils/planFeatures';
+import { planNameKey, PROFILE_PAID_MIN_PLAN, effectivePlan, type DashboardSectionId } from '../../../../utils/planFeatures';
 import { useDashboardSections, type DashboardSectionLink } from './useDashboardSections';
 
 const PLAN_DESCRIPTIONS: Record<Plan, { descriptionKey: string; color: string }> = {
@@ -95,7 +95,7 @@ const DashboardUserManual: React.FC = () => {
     }
 
     // Plan is stored in the user's profile, not in the business
-    const currentPlan: Plan = profile.plan || 'free';
+    const currentPlan: Plan = effectivePlan(profile);
     const planInfo = PLAN_DESCRIPTIONS[currentPlan];
     const paidPlanName = t(planNameKey(PROFILE_PAID_MIN_PLAN));
 
