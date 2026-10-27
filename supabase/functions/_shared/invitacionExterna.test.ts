@@ -43,6 +43,9 @@ describe("slugDeOpynioUrl", () => {
       "https://web.opynio.com/es",                       // sin ficha
       "https://web.opynio.com/es/empresa/a%2Fb",         // barra codificada en el slug
       "https://web.opynio.com/es/empresa/" + "a".repeat(200),
+      "https://web.opynio.com:8443/es/empresa/x",        // con puerto
+      "https://evil@web.opynio.com/es/empresa/x",        // con usuario
+      "https://usuario:clave@web.opynio.com/es/empresa/x",
       "no es una url", "",
     ]) assert.equal(slugDeOpynioUrl(u), null, u);
   });
@@ -67,6 +70,11 @@ describe("validarEntrada", () => {
     assert.equal(validarEntrada({ opynioUrl: FICHA }).ok, false);
     assert.equal(validarEntrada(null).ok, false);
     assert.equal(validarEntrada("texto").ok, false);
+  });
+  it("rechaza correos con caracteres de control o con varios destinatarios", () => {
+    for (const email of ["a@b.co\u0000", "a@b.co\u0001", "a\u007f@b.co", "a@b.co,x@y.co", "a@b.co;x@y.co", "a b@c.co"]) {
+      assert.equal(validarEntrada({ opynioUrl: FICHA, email }).ok, false, JSON.stringify(email));
+    }
   });
 });
 

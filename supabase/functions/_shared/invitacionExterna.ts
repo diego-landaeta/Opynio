@@ -21,7 +21,8 @@ export const LIMITE_DIARIO = 500;
 /** Una invitación del mismo correo y empresa dentro de este plazo se reutiliza, no se duplica. */
 export const DIAS_REUTILIZAR = 30;
 
-const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+// Sin espacios, comas ni punto y coma, y sin caracteres de control (un NUL hacía fallar el insert).
+const EMAIL_RE = /^[^\s@<>"',;\u0000-\u001f\u007f]+@[^\s@<>"',;\u0000-\u001f\u007f]+\.[^\s@<>"',;\u0000-\u001f\u007f]+$/;
 const MAX_CUERPO = 2000;
 
 export interface Db {
@@ -49,6 +50,8 @@ export function slugDeOpynioUrl(url: string): string | null {
     return null;
   }
   if (u.protocol !== "https:" || !HOSTS_OPYNIO.includes(u.hostname)) return null;
+  // Ni puerto ni usuario:contraseña en la dirección: una ficha de Opynio no los lleva nunca.
+  if (u.port !== "" || u.username !== "" || u.password !== "") return null;
   const partes = u.pathname.split("/").filter(Boolean);
   // /<país>/<empresa|company|azienda…>/<slug>: la palabra del medio cambia con el idioma.
   if (partes.length < 3) return null;
