@@ -3994,6 +3994,16 @@ export interface AdminPaymentRow {
   stripeCustomerId: string | null;
   businessCount: number;
   businesses: string[];
+  /** Ultimo reembolso de esta suscripcion (webhook charge.refunded); null/ausente si no hay. */
+  refund?: {
+    amount: number;
+    currency: string | null;
+    full: boolean;
+    action: 'recorded' | 'alert' | 'cancelled';
+    /** 'refund' (reembolso) o 'dispute' (contracargo); ausente en filas antiguas = reembolso. */
+    kind?: 'refund' | 'dispute';
+    at: string;
+  } | null;
 }
 
 export interface AdminPaymentsOverview {

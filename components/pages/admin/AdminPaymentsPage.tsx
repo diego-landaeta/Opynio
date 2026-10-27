@@ -14,13 +14,20 @@ import {
  * Solo lectura. El detalle de cada factura vive en Stripe: cada fila enlaza al cliente y a la suscripción.
  */
 
-type Filtro = 'all' | 'trialing' | 'active' | 'pastDue' | 'canceled' | 'cancelling';
+type Filtro = 'all' | 'trialing' | 'active' | 'pastDue' | 'canceled' | 'cancelling' | 'refunded';
 type Estado = 'loading' | 'ready' | 'error' | 'missing';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800';
 const VIVAS = new Set(['trialing', 'active', 'past_due']);
 const IMPAGO = new Set(['past_due', 'unpaid']);
 const TERMINADAS = new Set(['canceled', 'incomplete_expired', 'incomplete']);
+
+/**
+ * Reembolsada del todo, la suscripción sigue viva y no está programada para terminar: Stripe le volverá a cobrar en la
+ * próxima renovación aunque ya recuperó su dinero. Un reembolso no cancela la suscripción; hay que cancelarla en Stripe.
+ */
+const enRiesgoDeRecobro = (r: AdminPaymentRow): boolean =>
+    !!r.refund && r.refund.full && r.refund.action !== 'cancelled' && VIVAS.has(r.status) && !r.cancelAtPeriodEnd;
 
 const STRIPE_CLIENTE = (id: string) => `https://dashboard.stripe.com/customers/${encodeURIComponent(id)}`;
 const STRIPE_SUSCRIPCION = (id: string) => `https://dashboard.stripe.com/subscriptions/${encodeURIComponent(id)}`;
@@ -130,6 +137,9 @@ const AdminPaymentsPage: React.FC = () => {
         pastDue: filas.filter(r => IMPAGO.has(r.status)).length,
         canceled: filas.filter(r => TERMINADAS.has(r.status)).length,
         cancelling: filas.filter(r => VIVAS.has(r.status) && r.cancelAtPeriodEnd).length,
+        refunded: filas.filter(r => !!r.refund).length,
+        // Reembolsadas del todo y que siguen cobrando: el cliente recuperó su dinero y se le volverá a cobrar.
+        refundedAtRisk: filas.filter(enRiesgoDeRecobro).length,
     }), [filas]);
 
     const visibles = useMemo(() => {
@@ -140,6 +150,7 @@ const AdminPaymentsPage: React.FC = () => {
             if (filtro === 'pastDue' && !IMPAGO.has(r.status)) return false;
             if (filtro === 'canceled' && !TERMINADAS.has(r.status)) return false;
             if (filtro === 'cancelling' && !(VIVAS.has(r.status) && r.cancelAtPeriodEnd)) return false;
+            if (filtro === 'refunded' && !r.refund) return false;
             if (!q) return true;
             const pajar = normalizar([r.userName, r.userEmail, r.productName, r.plan, r.id, r.stripeCustomerId, ...r.businesses].filter(Boolean).join(' '));
             return pajar.includes(q);
@@ -162,6 +173,7 @@ const AdminPaymentsPage: React.FC = () => {
         { id: 'pastDue', label: tk('payFilterPastDue'), n: cuentas.pastDue },
         { id: 'cancelling', label: tk('payFilterCancelling'), n: cuentas.cancelling },
         { id: 'canceled', label: tk('payFilterCanceled'), n: cuentas.canceled },
+        { id: 'refunded', label: tk('payFilterRefunded'), n: cuentas.refunded },
     ];
 
     const tarjeta = (titulo: string, valor: string, pista: string, alerta = false) => (
@@ -234,6 +246,16 @@ const AdminPaymentsPage: React.FC = () => {
                     {tarjeta(tk('payCardPastDue'), String(resumen.conImpago), resumen.conImpago > 0 ? tk('payCardPastDueHint') : tk('payCardPastDueNone'), resumen.conImpago > 0)}
                     {tarjeta(tk('payCardNext30'), texto(resumen.importe30), tk('payCardNext30Hint', { count: resumen.en30 }))}
                 </div>
+
+                {cuentas.refundedAtRisk > 0 && (
+                    <div role="alert" className="rounded-2xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <i className="fa-solid fa-triangle-exclamation text-red-700 dark:text-red-300 text-lg flex-shrink-0" aria-hidden="true"></i>
+                        <p className="flex-1 text-sm font-semibold text-red-900 dark:text-red-200">{tk('payRefundBanner', { count: cuentas.refundedAtRisk })}</p>
+                        <button type="button" onClick={() => setFiltro('refunded')} className={`min-h-[40px] px-4 rounded-lg text-sm font-bold bg-white dark:bg-zinc-800 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 ${FOCUS}`}>
+                            {tk('payRefundBannerAction')}
+                        </button>
+                    </div>
+                )}
 
                 <div className="rounded-2xl border dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                     <div className="p-4 border-b dark:border-zinc-700 space-y-3">
@@ -316,6 +338,22 @@ const AdminPaymentsPage: React.FC = () => {
                                                 <i className={`fa-solid ${badge.icon}`} aria-hidden="true"></i>{etiquetaEstado(r.status)}
                                             </span>
                                             {vive && r.cancelAtPeriodEnd && <span className="block mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">{tk('payWillCancel')}</span>}
+                                            {r.refund && (
+                                                enRiesgoDeRecobro(r) ? (
+                                                    <span className="block mt-1 text-xs font-bold text-red-700 dark:text-red-300">
+                                                        <i className="fa-solid fa-rotate-left mr-1" aria-hidden="true"></i>
+                                                        {tk(r.refund.kind === 'dispute' ? 'payDisputedActive' : 'payRefundedActive', { amount: dinero(r.refund.amount, r.refund.currency || r.currency), date: fecha(r.periodEnd) })}
+                                                    </span>
+                                                ) : (
+                                                    <span className="block mt-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                                        <i className="fa-solid fa-rotate-left mr-1" aria-hidden="true"></i>
+                                                        {tk(r.refund.kind === 'dispute'
+                                                            ? (r.refund.action === 'cancelled' ? 'payDisputedCancelled' : 'payDisputed')
+                                                            : r.refund.full ? (r.refund.action === 'cancelled' ? 'payRefundedCancelled' : 'payRefundedFull') : 'payRefundedPartial',
+                                                            { amount: dinero(r.refund.amount, r.refund.currency || r.currency) })}
+                                                    </span>
+                                                )
+                                            )}
                                         </div>
                                         <div className="lg:col-span-2 text-sm text-gray-700 dark:text-gray-200">{fechaTexto}</div>
                                         <div className="lg:col-span-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
