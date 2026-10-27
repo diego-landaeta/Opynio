@@ -817,6 +817,15 @@ serve(async (req) => {
           refunded_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+        // Un segundo evento del mismo cobro (otro reembolso, una actualizacion) llega con la suscripcion ya cancelada y se
+        // decidiria «anotar»: no se rebaja una fila que ya consta como cancelada.
+        const { data: previo } = await supabaseAdmin
+          .from("stripe_refunds")
+          .select("action")
+          .eq("charge_id", charge.id)
+          .eq("kind", tipo)
+          .maybeSingle();
+        if (previo?.action === "cancelled") registro.action = "cancelled";
         const { error: refErr } = await supabaseAdmin.from("stripe_refunds").upsert(registro, { onConflict: "charge_id,kind" });
         if (refErr) throw refErr;
 
