@@ -35,6 +35,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
 import { corsHeadersFor } from "../_shared/cors.ts";
+import { cronAuthorized } from "../_shared/cronAuth.ts";
 import { enviarBrevo, enviosRestantesBrevo, leerClaveBrevo } from "../_shared/brevo.ts";
 import { planForPriceId } from "../_shared/stripePlans.ts";
 import { construirAviso, elegirIdioma } from "./plantilla.ts";
@@ -68,14 +69,10 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
 
-  // 1. Autorizacion ANTES de tocar nada; sin CRON_SECRET falla cerrado.
-  const CRON_SECRET = Deno.env.get("CRON_SECRET");
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!CRON_SECRET) {
-    console.error("trial-ending-reminder: CRON_SECRET no configurado; peticion rechazada.");
-    return json({ error: "No autorizado" }, 401);
-  }
-  if (!safeEqual(authHeader, `Bearer ${CRON_SECRET}`)) return json({ error: "No autorizado" }, 401);
+  // 1. Autorizacion ANTES de tocar nada: vale el secreto del entorno (CRON_SECRET) o el de Vault (_shared/cronAuth.ts);
+  //    sin ninguno configurado falla cerrado.
+  const adminAuth = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  if (!(await cronAuthorized(req, Deno.env.get("CRON_SECRET"), adminAuth))) return json({ error: "No autorizado" }, 401);
 
   let dryRun = false;
   try {
