@@ -442,3 +442,9 @@ verify_jwt = false
 # Standard Webhooks (SEND_EMAIL_HOOK_SECRET).
 [functions.send-auth-email]
 verify_jwt = false
+
+# Certifex#97: lo llama el servidor de Certifex (sin sesión) para registrar la invitación a opinar
+# que va en el correo del diploma. Protegido con el secreto CERTIFEX_REGISTRO_CLAVE en la cabecera
+# x-registro-clave.
+[functions.registrar-invitacion-externa]
+verify_jwt = false
