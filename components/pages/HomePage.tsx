@@ -18,7 +18,7 @@ import { extractSubcategory, getSubcategoryKey } from '../../utils/categoryMappi
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusinessStartPath } from '../../utils/businessOwnership';
 import { markInternalNavigation } from '../LanguagePopup';
-import { useCountryName } from '../../utils/countryName';
+import { useCountryName, useBrandName } from '../../utils/countryName';
 
 
 // Fixed bottom banner that doesn't cause CLS (position: fixed doesn't affect layout)
@@ -275,7 +275,7 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
                         <button
                             key={idx}
                             onClick={() => setCurrentPage(idx)}
-                            className={`h-2 rounded-full transition-all ${
+                            className={`relative before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-4 h-2 rounded-full transition-all ${
                                 idx === currentPage
                                     ? 'bg-brand-green w-6'
                                     : 'bg-gray-300 dark:bg-zinc-600 hover:bg-gray-400 dark:hover:bg-zinc-500 w-2'
@@ -292,6 +292,8 @@ const BusinessCarousel: React.FC<{ companies: Business[], loading: boolean }> = 
 
 const HomePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchEmpty, setSearchEmpty] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
     const [latestBusinesses, setLatestBusinesses] = useState<Business[]>([]);
     const [featuredReviews, setFeaturedReviews] = useState<Review[]>([]);
@@ -303,6 +305,7 @@ const HomePage: React.FC = () => {
     const t = useTranslation();
     const { language } = useI18n();
     const countryNameOf = useCountryName();
+    const brandNameOf = useBrandName();
     const { country } = useCountry();
     const { profile } = useAuth();
 
@@ -324,7 +327,7 @@ const HomePage: React.FC = () => {
     // usuario. Antes /it mostraba los datos del país guardado del usuario.
     const { contentCountry: homeCountry } = useContentCountry();
     const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === homeCountry), [homeCountry]);
-    const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
+    const brandName = brandNameOf(homeCountry);
     const metaTitle = `${brandName} - ${t('homepage.metaTitle').replace('Opynio - ', '')}`;
     const heroTitle = t('homepage.heroTitle').replace('Opynio', brandName);
     const metaDescription = `${brandName}: ${t('homepage.heroSubtitle').toLowerCase()}`;
@@ -437,6 +440,11 @@ const HomePage: React.FC = () => {
         e.preventDefault();
         if (searchTerm.trim()) {
             navigate(`${countryPrefix}/${paths.search}?q=${encodeURIComponent(searchTerm.trim())}`);
+        } else {
+            // Caja vacia (o solo espacios): antes no hacia nada ni avisaba.
+            setSearchTerm('');
+            setSearchEmpty(true);
+            searchInputRef.current?.focus();
         }
     };
 
@@ -518,17 +526,23 @@ const HomePage: React.FC = () => {
                     </p>
                     <form onSubmit={handleSearchSubmit} className="max-w-xl mx-auto flex items-center shadow-md rounded-lg bg-white dark:bg-zinc-800 border dark:border-zinc-700 overflow-hidden">
                         <input
+                            ref={searchInputRef}
                             type="search"
                             placeholder={t('homepage.searchPlaceholder')}
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => { setSearchTerm(e.target.value); if (searchEmpty) setSearchEmpty(false); }}
                             className="w-full text-sm sm:text-base p-2.5 sm:p-3 border-r border-gray-200 dark:border-zinc-600 focus:ring-2 focus:ring-brand-green focus:outline-none pl-3 sm:pl-4 bg-transparent text-gray-900 dark:text-gray-100"
                             aria-label={t('homepage.searchPlaceholder')}
+                            aria-invalid={searchEmpty || undefined}
+                            aria-describedby={searchEmpty ? 'home-search-hint' : undefined}
                         />
-                        <button type="submit" className="bg-brand-green text-white p-2.5 sm:p-3 hover:bg-opacity-90 text-lg sm:text-xl h-full px-4 sm:px-5 transition-colors flex-shrink-0" aria-label="Buscar">
+                        <button type="submit" className="bg-brand-green text-white p-2.5 sm:p-3 hover:bg-opacity-90 text-lg sm:text-xl h-full px-4 sm:px-5 transition-colors flex-shrink-0" aria-label={t('homepage.searchButton')}>
                             <i className="fas fa-search"></i>
                         </button>
                     </form>
+                    {searchEmpty && (
+                        <p id="home-search-hint" role="alert" className="mt-2 text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 px-4">{t('homepage.searchEmptyHint')}</p>
+                    )}
                     <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-700 dark:text-gray-300 px-4">
                         {t('homepage.haveYouBought')}{' '}
                         <Link to={`${countryPrefix}/${paths.writeReview}`} className="text-brand-green font-semibold hover:underline">
@@ -676,7 +690,7 @@ const HomePage: React.FC = () => {
                                 <OwnBusinessBadge business={biz} manage className="mt-1" />
                                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">{t('homepage.addedOn')} {formatDate(biz.created_at)}</p>
                             </div>
-                            <Link to={businessPath} className="text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 text-xs sm:text-sm flex items-center gap-2 self-end sm:self-center whitespace-nowrap flex-shrink-0">
+                            <Link to={businessPath} className="py-2 -my-2 text-brand-green font-semibold hover:text-green-700 dark:hover:text-green-400 text-xs sm:text-sm flex items-center gap-2 self-end sm:self-center whitespace-nowrap flex-shrink-0">
                                 <span>{t('homepage.viewBusiness')}</span>
                                 <i className="fa-solid fa-arrow-right"></i>
                             </Link>

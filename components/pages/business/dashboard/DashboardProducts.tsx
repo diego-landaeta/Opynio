@@ -12,6 +12,7 @@ import {
     updateBusinessProduct,
     deleteBusinessProduct,
   uploadProductImage,
+  INVALID_IMAGE_CODE,
 } from '../../../../services/supabaseService';
 import Spinner from '../../../Spinner';
 import Modal from '../../../Modal';
@@ -19,7 +20,7 @@ import StarRating from '../../../StarRating';
 import BusinessLogo from '../../../BusinessLogo';
 import { useTranslation, pathTranslations } from '../../../../contexts/i18nContext';
 import { usePluralT } from '../../../../utils/plural';
-import { getSectionAccess } from '../../../../utils/planFeatures';
+import { getSectionAccess, effectivePlan } from '../../../../utils/planFeatures';
 import { getUserFacingError, useUserErrorNotifier } from '../../../../utils/userFacingError';
 import SectionLock from './SectionLock';
 
@@ -201,9 +202,14 @@ const ProductFormModal: React.FC<{
                                             const url = await uploadProductImage(business.id, fichero);
                                             setForm(f => ({ ...f, image_url: url }));
                                         } catch (error: any) {
-                                            // Traducido: Storage responde en ingles («The object exceeded...»).
-                                            const info = await getUserFacingError(error, { fallbackKey: 'businessDashboard.productImageUploadFailed' });
-                                            setImagenError(t(info.key));
+                                            if (error?.code === INVALID_IMAGE_CODE) {
+                                                // No es una imagen de verdad (p. ej. un texto con extension .png).
+                                                setImagenError(t('businessDashboard.productImageInvalid'));
+                                            } else {
+                                                // Traducido: Storage responde en ingles («The object exceeded...»).
+                                                const info = await getUserFacingError(error, { fallbackKey: 'businessDashboard.productImageUploadFailed' });
+                                                setImagenError(t(info.key));
+                                            }
                                         } finally {
                                             setSubiendo(false);
                                         }
@@ -528,7 +534,8 @@ const DashboardProducts: React.FC = () => {
     // que comprobarlo tambien aqui: si no, un plan sin acceso ve el boton y abre
     // el formulario.
     const tieneAcceso = !!profile && !getSectionAccess(profile, 'products').locked;
-    const limiteDeProductos = profile ? PLAN_PRODUCT_LIMITS[profile.plan] : 0;
+    // Durante la prueba gratuita (issue #11) el tope es el del plan mas alto; la BD aplica lo mismo (plan_efectivo).
+    const limiteDeProductos = profile ? PLAN_PRODUCT_LIMITS[effectivePlan(profile)] : 0;
     const limiteAlcanzado = products.length >= limiteDeProductos;
     const hasProducts = tieneAcceso && products.length > 0 && !isLoading && !loadError;
 

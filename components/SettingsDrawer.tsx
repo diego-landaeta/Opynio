@@ -7,6 +7,7 @@ import { usePreferenceActions, THEME_OPTIONS } from '../hooks/usePreferenceActio
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../services/supabaseService';
 import { setCookieConsent, useCookieConsent } from '../utils/consent';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 // Panel lateral de configuracion: lo abre directamente el engranaje de la home.
 // Tema, idioma, pais y los accesos de la cuenta. Sin URL propia: es un panel
@@ -63,6 +64,9 @@ const SettingsDrawer: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
     };
     const path = (key: Parameters<typeof localizedPathOrRoot>[0]) => localizedPathOrRoot(key, language, country);
+
+    // Tab no sale del panel mientras esta abierto (aria-modal).
+    useFocusTrap(panelRef, true);
 
     // Escape cierra; el foco entra en el panel y no se desplaza la pagina de detras.
     useEffect(() => {

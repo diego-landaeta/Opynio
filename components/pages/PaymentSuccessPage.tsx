@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { clearCache, getBusinessesForOwner, getUserProfile, supabase } from '../../services/supabaseService';
 import Meta from '../Meta';
-import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
+import { useI18n, useTranslation, pathTranslations, getLanguageForCountryCode, getLocaleFromLanguage } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { getPlanBenefits } from '../PlanActivatedModal';
 import type { Plan } from '../../types';
@@ -271,7 +271,7 @@ const PaymentSuccessPage: React.FC = () => {
                                         {t('paymentSuccessPage.activePlanLabel')}
                                     </h2>
                                     <span className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">
-                                        {new Date().toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        {new Date().toLocaleDateString(getLocaleFromLanguage(language), { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2.5 sm:gap-3">

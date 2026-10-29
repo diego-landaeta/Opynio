@@ -17,10 +17,11 @@ import { useTranslation, useI18n, useAutoTranslations, pathTranslations, type La
 import { useNotification } from '../../contexts/NotificationContext';
 import { useCountry, useContentCountry } from '../../contexts/CountryContext';
 import ForeignCountryNotice from '../ForeignCountryNotice';
-import { useCountryName } from '../../utils/countryName';
+import { useCountryName, useBrandName } from '../../utils/countryName';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { getSubcategoryKey, getCategorySpanishName } from '../../utils/categoryMappings';
 import OwnBusinessBadge, { ownBusinessBadgeHtml } from '../OwnBusinessBadge';
+import { useListboxNav } from '../../hooks/useListboxNav';
 import { useOwnBusinessLookup } from '../../utils/businessOwnership';
 import { escapeHtml } from '../../utils/textUtils';
 
@@ -335,6 +336,7 @@ const ExplorePage: React.FC = () => {
     // scroll, ni la paginación, ni abrir una reseña de otro país.
     const { contentCountry } = useContentCountry();
     const countryNameOf = useCountryName();
+    const brandNameOf = useBrandName();
     const countryPrefix = country ? `/${country.toLowerCase()}` : '';
     const pathLang = country ? getLanguageForCountryCode(country) : language;
     const paths = pathTranslations[pathLang] || pathTranslations.es;
@@ -475,9 +477,10 @@ const ExplorePage: React.FC = () => {
     const location = useLocation();
 
     const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === contentCountry), [contentCountry]);
-    const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
+    const brandName = brandNameOf(contentCountry);
     const contentCountryName = contentCountry ? countryNameOf(contentCountry, countryInfo?.name || contentCountry) : '';
-    const metaTitle = `${t('meta.exploreTitle')} - ${brandName}`;
+    // meta.exploreTitle ya termina en « - Opynio» en los 31 idiomas: se quita para que la marca salga una sola vez.
+    const metaTitle = `${t('meta.exploreTitle').replace(/\s*[-–—|]\s*Opynio\s*$/i, '')} - ${brandName}`;
     const metaDescription = t('meta.exploreDesc').replace('Opynio', brandName);
     const exploreTitle = t('explorePage.exploreTitle').replace('Opynio', brandName);
     const exploreSubtitle = t('explorePage.exploreSubtitle').replace('Opynio', brandName);
@@ -553,6 +556,52 @@ const ExplorePage: React.FC = () => {
 
         return () => clearTimeout(searchTimeout);
     }, [searchTerm, selectedBusinessFilter]);
+
+    // Elegir una sugerencia de «Nombre de empresa» (clic, o Enter con la opcion activa).
+    const pickBusinessSuggestion = (business: { id: string; name: string; category: string | null; country: string | null }) => {
+        // Store full business info including category
+        setSelectedBusinessFilter({
+            id: business.id,
+            name: business.name,
+            category: business.category,
+            country: business.country
+        });
+        setSearchTerm(business.name);
+        setShowBusinessSuggestions(false);
+
+        // Auto-select the parent category of the business
+        if (business.category) {
+            // Extract parent category (before ":" if exists)
+            const parentCategory = business.category.includes(':')
+                ? business.category.split(':')[0].trim()
+                : business.category;
+
+            // Find matching category key in CATEGORIES
+            const categoryKey = Object.keys(CATEGORIES).find(key => {
+                const catName = getCategorySpanishName(key);
+                return catName === parentCategory || key === parentCategory;
+            });
+
+            if (categoryKey) {
+                setSelectedCategory(categoryKey);
+            }
+        }
+
+        // El país no se toca: con una empresa elegida
+        // se muestran sus reseñas sea del país que sea
+        // (antes se cambiaba el filtro de país al de la
+        // empresa y quedaba así al quitarla).
+    };
+
+    // Teclado de la lista: flechas, Enter, Escape (ver hooks/useListboxNav.ts).
+    const businessNav = useListboxNav({
+        idBase: 'explore-business',
+        items: businessSuggestions,
+        open: showBusinessSuggestions,
+        onSelect: pickBusinessSuggestion,
+        onClose: () => setShowBusinessSuggestions(false),
+        onOpen: () => setShowBusinessSuggestions(true),
+    });
 
     // Effect to read search term and category from URL on initial load and handle scrolling from hash
     useEffect(() => {
@@ -1528,7 +1577,11 @@ const ExplorePage: React.FC = () => {
         if (reviews.length === 0) return null;
 
         const totalPages = Math.max(1, Math.ceil(totalReviewCount / PAGE_SIZE));
-        const currentShowing = Math.min(page * PAGE_SIZE, totalReviewCount);
+        // Rango real de la pagina («11–20 de 133»): antes salia solo el indice
+        // final («Mostrando 20 de 133») aunque se vieran 10.
+        const rangeEnd = Math.min(page * PAGE_SIZE, totalReviewCount);
+        const rangeStart = Math.min((page - 1) * PAGE_SIZE + 1, rangeEnd);
+        const currentShowing = rangeStart < rangeEnd ? `${rangeStart}–${rangeEnd}` : String(rangeEnd);
 
         return (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border dark:border-zinc-700">
@@ -1654,6 +1707,8 @@ const ExplorePage: React.FC = () => {
                                                 setShowBusinessSuggestions(true);
                                             }
                                         }}
+                                        autoComplete="off"
+                                        {...businessNav.inputProps}
                                         className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md p-2 pr-8 text-sm text-gray-800 dark:text-white placeholder-gray-500 focus:ring-1 focus:ring-brand-green focus:border-brand-green"
                                     />
                                     {isLoadingBusinessSuggestions && (
@@ -1673,44 +1728,15 @@ const ExplorePage: React.FC = () => {
                                             <i className="fa-solid fa-lightbulb mr-1 text-yellow-500"></i>
                                             {t('explorePage.selectBusinessForAllReviews')}
                                         </div>
-                                        {businessSuggestions.map((business) => (
+                                        <div {...businessNav.listProps} aria-label={t('explorePage.businessName')}>
+                                        {businessSuggestions.map((business, index) => (
                                             <button
                                                 key={business.id}
-                                                onClick={() => {
-                                                    // Store full business info including category
-                                                    setSelectedBusinessFilter({
-                                                        id: business.id,
-                                                        name: business.name,
-                                                        category: business.category,
-                                                        country: business.country
-                                                    });
-                                                    setSearchTerm(business.name);
-                                                    setShowBusinessSuggestions(false);
-
-                                                    // Auto-select the parent category of the business
-                                                    if (business.category) {
-                                                        // Extract parent category (before ":" if exists)
-                                                        const parentCategory = business.category.includes(':')
-                                                            ? business.category.split(':')[0].trim()
-                                                            : business.category;
-
-                                                        // Find matching category key in CATEGORIES
-                                                        const categoryKey = Object.keys(CATEGORIES).find(key => {
-                                                            const catName = getCategorySpanishName(key);
-                                                            return catName === parentCategory || key === parentCategory;
-                                                        });
-
-                                                        if (categoryKey) {
-                                                            setSelectedCategory(categoryKey);
-                                                        }
-                                                    }
-
-                                                    // El país no se toca: con una empresa elegida
-                                                    // se muestran sus reseñas sea del país que sea
-                                                    // (antes se cambiaba el filtro de país al de la
-                                                    // empresa y quedaba así al quitarla).
-                                                }}
-                                                className="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-zinc-700/50 last:border-0"
+                                                type="button"
+                                                tabIndex={-1}
+                                                {...businessNav.optionProps(index)}
+                                                onClick={() => pickBusinessSuggestion(business)}
+                                                className="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-zinc-700 aria-selected:bg-gray-100 dark:aria-selected:bg-zinc-700 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-zinc-700/50 last:border-0"
                                             >
                                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
                                                     <i className="fa-solid fa-store text-gray-400 text-xs"></i>
@@ -1728,6 +1754,7 @@ const ExplorePage: React.FC = () => {
                                                 <i className="fa-solid fa-chevron-right text-gray-300 dark:text-gray-600 text-xs"></i>
                                             </button>
                                         ))}
+                                        </div>
                                     </div>
                                 )}
                             </>
@@ -1871,8 +1898,9 @@ const ExplorePage: React.FC = () => {
                                 type="range"
                                 min="1"
                                 max="5"
-                                step="0.1"
+                                step="1"
                                 value={ratingFilter?.min || 1}
+                                aria-label={t('common.ratingMinLabel')}
                                 onChange={(e) => {
                                     const newMin = parseFloat(e.target.value);
                                     const currentMax = ratingFilter?.max || 5;
@@ -1888,8 +1916,9 @@ const ExplorePage: React.FC = () => {
                                 type="range"
                                 min="1"
                                 max="5"
-                                step="0.1"
+                                step="1"
                                 value={ratingFilter?.max || 5}
+                                aria-label={t('common.ratingMaxLabel')}
                                 onChange={(e) => {
                                     const newMax = parseFloat(e.target.value);
                                     const currentMin = ratingFilter?.min || 1;

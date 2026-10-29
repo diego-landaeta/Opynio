@@ -132,7 +132,7 @@ const AdminReviewModerationPage: React.FC = () => {
                                         </p>
                                     )}
                                     <ReviewCard review={review} showBusinessName={true} />
-                                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1.5 sm:gap-2">
+                                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg shadow-lg flex items-center gap-1.5 sm:gap-2">
                                         {activeTab !== 'approved' && (
                                             <button
                                                 onClick={() => handleUpdateStatus(review.id, 'approved')}

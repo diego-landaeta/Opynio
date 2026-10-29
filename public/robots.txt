@@ -5,6 +5,8 @@
 
 # Reglas generales para todos los crawlers
 User-agent: *
+# Bing lo respeta (antes tenia su propio grupo con 2 s); Google lo ignora.
+Crawl-delay: 2
 Allow: /
 
 # === Países permitidos (cualquier path bajo /xx/ ya pasa por Allow: / arriba,
@@ -324,15 +326,6 @@ Disallow: /*/businesses?
 Disallow: /*/entreprises?
 Disallow: /*/aziende?
 Disallow: /*/empreses?
-
-# === Reglas específicas por bot ===
-User-agent: Googlebot
-Allow: /
-Crawl-delay: 1
-
-User-agent: Bingbot
-Allow: /
-Crawl-delay: 2
 
 # Sitemap dinámico (generado desde Supabase con todas las empresas)
 Sitemap: https://web.opynio.com/sitemap.xml

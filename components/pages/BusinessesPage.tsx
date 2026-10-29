@@ -16,7 +16,7 @@ import ForeignCountryNotice from '../ForeignCountryNotice';
 import { generateBusinessPath } from '../../utils/linkUtils';
 import { getSubcategoryKey } from '../../utils/categoryMappings';
 import { usePluralT } from '../../utils/plural';
-import { useCountryName } from '../../utils/countryName';
+import { useCountryName, useBrandName } from '../../utils/countryName';
 import { useUserErrorNotifier } from '../../utils/userFacingError';
 import { countriesSharingLanguage } from '../../utils/languageAffinity';
 
@@ -176,6 +176,7 @@ const BusinessesPage: React.FC = () => {
     // países». Antes arrancaba en «Todas» mientras la cabecera decía España.
     const { contentCountry } = useContentCountry();
     const countryNameOf = useCountryName();
+    const brandNameOf = useBrandName();
 
     // Business data state
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -218,14 +219,15 @@ const BusinessesPage: React.FC = () => {
     const requestIdRef = useRef(0);
 
     const countryInfo = useMemo(() => COUNTRIES.find(c => c.code === directoryCountry), [directoryCountry]);
-    const brandName = countryInfo ? `Opynio ${countryInfo.name}` : 'Opynio';
+    const brandName = brandNameOf(directoryCountry);
     const contentCountryName = contentCountry
         ? countryNameOf(contentCountry, COUNTRIES.find(c => c.code === contentCountry)?.name || contentCountry)
         : '';
 
     // Otra página de país: vuelve al ámbito de ese país.
     useEffect(() => { setScopeAllCountries(false); }, [contentCountry]);
-    const metaTitle = `${t('businessesPage.businessesDirectoryTitle')} - ${brandName}`;
+    // El título del directorio ya nombra la marca («… en Opynio»): se sustituye por la marca del país en vez de añadirla otra vez.
+    const metaTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
     const metaDescription = t('businessesPage.businessesDirectorySubtitle').replace('Opynio', brandName);
     const businessesTitle = t('businessesPage.businessesDirectoryTitle').replace('Opynio', brandName);
 
@@ -515,6 +517,7 @@ const BusinessesPage: React.FC = () => {
                                         max="5"
                                         step="0.1"
                                         value={ratingFilter?.min || 1}
+                                        aria-label={t('common.ratingMinLabel')}
                                         onChange={(e) => {
                                             const newMin = parseFloat(e.target.value);
                                             const currentMax = ratingFilter?.max || 5;
@@ -532,6 +535,7 @@ const BusinessesPage: React.FC = () => {
                                         max="5"
                                         step="0.1"
                                         value={ratingFilter?.max || 5}
+                                        aria-label={t('common.ratingMaxLabel')}
                                         onChange={(e) => {
                                             const newMax = parseFloat(e.target.value);
                                             const currentMin = ratingFilter?.min || 1;

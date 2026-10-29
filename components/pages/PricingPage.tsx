@@ -1,13 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Meta from '../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { supabase } from '../../services/supabaseService';
 import { getUserFacingError, useUserErrorNotifier } from '../../utils/userFacingError';
 import { COUNTRIES } from '../../constants';
-import { PLAN_MONTHLY_PRICE, ANNUAL_PRICE_FACTOR } from '../../utils/planPrices';
+import {
+    NEW_PRICING_ENABLED,
+    PRICES_INCLUDE_VAT,
+    TRIAL_MONTHS,
+    TRIAL_REMINDER_DAYS,
+    PaidPlanKey,
+    isAnnualToggleAvailable,
+    annualPrice,
+    annualSavings,
+    formatAmount,
+    formatEur,
+    maxAnnualSavingsPercent,
+    monthlyPrice,
+    priceFor,
+} from '../../utils/planPrices';
+import { isPlanFeatureComingSoon } from '../../utils/planFeatures';
 
 // FAQ Item Component
 const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ question, children }) => {
@@ -35,14 +51,19 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
 
 
 const PricingPage = () => {
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+    const [selectedCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+    // Si el anual no se puede contratar en todos los planes (falta algun Price ID
+    // en el servidor, ver AVAILABLE_BILLING_CYCLES) no se ofrece el interruptor y
+    // la pagina enseña solo el pago mensual: nadie llega a un error de pago.
+    const annualToggleAvailable = isAnnualToggleAvailable();
+    const billingCycle: 'monthly' | 'annual' = annualToggleAvailable ? selectedCycle : 'monthly';
     const { user, businesses, profile } = useAuth();
     const { notifyError, showUserError } = useUserErrorNotifier();
     const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
     const [openingPortal, setOpeningPortal] = useState(false);
     const t = useTranslation();
     const { language } = useI18n();
-    const { country } = useCountry();
+    const { contentCountry } = useContentCountry();
 
     // Si el user ya tiene al menos un negocio, "elegir plan" se interpreta como
     // upgrade del plan de la empresa existente (Stripe checkout directo) en
@@ -120,15 +141,53 @@ const PricingPage = () => {
         }
     };
 
+    // #6: desde una pantalla con candado, «Elegir plan X» llega aquí con ?plan=X. Si la cuenta ya tiene
+    // empresa, se inicia el pago de ese plan directamente (una sola vez; se quita el parametro para que
+    // volver atras no lo repita). Sin sesion o sin empresa solo se enseñan los planes, como siempre.
+    const [searchParams, setSearchParams] = ReactRouterDOM.useSearchParams();
+    const planPedido = (searchParams.get('plan') || '').toLowerCase();
+    const pagoAutoIniciado = useRef(false);
+    useEffect(() => {
+        if (pagoAutoIniciado.current) return;
+        if (!['starter', 'growth', 'pro'].includes(planPedido)) return;
+        if (!user || !hasExistingBusinesses || !primaryBusinessId) return;
+        pagoAutoIniciado.current = true;
+        const resto = new URLSearchParams(searchParams);
+        resto.delete('plan');
+        setSearchParams(resto, { replace: true });
+        if (isCurrentSubscription(planPedido)) return;
+        void handleUpgradeExistingBusiness(planPedido);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planPedido, user, hasExistingBusinesses, primaryBusinessId]);
+
+    // Prueba gratuita (solo con NEW_PRICING_ENABLED). Quien ya paga un plan no
+    // ve la promesa de «gratis» al cambiar de plan; quien no (visitante o plan
+    // free) si. La prueba de 3 meses es SIN tarjeta y empieza al registrar la
+    // empresa (issue #11): los botones dicen «Elegir plan» y no se promete un
+    // primer cobro a 0 €; el pie de la pagina lo explica.
+    // Quien ya gastó la prueba (fecha de fin en el pasado) tampoco ve la promesa, ni una cuenta con sesion que
+    // ya tenia empresa y nunca la recibio (solo se concede a la PRIMERA empresa).
+    const trialYaUsada = !!user && (profile?.trial_full_access_until
+        ? Date.parse(profile.trial_full_access_until) <= Date.now()
+        : businesses.length > 0);
+    const showTrialCopy = NEW_PRICING_ENABLED && !(user && currentPlanName && currentPlanName !== 'free') && !trialYaUsada;
+    const trialHeadlineKey = billingCycle === 'annual' ? 'pricingPage.trialHeadlineAnnual' : 'pricingPage.trialHeadline';
+    const trialHeadline = t(trialHeadlineKey, {
+        months: String(TRIAL_MONTHS),
+        starter: formatAmount(priceFor('starter', billingCycle), true),
+        growth: formatAmount(priceFor('growth', billingCycle), true),
+        pro: formatAmount(priceFor('pro', billingCycle), true),
+    });
+
     // SEO: Obtener nombre del país para títulos únicos
-    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
     const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     const plans = [
         {
             nameKey: 'pricingPage.planStarter',
             audienceKey: 'pricingPage.starterAudience',
-            price: { monthly: PLAN_MONTHLY_PRICE.starter },
+            price: { monthly: monthlyPrice('starter') },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=starter`,
             features: [
@@ -144,7 +203,7 @@ const PricingPage = () => {
         {
             nameKey: 'pricingPage.planGrowth',
             audienceKey: 'pricingPage.growthAudience',
-            price: { monthly: PLAN_MONTHLY_PRICE.growth },
+            price: { monthly: monthlyPrice('growth') },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=growth`,
             features: [
@@ -163,7 +222,7 @@ const PricingPage = () => {
         {
             nameKey: 'pricingPage.planPro',
             audienceKey: 'pricingPage.proAudience',
-            price: { monthly: PLAN_MONTHLY_PRICE.pro },
+            price: { monthly: monthlyPrice('pro') },
             ctaKey: 'pricingPage.startNow',
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=pro`,
             features: [
@@ -183,7 +242,8 @@ const PricingPage = () => {
             audienceKey: 'pricingPage.enterpriseAudience',
             priceKey: 'pricingPage.customPrice',
             ctaKey: 'pricingPage.contactSales',
-            ctaLink: `/${pathTranslations[language].support}`,
+            // Sin login: el formulario de contacto de «Sobre nosotros» (Soporte exige iniciar sesión).
+            ctaLink: `/${pathTranslations[language].about}#contacto`,
             features: [
                 { key: 'pricingPage.enterpriseFeature1', icon: 'fa-solid fa-infinity' },
                 { key: 'pricingPage.enterpriseFeature2', icon: 'fa-solid fa-paper-plane' },
@@ -202,7 +262,7 @@ const PricingPage = () => {
         <>
             <Meta
                 title={`${t('footer.pricingAndPlans')} - Opynio${countryInTitle}`}
-                description={`${t('pricingPage.findPerfectPlanSubtitle')}${countryInTitle}.`}
+                description={descriptionWithCountry(t('pricingPage.findPerfectPlanSubtitle'), countryInTitle)}
             />
             <div className="py-12">
                 {/* Header */}
@@ -213,9 +273,15 @@ const PricingPage = () => {
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-4">
                         {t('pricingPage.findPerfectPlanSubtitle')}
                     </p>
+                    {showTrialCopy && (
+                        <p className="inline-block mt-5 bg-green-50 dark:bg-green-900/30 text-brand-green font-bold text-base sm:text-lg px-4 sm:px-5 py-2 rounded-2xl">
+                            <i className="fa-solid fa-gift mr-2" aria-hidden="true"></i>{trialHeadline}
+                        </p>
+                    )}
                 </div>
 
-                {/* Billing Cycle Toggle */}
+                {/* Billing Cycle Toggle (solo si el anual esta disponible en todos los planes) */}
+                {annualToggleAvailable && (
                 <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mb-10 px-4">
                     <span className={`font-semibold transition-colors ${billingCycle === 'monthly' ? 'text-brand-dark dark:text-white' : 'text-gray-500'}`}>
                         {t('pricingPage.monthlyPayment')}
@@ -233,10 +299,11 @@ const PricingPage = () => {
                     <span className={`font-semibold transition-colors ${billingCycle === 'annual' ? 'text-brand-dark dark:text-white' : 'text-gray-500'}`}>
                         {t('pricingPage.annualPayment')}
                     </span>
-                    <span className={`bg-yellow-200 text-yellow-800 text-xs font-bold px-2.5 py-0.5 rounded-full transition-opacity duration-300 ${billingCycle === 'annual' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
-                        {t('pricingPage.save25Percent')}
+                    <span className={`bg-yellow-200 text-yellow-800 text-xs font-bold px-2.5 py-0.5 rounded-full transition-opacity duration-300 ${NEW_PRICING_ENABLED || billingCycle === 'annual' ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
+                        {NEW_PRICING_ENABLED ? t('pricingPage.saveUpToPercent', { percent: maxAnnualSavingsPercent() }) : t('pricingPage.save25Percent')}
                     </span>
                 </div>
+                )}
 
                 {/* Pricing Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start pt-8">
@@ -275,17 +342,22 @@ const PricingPage = () => {
                                             isAnnual ? (
                                                 <>
                                                     <span className="text-3xl sm:text-4xl font-extrabold text-brand-dark dark:text-gray-100">
-                                                        €{((plan.price as {monthly: number}).monthly * 12 * ANNUAL_PRICE_FACTOR).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        {formatEur(annualPrice(planName as PaidPlanKey), NEW_PRICING_ENABLED)}
                                                     </span>
                                                     <span className="text-gray-500 dark:text-gray-400 font-medium">{t('pricingPage.perYear')}</span>
                                                     <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mt-1">
-                                                        ({t('pricingPage.equivalentToPerMonth', { price: (((plan.price as {monthly: number}).monthly * 12 * ANNUAL_PRICE_FACTOR) / 12).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })})
+                                                        ({t('pricingPage.equivalentToPerMonth', { price: formatAmount(annualPrice(planName as PaidPlanKey) / 12, NEW_PRICING_ENABLED) })})
                                                     </p>
+                                                    {NEW_PRICING_ENABLED && annualSavings(planName as PaidPlanKey) > 0 && (
+                                                        <p className="text-sm font-bold text-brand-green mt-1">
+                                                            {t('pricingPage.saveAmount', { amount: formatEur(annualSavings(planName as PaidPlanKey), true) })}
+                                                        </p>
+                                                    )}
                                                 </>
                                             ) : (
                                                 <>
                                                     <span className="text-3xl sm:text-4xl font-extrabold text-brand-dark dark:text-gray-100">
-                                                        €{((plan.price as {monthly: number}).monthly).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        {formatEur((plan.price as {monthly: number}).monthly, NEW_PRICING_ENABLED)}
                                                     </span>
                                                     <span className="text-gray-500 dark:text-gray-400 font-medium">{t('pricingPage.perMonth')}</span>
                                                 </>
@@ -294,6 +366,11 @@ const PricingPage = () => {
                                             <span className="text-2xl font-bold text-brand-dark dark:text-gray-100">{t((plan as any).priceKey)}</span>
                                         )}
                                     </div>
+
+                                    {/* Plan anual: el año empieza al acabar la prueba (issue #2). */}
+                                    {showTrialCopy && isAnnual && 'price' in plan && (
+                                        <p className="-mt-2 mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t('pricingPage.trialAnnualNote')}</p>
+                                    )}
 
                                     {isCurrentSubscription(planName) ? (
                                         <button
@@ -324,12 +401,12 @@ const PricingPage = () => {
                                                     <span>{t('common.redirectingToStripe')}</span>
                                                 </>
                                             ) : (
-                                                <span>{t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>
+                                                <span>{showTrialCopy ? t('pricingPage.choosePlanCta') : t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>
                                             )}
                                         </button>
                                     ) : (
                                         <ReactRouterDOM.Link to={ctaLinkTarget} className={`w-full block text-center font-semibold py-3 px-6 rounded-lg transition-colors ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}>
-                                            {t(plan.ctaKey)}
+                                            {showTrialCopy && !isEnterprise ? t('pricingPage.choosePlanCta') : t(plan.ctaKey)}
                                         </ReactRouterDOM.Link>
                                     )}
                                 </div>
@@ -338,7 +415,7 @@ const PricingPage = () => {
                                     {plan.features.map((feature, index) => (
                                         <li key={index} className="flex items-start gap-3">
                                             <i className={`${feature.icon} text-brand-green mt-1 w-4 text-center`}></i>
-                                            <span>{t(feature.key)}</span>
+                                            <span>{t(feature.key)}{isPlanFeatureComingSoon(feature.key) && <span className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold ml-2">({t('common.comingSoon')})</span>}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -346,6 +423,15 @@ const PricingPage = () => {
                         );
                     })}
                 </div>
+
+                {NEW_PRICING_ENABLED && (
+                    <div className="max-w-3xl mx-auto mt-10 px-4 text-center text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                        {showTrialCopy && (
+                            <p>{t('pricingPage.trialFooter', { months: String(TRIAL_MONTHS), days: String(TRIAL_REMINDER_DAYS) })}</p>
+                        )}
+                        <p>{PRICES_INCLUDE_VAT ? t('pricingPage.vatIncluded') : t('pricingPage.vatExcluded')}</p>
+                    </div>
+                )}
             </div>
 
             {/* FAQ Section */}

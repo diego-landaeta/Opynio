@@ -11,6 +11,8 @@ import Meta from '../Meta';
 import Modal from '../Modal';
 import L from 'leaflet';
 import type { Plan } from '../../types';
+import { resolveBillingCycle } from '../../utils/planPrices';
+import { effectivePlan } from '../../utils/planFeatures';
 import { useI18n, pathTranslations, useTranslation, getLanguageForCountryCode } from '../../contexts/i18nContext';
 
 const AssignBusinessPage: React.FC = () => {
@@ -66,7 +68,9 @@ const AssignBusinessPage: React.FC = () => {
         // billingCycle viene de PricingPage por query string. Default mensual.
         const cycleParam = searchParams.get('billingCycle');
         if (cycleParam === 'annual' || cycleParam === 'monthly') {
-            setBillingCycle(cycleParam);
+            // Un enlace antiguo con el anual de un plan que hoy no se puede contratar
+            // (falta su Price ID, ver AVAILABLE_BILLING_CYCLES) cae al mensual.
+            setBillingCycle(resolveBillingCycle(searchParams.get('plan'), cycleParam));
         }
     }, [searchParams]);
 
@@ -77,7 +81,9 @@ const AssignBusinessPage: React.FC = () => {
         if (hasJustCreatedRef.current) return;
         if (isSubmitting) return;
 
-        const isFreePlanUser = profile?.plan === 'free';
+        // Plan EFECTIVO: durante la prueba de 90 dias (profiles.plan sigue en 'free') no hay tope de empresas,
+        // igual que en «Mis negocios (1/∞)» y en la base de datos (issue #11).
+        const isFreePlanUser = effectivePlan(profile) === 'free';
         const urlPlan = searchParams.get('plan');
 
         // Redirect if a free user with a business tries to get another free business

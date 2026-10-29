@@ -5,7 +5,8 @@ import { useNotification } from '../../contexts/NotificationContext';
 import * as ReactRouterDOM from 'react-router-dom';
 import { getBusinessByName, getBusinessBySlug, hasPendingClaim, createClaim, createBugReport, uploadBugScreenshot, BUG_SCREENSHOT_MAX_BYTES, BUG_SCREENSHOT_TYPES, createReviewAppeal, sendSupportEmail, getRejectedReviewsForUser, createSupportTicket, isSupportError, SUPPORT_TICKET_TYPES, USER_SELECTABLE_TICKET_TYPES, SUPPORT_SUBJECT_MAX, SUPPORT_BODY_MAX, type SupportTicketType } from '../../services/supabaseService';
 import { useTranslation, useI18n, localizedPathOrRoot } from '../../contexts/i18nContext';
-import { useCountry } from '../../contexts/CountryContext';
+import { useCountry, useContentCountry } from '../../contexts/CountryContext';
+import { descriptionWithCountry } from '../../utils/metaText';
 import { COUNTRIES } from '../../constants';
 import { useUserErrorNotifier } from '../../utils/userFacingError';
 
@@ -44,10 +45,11 @@ const SupportPage: React.FC = () => {
     const { notifyError } = useUserErrorNotifier();
     const t = useTranslation();
     const { country } = useCountry();
+  const { contentCountry } = useContentCountry();
     const { language } = useI18n();
 
     // SEO: Obtener nombre del país para títulos únicos
-    const countryName = COUNTRIES.find(c => c.code === country)?.name || '';
+    const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
     const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
     // «Abrir una solicitud» es la pestaña por defecto: el contacto con
@@ -243,6 +245,13 @@ const SupportPage: React.FC = () => {
         e.preventDefault();
         if (!user) {
             showNotification(t('supportPage.mustLogInToReportBug'), 'error');
+            return;
+        }
+        // El `required` nativo acepta «   »: se exige texto de verdad.
+        if (!bugFormData.description.trim()) {
+            setBugFormData(prev => ({ ...prev, description: '' }));
+            showNotification(t('supportPage.bugDescriptionRequired'), 'error');
+            document.getElementById('description')?.focus();
             return;
         }
         setIsSubmitting(true);
@@ -441,7 +450,7 @@ const SupportPage: React.FC = () => {
 
     return (
         <>
-            <Meta title={`${t('supportPage.helpAndSupportTitle')} - Opynio${countryInTitle}`} description={`${t('supportPage.helpAndSupportSubtitle')}${countryInTitle}.`} />
+            <Meta title={`${t('supportPage.helpAndSupportTitle')} - Opynio${countryInTitle}`} description={descriptionWithCountry(t('supportPage.helpAndSupportSubtitle'), countryInTitle)} />
             <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-10">
                     <h1 className="text-4xl font-extrabold text-brand-dark dark:text-white">{t('supportPage.helpAndSupportTitle')}{countryInTitle}</h1>

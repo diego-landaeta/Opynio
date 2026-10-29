@@ -26,7 +26,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@^16.2.0?target=deno&no-check";
 import { runCheckoutCompletion } from "./checkoutCompletion.ts";
-import { pickRemainingPrimary, shouldSyncProfile, type SubscriptionRow } from "./subscriptionSync.ts";
+import { invoiceSubscriptionId, pickRemainingPrimary, shouldSyncProfile, trialAccessUntil, type SubscriptionRow } from "./subscriptionSync.ts";
+import { decideRefundAction, isFullRefund, storedAction } from "./refundSync.ts";
 import { LIVE_SUBSCRIPTION_STATUSES, planNameFromPrice } from "../_shared/stripePlans.ts";
 import { businessNameCandidates } from "../_shared/businessName.ts";
 
@@ -207,7 +208,7 @@ async function syncProfileFromSubscription(
   if (!planName) return;
   const { error: profErr } = await supabaseAdmin
     .from("profiles")
-    .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: endISO })
+    .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: endISO, trial_full_access_until: trialAccessUntil(subscription) })
     .eq("id", userId);
   if (profErr) throw profErr;
 }
@@ -432,6 +433,16 @@ serve(async (req) => {
         );
         if (rpcError) throw rpcError;
 
+        // Prueba gratuita con acceso completo (issue #11): la RPC escribe el plan elegido; la fecha
+        // de fin del acceso completo (solo mientras la suscripcion esta en 'trialing') se guarda aparte.
+        {
+          const { error: trialErr } = await supabaseAdmin
+            .from("profiles")
+            .update({ trial_full_access_until: trialAccessUntil(subscription) })
+            .eq("id", userId);
+          if (trialErr) throw trialErr;
+        }
+
         console.log(
           `✅ checkout.session.completed: plan='${planName}' user=${userId} new_business=${isNewBusiness} retry=${alreadyProcessed}` +
             (droppedGoogleMapsUrl ? ` google_maps_url_descartada=${droppedGoogleMapsUrl}` : "") +
@@ -519,7 +530,7 @@ serve(async (req) => {
 
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string | null;
+        const subscriptionId = invoiceSubscriptionId(invoice);
         if (!subscriptionId) {
           console.log("invoice.paid: no subscription attached, ignoring.");
           break;
@@ -578,7 +589,7 @@ serve(async (req) => {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string | null;
+        const subscriptionId = invoiceSubscriptionId(invoice);
         if (!subscriptionId) {
           console.log("invoice.payment_failed: no subscription attached, ignoring.");
           break;
@@ -716,7 +727,7 @@ serve(async (req) => {
           if (planName) {
             const { error: profErr } = await supabaseAdmin
               .from("profiles")
-              .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: otherEnd })
+              .update({ plan: planName, billing_cycle: billingCycle, plan_expires_at: otherEnd, trial_full_access_until: trialAccessUntil(other) })
               .eq("id", subRow.user_id);
             if (profErr) throw profErr;
           }
@@ -728,11 +739,108 @@ serve(async (req) => {
 
         const { error: profErr } = await supabaseAdmin
           .from("profiles")
-          .update({ plan: "free", billing_cycle: null, plan_expires_at: null })
+          .update({ plan: "free", billing_cycle: null, plan_expires_at: null, trial_full_access_until: null })
           .eq("id", subRow.user_id);
         if (profErr) throw profErr;
 
         console.log(`✅ customer.subscription.deleted: ${subscription.id}.`);
+        break;
+      }
+
+      case "charge.refunded":
+      case "charge.dispute.created": {
+        // Dinero devuelto al cliente: reembolso hecho en Stripe o contracargo (disputa). Ninguno de los dos cancela la
+        // suscripcion: sin esto Opynio la seguia mostrando activa y el cliente, que ya habia recuperado su dinero, volvia a
+        // pagar en la siguiente renovacion (ver refundSync.ts).
+        // El evento llega con la version de API del endpoint (la de la cuenta), en la que el cobro ya no trae su factura;
+        // el SDK va fijado a 2024-06-20, asi que se recupera el cobro con esa version para llegar a factura y suscripcion.
+        const esDisputa = event.type === "charge.dispute.created";
+        const evtObj = event.data.object as { id: string; charge?: string | { id: string } | null; amount?: number };
+        const chargeId = esDisputa ? (typeof evtObj.charge === "string" ? evtObj.charge : evtObj.charge?.id) : evtObj.id;
+        if (!chargeId) throw new Error(`${event.type} ${event.id}: sin id de cobro.`);
+        const charge = await stripe.charges.retrieve(chargeId);
+        // Importe devuelto: lo reembolsado, o lo disputado si es un contracargo (lo que sea mayor).
+        const devuelto = esDisputa ? Math.max(evtObj.amount ?? 0, charge.amount_refunded) : charge.amount_refunded;
+        const tipo = esDisputa ? "dispute" : "refund";
+        const invoiceId = typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id ?? null;
+        let subscriptionId: string | null = null;
+        let subscriptionStatus: string | null = null;
+        let latestInvoiceId: string | null = null;
+        if (invoiceId) {
+          const invoice = await stripe.invoices.retrieve(invoiceId);
+          subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id ?? null;
+          if (subscriptionId) {
+            try {
+              const sub = await stripe.subscriptions.retrieve(subscriptionId);
+              subscriptionStatus = sub.status;
+              latestInvoiceId = typeof sub.latest_invoice === "string" ? sub.latest_invoice : sub.latest_invoice?.id ?? null;
+            } catch (err) {
+              // deno-lint-ignore no-explicit-any
+              if ((err as any)?.code !== "resource_missing") throw err;
+            }
+          }
+        }
+
+        const accion = decideRefundAction({
+          chargeAmount: charge.amount,
+          amountRefunded: devuelto,
+          invoiceId,
+          subscriptionId,
+          subscriptionStatus,
+          latestInvoiceId,
+          autoCancel: Deno.env.get("REFUND_AUTO_CANCEL") === "true",
+        });
+        if (accion === "ignore") {
+          console.log(`↩️  charge.refunded: ${charge.id} no es de una suscripcion; nada que sincronizar.`);
+          break;
+        }
+
+        const { data: subRow } = await supabaseAdmin
+          .from("subscriptions")
+          .select("user_id")
+          .eq("id", subscriptionId!)
+          .maybeSingle();
+
+        // Primero se anota (con 'alert' si se va a cancelar) y despues se cancela: si la cancelacion falla, queda el aviso
+        // y Stripe reintenta el evento; nunca queda un reembolso sin registrar.
+        const registro = {
+          charge_id: charge.id,
+          kind: tipo,
+          invoice_id: invoiceId,
+          subscription_id: subscriptionId,
+          user_id: subRow?.user_id ?? null,
+          amount: charge.amount,
+          amount_refunded: devuelto,
+          currency: charge.currency,
+          full: isFullRefund(charge.amount, devuelto),
+          action: storedAction(accion, false),
+          refunded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        // Un segundo evento del mismo cobro (otro reembolso, una actualizacion) llega con la suscripcion ya cancelada y se
+        // decidiria «anotar»: no se rebaja una fila que ya consta como cancelada.
+        const { data: previo } = await supabaseAdmin
+          .from("stripe_refunds")
+          .select("action")
+          .eq("charge_id", charge.id)
+          .eq("kind", tipo)
+          .maybeSingle();
+        if (previo?.action === "cancelled") registro.action = "cancelled";
+        const { error: refErr } = await supabaseAdmin.from("stripe_refunds").upsert(registro, { onConflict: "charge_id,kind" });
+        if (refErr) throw refErr;
+
+        if (accion === "cancel") {
+          // Cancelacion inmediata sin prorrateo ni factura final. Stripe emite customer.subscription.deleted y el manejador
+          // de arriba baja al usuario a free (si no le queda otra suscripcion viva).
+          await stripe.subscriptions.cancel(subscriptionId!, { prorate: false, invoice_now: false });
+          const { error: cancErr } = await supabaseAdmin
+            .from("stripe_refunds")
+            .update({ action: "cancelled", updated_at: new Date().toISOString() })
+            .eq("charge_id", charge.id)
+            .eq("kind", tipo);
+          if (cancErr) throw cancErr;
+        }
+        console.log(`💸 ${event.type}: ${charge.id} (${devuelto}/${charge.amount} ${charge.currency}) sub ${subscriptionId} -> ${accion}.`);
         break;
       }
 

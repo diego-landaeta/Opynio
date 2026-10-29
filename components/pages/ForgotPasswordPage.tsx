@@ -47,6 +47,7 @@ const ForgotPasswordPage: React.FC = () => {
             <Meta
                 title={t('forgotPasswordPage.title') + " - Opynio"}
                 description="¿Olvidaste tu contraseña de Opynio? Introduce tu correo electrónico y te enviaremos un enlace para restablecerla de forma segura."
+                noindexFollow
             />
             <div className="max-w-md mx-auto bg-white dark:bg-zinc-800 p-5 sm:p-6 md:p-8 rounded-xl shadow-lg mt-6 sm:mt-8 md:mt-10">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-brand-dark dark:text-gray-100">{t('forgotPasswordPage.title')}</h1>

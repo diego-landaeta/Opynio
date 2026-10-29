@@ -8,6 +8,7 @@ import { getReviewsForUser, getMySupportTickets, supabase } from '../../services
 import ReviewCard from '../ReviewCard';
 import RequestReviewDeletionModal, { reviewIdFromDeletionSubject } from '../RequestReviewDeletionModal';
 import MySupportTickets from '../support/MySupportTickets';
+import TrialStatusBanner from '../TrialStatusBanner';
 import Meta from '../Meta';
 import LazyRender from '../LazyRender';
 import { useTranslation, useI18n, localizedPathOrRoot, toBcp47 } from '../../contexts/i18nContext';
@@ -191,9 +192,9 @@ const ProfilePage: React.FC = () => {
                                 <span>{profile.name?.charAt(0).toUpperCase()}</span>
                             )}
                         </div>
-                        <div className="flex-grow">
-                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{profile.name}</h1>
-                            <p className="text-gray-500 dark:text-gray-400">
+                        <div className="flex-grow min-w-0 max-w-full">
+                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 break-words">{profile.name}</h1>
+                            <p className="text-gray-500 dark:text-gray-400 break-words [overflow-wrap:anywhere]">
                                 {profile.username && <span className="font-semibold">@{profile.username}</span>}
                                 {profile.username && user.email && <span className="mx-2">&middot;</span>}
                                 {user.email}
@@ -285,6 +286,7 @@ const ProfilePage: React.FC = () => {
                                     {t('profilePage.seeAllPlans')} <i className="fa-solid fa-arrow-right ml-1"></i>
                                 </ReactRouterDOM.Link>
                             </div>
+                            <TrialStatusBanner className="mb-4" />
                             {isOnV2 || paidPlan ? (
                                 <button
                                     type="button"

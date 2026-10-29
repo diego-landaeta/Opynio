@@ -70,3 +70,34 @@ export async function enviarBrevo(apiKey: string, c: CorreoBrevo): Promise<void>
     throw new Error(`Brevo ${r.status}: ${texto}`);
   }
 }
+
+// Cupo de la cuenta de Brevo. La cuenta es plan Free (300 correos al dia) y la comparten
+// varios sistemas de ISEIE: con el cupo agotado Brevo contesta 201 a /smtp/email pero no
+// envia ni registra nada, y el panel decia «Enviada» (issue #5). GET /v3/account trae en
+// plan[] una entrada con creditsType «sendLimit» y los envios que quedan hoy.
+// Devuelve null si no se puede saber (API caida, plan sin tope diario, respuesta rara):
+// en ese caso NO se bloquea nada, para que un fallo de esta comprobacion nunca impida enviar.
+export function enviosRestantesDeCuenta(cuenta: unknown): number | null {
+  const planes = (cuenta as { plan?: unknown })?.plan;
+  if (!Array.isArray(planes)) return null;
+  for (const p of planes) {
+    const e = p as { creditsType?: unknown; credits?: unknown };
+    if (e?.creditsType === "sendLimit" && typeof e.credits === "number" && Number.isFinite(e.credits) && e.credits >= 0) {
+      return Math.floor(e.credits);
+    }
+  }
+  return null;
+}
+
+export async function enviosRestantesBrevo(apiKey: string): Promise<number | null> {
+  try {
+    const r = await fetch("https://api.brevo.com/v3/account", {
+      headers: { "api-key": apiKey, accept: "application/json" },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    return enviosRestantesDeCuenta(await r.json());
+  } catch {
+    return null;
+  }
+}

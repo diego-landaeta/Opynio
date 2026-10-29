@@ -81,3 +81,33 @@ export async function pickRemainingPrimary(
   }
   return { primary: null, stale };
 }
+
+/**
+ * Id de la suscripcion de una factura que llega en un EVENTO. El endpoint de Stripe de Opynio usa la API 2025-09-30, en la
+ * que la factura ya no trae `subscription`: esta en `parent.subscription_details.subscription`. Con la API antigua
+ * (2024-06-20, la del SDK) sigue en `subscription`. Sin esto, invoice.paid e invoice.payment_failed decian «sin
+ * suscripcion» y no hacian nada.
+ */
+export function invoiceSubscriptionId(invoice: unknown): string | null {
+  const inv = invoice as { subscription?: unknown; parent?: { subscription_details?: { subscription?: unknown } | null } | null } | null | undefined;
+  const pick = (v: unknown): string | null => {
+    if (typeof v === "string" && v) return v;
+    const id = (v as { id?: unknown } | null | undefined)?.id;
+    return typeof id === "string" && id ? id : null;
+  };
+  return pick(inv?.subscription) ?? pick(inv?.parent?.subscription_details?.subscription);
+}
+
+/**
+ * Fin del acceso completo de la prueba gratuita (issue #11), en ISO, mientras la
+ * suscripcion esta en 'trialing'; null en cualquier otro caso (activa, pasada de
+ * pago, cancelada...). Es lo que se guarda en profiles.trial_full_access_until:
+ * la base de datos da el plan mas alto mientras esa fecha este en el futuro
+ * (plan_efectivo, migracion 20261026100000). profiles.plan NO cambia: sigue siendo
+ * el plan elegido, que es el que se cobrara al acabar la prueba.
+ */
+export function trialAccessUntil(sub: { status: string; trial_end?: number | null }): string | null {
+  return sub.status === "trialing" && typeof sub.trial_end === "number" && Number.isFinite(sub.trial_end) && sub.trial_end > 0
+    ? new Date(sub.trial_end * 1000).toISOString()
+    : null;
+}

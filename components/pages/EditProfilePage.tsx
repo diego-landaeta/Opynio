@@ -159,6 +159,13 @@ const EditProfilePage: React.FC = () => {
         e.preventDefault();
         if (!user) return;
 
+        // Un nombre vacío o solo con espacios dejaba el perfil sin título ni inicial.
+        if (!name.trim()) {
+            setSuccess(null);
+            setError(t('editProfile.nameRequired'));
+            return;
+        }
+
         if (!profile?.username) {
             if (username.trim().length < 3) {
                 setError(t('editProfile.usernameMinChars'));
@@ -363,6 +370,7 @@ const EditProfilePage: React.FC = () => {
                         <input
                             id="name"
                             type="text"
+                            maxLength={100}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full p-3 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"

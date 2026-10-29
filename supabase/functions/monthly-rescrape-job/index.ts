@@ -3,6 +3,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeadersFor } from '../_shared/cors.ts'
+import { cronAuthorized } from '../_shared/cronAuth.ts'
 
 // Declaraciones de tipos para el entorno de Deno en Edge Functions.
 declare const Deno: {
@@ -40,13 +41,9 @@ serve(async (req) => {
 
   // 1. Verificacion de seguridad ANTES de tocar nada. Si el secreto no esta
   //    configurado se falla cerrado (401) en vez de lanzar un 500 que revele config.
-  const CRON_SECRET = Deno.env.get('CRON_SECRET');
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!CRON_SECRET) {
-    console.error('monthly-rescrape-job: CRON_SECRET no configurado; peticion rechazada.');
-    return json({ error: 'No autorizado' }, 401);
-  }
-  if (!safeEqual(authHeader, `Bearer ${CRON_SECRET}`)) {
+  // Vale el secreto del entorno (CRON_SECRET) o el de Vault (_shared/cronAuth.ts); sin ninguno falla cerrado.
+  const adminAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+  if (!(await cronAuthorized(req, Deno.env.get('CRON_SECRET'), adminAuth))) {
     return json({ error: 'No autorizado' }, 401);
   }
 

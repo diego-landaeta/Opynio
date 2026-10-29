@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // FIX: Changed react-router-dom imports to a namespace import to resolve module resolution issues.
 import * as ReactRouterDOM from 'react-router-dom';
-import { signUpUser, signUpBusiness, signInWithGoogle, signInWithGoogleForBusiness, isUsernameTaken, getBusinessByName } from '../../services/supabaseService';
+import { signUpUser, signUpBusiness, signInWithGoogle, signInWithGoogleForBusiness, isUsernameTaken, getBusinessByName, businessNameExists } from '../../services/supabaseService';
+import { cleanBusinessName } from '../../utils/businessName';
 import Modal from '../Modal';
 import Meta from '../Meta';
 import { COUNTRIES } from '../../constants';
@@ -117,20 +118,26 @@ const RegisterPage: React.FC = () => {
         try {
             console.log('[signup] handleSubmit start', { registerType, email: formData.email });
             if (registerType === 'user') {
-                if (!formData.name || !formData.username) {
+                if (!formData.name.trim() || !formData.username) {
                     setError(t('registerPage.allFieldsRequiredError'));
                     return;
                 }
                 await signUpUser(formData.email, formData.password, formData.name, formData.username);
                 console.log('[signup] user signup completed');
             } else {
-                 if (!formData.name || !formData.username || !formData.businessName) {
+                 if (!formData.name.trim() || !formData.username || !formData.businessName) {
                     setError(t('registerPage.allFieldsRequiredError'));
                     return;
                 }
 
-                // Check if business name already exists before trying to sign up
-                const existingBusiness = await getBusinessByName(formData.businessName.trim());
+                // Espacios repetidos fuera: «Taller   Gratis  QA» tiene que chocar con
+                // «Taller Gratis QA», y asi se guarda tambien.
+                const businessNameLimpio = cleanBusinessName(formData.businessName);
+                // Check if business name already exists before trying to sign up.
+                // businessNameExists tambien compara sin tildes («Academía» = «Academia»);
+                // getBusinessByName se queda como estaba.
+                const existingBusiness = (await getBusinessByName(businessNameLimpio))
+                    || (await businessNameExists(businessNameLimpio));
                 if (existingBusiness) {
                     console.warn('[signup] business name already taken', { businessName: formData.businessName });
                     setError(
@@ -154,7 +161,7 @@ const RegisterPage: React.FC = () => {
                     }));
                 }
                 localStorage.setItem('opynio_pending_business_data', JSON.stringify({
-                    name: formData.businessName.trim(),
+                    name: businessNameLimpio,
                     country: formData.country,
                 }));
                 console.log('[signup] business flag + pending data persisted to localStorage', {
@@ -166,7 +173,7 @@ const RegisterPage: React.FC = () => {
                 await signUpBusiness(
                     formData.email,
                     formData.password,
-                    formData.businessName,
+                    businessNameLimpio,
                     formData.username,
                     formData.country,
                     formData.name,
@@ -240,6 +247,7 @@ const RegisterPage: React.FC = () => {
             <Meta
                 title={t('meta.registerTitle')}
                 description={t('meta.registerDesc')}
+                noindexFollow
             />
             <div className="max-w-[95vw] sm:max-w-md mx-auto bg-white dark:bg-zinc-800 p-4 sm:p-6 md:p-8 rounded-xl shadow-lg mt-4 sm:mt-8 md:mt-10">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-brand-dark dark:text-gray-100">{t('registerPage.title')}</h1>
@@ -260,7 +268,7 @@ const RegisterPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                     <div>
                         <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{registerType === 'user' ? t('registerPage.yourFullName') : t('registerPage.yourNameContact')}</label>
-                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required placeholder={registerType === 'business' ? t('common.placeholders.businessName') : t('registerPage.fullNamePlaceholder')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
+                        <input id="name" type="text" value={formData.name} onChange={handleInputChange} required maxLength={100} placeholder={t('registerPage.fullNamePlaceholder')} className="w-full p-2.5 sm:p-3 text-sm sm:text-base border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent bg-transparent text-gray-900 dark:text-gray-100"/>
                     </div>
 
                     <div>

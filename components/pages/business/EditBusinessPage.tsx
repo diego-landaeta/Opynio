@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useBusinessDashboard } from '../../../contexts/BusinessDashboardContext';
-import { updateBusinessProfile } from '../../../services/supabaseService';
+import { updateBusinessProfile, businessNameExists } from '../../../services/supabaseService';
+import { cleanBusinessName, normalizeBusinessNameKey, isBusinessNameConflict } from '../../../utils/businessName';
 import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
 import type { BusinessHours, Json, Business, Sede } from '../../../types';
@@ -14,7 +15,7 @@ import { useCountryName } from '../../../utils/countryName';
 import { useCountry } from '../../../contexts/CountryContext';
 import { useUserErrorNotifier } from '../../../utils/userFacingError';
 import SectionLock from './dashboard/SectionLock';
-import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields } from '../../../utils/planFeatures';
+import { planNameKey, PROFILE_PAID_MIN_PLAN, canEditPaidProfileFields, withoutPaidProfileFields, effectivePlan } from '../../../utils/planFeatures';
 import { businessUrlId } from '../../../utils/slugify';
 
 const orderedDays: (keyof BusinessHours)[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -379,7 +380,7 @@ const EditBusinessPage: React.FC = () => {
     const { language } = useI18n();
     const { country: urlCountry } = useCountry();
     // Plan del USUARIO (profiles.plan): logo, redes y sedes son de pago.
-    const paidFieldsUnlocked = canEditPaidProfileFields(profile?.plan);
+    const paidFieldsUnlocked = canEditPaidProfileFields(effectivePlan(profile));
     const pricingHref = localizedPath('pricing', language, urlCountry);
 
     const [formData, setFormData] = useState({
@@ -568,6 +569,21 @@ const EditBusinessPage: React.FC = () => {
         setLoading(true);
 
         try {
+            // Renombrar: el nombre no puede ser el de OTRA empresa (en produccion
+            // es UNIQUE y el error salia como «No se pudo actualizar»). Si no lo
+            // ha tocado se envia tal cual, para no cambiar un nombre guardado.
+            const nombreCambiado = formData.name !== business.name;
+            const nombreAGuardar = nombreCambiado ? cleanBusinessName(formData.name) : formData.name;
+            if (nombreCambiado && nombreAGuardar
+                && normalizeBusinessNameKey(nombreAGuardar) !== normalizeBusinessNameKey(business.name)
+                && await businessNameExists(nombreAGuardar, business.id)) {
+                showNotification(t('businessWizard.errNameTaken'), 'error');
+                // El campo esta arriba y el boton abajo: se lleva el foco al nombre.
+                document.getElementById('name')?.focus();
+                setLoading(false);
+                return;
+            }
+
             const social_links = {
                 twitter: formData.twitter.trim(),
                 instagram: formData.instagram.trim(),
@@ -593,7 +609,7 @@ const EditBusinessPage: React.FC = () => {
             // (una empresa que bajo de plan conserva lo que tenia) ni se pueden
             // estrenar desde aqui.
             const updates = withoutPaidProfileFields({
-                name: formData.name,
+                name: nombreAGuardar,
                 website_url: formData.website_url,
                 social_links: Object.values(social_links).some(Boolean) ? social_links : null,
                 horarios: Object.keys(cleanedHorarios).length > 0 ? (cleanedHorarios as unknown as Json) : null,
@@ -608,7 +624,7 @@ const EditBusinessPage: React.FC = () => {
                 country: formData.country,
                 sedes: otherSedes.length > 0 ? otherSedes as unknown as Json : null,
                 offers_international_services: offersInternational,
-            }, profile?.plan);
+            }, effectivePlan(profile));
 
             const updatedBusiness = await updateBusinessProfile(business.id, updates);
 
@@ -637,7 +653,13 @@ const EditBusinessPage: React.FC = () => {
             // Traducido y con accion (Soporte, Iniciar sesion...). Antes salia el
             // texto de PostgREST en un recuadro arriba del formulario, lejos del
             // boton de guardar.
-            await notifyError(err, { fallbackKey: 'editBusiness.errorUpdating' });
+            if (isBusinessNameConflict(err)) {
+                // Otra empresa se quedo con el nombre entre la comprobacion y el guardado.
+                showNotification(t('businessWizard.errNameTaken'), 'error');
+                document.getElementById('name')?.focus();
+            } else {
+                await notifyError(err, { fallbackKey: 'editBusiness.errorUpdating' });
+            }
         } finally {
             setLoading(false);
         }
@@ -689,7 +711,7 @@ const EditBusinessPage: React.FC = () => {
                             <div className="flex flex-col xs:flex-row items-start xs:items-center gap-3 sm:gap-4">
                                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gray-100 dark:bg-zinc-700 flex-shrink-0 overflow-hidden">
                                     {formData.logo_url ? (
-                                        <img src={formData.logo_url} alt="Vista previa del logo" width={80} height={80} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                        <img src={formData.logo_url} alt={t('common.logoPreviewAlt')} width={80} height={80} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-zinc-500">
                                             <i className="fa-solid fa-store text-2xl sm:text-3xl"></i>

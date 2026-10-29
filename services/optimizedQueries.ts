@@ -4,7 +4,7 @@ import { supabase, attachProfiles, fetchAllPages } from './supabaseService';
 export const getLatestBusinessesOptimized = async (limit: number = 5, country?: string) => {
   let query = supabase
     .from('businesses')
-    .select('id, name, category, country, created_at, sedes')
+    .select('id, name, slug, category, country, created_at, sedes')
     .order('created_at', { ascending: false })
     .limit(limit);
   
@@ -30,7 +30,7 @@ export const getRandomCompaniesOptimized = async (limit: number = 20, country?: 
   // Step 1: Get businesses filtered by country
   let businessQuery = supabase
     .from('businesses')
-    .select('id, name, country, logo_url, logo_tone, category, sedes')
+    .select('id, name, slug, country, logo_url, logo_tone, category, sedes')
     .limit(50);
 
   if (country) {
@@ -138,7 +138,7 @@ export const getFeaturedReviewsOptimized = async (country?: string, limit: numbe
 
     let query = supabase
       .from('reviews')
-      .select('id, rating, review_text, created_at, user_id, business_id, title, image_urls, audio_url, source, original_author_name, helpful_votes, not_helpful_votes, businesses!inner(id, name, country, category, logo_url, logo_tone)')
+      .select('id, rating, review_text, created_at, user_id, business_id, title, image_urls, audio_url, source, original_author_name, helpful_votes, not_helpful_votes, businesses!inner(id, name, slug, country, category, logo_url, logo_tone)')
       .eq('status', 'approved')
       .lte('created_at', new Date().toISOString());
     if (businessIds) query = query.in('business_id', businessIds);
@@ -472,7 +472,7 @@ export const searchBusinessesOptimized = async (searchTerm: string, filters: any
   const data = await fetchAllPages(() => {
     let query = supabase
       .from('businesses')
-      .select('id, name, category, country, logo_url, logo_tone, description, sedes')
+      .select('id, name, slug, category, country, logo_url, logo_tone, description, sedes')
       .order('name')
       .order('id');
 

@@ -113,7 +113,10 @@ const RegisterPage = lazy(() => import('./components/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./components/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./components/pages/ResetPasswordPage'));
 const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
+const AdminLayout = lazy(() => import('./components/pages/admin/AdminLayout'));
 const AdminDashboardPage = lazy(() => import('./components/pages/admin/AdminDashboardPage'));
+const AdminPerformancePage = lazy(() => import('./components/pages/admin/AdminPerformancePage'));
+const AdminPaymentsPage = lazy(() => import('./components/pages/admin/AdminPaymentsPage'));
 const CommunityPage = lazy(() => import('./components/pages/CommunityPage'));
 const BusinessDashboardPage = lazy(() => import('./components/pages/business/BusinessDashboardPage'));
 const BusinessListPage = lazy(() => import('./components/pages/business/BusinessListPage'));
@@ -505,10 +508,10 @@ const App = () => {
     <ErrorBoundary>
     <ThemeProvider>
         <NotificationProvider>
-        <ConfirmProvider>
             <AuthProvider>
                 <CountryProvider>
                     <I18nProvider>
+                    <ConfirmProvider>
                         <BrowserRouter>
                             <ScrollToTop />
                             <Routes>
@@ -584,7 +587,11 @@ const App = () => {
                                     
                                     <Route path="admin" element={<AdminRoute><Outlet /></AdminRoute>}>
                                         <Route index element={<Navigate to="panel" replace />} />
+                                        {/* Capa comun: el lateral del panel se queda en TODOS los apartados de /admin */}
+                                        <Route element={<AdminLayout />}>
                                         <Route path="panel" element={<AdminDashboardPage />} />
+                                        <Route path="rendimiento" element={<AdminPerformancePage />} />
+                                        <Route path="pagos" element={<AdminPaymentsPage />} />
                                         <Route path="empresa/editar/:businessId" element={<AdminEditBusinessPage />} />
                                         <Route path="empresa/crear" element={<AdminCreateBusinessPage />} />
                                         <Route path="scraping" element={<AdminScrapingPage />} />
@@ -598,6 +605,7 @@ const App = () => {
                                         <Route path="enterprise" element={<AdminEnterprisePage />} />
                                         <Route path="destacados" element={<AdminFeaturedBusinessesPage />} />
                                         <Route path="urls" element={<AdminUrlManagerPage />} />
+                                        </Route>
                                     </Route>
 
                                     {/* Legacy redirects */}
@@ -680,10 +688,10 @@ const App = () => {
                                 </Route>
                             </Routes>
                         </BrowserRouter>
+                    </ConfirmProvider>
                     </I18nProvider>
                 </CountryProvider>
             </AuthProvider>
-        </ConfirmProvider>
         </NotificationProvider>
     </ThemeProvider>
     </ErrorBoundary>

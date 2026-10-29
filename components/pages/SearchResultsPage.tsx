@@ -79,7 +79,7 @@ const BusinessResultCard: React.FC<{ business: BusinessSearchResult }> = React.m
 });
 
 const SearchResultsPage: React.FC = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     // Sin espacios alrededor: «  vitta  » (autocorrector del movil) no encontraba nada.
     const query = (searchParams.get('q') || '').trim();
     const t = useTranslation();
@@ -91,6 +91,18 @@ const SearchResultsPage: React.FC = () => {
     const [businessTotal, setBusinessTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Caja para buscar o afinar desde esta misma pagina (sobre todo con la URL
+    // vacia, donde antes solo salia «0 empresas encontradas»).
+    const [draft, setDraft] = useState(query);
+    const [draftEmpty, setDraftEmpty] = useState(false);
+    useEffect(() => { setDraft(query); }, [query]);
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const next = draft.trim();
+        if (!next) { setDraft(''); setDraftEmpty(true); return; }
+        setDraftEmpty(false);
+        setSearchParams({ q: next });
+    };
 
     useEffect(() => {
         if (!query) {
@@ -139,9 +151,29 @@ const SearchResultsPage: React.FC = () => {
             />
             <div className="max-w-4xl mx-auto px-4 sm:px-0">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 dark:text-gray-100">{t('searchResults')}</h1>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 sm:mb-8">{t('showingResultsFor', { query })}</p>
+                {query && <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4 sm:mb-5">{t('showingResultsFor', { query })}</p>}
 
-                {loading ? (
+                <form onSubmit={handleSubmit} role="search" className="max-w-xl flex items-center shadow-sm rounded-lg bg-white dark:bg-zinc-800 border dark:border-zinc-700 overflow-hidden mb-2">
+                    <input
+                        type="search"
+                        value={draft}
+                        onChange={(e) => { setDraft(e.target.value); if (draftEmpty) setDraftEmpty(false); }}
+                        placeholder={t('homepage.searchPlaceholder')}
+                        aria-label={t('homepage.searchPlaceholder')}
+                        aria-invalid={draftEmpty || undefined}
+                        aria-describedby={!query || draftEmpty ? 'search-page-hint' : undefined}
+                        className="w-full text-sm sm:text-base p-2.5 sm:p-3 border-r border-gray-200 dark:border-zinc-600 focus:ring-2 focus:ring-brand-green focus:outline-none pl-3 sm:pl-4 bg-transparent text-gray-900 dark:text-gray-100"
+                    />
+                    <button type="submit" className="bg-brand-green text-white hover:bg-opacity-90 text-lg px-4 sm:px-5 self-stretch transition-colors flex-shrink-0" aria-label={t('homepage.searchButton')}>
+                        <i className="fas fa-search" aria-hidden="true"></i>
+                    </button>
+                </form>
+                {(!query || draftEmpty) && (
+                    <p id="search-page-hint" role={draftEmpty ? 'alert' : undefined} className={`text-sm sm:text-base mb-6 sm:mb-8 ${draftEmpty ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>{t('homepage.searchEmptyHint')}</p>
+                )}
+                {query && <div className="mb-4 sm:mb-6" />}
+
+                {!query ? null : loading ? (
                     <div className="flex justify-center items-center h-64"><Spinner /></div>
                 ) : error ? (
                     <div className="text-center text-red-500 bg-red-50 p-4 sm:p-6 rounded-lg text-sm sm:text-base">{error}</div>

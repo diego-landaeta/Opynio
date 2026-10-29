@@ -341,7 +341,9 @@ const AdminCreateBusinessPage: React.FC = () => {
                     <div><label className="block text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{t('adminCreateBusiness.schedule')}</label><div className="p-4 border dark:border-zinc-700 rounded-xl shadow-sm">{orderedDays.map(day=><DaySchedule key={day} day={day} value={horarios[day] ?? 'cerrado'} onChange={handleHorariosChange} />)}</div></div>
                     <div className="pt-4 flex items-center justify-end gap-4 border-t dark:border-zinc-700">
                         <ReactRouterDOM.Link to="/admin/panel" className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">{t('common.cancel')}</ReactRouterDOM.Link>
-                        <button type="submit" disabled={loading || !formData.name || !formData.category} className="bg-brand-green text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-400 flex items-center justify-center gap-2">
+                        {/* Con el slug ocupado o invalido (aviso rojo de arriba) no se envia: antes el alta
+                            seguia, fallaba con «duplicate key…» o se creaba con otro slug sin avisar. */}
+                        <button type="submit" disabled={loading || !formData.name || !formData.category || slugAvailable === false || checkingSlug} className="bg-brand-green text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-400 flex items-center justify-center gap-2">
                             {loading && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
                             <span>{loading ? t('adminCreateBusiness.creating') : t('adminCreateBusiness.saveAndContinue')}</span>
                         </button>
