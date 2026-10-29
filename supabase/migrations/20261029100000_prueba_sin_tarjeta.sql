@@ -18,15 +18,19 @@
 -- El aviso por correo 7 dias antes del fin lo envia trial-ending-reminder (tarea diaria de la migracion
 -- 20261027120000), que lee esta tabla ademas de las suscripciones de Stripe.
 --
--- Fuera de esta migracion (pendiente, toca Stripe): create-checkout-session sigue dando 90 dias de
--- prueba en el checkout; quien tuvo esta prueba sin tarjeta y despues paga recibiria otra.
+-- Fuera de esta migracion (ya resuelto en el codigo): create-checkout-session no da otros 90 dias a quien
+-- tuvo esta prueba; si le quedan dias, la suscripcion empieza a cobrar el dia que acaban (trial_end).
 --
--- VUELTA ATRAS:
+-- VUELTA ATRAS (probada el 29/10/2026 dentro de una transaccion con ROLLBACK):
 --   DROP TRIGGER IF EXISTS trg_conceder_prueba_sin_tarjeta ON public.businesses;
 --   DROP FUNCTION IF EXISTS public.conceder_prueba_sin_tarjeta();
 --   DROP TABLE IF EXISTS public.free_trial_grants;
---   (las fechas ya concedidas en profiles.trial_full_access_until se quedan; para quitarlas:
---    UPDATE public.profiles SET trial_full_access_until = NULL WHERE id IN (SELECT user_id FROM ...);)
+--   Las fechas ya concedidas en profiles.trial_full_access_until se quedan. Para quitarlas hay que
+--   guardar los ids ANTES del DROP TABLE (despues ya no existe la tabla de donde sacarlos):
+--     CREATE TEMP TABLE ids_prueba AS SELECT user_id FROM public.free_trial_grants;   -- antes de los DROP
+--     UPDATE public.profiles SET trial_full_access_until = NULL WHERE id IN (SELECT user_id FROM ids_prueba);   -- despues
+--   Quitar la fecha tambien a quien paso a Stripe en prueba la borraria: acotar con plan = 'free'.
+--   create-checkout-session y trial-ending-reminder toleran que la tabla no exista (42P01 / PGRST205).
 
 -- 1. Registro de pruebas concedidas sin tarjeta.
 CREATE TABLE IF NOT EXISTS public.free_trial_grants (
