@@ -367,6 +367,10 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                     </p>
                                 )}
                             </div>
+                            {/* Plan anual: el año empieza al acabar la prueba (issue #2). */}
+                            {conPrueba && anual && (
+                                <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">{t('pricingPage.trialAnnualNote')}</p>
+                            )}
                             <p className={`flex items-center justify-center gap-2 text-sm font-semibold mb-4 ${incluida ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
                                 <i className={`fa-solid ${incluida ? 'fa-check' : 'fa-minus'}`} aria-hidden="true"></i>
                                 {incluida ? t(`${K}lockPlanIncluded`) : t(`${K}lockPlanNotIncluded`)}

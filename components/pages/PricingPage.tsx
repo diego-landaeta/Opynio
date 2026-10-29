@@ -345,6 +345,11 @@ const PricingPage = () => {
                                         )}
                                     </div>
 
+                                    {/* Plan anual: el año empieza al acabar la prueba (issue #2). */}
+                                    {showTrialCopy && isAnnual && 'price' in plan && (
+                                        <p className="-mt-2 mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t('pricingPage.trialAnnualNote')}</p>
+                                    )}
+
                                     {isCurrentSubscription(planName) ? (
                                         <button
                                             type="button"
