@@ -406,7 +406,7 @@ const PricingPage = () => {
                                         </button>
                                     ) : (
                                         <ReactRouterDOM.Link to={ctaLinkTarget} className={`w-full block text-center font-semibold py-3 px-6 rounded-lg transition-colors ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}>
-                                            {showTrialCopy && !isEnterprise ? t('pricingPage.choosePlanCta') : t(plan.ctaKey)}
+                                            {showTrialCopy && !isEnterprise ? t('pricingPage.trialCta', { months: String(TRIAL_MONTHS) }) : t(plan.ctaKey)}
                                         </ReactRouterDOM.Link>
                                     )}
                                 </div>
