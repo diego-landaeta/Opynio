@@ -24,8 +24,16 @@
 //      haya dos ejecuciones a la vez), envia el correo por Brevo y, si el envio
 //      falla, libera la reserva para que la pasada siguiente lo reintente.
 //
+// Antes de todo lo anterior, la prueba de 90 dias SIN tarjeta (issue #11, migracion
+// 20261029100000), que no pasa por Stripe:
+//   a. Busca en `free_trial_grants` las pruebas sin aviso que acaban en <= 7 dias.
+//   b. Confirma en el perfil que sigue en plan gratuito y en prueba (si ya paga, el aviso
+//      es el de Stripe).
+//   c. Mismo cupo de Brevo; RESERVA con UPDATE ... WHERE reminder_sent_at IS NULL, envia
+//      el correo construirAvisoSinTarjeta() y libera la reserva si el envio falla.
+//
 // Cuerpo opcional: { "dryRun": true } lista a quien avisaria sin reservar ni enviar.
-// Respuesta: { checked, sent, skipped: {motivo: n}, failed, dryRun, candidates? }.
+// Respuesta: { checked, sent, skipped: {motivo: n}, failed, dryRun, candidates?, noCard }.
 //
 // Requiere la migracion 20261015110000_trial_reminders.sql (tabla trial_reminders),
 // y los secrets CRON_SECRET, STRIPE_SECRET_KEY y BREVO_API_KEY (o la clave en Vault
@@ -38,7 +46,7 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 import { cronAuthorized } from "../_shared/cronAuth.ts";
 import { enviarBrevo, enviosRestantesBrevo, leerClaveBrevo } from "../_shared/brevo.ts";
 import { planForPriceId } from "../_shared/stripePlans.ts";
-import { construirAviso, elegirIdioma } from "./plantilla.ts";
+import { construirAviso, construirAvisoSinTarjeta, elegirIdioma } from "./plantilla.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
@@ -83,12 +91,93 @@ serve(async (req: Request) => {
   }
 
   try {
+    const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    const ahora = Date.now();
+    const site = (() => { const s = Deno.env.get("SITE_URL"); return s && /^https:\/\/(web\.|www\.)?opynio\.com$/.test(s) ? s : SITE; })();
+    // Envios que quedan hoy en Brevo; undefined = aun no consultado, null = no se sabe (no se bloquea).
+    // Lo comparten las dos pasadas.
+    let restantesBrevo: number | null | undefined;
+
+    // A. Prueba de 90 dias sin tarjeta (issue #11): no depende de Stripe.
+    const noCard = { checked: 0, sent: 0, failed: 0, skipped: {} as Record<string, number>, candidates: [] as unknown[] };
+    const saltarSinTarjeta = (motivo: string) => { noCard.skipped[motivo] = (noCard.skipped[motivo] ?? 0) + 1; };
+    {
+      const { data: pruebas, error: pruebasError } = await admin
+        .from("free_trial_grants")
+        .select("user_id, ends_at")
+        .is("reminder_sent_at", null)
+        .gt("ends_at", new Date(ahora).toISOString())
+        .lte("ends_at", new Date(ahora + DIAS_AVISO * DAY_MS).toISOString())
+        .limit(MAX_POR_PASADA);
+      if (pruebasError) throw new Error(`free_trial_grants (¿migración 20261029100000 sin aplicar?): ${pruebasError.message}`);
+      noCard.checked = (pruebas ?? []).length;
+
+      for (const prueba of (pruebas ?? []) as { user_id: string; ends_at: string }[]) {
+        try {
+          // Sigue en plan gratuito y en prueba: si ya paga, el aviso es el de Stripe.
+          const { data: perfil } = await admin
+            .from("profiles")
+            .select("plan, trial_full_access_until, preferred_language")
+            .eq("id", prueba.user_id)
+            .maybeSingle();
+          const p = perfil as { plan?: string | null; trial_full_access_until?: string | null; preferred_language?: string | null } | null;
+          if (!p) { saltarSinTarjeta("sin_perfil"); continue; }
+          if ((p.plan ?? "free") !== "free") { saltarSinTarjeta("ya_tiene_plan_de_pago"); continue; }
+          const finMs = p.trial_full_access_until ? Date.parse(p.trial_full_access_until) : NaN;
+          if (!Number.isFinite(finMs) || finMs <= ahora) { saltarSinTarjeta("ya_no_esta_en_prueba"); continue; }
+
+          const { data: u, error: uError } = await admin.auth.admin.getUserById(prueba.user_id);
+          const email = u?.user?.email ?? "";
+          if (uError || !email) { saltarSinTarjeta("sin_email"); continue; }
+          const idioma = elegirIdioma(p.preferred_language);
+          const locale = idioma === "en" ? "en-GB" : "es-ES";
+          const fecha = new Date(finMs).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
+          const aviso = construirAvisoSinTarjeta({ idioma, fecha, enlace: `${site}${idioma === "en" ? "/us/pricing" : "/es/planes"}` });
+
+          if (dryRun) {
+            noCard.candidates.push({ user: prueba.user_id, fin: new Date(finMs).toISOString(), idioma });
+            continue;
+          }
+
+          const brevoKey = await leerClaveBrevo();
+          if (restantesBrevo === undefined) restantesBrevo = await enviosRestantesBrevo(brevoKey);
+          if (restantesBrevo !== null && restantesBrevo < 1) {
+            saltarSinTarjeta("sin_cupo_brevo");
+            console.warn("trial-ending-reminder: cupo diario de Brevo agotado; el aviso de una prueba sin tarjeta se reintenta en la pasada siguiente.");
+            continue;
+          }
+
+          // Reservar: solo si nadie lo ha enviado ya (dos ejecuciones a la vez no duplican).
+          const { data: reservada, error: reservaError } = await admin
+            .from("free_trial_grants")
+            .update({ reminder_sent_at: new Date().toISOString() })
+            .eq("user_id", prueba.user_id)
+            .is("reminder_sent_at", null)
+            .select("user_id");
+          if (reservaError) throw new Error(`free_trial_grants update: ${reservaError.message}`);
+          if (!reservada || reservada.length === 0) { saltarSinTarjeta("ya_avisada"); continue; }
+          try {
+            await enviarBrevo(brevoKey, { para: email, asunto: aviso.asunto, html: aviso.html });
+            noCard.sent++;
+            if (typeof restantesBrevo === "number") restantesBrevo--;
+            console.log(`trial-ending-reminder: aviso de prueba sin tarjeta enviado (fin ${new Date(finMs).toISOString()}).`);
+          } catch (sendError) {
+            await admin.from("free_trial_grants").update({ reminder_sent_at: null }).eq("user_id", prueba.user_id);
+            throw sendError;
+          }
+        } catch (err) {
+          noCard.failed++;
+          // Sin el correo del usuario en el log.
+          console.error("trial-ending-reminder: fallo con una prueba sin tarjeta:", (err as { message?: string })?.message ?? String(err));
+        }
+      }
+    }
+    const resumenSinTarjeta = { checked: noCard.checked, sent: noCard.sent, failed: noCard.failed, skipped: noCard.skipped, ...(dryRun ? { candidates: noCard.candidates } : {}) };
+
+    // B. Prueba con tarjeta (Stripe).
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY no configurada.");
     const stripe = new Stripe(stripeKey, { httpClient: Stripe.createFetchHttpClient(), apiVersion: "2024-06-20" });
-    const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-
-    const ahora = Date.now();
     // 2. Candidatas en la BD (margen de 1 dia: la fecha exacta la da Stripe).
     const { data: rows, error: rowsError } = await admin
       .from("subscriptions")
@@ -119,8 +208,6 @@ serve(async (req: Request) => {
     let sent = 0;
     let failed = 0;
     const candidates: unknown[] = [];
-    // Envios que quedan hoy en Brevo; undefined = aun sin consultar, null = no se sabe (no se bloquea).
-    let restantesBrevo: number | null | undefined;
 
     for (const row of candidatas) {
       if (yaAvisadas.has(row.id)) { saltar("ya_avisada"); continue; }
@@ -152,7 +239,6 @@ serve(async (req: Request) => {
         const locale = idioma === "en" ? "en-GB" : "es-ES";
         const fecha = new Date(finMs).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
         const importe = new Intl.NumberFormat(locale, { style: "currency", currency: (price.currency || "eur").toUpperCase() }).format(price.unit_amount / 100);
-        const site = (() => { const s = Deno.env.get("SITE_URL"); return s && /^https:\/\/(web\.|www\.)?opynio\.com$/.test(s) ? s : SITE; })();
         const aviso = construirAviso({ idioma, plan, importe, intervalo, fecha, enlace: `${site}/es/mis-negocios` });
 
         if (dryRun) {
@@ -193,7 +279,7 @@ serve(async (req: Request) => {
       }
     }
 
-    return json({ checked: candidatas.length, sent, failed, skipped, dryRun, ...(dryRun ? { candidates } : {}) }, 200);
+    return json({ checked: candidatas.length, sent, failed, skipped, dryRun, ...(dryRun ? { candidates } : {}), noCard: resumenSinTarjeta }, 200);
   } catch (error) {
     console.error("trial-ending-reminder:", (error as { message?: string })?.message ?? String(error));
     return json({ error: "Error interno." }, 500);

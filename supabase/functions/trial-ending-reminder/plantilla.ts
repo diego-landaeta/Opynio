@@ -1,6 +1,7 @@
 // supabase/functions/trial-ending-reminder/plantilla.ts
 //
-// Texto del correo «tu prueba gratuita acaba pronto». Sin dependencias ni
+// Texto del correo «tu prueba gratuita acaba pronto»: construirAviso() para la prueba
+// con tarjeta (Stripe) y construirAvisoSinTarjeta() para la de 90 dias sin tarjeta. Sin dependencias ni
 // efectos al importar. Dos idiomas: espanol (por defecto) e ingles (cuando el
 // perfil tiene guardado un idioma distinto del espanol). El idioma se elige con
 // elegirIdioma().
@@ -41,6 +42,44 @@ export function escapeHtml(value: string): string {
 
 const boton = (href: string, label: string) =>
   `<p><a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 24px;background-color:#00b67a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">${escapeHtml(label)}</a></p>`;
+
+export type DatosAvisoSinTarjeta = {
+  idioma: IdiomaAviso;
+  /** Fin del acceso completo ya formateado: «14 de enero de 2027». */
+  fecha: string;
+  /** Enlace a la pagina de planes. */
+  enlace: string;
+};
+
+/**
+ * Aviso de la prueba de 90 dias SIN tarjeta (issue #11): no hay cobro; al acabar la cuenta vuelve al
+ * plan gratuito y, si quiere seguir con todo, elige un plan.
+ */
+export function construirAvisoSinTarjeta(d: DatosAvisoSinTarjeta): { asunto: string; html: string } {
+  const fecha = escapeHtml(d.fecha);
+  if (d.idioma === "en") {
+    return {
+      asunto: `Your Opynio free trial ends on ${d.fecha}`,
+      html: `
+      <p>Hello,</p>
+      <p>Your free trial of Opynio ends on <strong>${fecha}</strong>. Until that day you have full access to every feature, with no limits.</p>
+      <p>We have not asked for a card and nothing will be charged. When the trial ends, your account goes back to the free plan.</p>
+      <p>If you want to keep every feature, choose a plan before that date.</p>
+      ${boton(d.enlace, "Choose a plan")}
+      <p>The Opynio team</p>`,
+    };
+  }
+  return {
+    asunto: `Tu prueba gratuita de Opynio termina el ${d.fecha}`,
+    html: `
+      <p>Hola,</p>
+      <p>Tu prueba gratuita de Opynio termina el <strong>${fecha}</strong>. Hasta ese día tienes acceso completo a todas las funciones, sin límites.</p>
+      <p>No te hemos pedido tarjeta y no se te cobrará nada. Cuando acabe la prueba, tu cuenta volverá al plan gratuito.</p>
+      <p>Si quieres seguir con todas las funciones, elige un plan antes de esa fecha.</p>
+      ${boton(d.enlace, "Elegir un plan")}
+      <p>El equipo de Opynio</p>`,
+  };
+}
 
 export function construirAviso(d: DatosAviso): { asunto: string; html: string } {
   const plan = escapeHtml(d.plan);

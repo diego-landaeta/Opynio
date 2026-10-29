@@ -1,11 +1,11 @@
 import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useTranslation, useI18n, getLocaleFromLanguage, toBcp47 } from '../../../../contexts/i18nContext';
+import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
 import { PLAN_HIERARCHY, planNameKey, type DashboardSectionId } from '../../../../utils/planFeatures';
 import {
-    NEW_PRICING_ENABLED, PAID_PLAN_ORDER, isAnnualToggleAvailable, PRICES_INCLUDE_VAT, TRIAL_MONTHS, TRIAL_REMINDER_DAYS, annualPrice, firstChargeDateFromToday,
-    formatAmount, formatPlanPrice, maxAnnualSavingsPercent, monthlyPrice, priceFor, type PaidPlanKey,
+    NEW_PRICING_ENABLED, PAID_PLAN_ORDER, isAnnualToggleAvailable, PRICES_INCLUDE_VAT, TRIAL_MONTHS, TRIAL_REMINDER_DAYS, annualPrice,
+    formatAmount, maxAnnualSavingsPercent, monthlyPrice, priceFor, type PaidPlanKey,
 } from '../../../../utils/planPrices';
 import type { Plan } from '../../../../types';
 import { usePricingHref } from './useDashboardSections';
@@ -278,7 +278,6 @@ const FEATURES: Record<PreviewSectionId, {
 
 const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     const t = useTranslation();
-    const { language } = useI18n();
     const { profile } = useAuth();
     const pricingHref = usePricingHref();
     const [anualElegido, setAnual] = useState(false);
@@ -290,11 +289,11 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     const nivelMin = PLAN_HIERARCHY[minPlan];
     const planActual = profile?.plan ?? 'free';
 
-    // Prueba gratuita (solo con NEW_PRICING_ENABLED): quien ya paga un plan no la ve,
-    // porque la prueba es de un solo uso y la aplica el servidor (create-checkout-session).
+    // Prueba gratuita (solo con NEW_PRICING_ENABLED): quien ya paga un plan no la ve.
+    // La prueba de 3 meses es sin tarjeta y empieza al registrar la empresa (issue #11),
+    // asi que los botones dicen «Elegir plan» y no se promete un primer cobro a 0 €.
     const conPrueba = NEW_PRICING_ENABLED && planActual === 'free';
     const ciclo = anual ? 'annual' : 'monthly';
-    const fechaPrimerCobro = firstChargeDateFromToday().toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
         <div>
@@ -366,12 +365,6 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                     </p>
                                 )}
                             </div>
-                            {conPrueba && (
-                                <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                    {t('pricingPage.trialCardNote', { amount: formatPlanPrice(id, ciclo), date: fechaPrimerCobro })}
-                                    {anual && <span className="block mt-1">{t('pricingPage.trialAnnualNote')}</span>}
-                                </p>
-                            )}
                             <p className={`flex items-center justify-center gap-2 text-sm font-semibold mb-4 ${incluida ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
                                 <i className={`fa-solid ${incluida ? 'fa-check' : 'fa-minus'}`} aria-hidden="true"></i>
                                 {incluida ? t(`${K}lockPlanIncluded`) : t(`${K}lockPlanNotIncluded`)}
@@ -384,7 +377,7 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                         to={pricingHref}
                                         className={`block w-full text-center font-bold py-3 px-4 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800 ${destacado ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50'}`}
                                     >
-                                        {conPrueba ? t('pricingPage.trialCta', { months: String(TRIAL_MONTHS) }) : t(`${K}lockChoosePlan`, { plan: nombre })}
+                                        {conPrueba ? t('pricingPage.choosePlanCta') : t(`${K}lockChoosePlan`, { plan: nombre })}
                                     </Link>
                                 )}
                             </div>

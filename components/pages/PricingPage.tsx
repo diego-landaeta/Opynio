@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Meta from '../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTranslation, useI18n, pathTranslations, toBcp47 } from '../../contexts/i18nContext';
+import { useTranslation, useI18n, pathTranslations } from '../../contexts/i18nContext';
 import { useContentCountry } from '../../contexts/CountryContext';
 import { descriptionWithCountry } from '../../utils/metaText';
 import { supabase } from '../../services/supabaseService';
@@ -17,10 +17,8 @@ import {
     isAnnualToggleAvailable,
     annualPrice,
     annualSavings,
-    firstChargeDateFromToday,
     formatAmount,
     formatEur,
-    formatPlanPrice,
     maxAnnualSavingsPercent,
     monthlyPrice,
     priceFor,
@@ -145,10 +143,10 @@ const PricingPage = () => {
 
     // Prueba gratuita (solo con NEW_PRICING_ENABLED). Quien ya paga un plan no
     // ve la promesa de «gratis» al cambiar de plan; quien no (visitante o plan
-    // free) si. La prueba es de un solo uso: la aplica o no el servidor
-    // (create-checkout-session) y el pie de la pagina lo dice.
+    // free) si. La prueba de 3 meses es SIN tarjeta y empieza al registrar la
+    // empresa (issue #11): los botones dicen «Elegir plan» y no se promete un
+    // primer cobro a 0 €; el pie de la pagina lo explica.
     const showTrialCopy = NEW_PRICING_ENABLED && !(user && currentPlanName && currentPlanName !== 'free');
-    const firstChargeDate = firstChargeDateFromToday().toLocaleDateString(toBcp47(language), { year: 'numeric', month: 'long', day: 'numeric' });
     const trialHeadlineKey = billingCycle === 'annual' ? 'pricingPage.trialHeadlineAnnual' : 'pricingPage.trialHeadline';
     const trialHeadline = t(trialHeadlineKey, {
         months: String(TRIAL_MONTHS),
@@ -345,13 +343,6 @@ const PricingPage = () => {
                                         )}
                                     </div>
 
-                                    {showTrialCopy && 'price' in plan && (
-                                        <div className="-mt-2 mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                            <p>{t('pricingPage.trialCardNote', { amount: formatPlanPrice(planName as PaidPlanKey, billingCycle), date: firstChargeDate })}</p>
-                                            {isAnnual && <p>{t('pricingPage.trialAnnualNote')}</p>}
-                                        </div>
-                                    )}
-
                                     {isCurrentSubscription(planName) ? (
                                         <button
                                             type="button"
@@ -381,12 +372,12 @@ const PricingPage = () => {
                                                     <span>{t('common.redirectingToStripe')}</span>
                                                 </>
                                             ) : (
-                                                <span>{showTrialCopy ? t('pricingPage.trialCta', { months: String(TRIAL_MONTHS) }) : t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>
+                                                <span>{showTrialCopy ? t('pricingPage.choosePlanCta') : t('pricingPage.upgradeToThisPlan', { plan: t(plan.nameKey) })}</span>
                                             )}
                                         </button>
                                     ) : (
                                         <ReactRouterDOM.Link to={ctaLinkTarget} className={`w-full block text-center font-semibold py-3 px-6 rounded-lg transition-colors ${plan.isPopular ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50'}`}>
-                                            {showTrialCopy && !isEnterprise ? t('pricingPage.trialCta', { months: String(TRIAL_MONTHS) }) : t(plan.ctaKey)}
+                                            {showTrialCopy && !isEnterprise ? t('pricingPage.choosePlanCta') : t(plan.ctaKey)}
                                         </ReactRouterDOM.Link>
                                     )}
                                 </div>
