@@ -278,7 +278,7 @@ const FEATURES: Record<PreviewSectionId, {
 
 const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     const t = useTranslation();
-    const { profile } = useAuth();
+    const { profile, businesses } = useAuth();
     const pricingHref = usePricingHref();
     const [anualElegido, setAnual] = useState(false);
     // Sin el anual disponible en todos los planes (AVAILABLE_BILLING_CYCLES) no se
@@ -292,9 +292,13 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     // Prueba gratuita (solo con NEW_PRICING_ENABLED): quien ya paga un plan no la ve.
     // La prueba de 3 meses es sin tarjeta y empieza al registrar la empresa (issue #11),
     // asi que los botones dicen «Elegir plan» y no se promete un primer cobro a 0 €.
-    // Quien ya gastó la prueba (fecha de fin en el pasado) no la ve.
-    const trialYaUsada = !!profile?.trial_full_access_until && Date.parse(profile.trial_full_access_until) <= Date.now();
-    const conPrueba = NEW_PRICING_ENABLED && planActual === 'free' && !trialYaUsada;
+    // Quien ya gastó la prueba (fecha de fin en el pasado) no la ve. Tampoco la ve una cuenta gratuita que ya
+    // tenia empresa y nunca la recibio (el disparador solo la concede a la PRIMERA empresa): decirle «3 meses
+    // gratis, sin tarjeta» seria prometer algo que no va a recibir.
+    const sinPrueba = profile?.trial_full_access_until
+        ? Date.parse(profile.trial_full_access_until) <= Date.now()
+        : businesses.length > 0;
+    const conPrueba = NEW_PRICING_ENABLED && planActual === 'free' && !sinPrueba;
     const ciclo = anual ? 'annual' : 'monthly';
 
     return (
@@ -380,7 +384,7 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
                                     <p className="text-center text-sm font-semibold text-gray-600 dark:text-gray-300 py-3">{t(`${K}lockCurrentPlan`)}</p>
                                 ) : (
                                     <Link
-                                        to={pricingHref}
+                                        to={`${pricingHref}?plan=${id}`}
                                         className={`block w-full text-center font-bold py-3 px-4 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800 ${destacado ? 'bg-brand-green text-white hover:bg-opacity-90 shadow-md' : 'bg-green-50 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50'}`}
                                     >
                                         {conPrueba ? t('pricingPage.choosePlanCta') : t(`${K}lockChoosePlan`, { plan: nombre })}

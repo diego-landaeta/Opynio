@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Meta from '../Meta';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -141,13 +141,35 @@ const PricingPage = () => {
         }
     };
 
+    // #6: desde una pantalla con candado, «Elegir plan X» llega aquí con ?plan=X. Si la cuenta ya tiene
+    // empresa, se inicia el pago de ese plan directamente (una sola vez; se quita el parametro para que
+    // volver atras no lo repita). Sin sesion o sin empresa solo se enseñan los planes, como siempre.
+    const [searchParams, setSearchParams] = ReactRouterDOM.useSearchParams();
+    const planPedido = (searchParams.get('plan') || '').toLowerCase();
+    const pagoAutoIniciado = useRef(false);
+    useEffect(() => {
+        if (pagoAutoIniciado.current) return;
+        if (!['starter', 'growth', 'pro'].includes(planPedido)) return;
+        if (!user || !hasExistingBusinesses || !primaryBusinessId) return;
+        pagoAutoIniciado.current = true;
+        const resto = new URLSearchParams(searchParams);
+        resto.delete('plan');
+        setSearchParams(resto, { replace: true });
+        if (isCurrentSubscription(planPedido)) return;
+        void handleUpgradeExistingBusiness(planPedido);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planPedido, user, hasExistingBusinesses, primaryBusinessId]);
+
     // Prueba gratuita (solo con NEW_PRICING_ENABLED). Quien ya paga un plan no
     // ve la promesa de «gratis» al cambiar de plan; quien no (visitante o plan
     // free) si. La prueba de 3 meses es SIN tarjeta y empieza al registrar la
     // empresa (issue #11): los botones dicen «Elegir plan» y no se promete un
     // primer cobro a 0 €; el pie de la pagina lo explica.
-    // Quien ya gastó la prueba (fecha de fin en el pasado) tampoco ve la promesa.
-    const trialYaUsada = !!profile?.trial_full_access_until && Date.parse(profile.trial_full_access_until) <= Date.now();
+    // Quien ya gastó la prueba (fecha de fin en el pasado) tampoco ve la promesa, ni una cuenta con sesion que
+    // ya tenia empresa y nunca la recibio (solo se concede a la PRIMERA empresa).
+    const trialYaUsada = !!user && (profile?.trial_full_access_until
+        ? Date.parse(profile.trial_full_access_until) <= Date.now()
+        : businesses.length > 0);
     const showTrialCopy = NEW_PRICING_ENABLED && !(user && currentPlanName && currentPlanName !== 'free') && !trialYaUsada;
     const trialHeadlineKey = billingCycle === 'annual' ? 'pricingPage.trialHeadlineAnnual' : 'pricingPage.trialHeadline';
     const trialHeadline = t(trialHeadlineKey, {
