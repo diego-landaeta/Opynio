@@ -250,6 +250,22 @@ serve(async (req) => {
       }));
       resultados.push(...hechos);
 
+      // Reenvio de una invitacion fallida que vuelve a fallar: no se anade otra fila
+      // «Fallida» (quedarian dos del mismo correo); se actualiza el error de la que ya
+      // estaba, solo de ESTA empresa y solo si seguia fallida.
+      if (typeof resendOf === 'string' && recipients.length === 1 && hechos.length === 1 && !hechos[0].ok) {
+        const { error: errorActualizar } = await supabaseAdmin.from('review_invitations')
+          .update({ error: hechos[0].error ?? 'Error de envío' })
+          .eq('id', resendOf)
+          .eq('business_id', businessId)
+          .eq('status', 'failed');
+        if (errorActualizar) {
+          historyError = errorActualizar;
+          console.error("send-invitation-email: no se pudo actualizar la invitacion fallida:", errorActualizar);
+        }
+        continue;
+      }
+
       // Historial: una fila por destinatario, enviada o fallida, guardada tras cada
       // lote. Si guardar falla, los correos ya salieron: se avisa en la respuesta.
       const { error: errorLote } = await supabaseAdmin.from('review_invitations').insert(
