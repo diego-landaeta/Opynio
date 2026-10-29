@@ -230,15 +230,19 @@ async function hasHadSubscriptionBefore(admin: Admin, userId: string, stripeCust
 
 // Prueba de 90 dias SIN tarjeta (issue #11, migracion 20261029100000): fecha de fin si el usuario la
 // tuvo, null si no. Si no se puede comprobar, lanza (y el checkout va sin prueba: ante la duda no se
-// regala otra). Sin la tabla (migracion aun sin aplicar) nadie ha podido tenerla: null.
+// regala otra). Sin la tabla (migracion aun sin aplicar) se mira solo el perfil.
+// Segunda comprobacion, por si faltara la fila: quien nunca tuvo suscripcion solo puede tener
+// profiles.trial_full_access_until por la prueba sin tarjeta.
 async function noCardTrialEndsAt(admin: Admin, userId: string): Promise<Date | null> {
   const { data, error } = await admin.from("free_trial_grants").select("ends_at").eq("user_id", userId).maybeSingle();
-  if (error) {
-    if (error.code === "42P01" || error.code === "PGRST205") return null;
-    throw error;
-  }
-  const raw = (data as { ends_at?: string | null } | null)?.ends_at;
-  return raw ? new Date(raw) : null;
+  if (error && error.code !== "42P01" && error.code !== "PGRST205") throw error;
+  const raw = error ? null : (data as { ends_at?: string | null } | null)?.ends_at;
+  if (raw) return new Date(raw);
+
+  const { data: perfil, error: perfilError } = await admin.from("profiles").select("trial_full_access_until").eq("id", userId).maybeSingle();
+  if (perfilError) throw perfilError;
+  const enPerfil = (perfil as { trial_full_access_until?: string | null } | null)?.trial_full_access_until;
+  return enPerfil ? new Date(enPerfil) : null;
 }
 
 // Stripe exige que trial_end este al menos 48 h en el futuro.

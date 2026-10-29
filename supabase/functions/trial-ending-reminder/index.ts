@@ -101,16 +101,24 @@ serve(async (req: Request) => {
     // A. Prueba de 90 dias sin tarjeta (issue #11): no depende de Stripe.
     const noCard = { checked: 0, sent: 0, failed: 0, skipped: {} as Record<string, number>, candidates: [] as unknown[] };
     const saltarSinTarjeta = (motivo: string) => { noCard.skipped[motivo] = (noCard.skipped[motivo] ?? 0) + 1; };
-    {
+    // Si esta pasada falla entera (p. ej. migracion aun sin aplicar), se anota y se sigue con la de Stripe.
+    try {
       const { data: pruebas, error: pruebasError } = await admin
         .from("free_trial_grants")
         .select("user_id, ends_at")
         .is("reminder_sent_at", null)
         .gt("ends_at", new Date(ahora).toISOString())
         .lte("ends_at", new Date(ahora + DIAS_AVISO * DAY_MS).toISOString())
+        .order("ends_at", { ascending: true })
         .limit(MAX_POR_PASADA);
       if (pruebasError) throw new Error(`free_trial_grants (¿migración 20261029100000 sin aplicar?): ${pruebasError.message}`);
       noCard.checked = (pruebas ?? []).length;
+      // Las que ya no necesitan este aviso (pasaron a pago o perdieron la prueba) se marcan para que
+      // no vuelvan a salir ni ocupen sitio en las pasadas siguientes.
+      const descartar = async (userId: string, motivo: string) => {
+        saltarSinTarjeta(motivo);
+        if (!dryRun) await admin.from("free_trial_grants").update({ reminder_sent_at: new Date().toISOString() }).eq("user_id", userId).is("reminder_sent_at", null);
+      };
 
       for (const prueba of (pruebas ?? []) as { user_id: string; ends_at: string }[]) {
         try {
@@ -122,9 +130,9 @@ serve(async (req: Request) => {
             .maybeSingle();
           const p = perfil as { plan?: string | null; trial_full_access_until?: string | null; preferred_language?: string | null } | null;
           if (!p) { saltarSinTarjeta("sin_perfil"); continue; }
-          if ((p.plan ?? "free") !== "free") { saltarSinTarjeta("ya_tiene_plan_de_pago"); continue; }
+          if ((p.plan ?? "free") !== "free") { await descartar(prueba.user_id, "ya_tiene_plan_de_pago"); continue; }
           const finMs = p.trial_full_access_until ? Date.parse(p.trial_full_access_until) : NaN;
-          if (!Number.isFinite(finMs) || finMs <= ahora) { saltarSinTarjeta("ya_no_esta_en_prueba"); continue; }
+          if (!Number.isFinite(finMs) || finMs <= ahora) { await descartar(prueba.user_id, "ya_no_esta_en_prueba"); continue; }
 
           const { data: u, error: uError } = await admin.auth.admin.getUserById(prueba.user_id);
           const email = u?.user?.email ?? "";
@@ -171,6 +179,9 @@ serve(async (req: Request) => {
           console.error("trial-ending-reminder: fallo con una prueba sin tarjeta:", (err as { message?: string })?.message ?? String(err));
         }
       }
+    } catch (err) {
+      noCard.failed++;
+      console.error("trial-ending-reminder: la pasada de pruebas sin tarjeta falló; se sigue con la de Stripe:", (err as { message?: string })?.message ?? String(err));
     }
     const resumenSinTarjeta = { checked: noCard.checked, sent: noCard.sent, failed: noCard.failed, skipped: noCard.skipped, ...(dryRun ? { candidates: noCard.candidates } : {}) };
 

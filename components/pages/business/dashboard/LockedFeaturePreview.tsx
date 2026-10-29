@@ -292,7 +292,9 @@ const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     // Prueba gratuita (solo con NEW_PRICING_ENABLED): quien ya paga un plan no la ve.
     // La prueba de 3 meses es sin tarjeta y empieza al registrar la empresa (issue #11),
     // asi que los botones dicen «Elegir plan» y no se promete un primer cobro a 0 €.
-    const conPrueba = NEW_PRICING_ENABLED && planActual === 'free';
+    // Quien ya gastó la prueba (fecha de fin en el pasado) no la ve.
+    const trialYaUsada = !!profile?.trial_full_access_until && Date.parse(profile.trial_full_access_until) <= Date.now();
+    const conPrueba = NEW_PRICING_ENABLED && planActual === 'free' && !trialYaUsada;
     const ciclo = anual ? 'annual' : 'monthly';
 
     return (

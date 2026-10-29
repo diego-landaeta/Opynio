@@ -31,7 +31,9 @@
 -- 1. Registro de pruebas concedidas sin tarjeta.
 CREATE TABLE IF NOT EXISTS public.free_trial_grants (
   user_id     uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  business_id uuid        NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  -- SET NULL, no CASCADE: si se borra la empresa, la prueba sigue constando como usada por ese
+  -- usuario (si no, el checkout le daria otros 90 dias). La UNIQUE no choca con varios NULL.
+  business_id uuid        REFERENCES public.businesses(id) ON DELETE SET NULL,
   granted_at  timestamptz NOT NULL DEFAULT now(),
   ends_at     timestamptz NOT NULL,
   -- Aviso por correo antes de acabar (trial-ending-reminder). NULL = aun no enviado; la funcion lo

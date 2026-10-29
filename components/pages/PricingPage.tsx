@@ -146,7 +146,9 @@ const PricingPage = () => {
     // free) si. La prueba de 3 meses es SIN tarjeta y empieza al registrar la
     // empresa (issue #11): los botones dicen «Elegir plan» y no se promete un
     // primer cobro a 0 €; el pie de la pagina lo explica.
-    const showTrialCopy = NEW_PRICING_ENABLED && !(user && currentPlanName && currentPlanName !== 'free');
+    // Quien ya gastó la prueba (fecha de fin en el pasado) tampoco ve la promesa.
+    const trialYaUsada = !!profile?.trial_full_access_until && Date.parse(profile.trial_full_access_until) <= Date.now();
+    const showTrialCopy = NEW_PRICING_ENABLED && !(user && currentPlanName && currentPlanName !== 'free') && !trialYaUsada;
     const trialHeadlineKey = billingCycle === 'annual' ? 'pricingPage.trialHeadlineAnnual' : 'pricingPage.trialHeadline';
     const trialHeadline = t(trialHeadlineKey, {
         months: String(TRIAL_MONTHS),
