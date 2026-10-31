@@ -2786,7 +2786,8 @@ export const getReviewsForBusiness = async (
         : Promise.resolve({ data: [], error: null }),
       supabase
         .from('review_responses')
-        .select('id, review_id, response_text, created_at, updated_at')
+        // Sin updated_at: en producción review_responses no tiene esa columna y pedirla daba 400 (el dueño no veía sus respuestas).
+        .select('id, review_id, response_text, created_at')
         .in('review_id', reviewIds),
     ]);
 
@@ -2878,14 +2879,20 @@ export const getProductReviewStats = async (businessId: string, productId: strin
   };
 };
 
-// review_responses solo tiene review_id y response_text; el permiso lo decide la
-// RLS (dueno de la empresa de la resena). Mandar business_id daba 400 PGRST204.
+// En producción review_responses tiene user_id y business_id NOT NULL y la RLS exige user_id = quien responde y
+// business_id de una empresa suya: sin ellos el insert daba 403. En el esquema local solo existen review_id y
+// response_text (mandar business_id daba 400 PGRST204): si la columna no existe se reintenta sin ellas.
 export const submitReviewResponse = async (reviewId: string, responseText: string) => {
-  const { data, error } = await supabase
-    .from('review_responses')
-    .insert([{ review_id: reviewId, response_text: responseText }])
-    .select()
-    .single();
+  const { data: sesion } = await supabase.auth.getUser();
+  const userId = sesion?.user?.id;
+  const { data: resena } = await supabase.from('reviews').select('business_id').eq('id', reviewId).maybeSingle();
+  const completa: Record<string, unknown> = { review_id: reviewId, response_text: responseText };
+  if (userId) completa.user_id = userId;
+  if (resena?.business_id) completa.business_id = resena.business_id;
+  let { data, error } = await supabase.from('review_responses').insert([completa]).select().single();
+  if (error && (error as { code?: string }).code === 'PGRST204') {
+    ({ data, error } = await supabase.from('review_responses').insert([{ review_id: reviewId, response_text: responseText }]).select().single());
+  }
   if (error) throw error;
   return data;
 };
@@ -2893,7 +2900,8 @@ export const submitReviewResponse = async (reviewId: string, responseText: strin
 export const updateReviewResponse = async (responseId: string, responseText: string) => {
   const { data, error } = await supabase
     .from('review_responses')
-    .update({ response_text: responseText, updated_at: new Date().toISOString() })
+    // Sin updated_at: la columna no existe en producción y editar daba 400.
+    .update({ response_text: responseText })
     .eq('id', responseId)
     .select()
     .single();
@@ -4033,6 +4041,133 @@ export const adminPaymentsOverview = async (): Promise<AdminPaymentsOverview> =>
     generatedAt: d.generatedAt || new Date().toISOString(),
     rows: rows.map(r => ({ ...r, businesses: Array.isArray(r.businesses) ? r.businesses : [], businessCount: Number(r.businessCount) || 0 })),
   };
+};
+
+// --- Ficha de usuario del admin (migración 20261030100000_admin_user_overview) -------------------------------------
+
+/**
+ * Progreso real del «Empieza aquí» del Centro de ayuda: cuántas reseñas publicadas, respuestas del dueño e
+ * invitaciones enviadas tiene la empresa. Cada cifra es null si no se pudo leer (el paso queda sin marcar,
+ * nunca como hecho por error).
+ */
+export interface HelpCenterProgress { reviews: number | null; responses: number | null; invitations: number | null }
+
+export const getHelpCenterProgress = async (businessId: string): Promise<HelpCenterProgress> => {
+  const contar = async (consulta: PromiseLike<{ count: number | null; error: unknown }>): Promise<number | null> => {
+    try {
+      const { count, error } = await consulta;
+      return error ? null : (count ?? 0);
+    } catch { return null; }
+  };
+  const [reviews, responses, invitations] = await Promise.all([
+    contar(supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('business_id', businessId).eq('status', 'approved')),
+    contar(supabase.from('review_responses').select('id, reviews!inner(business_id)', { count: 'exact', head: true }).eq('reviews.business_id', businessId)),
+    contar(supabase.from('review_invitations').select('id', { count: 'exact', head: true }).eq('business_id', businessId)),
+  ]);
+  return { reviews, responses, invitations };
+};
+
+/** Perfil de un usuario (plan, créditos, prueba) para que un admin vea el panel de empresa tal como lo ve su dueño. */
+export const getProfileForAdminView = async (userId: string) => {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+export class AdminUserOverviewMissingError extends Error {
+  constructor() {
+    super('admin_user_overview no está aplicada en la base de datos.');
+    this.name = 'AdminUserOverviewMissingError';
+  }
+}
+
+export interface AdminUserOverview {
+  generatedAt: string;
+  account: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    email: string | null;
+    role: 'authenticated' | 'business_owner' | 'admin';
+    plan: string | null;
+    billing_cycle: string | null;
+    plan_expires_at: string | null;
+    trial_full_access_until: string | null;
+    avatar_url: string | null;
+    created_at: string | null;
+    last_sign_in_at: string | null;
+    email_confirmed: boolean;
+    provider: string | null;
+    preferred_language: string | null;
+    preferred_country: string | null;
+    ai_credits_used: number | null;
+    ai_credit_limit: number | null;
+    business_limit: number | null;
+    stripe_customer_id: string | null;
+  };
+  counts: {
+    reviews_total: number; reviews_approved: number; reviews_pending: number; reviews_rejected: number;
+    businesses: number; tickets: number; bugs: number; claims: number; appeals: number;
+    likes_received: number; dislikes_received: number; votes_given_helpful: number; votes_given_not_helpful: number;
+  };
+  reviews: Array<{
+    id: number; business_id: string; business_name: string | null; business_slug: string | null; business_country: string | null;
+    rating: number; title: string | null; text: string; status: 'pending' | 'approved' | 'rejected';
+    rejection_reason: string | null; source: string | null; helpful_votes: number; not_helpful_votes: number;
+    created_at: string; published_at: string | null;
+  }>;
+  votes: Array<{
+    id: number; review_id: number; is_helpful: boolean; review_title: string | null; review_rating: number | null;
+    review_status: string | null; business_id: string | null; business_name: string | null; business_slug: string | null;
+    business_country: string | null; created_at: string;
+  }>;
+  businesses: Array<{
+    id: string; name: string; slug: string | null; country: string | null; category: string | null; logo_url: string | null;
+    is_featured: boolean | null; created_at: string; reviews_approved: number; reviews_pending: number;
+    avg_rating: number | null; invitations_sent: number;
+  }>;
+  subscriptions: Array<{
+    id: string; status: string; price_id: string | null; cancel_at_period_end: boolean | null; created: string | null;
+    current_period_end: string | null; trial_end: string | null; canceled_at: string | null;
+  }>;
+  tickets: Array<{ id: number; type: string | null; subject: string; status: string; created_at: string }>;
+  bugs: Array<{ id: number | string; title: string | null; description: string; status: string | null; created_at: string }>;
+  claims: Array<{ id: number; business_id: string; business_name: string | null; business_slug: string | null; status: string; created_at: string }>;
+  appeals: Array<{ id: number; review_id: number; review_title: string | null; status: string | null; created_at: string }>;
+}
+
+export const adminUserOverview = async (userId: string): Promise<AdminUserOverview> => {
+  const { data, error } = await supabase.rpc('admin_user_overview', { p_user_id: userId });
+  if (error) {
+    const e = error as { code?: string; message?: string; status?: number };
+    const ausente = e.code === 'PGRST202' || e.code === '42883' || e.status === 404
+      || (/admin_user_overview/.test(e.message || '') && /(could not find|does not exist|not found)/i.test(e.message || ''));
+    if (ausente) throw new AdminUserOverviewMissingError();
+    throw error;
+  }
+  const d = (data ?? {}) as Partial<AdminUserOverview>;
+  const arr = <T,>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
+  return {
+    generatedAt: d.generatedAt || new Date().toISOString(),
+    account: d.account as AdminUserOverview['account'],
+    counts: { reviews_total: 0, reviews_approved: 0, reviews_pending: 0, reviews_rejected: 0, businesses: 0, tickets: 0, bugs: 0, claims: 0, appeals: 0, likes_received: 0, dislikes_received: 0, votes_given_helpful: 0, votes_given_not_helpful: 0, ...(d.counts || {}) },
+    reviews: arr(d.reviews), votes: arr(d.votes), businesses: arr(d.businesses), subscriptions: arr(d.subscriptions),
+    tickets: arr(d.tickets), bugs: arr(d.bugs), claims: arr(d.claims), appeals: arr(d.appeals),
+  };
+};
+
+export interface AdminUserStats { id: string; reviews_count: number; votes_count: number; businesses_count: number; last_sign_in_at: string | null; provider: string | null }
+
+/** Cifras de los usuarios de la página del listado. Si la función no está aplicada devuelve {} y el listado sigue como antes. */
+export const adminUsersStats = async (ids: string[]): Promise<Record<string, AdminUserStats>> => {
+  if (!ids.length) return {};
+  const { data, error } = await supabase.rpc('admin_users_stats', { p_ids: ids });
+  if (error) return {};
+  const out: Record<string, AdminUserStats> = {};
+  for (const r of (data || []) as any[]) {
+    out[r.id] = { id: r.id, reviews_count: Number(r.reviews_count) || 0, votes_count: Number(r.votes_count) || 0, businesses_count: Number(r.businesses_count) || 0, last_sign_in_at: r.last_sign_in_at ?? null, provider: r.provider ?? null };
+  }
+  return out;
 };
 
 export const adminContactNewCount = async (): Promise<number> => {

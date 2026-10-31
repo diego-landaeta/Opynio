@@ -214,7 +214,7 @@ const DashboardAnalytics: React.FC = () => {
 
     const { business } = useBusinessDashboard();
     const t = useTranslation();
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const [loading, setLoading] = useState(true);
     const [analyticsData, setAnalyticsData] = useState<any>(null);
     const [dateRange, setDateRange] = useState<DateRange>(30);
