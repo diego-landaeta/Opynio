@@ -3582,7 +3582,7 @@ export class AdminOverviewMissingError extends Error {
  * llamada. Si la funcion no esta (migracion sin aplicar: PGRST202 / 42883 /
  * 404) lanza AdminOverviewMissingError; cualquier otro error se relanza tal cual.
  */
-export const getAdminDashboardOverview = async (): Promise<AdminOverview> => {
+const pedirAdminDashboardOverview = async (): Promise<AdminOverview> => {
   const { data, error } = await supabase.rpc('admin_dashboard_overview');
   if (!error) return normalizeAdminOverview(data);
   const e = error as { code?: string; message?: string; status?: number };
@@ -4170,7 +4170,7 @@ export const adminUsersStats = async (ids: string[]): Promise<Record<string, Adm
   return out;
 };
 
-export const adminContactNewCount = async (): Promise<number> => {
+const pedirAdminContactNewCount = async (): Promise<number> => {
   const { count, error } = await supabase.from('contact_messages').select('id', { count: 'exact', head: true }).eq('status', 'new');
   if (error) throw error;
   return count || 0;
@@ -4349,7 +4349,7 @@ export const adminListSupportTickets = async (opts: { status?: string; type?: st
   return { rows, total: rows.length ? Number(rows[0].total_count) : 0 };
 };
 
-export const adminSupportTicketCounts = async (): Promise<Record<SupportTicketStatus, number>> => {
+const pedirAdminSupportTicketCounts = async (): Promise<Record<SupportTicketStatus, number>> => {
   const { data, error } = await supabase.rpc('admin_support_ticket_counts');
   if (error) throw error;
   const counts = { open: 0, in_progress: 0, waiting_user: 0, resolved: 0, closed: 0 } as Record<SupportTicketStatus, number>;
@@ -5511,4 +5511,55 @@ export const registerInvitationReviewed = async (invitationId: string | null, bu
   const { error } = await supabase.rpc('mark_invitation_reviewed', { p_id: id });
   if (error) console.warn('mark_invitation_reviewed:', error.message);
   else try { sessionStorage.removeItem(INVITATION_STORAGE_KEY); } catch { /* nada */ }
+};
+
+// --- Precarga del panel de admin -----------------------------------------------------------------------------------
+// Al entrar a /admin la pantalla esperaba a cargar el perfil (1,5-2 s) y las notificaciones y empresas (0,6 s) ANTES de
+// pedir el resumen y los contadores, que tardan otros 2 s: todo en cadena (unos 6 s hasta ver el panel). Aquí se piden a
+// la vez que se carga el perfil, en cuanto se entra a una ruta de admin, y la pantalla recoge esa respuesta cuando la
+// necesita. Se usa UNA vez y solo si es reciente (la siguiente llamada, p. ej. tras actualizar, va a la red como siempre).
+// Si la precarga falla (p. ej. aún sin sesión), quien la recoge repite la petición normal.
+interface PrecargaAdmin {
+  t: number;
+  overview?: Promise<AdminOverview>;
+  support?: Promise<Record<SupportTicketStatus, number>>;
+  contact?: Promise<number>;
+}
+let precargaAdmin: PrecargaAdmin | null = null;
+const PRECARGA_ADMIN_MS = 15000;
+
+function tomarPrecargaAdmin<K extends 'overview' | 'support' | 'contact'>(k: K): PrecargaAdmin[K] | undefined {
+  if (!precargaAdmin || Date.now() - precargaAdmin.t > PRECARGA_ADMIN_MS) return undefined;
+  const p = precargaAdmin[k];
+  delete precargaAdmin[k];
+  return p;
+}
+
+export const prefetchAdminPanelData = (): void => {
+  if (precargaAdmin && Date.now() - precargaAdmin.t < 3000) return; // ya se ha lanzado hace nada
+  const p: PrecargaAdmin = { t: Date.now() };
+  p.overview = pedirAdminDashboardOverview();
+  p.support = pedirAdminSupportTicketCounts();
+  p.contact = pedirAdminContactNewCount();
+  // Sin esto, un rechazo que nadie recoge saldría como «unhandled rejection» en consola.
+  p.overview.catch(() => undefined);
+  p.support.catch(() => undefined);
+  p.contact.catch(() => undefined);
+  precargaAdmin = p;
+};
+
+/** Resumen del panel. `fresco` fuerza ir a la red (botón «Actualizar», borrado de empresas vacías...). */
+export const getAdminDashboardOverview = (opts?: { fresco?: boolean }): Promise<AdminOverview> => {
+  const pre = opts?.fresco ? undefined : tomarPrecargaAdmin('overview');
+  return pre ? pre.catch(() => pedirAdminDashboardOverview()) : pedirAdminDashboardOverview();
+};
+
+export const adminSupportTicketCounts = (): Promise<Record<SupportTicketStatus, number>> => {
+  const pre = tomarPrecargaAdmin('support');
+  return pre ? pre.catch(() => pedirAdminSupportTicketCounts()) : pedirAdminSupportTicketCounts();
+};
+
+export const adminContactNewCount = (): Promise<number> => {
+  const pre = tomarPrecargaAdmin('contact');
+  return pre ? pre.catch(() => pedirAdminContactNewCount()) : pedirAdminContactNewCount();
 };

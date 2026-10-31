@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../Spinner';
 import { useI18n, countryPrefixFor, localizedPath } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
+import { prefetchAdminPanelData } from '../../services/supabaseService';
 
 const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
     const { user, profile, loading } = useAuth();
@@ -14,6 +15,9 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
     const location = ReactRouterDOM.useLocation();
     const { language } = useI18n();
     const { country } = useCountry();
+
+    // Pide el resumen del panel YA, a la vez que se carga el perfil, en vez de esperar a que termine (ahorra ~2 s).
+    React.useEffect(() => { prefetchAdminPanelData(); }, []);
 
     if (loading) {
         return (
