@@ -134,6 +134,7 @@ const AdminScrapingPage = lazy(() => import('./components/pages/admin/AdminScrap
 const SupportPage = lazy(() => import('./components/pages/SupportPage'));
 const AdminBulkEditPage = lazy(() => import('./components/pages/admin/AdminBulkEditPage'));
 const AdminUsersPage = lazy(() => import('./components/pages/admin/AdminUsersPage'));
+const AdminUserDetailPage = lazy(() => import('./components/pages/admin/AdminUserDetailPage'));
 const AdminReviewModerationPage = lazy(() => import('./components/pages/admin/AdminReviewModerationPage'));
 const PricingPage = lazy(() => import('./components/pages/PricingPage'));
 const AssignBusinessPage = lazy(() => import('./components/pages/AssignBusinessPage'));
@@ -597,6 +598,7 @@ const App = () => {
                                         <Route path="scraping" element={<AdminScrapingPage />} />
                                         <Route path="empresas/editar-masivo" element={<AdminBulkEditPage />} />
                                         <Route path="usuarios" element={<AdminUsersPage />} />
+                                        <Route path="usuarios/:userId" element={<AdminUserDetailPage />} />
                                         <Route path="moderacion-resenas" element={<AdminReviewModerationPage />} />
                                         <Route path="reclamaciones" element={<AdminClaimsPage />} />
                                         <Route path="bugs" element={<AdminBugsPage />} />

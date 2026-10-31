@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useTranslation, useI18n, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
@@ -278,7 +279,9 @@ const FEATURES: Record<PreviewSectionId, {
 
 const PlanCards: React.FC<{ minPlan: Plan }> = ({ minPlan }) => {
     const t = useTranslation();
-    const { profile, businesses } = useAuth();
+    // businesses es del usuario conectado (en la vista de admin, el admin); profile, el del dueño que se está mirando.
+    const { businesses } = useAuth();
+    const { profile } = useBusinessDashboard();
     const pricingHref = usePricingHref();
     const [anualElegido, setAnual] = useState(false);
     // Sin el anual disponible en todos los planes (AVAILABLE_BILLING_CYCLES) no se

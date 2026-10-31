@@ -20,7 +20,7 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
 
 const DashboardBilling: React.FC = () => {
     const { business } = useBusinessDashboard();
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const { showNotification } = useNotification();
     const t = useTranslation();
     const { language } = useI18n();

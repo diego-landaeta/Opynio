@@ -104,7 +104,7 @@ const AdminClaimsPage: React.FC = () => {
             rejected: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
         };
         const statusText = t(`adminClaims.${status}`);
-        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${styles[status]}`}>{statusText}</span>;
+        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize whitespace-nowrap ${styles[status]}`}>{statusText}</span>;
     };
 
     return (

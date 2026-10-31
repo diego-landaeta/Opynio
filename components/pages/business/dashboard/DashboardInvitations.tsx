@@ -34,7 +34,7 @@ const STATUS_STYLE: Record<InvitationRow['status'], string> = {
 
 const DashboardInvitations: React.FC = () => {
     const { business } = useBusinessDashboard();
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     // Sin plan no hay historial que pedir (la RLS no lo dejaria y saldria un error en consola).
     const desbloqueada = !!profile && !getSectionAccess(profile, 'invitations').locked;
     const { showNotification } = useNotification();

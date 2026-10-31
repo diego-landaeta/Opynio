@@ -447,7 +447,7 @@ const AdminScrapingPage: React.FC = () => {
             failed: 'fa-solid fa-triangle-exclamation',
         }
         return (
-            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full capitalize ${styles[status]}`}>
+            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full capitalize whitespace-nowrap ${styles[status]}`}>
                 <i className={icons[status]}></i>
                 {t(`adminScrapingPage.status_${status}`)}
             </span>
