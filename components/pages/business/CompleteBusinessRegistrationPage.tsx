@@ -19,6 +19,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useI18n, pathTranslations, useTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
 import { triggerPlanActivatedModal } from '../../PlanActivatedModal';
+import { trackCompleteRegistration } from '../../../utils/metaPixel';
 import { useCountryName } from '../../../utils/countryName';
 import { getUserFacingError, useUserErrorNotifier } from '../../../utils/userFacingError';
 import type { NotificationAction } from '../../../contexts/NotificationContext';
@@ -165,6 +166,10 @@ const CompleteBusinessRegistrationPage: React.FC = () => {
             });
             localStorage.removeItem('opynio_pending_business_data');
             localStorage.removeItem('opynio_business_signup_flow');
+            // Registro completado de empresa (issue #18): la empresa ya existe y
+            // va a su panel con la bienvenida. Una vez por cuenta: si recarga o
+            // vuelve atras, el guard de arriba le saca de aqui sin pasar por este envio.
+            trackCompleteRegistration('business', { id: user.id, email: user.email });
             triggerPlanActivatedModal('free');
             showNotification(t('businessWizard.registered'), 'success');
 

@@ -5,6 +5,8 @@ import Spinner from '../Spinner';
 import { useI18n, pathTranslations, getLanguageForCountryCode } from '../../contexts/i18nContext';
 import { useCountry } from '../../contexts/CountryContext';
 import { takePostLoginReturnTo, forgetPostLoginReturnTo } from '../../utils/postLoginReturnTo';
+import { trackCompleteRegistration } from '../../utils/metaPixel';
+import { isFreshOAuthSignUp } from '../../utils/registrationOnce';
 
 // Detecta si la sesión actual es signup-empresa, por orden de robustez:
 //   1) ?type=business en la URL del callback (lo añade signInWithGoogleForBusiness).
@@ -82,6 +84,14 @@ const PostLoginRedirect: React.FC = () => {
             const searchParams = new URLSearchParams(location.search);
             const intent = detectBusinessSignUpIntent(searchParams, user?.user_metadata);
             const pendingBusinessSignUp = intent.wants && profile.role === 'authenticated';
+
+            // Registro completado (issue #18) de quien se da de alta con Google:
+            // su cuenta se crea en esta misma entrada. Una vez por cuenta (ver
+            // utils/registrationOnce.ts). Si viene a dar de alta una empresa,
+            // cuenta al terminar el asistente, no aqui.
+            if (!intent.wants && user && isFreshOAuthSignUp(user)) {
+                trackCompleteRegistration('user', { id: user.id, email: user.email });
+            }
 
             // Volver a la pagina que pidio el login (ver LoginPage). Solo rutas
             // internas y de hace menos de 10 min (utils/postLoginReturnTo).

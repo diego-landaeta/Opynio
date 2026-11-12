@@ -11,7 +11,8 @@ import { useCountry } from '../../contexts/CountryContext';
 import PasswordInput from '../PasswordInput';
 import AuthErrorText from '../auth/AuthErrorText';
 import { getAuthErrorInfo } from '../../utils/authErrors';
-import { trackMetaEvent } from '../../utils/metaPixel';
+import { trackCompleteRegistration } from '../../utils/metaPixel';
+import { isNewSignUp } from '../../utils/registrationOnce';
 import { escapeHtml } from '../../utils/textUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusinessStartPath } from '../../utils/businessOwnership';
@@ -122,8 +123,16 @@ const RegisterPage: React.FC = () => {
                     setError(t('registerPage.allFieldsRequiredError'));
                     return;
                 }
-                await signUpUser(formData.email, formData.password, formData.name, formData.username);
+                const signUpData = await signUpUser(formData.email, formData.password, formData.name, formData.username);
                 console.log('[signup] user signup completed');
+                // Registro completado de usuario (issue #18): solo si la cuenta es
+                // nueva (con un correo ya registrado Supabase no da error, devuelve
+                // un usuario sin identidades) y una vez por cuenta. A Meta el
+                // correo en crudo normalizado: escapeHtml cambiaba ' o & por
+                // entidades y el hash ya no coincidia.
+                if (isNewSignUp(signUpData)) {
+                    trackCompleteRegistration('user', { id: signUpData.user?.id, email: formData.email });
+                }
             } else {
                  if (!formData.name.trim() || !formData.username || !formData.businessName) {
                     setError(t('registerPage.allFieldsRequiredError'));
@@ -179,14 +188,9 @@ const RegisterPage: React.FC = () => {
                     formData.name,
                 );
                 console.log('[signup] business signup completed (email confirmation pending)');
+                // Sin evento de registro aqui: la empresa aun no existe. Se lanza
+                // al terminar el asistente (CompleteBusinessRegistrationPage).
             }
-            // A Meta el correo en crudo normalizado: escapeHtml cambiaba ' o &
-            // por entidades y el hash ya no coincidia. El escape solo va donde
-            // se inserta en HTML (modal de confirmacion).
-            void trackMetaEvent('CompleteRegistration', {
-                userData: { email: formData.email.trim().toLowerCase() },
-                customData: { content_name: registerType === 'business' ? 'business' : 'user' },
-            });
             setSuccess(true);
         } catch (err: any) {
             // Nunca el texto crudo de Supabase: usuario ya registrado, contrasena
