@@ -7,6 +7,7 @@
 
 import { supabase } from '../services/supabaseService';
 import { hasMarketingConsent } from './consent';
+import { claimRegistrationEvent, registrationEventId, type RegistrationKind } from './registrationOnce';
 
 declare global {
   interface Window {
@@ -115,6 +116,24 @@ export async function trackMetaEvent(
   void sendCapi(eventName, eventId, options);
 
   return eventId;
+}
+
+// Registro completado (issue #18): CompleteRegistration con el tipo en
+// content_name ('user' o 'business'), una sola vez por cuenta y tipo en este
+// navegador (utils/registrationOnce.ts). Mismo event_id en pixel y CAPI.
+export function trackCompleteRegistration(
+  kind: RegistrationKind,
+  account: { id?: string | null; email?: string | null }
+): void {
+  if (!account.id || !claimRegistrationEvent(kind, account.id)) return;
+  void trackMetaEvent('CompleteRegistration', {
+    eventId: registrationEventId(kind, account.id),
+    userData: {
+      email: account.email ? account.email.trim().toLowerCase() : null,
+      external_id: account.id,
+    },
+    customData: { content_name: kind },
+  });
 }
 
 export function trackPageView(): void {
