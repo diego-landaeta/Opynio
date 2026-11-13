@@ -4,13 +4,13 @@ import * as ReactRouterDOM from 'react-router-dom';
 import Spinner from '../../Spinner';
 import BusinessLogo from '../../BusinessLogo';
 import Meta from '../../Meta';
-import { Business } from '../../../types';
+import { Business, Profile } from '../../../types';
 import { planNameKey } from '../../../utils/planFeatures';
 import { useDashboardSections } from './dashboard/useDashboardSections';
 import { BusinessDashboardProvider, useBusinessDashboard } from '../../../contexts/BusinessDashboardContext';
 import { useI18n, useTranslation, pathTranslations, useAutoTranslation, getLanguageForCountryCode } from '../../../contexts/i18nContext';
 import { useCountry } from '../../../contexts/CountryContext';
-import { getBusinessById, getBusinessByName, getOwnedBusinessByIdentifier } from '../../../services/supabaseService';
+import { getBusinessById, getBusinessByName, getBusinessBySlug, getOwnedBusinessByIdentifier, getProfileForAdminView } from '../../../services/supabaseService';
 import { businessUrlId } from '../../../utils/slugify';
 
 // Los enlaces del panel se usan en DOS sitios: el lateral de escritorio y el
@@ -42,8 +42,7 @@ const useDashboardNav = () => {
 // enlace hay que cerrarlo, o el usuario se queda mirando el menu encima de la
 // pantalla a la que acaba de ir.
 const SidebarContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
-    const { business } = useBusinessDashboard();
-    const { profile } = useAuth();
+    const { business, profile } = useBusinessDashboard();
     const t = useTranslation();
     const { navLinks, countryPrefix, paths } = useDashboardNav();
     // El lateral se pinta dos veces (escritorio y cajon de movil): los ids de los
@@ -232,11 +231,14 @@ const BusinessDashboardPage: React.FC = () => {
     const { businessName: identifier } = ReactRouterDOM.useParams<{ businessName: string }>();
     const navigate = ReactRouterDOM.useNavigate();
     const location = ReactRouterDOM.useLocation();
-    const { user, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
     const t = useTranslation();
     const { language } = useI18n();
+    const esAdmin = profile?.role === 'admin';
 
     const [business, setBusiness] = useState<Business | null>(null);
+    // Vista de administrador: el panel de una empresa que no es suya, en solo lectura y con el perfil de su dueño.
+    const [adminOwner, setAdminOwner] = useState<Profile | null>(null);
     const [loadingBusiness, setLoadingBusiness] = useState(true);
     const businessRef = React.useRef<Business | null>(null);
     businessRef.current = business;
@@ -292,6 +294,8 @@ const BusinessDashboardPage: React.FC = () => {
                 const businessData = isUuid
                     ? await getBusinessById(identifier)
                     : ((user && await getOwnedBusinessByIdentifier(user.id, decodedName))
+                        // Un admin abre la empresa de otro por su slug (el nombre con espacios podría coincidir con otra).
+                        || (esAdmin ? await getBusinessBySlug(decodedName) : null)
                         || await getBusinessByName(businessName));
 
                 // Enlace antiguo (UUID, o nombre con tildes y mayusculas): se
@@ -326,6 +330,13 @@ const BusinessDashboardPage: React.FC = () => {
 
                 // Security check: ensure the logged-in user owns this business
                 if (businessData && businessData.owner_id === user.id) {
+                    setAdminOwner(null);
+                    setBusiness(businessData);
+                } else if (businessData && esAdmin) {
+                    // Admin mirando la empresa de otro: se carga el perfil del dueño para que planes, candados y créditos
+                    // salgan como los ve él. Si no tiene dueño, se ve como un plan gratuito.
+                    const duenio = businessData.owner_id ? await getProfileForAdminView(businessData.owner_id).catch(() => null) : null;
+                    setAdminOwner(duenio as Profile | null);
                     setBusiness(businessData);
                 } else {
                     setBusiness(null); // Or show an error
@@ -339,7 +350,7 @@ const BusinessDashboardPage: React.FC = () => {
         };
 
         fetchBusiness();
-    }, [identifier, user?.id]); // Only re-fetch when identifier or user ID changes
+    }, [identifier, user?.id, esAdmin]); // Se vuelve a cargar si cambia el identificador, el usuario o su rol de admin (llega después del usuario)
 
 
     if (authLoading || loadingBusiness) {
@@ -350,15 +361,31 @@ const BusinessDashboardPage: React.FC = () => {
         return <div className="text-center text-sm sm:text-base text-red-500 bg-red-50 dark:bg-red-900/30 p-4 sm:p-6 rounded-lg">{t('businessDashboard.businessNotFoundOrNoPermission')}</div>;
     }
 
+    // Un admin mirando la empresa de otro usuario: solo lectura, con el perfil de su dueño.
+    const vistaAdmin = !!user && business.owner_id !== user.id && esAdmin;
+    const duenioNombre = adminOwner?.name || adminOwner?.username || t('adminDashboard.udNoOwner');
+
     return (
         <BusinessDashboardProvider
             business={business}
             onBusinessChange={(changes) => setBusiness(prev => (prev ? { ...prev, ...changes } : prev))}
+            adminView={vistaAdmin ? { ownerProfile: adminOwner, info: { ownerId: business.owner_id || '', ownerName: duenioNombre } } : null}
         >
             <Meta
                 title={t('businessDashboard.dashboardMetaTitle', { section: seccionActual, business: business.name })}
                 description={t('businessDashboard.dashboardMetaDescription', { business: business.name })}
             />
+            {vistaAdmin && (
+                <div role="status" className="mb-8 sm:mb-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 shadow dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
+                    <span><i className="fa-solid fa-eye mr-2" aria-hidden="true"></i>{t('adminDashboard.udAdminViewBanner', { owner: duenioNombre })}</span>
+                    <ReactRouterDOM.Link
+                        to={business.owner_id ? `/admin/usuarios/${business.owner_id}` : '/admin/usuarios'}
+                        className="font-bold underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 rounded"
+                    >
+                        {t('adminDashboard.udAdminViewExit')}
+                    </ReactRouterDOM.Link>
+                </div>
+            )}
             <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 -mt-6 sm:-mt-8">
                 <DashboardMobileNav />
                 <DashboardSidebar />
@@ -367,9 +394,13 @@ const BusinessDashboardPage: React.FC = () => {
                     {/* Cada seccion es un chunk lazy. Sin este Suspense propio, el del App
                         sustituia TODO el panel (menu y titulo de pestana incluidos) por un
                         spinner mientras se descargaba la seccion. Asi solo cambia el contenido. */}
-                    <React.Suspense fallback={<div className="flex justify-center items-center py-12 sm:py-16"><Spinner /></div>}>
-                        <ReactRouterDOM.Outlet />
-                    </React.Suspense>
+                    {/* Vista de admin: un fieldset deshabilitado desactiva todos los botones, campos y selectores de la
+                        sección (los enlaces del menú, que van fuera, siguen funcionando). Solo lectura. */}
+                    <fieldset disabled={vistaAdmin} className="border-0 p-0 m-0 min-w-0">
+                        <React.Suspense fallback={<div className="flex justify-center items-center py-12 sm:py-16"><Spinner /></div>}>
+                            <ReactRouterDOM.Outlet />
+                        </React.Suspense>
+                    </fieldset>
                 </div>
             </div>
         </BusinessDashboardProvider>

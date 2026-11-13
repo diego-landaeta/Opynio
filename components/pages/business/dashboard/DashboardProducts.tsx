@@ -345,7 +345,7 @@ const ProductCard: React.FC<{
 
 const DashboardProducts: React.FC = () => {
     const { business } = useBusinessDashboard();
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const { showNotification } = useNotification();
     const { notifyError } = useUserErrorNotifier();
     const { confirm } = useConfirm();

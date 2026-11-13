@@ -135,7 +135,7 @@ const AdminBugsPage: React.FC = () => {
             closed: 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300',
         };
         const statusKey = status;
-        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${styles[status]}`}>{t(`adminBugsPage.${statusKey}`)}</span>;
+        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize whitespace-nowrap ${styles[status]}`}>{t(`adminBugsPage.${statusKey}`)}</span>;
     };
 
     return (

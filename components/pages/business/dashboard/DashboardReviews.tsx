@@ -42,7 +42,8 @@ const AI_SUGGESTION_COST = 10;
 const DashboardReviews: React.FC = () => {
     // Plan y créditos viven en `profiles`. setProfile actualiza el contador
     // local tras consumir créditos para feedback inmediato.
-    const { profile, setProfile } = useAuth();
+    const { setProfile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const { business } = useBusinessDashboard();
     const { showNotification } = useNotification();
     const { notifyError } = useUserErrorNotifier();

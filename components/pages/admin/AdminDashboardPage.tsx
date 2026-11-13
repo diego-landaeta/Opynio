@@ -71,7 +71,7 @@ const AdminDashboardPage: React.FC = () => {
     const load = useCallback(async (isRefresh: boolean) => {
         const id = ++reqId.current;
         if (isRefresh) setRefreshing(true); else setStatus('loading');
-        const [ov, sup, con] = await Promise.allSettled([getAdminDashboardOverview(), adminSupportTicketCounts(), adminContactNewCount()]);
+        const [ov, sup, con] = await Promise.allSettled([getAdminDashboardOverview({ fresco: isRefresh }), adminSupportTicketCounts(), adminContactNewCount()]);
         if (id !== reqId.current) return;
         if (ov.status === 'fulfilled') {
             setData(ov.value);
@@ -101,7 +101,7 @@ const AdminDashboardPage: React.FC = () => {
         setDeleting(true);
         try {
             // El numero que ve quien confirma tiene que ser el de AHORA, no el de hace diez minutos.
-            const fresh = await getAdminDashboardOverview().catch(() => null);
+            const fresh = await getAdminDashboardOverview({ fresco: true }).catch(() => null);
             const count = (fresh ?? data).totals.emptyBusinesses;
             if (fresh) setData(fresh);
             if (count === 0) return;

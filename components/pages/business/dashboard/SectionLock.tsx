@@ -1,4 +1,5 @@
 import React from 'react';
+import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useTranslation } from '../../../../contexts/i18nContext';
@@ -35,7 +36,7 @@ interface SectionLockProps {
  *   (mejorar el plan no la enciende).
  */
 const SectionLock: React.FC<SectionLockProps> = ({ section, title, children }) => {
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const t = useTranslation();
     const pricingHref = usePricingHref();
 

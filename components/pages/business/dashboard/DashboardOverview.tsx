@@ -265,8 +265,7 @@ const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string |
 
 
 const DashboardOverview: React.FC = () => {
-    const { business } = useBusinessDashboard();
-    const { profile } = useAuth();
+    const { business, profile, adminView } = useBusinessDashboard();
     const t = useTranslation();
     const { language } = useI18n();
     const [stats, setStats] = useState<{
@@ -341,7 +340,8 @@ const DashboardOverview: React.FC = () => {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.dashboardOverview')}</h1>
 
             {/* Solo con la prueba gratuita activa (NEW_PRICING_ENABLED + suscripcion en 'trialing'). */}
-            <TrialStatusBanner />
+            {/* El aviso habla del usuario conectado: en la vista de admin saldría el estado del admin, no el del dueño. */}
+            {!adminView && <TrialStatusBanner />}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 <StatCard title={t('businessDashboard.totalReviews')} value={stats.totalReviews} icon="fa-star" />

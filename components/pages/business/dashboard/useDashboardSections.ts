@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useBusinessDashboard } from '../../../../contexts/BusinessDashboardContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useCountry } from '../../../../contexts/CountryContext';
 import { useI18n, useTranslation, pathTranslations, localizedPath } from '../../../../contexts/i18nContext';
@@ -30,7 +31,7 @@ export const usePricingHref = (): string => {
  * el lateral y el manual, para que los dos enlacen igual y digan lo mismo.
  */
 export const useDashboardSections = () => {
-    const { profile } = useAuth();
+    const { profile } = useBusinessDashboard();
     const t = useTranslation();
     const pricingHref = usePricingHref();
 

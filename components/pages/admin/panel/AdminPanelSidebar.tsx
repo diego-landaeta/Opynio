@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useCountry } from '../../../../contexts/CountryContext';
 import { useI18n, useTranslation, pathTranslations, getLocaleFromLanguage } from '../../../../contexts/i18nContext';
 import { useNumberFormats } from './overviewUtils';
+import AdminGlobalSearch from './AdminGlobalSearch';
 
 /** Cola con su contador. `late` = lo que espera lleva mas de 3 dias. */
 export interface QueueCount {
@@ -95,42 +96,59 @@ const useNavGroups = (queues: SidebarQueues, pathname: string) => {
     const { country } = useCountry();
     const tk = (k: string) => t(`adminDashboard.${k}`);
 
-    const colasBase: NavItem[] = [
-        { key: 'summary', to: '/admin/panel', icon: 'fa-chart-pie', label: tk('ovNavSummary') },
-        { key: 'moderation', to: `/${es.adminReviewModeration}`, icon: 'fa-comments', label: tk('ovNavModeration'), queue: queues.moderation },
-        { key: 'claims', to: `/${es.adminClaims}`, icon: 'fa-user-shield', label: tk('ovNavClaims'), queue: queues.claims },
-        { key: 'appeals', to: `/${es.adminReviewAppeals}`, icon: 'fa-scale-balanced', label: tk('ovNavAppeals'), queue: queues.appeals },
-        { key: 'bugs', to: `/${es.adminBugs}`, icon: 'fa-bug', label: tk('ovNavBugs'), queue: queues.bugs },
-        { key: 'support', to: '/admin/soporte', icon: 'fa-headset', label: tk('ovNavSupport'), queue: queues.support },
-    ];
-    const datosBase: NavItem[] = [
-        { key: 'users', to: `/${es.adminUsers}`, icon: 'fa-users', label: tk('users') },
-        { key: 'payments', to: '/admin/pagos', icon: 'fa-credit-card', label: tk('ovNavPayments') },
-        { key: 'enterprise', to: `/${es.adminEnterprise}`, icon: 'fa-building', label: tk('enterprisePlan') },
-        { key: 'featured', to: `/${es.adminFeatured}`, icon: 'fa-star', label: tk('ovNavFeatured') },
-        { key: 'urls', to: `/${es.adminUrls}`, icon: 'fa-link', label: tk('ovNavUrls') },
-        { key: 'create', to: `/${es.adminCreateBusiness}`, icon: 'fa-circle-plus', label: tk('createBusiness') },
-        { key: 'scraping', to: `/${es.adminScraping}`, icon: 'fa-robot', label: tk('scraping') },
-        { key: 'bulk', to: `/${es.adminBulkEdit}`, icon: 'fa-pen-to-square', label: tk('ovNavBulk') },
-    ];
-    const salidasBase: NavItem[] = [
-        { key: 'performance', to: '/admin/rendimiento', icon: 'fa-gauge-high', label: tk('ovPerformance') },
-        { key: 'site', to: country ? `/${country.toLowerCase()}` : '/', icon: 'fa-arrow-left', label: tk('ovBackSite') },
+    const item = (key: string, to: string, icon: string, label: string, queue?: QueueCount): NavItem => ({ key, to, icon, label, queue });
+
+    // Cinco bloques con nombre: el resumen suelto, lo que hay que revisar (colas con contador), personas y planes,
+    // todo lo de empresas y el sistema.
+    const gruposBase: Array<{ titulo?: string; items: NavItem[] }> = [
+        { items: [item('summary', '/admin/panel', 'fa-chart-pie', tk('ovNavSummary'))] },
+        {
+            titulo: tk('ovGroupReview'),
+            items: [
+                item('moderation', `/${es.adminReviewModeration}`, 'fa-comments', tk('ovNavModeration'), queues.moderation),
+                item('claims', `/${es.adminClaims}`, 'fa-user-shield', tk('ovNavClaims'), queues.claims),
+                item('appeals', `/${es.adminReviewAppeals}`, 'fa-scale-balanced', tk('ovNavAppeals'), queues.appeals),
+                item('bugs', `/${es.adminBugs}`, 'fa-bug', tk('ovNavBugs'), queues.bugs),
+                item('support', '/admin/soporte', 'fa-headset', tk('ovNavSupport'), queues.support),
+            ],
+        },
+        {
+            titulo: tk('ovGroupPeople'),
+            items: [
+                item('users', `/${es.adminUsers}`, 'fa-users', tk('users')),
+                item('enterprise', `/${es.adminEnterprise}`, 'fa-building', tk('enterprisePlan')),
+                item('payments', '/admin/pagos', 'fa-credit-card', tk('ovNavPayments')),
+            ],
+        },
+        {
+            titulo: tk('ovGroupBusinesses'),
+            items: [
+                item('featured', `/${es.adminFeatured}`, 'fa-star', tk('ovNavFeatured')),
+                item('create', `/${es.adminCreateBusiness}`, 'fa-circle-plus', tk('createBusiness')),
+                item('bulk', `/${es.adminBulkEdit}`, 'fa-pen-to-square', tk('ovNavBulk')),
+                item('urls', `/${es.adminUrls}`, 'fa-link', tk('ovNavUrls')),
+                item('scraping', `/${es.adminScraping}`, 'fa-robot', tk('scraping')),
+            ],
+        },
+        {
+            titulo: tk('ovGroupSystem'),
+            items: [
+                item('performance', '/admin/rendimiento', 'fa-gauge-high', tk('ovPerformance')),
+                item('site', country ? `/${country.toLowerCase()}` : '/', 'fa-arrow-left', tk('ovBackSite')),
+            ],
+        },
     ];
 
     // El apartado actual sale de la ruta (coincidencia exacta o una subruta: /admin/empresa/editar/:id no tiene enlace propio).
-    const marcar = (items: NavItem[]): NavItem[] => items.map(i => ({ ...i, current: i.key !== 'site' && esActual(pathname, i.to) }));
-    const colas = marcar(colasBase);
-    const datos = marcar(datosBase);
-    const salidas = marcar(salidasBase);
-    const actual = [...colas, ...datos, ...salidas].find(i => i.current) ?? { icon: 'fa-shield-halved', label: tk('ovAdminName') };
-    return { colas, datos, salidas, actual, tk };
+    const grupos = gruposBase.map(g => ({ ...g, items: g.items.map(i => ({ ...i, current: i.key !== 'site' && esActual(pathname, i.to) })) }));
+    const actual = grupos.flatMap(g => g.items).find(i => i.current) ?? { icon: 'fa-shield-halved', label: tk('ovAdminName') };
+    return { grupos, actual, tk };
 };
 
 /** Contenido de la barra: identidad arriba y tres grupos de enlaces. */
 const SidebarContent: React.FC<{ queues: SidebarQueues; pathname: string; onNavigate?: () => void }> = ({ queues, pathname, onNavigate }) => {
     const { profile } = useAuth();
-    const { colas, datos, salidas, tk } = useNavGroups(queues, pathname);
+    const { grupos, tk } = useNavGroups(queues, pathname);
 
     return (
         <nav aria-label={tk('ovNavAria')}>
@@ -149,11 +167,13 @@ const SidebarContent: React.FC<{ queues: SidebarQueues; pathname: string; onNavi
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{profile?.name || profile?.username || 'Opynio'}</p>
                 </div>
             </div>
-            <NavList items={colas} onNavigate={onNavigate} />
-            <div className="my-2 border-t dark:border-zinc-700" role="separator" />
-            <NavList items={datos} onNavigate={onNavigate} />
-            <div className="my-2 border-t dark:border-zinc-700" role="separator" />
-            <NavList items={salidas} onNavigate={onNavigate} />
+            <AdminGlobalSearch onNavigate={onNavigate} />
+            {grupos.map((g, idx) => (
+                <div key={g.titulo ?? 'inicio'} className={idx === 0 ? '' : 'mt-3'}>
+                    {g.titulo && <p className="px-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{g.titulo}</p>}
+                    <NavList items={g.items} onNavigate={onNavigate} />
+                </div>
+            ))}
         </nav>
     );
 };

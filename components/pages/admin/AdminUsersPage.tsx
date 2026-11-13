@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getAdminUsersPaginated, updateUserRole, getBusinessesForOwner } from '../../../services/supabaseService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getAdminUsersPaginated, adminUsersStats, type AdminUserStats } from '../../../services/supabaseService';
 import type { Profile, UserRole } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { useConfirm } from '../../../contexts/ConfirmContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import Spinner from '../../Spinner';
 import Meta from '../../Meta';
-import Modal from '../../Modal';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '../../../contexts/i18nContext';
 import AdminBackLink from './AdminBackLink';
 
@@ -15,13 +12,13 @@ const USERS_PER_PAGE = 15;
 
 const AdminUsersPage: React.FC = () => {
     const { showNotification } = useNotification();
-    const { confirm } = useConfirm();
-    const { user: currentUser } = useAuth();
     const t = useTranslation();
     const [users, setUsers] = useState<(Profile & { email?: string })[]>([]);
     const [totalUserCount, setTotalUserCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    // Reseñas, empresas y último acceso de los usuarios de la página (vacío si la RPC no está aplicada: el listado sigue igual).
+    const [stats, setStats] = useState<Record<string, AdminUserStats>>({});
     const [currentPage, setCurrentPage] = useState(1);
     
     // Filters
@@ -29,17 +26,6 @@ const AdminUsersPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchParams.get('q') || '');
     const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
-
-    // Modal state
-    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-    const [newRole, setNewRole] = useState<UserRole>('authenticated');
-    const [businessName, setBusinessName] = useState('');
-    const [modalLoading, setModalLoading] = useState(false);
-    const [modalError, setModalError] = useState<string | null>(null);
-    // Empresas del usuario del modal (null = comprobando). Decide si hace falta
-    // pedir nombre de empresa al pasarlo a business_owner.
-    const [ownedBusinessCount, setOwnedBusinessCount] = useState<number | null>(null);
 
     // Debounce search term and update URL
     useEffect(() => {
@@ -69,6 +55,8 @@ const AdminUsersPage: React.FC = () => {
             });
             setUsers(data as any);
             setTotalUserCount(count);
+            setStats({});
+            adminUsersStats((data as any[]).map(u => u.id)).then(setStats).catch(() => setStats({}));
         } catch (error: any) {
             // Sin la RPC admin_list_users no hay forma de buscar ni de ver emails:
             // se dice en la tabla en vez de enseñar una lista sin filtrar.
@@ -89,69 +77,6 @@ const AdminUsersPage: React.FC = () => {
 
     const totalPages = Math.ceil(totalUserCount / USERS_PER_PAGE);
 
-    // Usuario cuyo recuento de empresas se espera: si se cierra el modal y se
-    // abre el de otro antes de que llegue, la respuesta vieja no lo pisa.
-    const ownedCountFor = useRef<string | null>(null);
-
-    const handleOpenRoleModal = (user: Profile) => {
-        setSelectedUser(user);
-        setNewRole(user.role);
-        setBusinessName('');
-        setModalError(null);
-        setOwnedBusinessCount(null);
-        setIsRoleModalOpen(true);
-        ownedCountFor.current = user.id;
-        getBusinessesForOwner(user.id)
-            .then(list => { if (ownedCountFor.current === user.id) setOwnedBusinessCount(list.length); })
-            // Si no se puede comprobar se pide el nombre; updateUserRole vuelve a
-            // mirar y no duplica si ya tiene empresa.
-            .catch(() => { if (ownedCountFor.current === user.id) setOwnedBusinessCount(0); });
-    };
-
-    // El modal abre con el rol actual: solo hay algo que guardar si cambia.
-    const roleChanged = !!selectedUser && newRole !== selectedUser.role;
-    // Pasa a business_owner sin empresa: hay que crearle una (con nombre).
-    const needsBusinessName = roleChanged && newRole === 'business_owner' && ownedBusinessCount === 0;
-    const demotesAdmin = !!selectedUser && selectedUser.role === 'admin' && newRole !== 'admin';
-    const demotesSelf = demotesAdmin && !!currentUser && selectedUser?.id === currentUser.id;
-
-    const handleRoleChangeSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedUser || !roleChanged || demotesSelf) return;
-        if (newRole === 'business_owner' && ownedBusinessCount === null) return; // aun comprobando
-
-        if (needsBusinessName && !businessName.trim()) {
-            setModalError(t('adminUsersPage.businessNameRequired'));
-            return;
-        }
-
-        if (demotesAdmin) {
-            const ok = await confirm({
-                title: t('adminUsersPage.confirmDemoteTitle'),
-                message: t('adminUsersPage.confirmDemoteMessage', { name: selectedUser.name || (selectedUser as any).email || '' }),
-                confirmText: t('adminUsersPage.confirmDemoteButton'),
-                cancelText: t('common.cancel'),
-                danger: true,
-            });
-            if (!ok) return;
-        }
-
-        setModalLoading(true);
-        setModalError(null);
-
-        try {
-            await updateUserRole(selectedUser.id, newRole, needsBusinessName ? businessName.trim() : undefined);
-            showNotification(t('adminUsersPage.roleUpdated'), 'success');
-            setIsRoleModalOpen(false);
-            setSelectedUser(null);
-            fetchUsers(); // Refresh the user list
-        } catch (err: any) {
-            setModalError(err.message || t('adminUsersPage.errorUpdatingRole'));
-        } finally {
-            setModalLoading(false);
-        }
-    };
-
     const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) => {
         const styles = {
             authenticated: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
@@ -159,7 +84,7 @@ const AdminUsersPage: React.FC = () => {
             admin: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
         };
         const roleName = t(`roles.${role}`) || role.replace('_', ' ');
-        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${styles[role]}`}>{roleName}</span>;
+        return <span className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${styles[role]}`}>{roleName}</span>;
     };
     
     return (
@@ -202,41 +127,54 @@ const AdminUsersPage: React.FC = () => {
                         <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400">
                             <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-zinc-700">
                                 <tr>
-                                    <th scope="col" className="px-4 md:px-6 py-3">{t('common.user')}</th>
-                                    <th scope="col" className="px-4 md:px-6 py-3">{t('common.email')}</th>
-                                    <th scope="col" className="px-4 md:px-6 py-3">{t('common.role')}</th>
-                                    <th scope="col" className="px-4 md:px-6 py-3">{t('common.registeredOn')}</th>
-                                    <th scope="col" className="px-4 md:px-6 py-3 text-right">{t('common.actions')}</th>
+                                    <th scope="col" className="px-3 lg:px-4 py-3">{t('common.user')}</th>
+                                    <th scope="col" className="px-3 py-3 whitespace-nowrap">{t('adminDashboard.udTabActivity')}</th>
+                                    <th scope="col" className="px-3 py-3 whitespace-nowrap">{t('common.registeredOn')}</th>
+                                    <th scope="col" className="px-3 lg:px-4 py-3 text-right">{t('common.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan={5} className="text-center py-10"><Spinner /></td></tr>
+                                    <tr><td colSpan={4} className="text-center py-10"><Spinner /></td></tr>
                                 ) : loadError ? (
-                                    <tr><td colSpan={5} className="text-center py-10 text-red-600 dark:text-red-400" role="alert">{loadError}</td></tr>
+                                    <tr><td colSpan={4} className="text-center py-10 text-red-600 dark:text-red-400" role="alert">{loadError}</td></tr>
                                 ) : users.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-10">{t('adminUsersPage.noUsers')}</td></tr>
+                                    <tr><td colSpan={4} className="text-center py-10">{t('adminUsersPage.noUsers')}</td></tr>
                                 ) : (
                                     users.map(user => (
                                         <tr key={user.id} className="bg-white dark:bg-zinc-800 border-b dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700/50">
-                                            <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100 flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
-                                                    {user.avatar_url ? (
-                                                        <img src={user.avatar_url} alt="Avatar" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span>{user.name?.charAt(0).toUpperCase()}</span>
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-bold truncate">{user.name}</div>
-                                                    {user.username && <div className="text-xs text-gray-500 truncate">@{user.username}</div>}
+                                            <td className="px-3 lg:px-4 py-3 font-medium text-gray-900 dark:text-gray-100 max-w-[260px]">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
+                                                        {user.avatar_url ? (
+                                                            <img src={user.avatar_url} alt="" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span>{user.name?.charAt(0).toUpperCase()}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <Link to={`/admin/usuarios/${user.id}`} className="font-bold truncate block hover:text-brand-green hover:underline">{user.name}</Link>
+                                                        <div className="text-xs font-normal text-gray-500 dark:text-gray-400 truncate" title={(user as any).email || ''}>{(user as any).email || t('common.notAvailable')}</div>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                            <RoleBadge role={user.role} />
+                                                            {user.username && <span className="text-xs font-normal text-gray-400 dark:text-gray-500 truncate">@{user.username}</span>}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 md:px-6 py-4 max-w-[200px] truncate">{(user as any).email || t('common.notAvailable')}</td>
-                                            <td className="px-4 md:px-6 py-4"><RoleBadge role={user.role} /></td>
-                                            <td className="px-4 md:px-6 py-4">{user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '—'}</td>
-                                            <td className="px-4 md:px-6 py-4 text-right">
-                                                <button onClick={() => handleOpenRoleModal(user)} className="font-medium text-brand-green hover:underline text-sm">{t('common.changeRole')}</button>
+                                            <td className="px-3 py-3 whitespace-nowrap text-xs leading-5">
+                                                <div className="flex justify-between gap-4"><span className="text-gray-500 dark:text-gray-400">{t('adminDashboard.udColReviews')}</span><b className="tabular-nums text-gray-800 dark:text-gray-100">{stats[user.id] ? stats[user.id].reviews_count : '·'}</b></div>
+                                                <div className="flex justify-between gap-4"><span className="text-gray-500 dark:text-gray-400">{t('adminDashboard.udColVotes')}</span><b className="tabular-nums text-gray-800 dark:text-gray-100">{stats[user.id] ? stats[user.id].votes_count : '·'}</b></div>
+                                                <div className="flex justify-between gap-4"><span className="text-gray-500 dark:text-gray-400">{t('adminDashboard.udColBusinesses')}</span><b className="tabular-nums text-gray-800 dark:text-gray-100">{stats[user.id] ? stats[user.id].businesses_count : '·'}</b></div>
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <div>{user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '—'}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400" title={t('adminDashboard.udColLastAccess')}>
+                                                    {stats[user.id] ? (stats[user.id].last_sign_in_at ? t('adminDashboard.udSeen', { date: new Date(stats[user.id].last_sign_in_at!).toLocaleDateString('es-ES') }) : t('adminDashboard.udNever')) : ''}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 lg:px-4 py-3 text-right whitespace-nowrap">
+                                                <Link to={`/admin/usuarios/${user.id}`} className="block font-medium text-brand-green hover:underline text-sm">{t('adminDashboard.udViewProfile')}</Link>
                                             </td>
                                         </tr>
                                     ))
@@ -280,12 +218,15 @@ const AdminUsersPage: React.FC = () => {
                                             <span className="text-gray-900 dark:text-gray-100">{user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '—'}</span>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleOpenRoleModal(user)}
-                                        className="w-full mt-3 py-2 px-3 bg-brand-green text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium"
-                                    >
-                                        {t('common.changeRole')}
-                                    </button>
+                                    {stats[user.id] && (
+                                        <div className="flex justify-between text-sm mt-2">
+                                            <span className="text-gray-600 dark:text-gray-400">{t('adminDashboard.udColReviews')}: <b className="text-gray-900 dark:text-gray-100">{stats[user.id].reviews_count}</b></span>
+                                            <span className="text-gray-600 dark:text-gray-400">{t('adminDashboard.udColBusinesses')}: <b className="text-gray-900 dark:text-gray-100">{stats[user.id].businesses_count}</b></span>
+                                        </div>
+                                    )}
+                                    <Link to={`/admin/usuarios/${user.id}`} className="block w-full mt-3 text-center py-2 px-3 bg-brand-green text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium">
+                                        {t('adminDashboard.udViewProfile')}
+                                    </Link>
                                 </div>
                             ))
                         )}
@@ -301,64 +242,6 @@ const AdminUsersPage: React.FC = () => {
                 </div>
             </div>
             
-            {isRoleModalOpen && selectedUser && (
-                <Modal title={`${t('common.changeRoleFor')} ${selectedUser.name}`} onClose={() => setIsRoleModalOpen(false)}>
-                    <form onSubmit={handleRoleChangeSubmit} className="py-4 space-y-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {t('adminUsersPage.currentRole', { role: t(`roles.${selectedUser.role}`) })}
-                        </p>
-                        <div>
-                            <label htmlFor="role-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('common.newRole')}</label>
-                            <select id="role-select" value={newRole} onChange={(e) => { setNewRole(e.target.value as UserRole); setModalError(null); }} className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800">
-                                <option value="authenticated">{t('roles.authenticated')}</option>
-                                <option value="business_owner">{t('roles.business_owner')}</option>
-                                <option value="admin">{t('roles.admin')}</option>
-                            </select>
-                        </div>
-                        {roleChanged && newRole === 'business_owner' && ownedBusinessCount === null && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400" role="status">{t('adminUsersPage.checkingBusinesses')}</p>
-                        )}
-                        {roleChanged && newRole === 'business_owner' && !!ownedBusinessCount && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400" role="status">{t('adminUsersPage.alreadyOwnsBusiness')}</p>
-                        )}
-                        {needsBusinessName && (
-                            <div>
-                                <label htmlFor="business-name-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminUsersPage.businessNameToAssign')}</label>
-                                <input
-                                    id="business-name-input"
-                                    type="text"
-                                    value={businessName}
-                                    onChange={(e) => setBusinessName(e.target.value)}
-                                    placeholder={t('adminUsersPage.exactBusinessName')}
-                                    required
-                                    className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-lg bg-transparent"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">{t('adminUsersPage.businessWillBeCreated')}</p>
-                            </div>
-                        )}
-                        {demotesSelf && (
-                            <div className="flex items-start gap-2 p-3 rounded-lg border border-red-300 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300 text-sm font-medium" role="alert">
-                                <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
-                                <span>{t('adminUsersPage.cannotDemoteSelf')}</span>
-                            </div>
-                        )}
-                        {!roleChanged && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{t('adminUsersPage.noRoleChange')}</p>
-                        )}
-                        {modalError && <p className="text-red-600 text-sm font-medium text-center" role="alert">{modalError}</p>}
-                        <div className="flex justify-end gap-3 pt-4 border-t dark:border-zinc-700">
-                            <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-zinc-700 rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-600">{t('common.cancel')}</button>
-                            <button
-                                type="submit"
-                                disabled={modalLoading || !roleChanged || demotesSelf || (newRole === 'business_owner' && ownedBusinessCount === null)}
-                                className="px-4 py-2 text-sm font-semibold text-white bg-brand-green rounded-lg hover:bg-opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            >
-                                {modalLoading ? t('common.saving') : t('common.save')}
-                            </button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
         </>
     );
 };
