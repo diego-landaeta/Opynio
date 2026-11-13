@@ -2186,6 +2186,8 @@ export default {
     trialFooter: '试用期间您可以无限制地使用全部功能。试用在您注册企业时开始，无需绑定银行卡。结束前 {days} 天我们会通过邮件提醒您；如需继续使用全部功能，请选择一个方案。每个账户仅可试用一次。',
     vatExcluded: '价格不含增值税（VAT），结算时会根据您所在的国家加收。',
     vatIncluded: '价格已含增值税（VAT）。',
+    freePlanStripTitle: '免费方案',
+    freePlanStripDesc: '无需银行卡，没有时间限制：认领您的企业页面、回复评价、保持资料最新，并通过链接、可打印的二维码或 WhatsApp 分享。需要更多功能时再选择方案。',
     saveUpToPercent: '最高节省 {percent}%',
     saveAmount: '节省 {amount}',
     trialStatus: '免费试用，享受完整功能：还剩 {days} 天 · 之后为 {plan} 方案 {price}',
@@ -2383,7 +2385,7 @@ export default {
   },
   forBusinessesPage: {
     metaTitle: 'Opynio企业版 2026 - 管理您的在线声誉',
-    metaDescription: '✓ 企业评论管理平台。回复评论、网站小部件、AI分析等功能。',
+    metaDescription: '✓ 面向企业的评价管理平台。邀请客户、回复评价、在网站添加小组件并查看数据分析。',
     // H1
     title: '用Opynio管理您的在线声誉',
     subtitle: '收集、管理和展示客户评论的一体化平台。',
@@ -2408,7 +2410,7 @@ export default {
     stat2: '78%用户更信任可见评论',
     stat3: '网站小部件提升30%以上转化率',
     socialProofTitle: '信任我们的企业',
-    socialProofDesc: '超过500家企业已使用Opynio管理声誉。',
+    socialProofDesc: '已有超过 1,000 家企业在 Opynio 上拥有自己的页面。',
     pricingPreviewTitle: '满足各种需求的方案',
     pricingPreviewDesc: '从免费入门到企业版大型方案。',
     viewPricingButton: '查看方案和价格',
@@ -2422,7 +2424,7 @@ export default {
     faq1Q: '设置需要多长时间？',
     faq1A: '不到5分钟。创建账户、添加业务并开始收集评论。',
     faq2Q: '可以导入Google评论吗？',
-    faq2A: '是的，一键即可同步所有Google Business Profile评论。',
+    faq2A: '暂时还不能。我们正在准备从 Google 导入；在此期间，您可以邀请客户在 Opynio 上留下评价。',
   },
   howItWorksPage: {
     metaTitle: 'Opynio如何运作 | 完整指南',

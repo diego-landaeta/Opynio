@@ -7,6 +7,7 @@ import Spinner from '../../../Spinner';
 import { useTranslation, useI18n, toBcp47 } from '../../../../contexts/i18nContext';
 import { usePluralT } from '../../../../utils/plural';
 import SectionLock from './SectionLock';
+import ShareBusinessCard from './ShareBusinessCard';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { getSectionAccess } from '../../../../utils/planFeatures';
 
@@ -187,6 +188,9 @@ const DashboardInvitations: React.FC = () => {
     return (
         <div className="space-y-5 sm:space-y-6 md:space-y-8">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">{t('businessDashboard.sendInvitationsTitle')}</h1>
+
+            {/* Enlace, QR imprimible y WhatsApp: en todos los planes, tambien aqui y no solo en el Resumen (#17). */}
+            <ShareBusinessCard businessName={business.name} businessSlug={business.slug} businessCountry={business.country} />
 
             <SectionLock section="invitations" title={t('businessDashboard.invitationsLockFeatureName')} subtitleKey="businessDashboard.invitationsLockSubtitle">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 lg:gap-8">

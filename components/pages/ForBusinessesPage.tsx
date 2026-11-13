@@ -6,18 +6,23 @@ import { useCountry, useContentCountry } from '../../contexts/CountryContext';
 import { descriptionWithCountry } from '../../utils/metaText';
 import { COUNTRIES } from '../../constants';
 import { useBusinessStartPath } from '../../utils/businessOwnership';
+import { AI_ENABLED } from '../../services/geminiService';
 
 // Feature card component
 const FeatureCard: React.FC<{
   icon: string;
   title: string;
   description: string;
-}> = ({ icon, title, description }) => (
+  comingSoon?: string;
+}> = ({ icon, title, description, comingSoon }) => (
   <div className="bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700 hover:shadow-md transition-shadow">
     <div className="w-14 h-14 rounded-xl bg-brand-green/10 flex items-center justify-center mb-4">
       <i className={`${icon} text-2xl text-brand-green`}></i>
     </div>
-    <h3 className="font-semibold text-xl text-gray-900 dark:text-white mb-3">{title}</h3>
+    <h3 className="font-semibold text-xl text-gray-900 dark:text-white mb-3">
+      {title}
+      {comingSoon && <span className="ml-2 align-middle text-xs font-semibold text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">{comingSoon}</span>}
+    </h3>
     <p className="text-gray-600 dark:text-gray-400">{description}</p>
   </div>
 );
@@ -84,12 +89,14 @@ const ForBusinessesPage: React.FC = () => {
   const countryName = COUNTRIES.find(c => c.code === contentCountry)?.name || '';
   const countryInTitle = countryName ? ` ${t('common.in')} ${countryName}` : '';
 
-  const features = [
+  // Lo que todavia no esta en el panel se marca «Proximamente» (#17: la web no promete lo que no hay).
+  // La IA esta apagada (AI_ENABLED) y la importacion desde Google no funciona (SerpAPI sin contratar).
+  const features: { icon: string; titleKey: string; descKey: string; comingSoon?: boolean }[] = [
     { icon: 'fa-solid fa-paper-plane', titleKey: 'forBusinessesPage.feature1Title', descKey: 'forBusinessesPage.feature1Desc' },
-    { icon: 'fa-solid fa-robot', titleKey: 'forBusinessesPage.feature2Title', descKey: 'forBusinessesPage.feature2Desc' },
+    { icon: 'fa-solid fa-robot', titleKey: 'forBusinessesPage.feature2Title', descKey: 'forBusinessesPage.feature2Desc', comingSoon: !AI_ENABLED },
     { icon: 'fa-solid fa-puzzle-piece', titleKey: 'forBusinessesPage.feature3Title', descKey: 'forBusinessesPage.feature3Desc' },
     { icon: 'fa-solid fa-chart-pie', titleKey: 'forBusinessesPage.feature4Title', descKey: 'forBusinessesPage.feature4Desc' },
-    { icon: 'fa-brands fa-google', titleKey: 'forBusinessesPage.feature5Title', descKey: 'forBusinessesPage.feature5Desc' },
+    { icon: 'fa-brands fa-google', titleKey: 'forBusinessesPage.feature5Title', descKey: 'forBusinessesPage.feature5Desc', comingSoon: true },
     { icon: 'fa-solid fa-location-dot', titleKey: 'forBusinessesPage.feature6Title', descKey: 'forBusinessesPage.feature6Desc' },
   ];
 
@@ -157,6 +164,7 @@ const ForBusinessesPage: React.FC = () => {
                 icon={feature.icon}
                 title={t(feature.titleKey)}
                 description={t(feature.descKey)}
+                comingSoon={feature.comingSoon ? t('common.comingSoon') : undefined}
               />
             ))}
           </div>

@@ -211,7 +211,6 @@ const PricingPage = () => {
                 { key: 'pricingPage.growthFeature3', icon: 'fa-solid fa-puzzle-piece' },
                 { key: 'pricingPage.growthFeature4', icon: 'fa-solid fa-store' },
                 { key: 'pricingPage.growthFeature5', icon: 'fa-solid fa-box-archive' },
-                { key: 'pricingPage.growthFeature6', icon: 'fa-solid fa-qrcode' },
                 { key: 'pricingPage.growthFeature7', icon: 'fa-solid fa-magnifying-glass-chart' },
                 { key: 'pricingPage.growthFeature8', icon: 'fa-solid fa-robot' },
                 { key: 'pricingPage.growthFeature9', icon: 'fa-solid fa-code' },
@@ -227,7 +226,6 @@ const PricingPage = () => {
             ctaLink: `/${pathTranslations[language].register}?type=business&plan=pro`,
             features: [
                 { key: 'pricingPage.proFeature1', icon: 'fa-solid fa-star' },
-                { key: 'pricingPage.proFeature3', icon: 'fa-brands fa-whatsapp' },
                 { key: 'pricingPage.proFeature4', icon: 'fa-solid fa-tags' },
                 { key: 'pricingPage.proFeature5', icon: 'fa-solid fa-filter-circle-dollar' },
                 { key: 'pricingPage.proFeature6', icon: 'fa-solid fa-bell' },
@@ -422,6 +420,28 @@ const PricingPage = () => {
                             </div>
                         );
                     })}
+                </div>
+
+                {/* #17: el plan gratuito existe (ficha, reseñas, perfil y compartir con enlace, QR y WhatsApp) y
+                    «Para empresas» dice «desde gratis»; aqui no salia. Quien ya tiene empresa no ve el boton. */}
+                <div className="max-w-4xl mx-auto mt-12 px-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white dark:bg-zinc-800 border-2 border-dashed border-gray-300 dark:border-zinc-600 rounded-2xl p-6">
+                        <div className="flex-1">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                                <i className="fa-solid fa-seedling text-brand-green mr-2" aria-hidden="true"></i>{t('pricingPage.freePlanStripTitle')}
+                                <span className="ml-2 text-lg font-extrabold text-gray-900 dark:text-white">{formatEur(0, true)}</span>
+                            </h2>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{t('pricingPage.freePlanStripDesc')}</p>
+                        </div>
+                        {!(user && hasExistingBusinesses) && (
+                            <ReactRouterDOM.Link
+                                to={user ? `/${pathTranslations[language].assignBusiness}?plan=free` : `/${pathTranslations[language].register}?type=business`}
+                                className="flex-shrink-0 text-center font-semibold py-3 px-6 rounded-lg bg-green-50 text-brand-green hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 transition-colors"
+                            >
+                                {t('forBusinessesPage.ctaButton')}
+                            </ReactRouterDOM.Link>
+                        )}
+                    </div>
                 </div>
 
                 {NEW_PRICING_ENABLED && (

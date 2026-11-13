@@ -1873,6 +1873,8 @@ export default {
     trialFooter: 'Während der Testphase haben Sie vollen Zugriff auf alle Funktionen, ohne Limits. Sie beginnt mit der Registrierung Ihres Unternehmens, und wir fragen nicht nach einer Karte. Wir benachrichtigen Sie {days} Tage vor dem Ende per E-Mail, und wenn Sie alle Funktionen behalten möchten, wählen Sie einen Tarif. Die Testphase ist einmal pro Konto nutzbar.',
     vatExcluded: 'Preise zzgl. MwSt. Die MwSt. wird beim Bezahlen je nach Land hinzugefügt.',
     vatIncluded: 'Preise inkl. MwSt.',
+    freePlanStripTitle: 'Kostenloser Plan',
+    freePlanStripDesc: 'Ohne Karte und ohne Zeitlimit: Beanspruche dein Unternehmensprofil, antworte auf Bewertungen, halte deine Daten aktuell und teile es per Link, druckbarem QR-Code oder WhatsApp. Wähle einen Plan, wann immer du mehr willst.',
     saveUpToPercent: 'Bis zu {percent} % sparen',
     saveAmount: '{amount} sparen',
     trialStatus: 'Kostenlose Testphase mit vollem Zugriff: noch {days} Tage · danach Tarif {plan} {price}',
@@ -2367,7 +2369,7 @@ export default {
   },
   forBusinessesPage: {
     metaTitle: 'Opynio für Unternehmen 2026 - Verwalten Sie Ihre Online-Reputation',
-    metaDescription: '✓ Bewertungsmanagement-Plattform für Unternehmen. Bewertungen beantworten, Website-Widgets, KI-Analysen und mehr.',
+    metaDescription: '✓ Plattform für Bewertungsmanagement für Unternehmen. Lade deine Kunden ein, antworte auf Bewertungen, nutze Widgets für deine Website und verfolge deine Analysen.',
     // H1
     title: 'Verwalten Sie Ihre Online-Reputation mit Opynio',
     subtitle: 'Die All-in-One-Plattform zum Sammeln, Verwalten und Anzeigen von Kundenbewertungen.',
@@ -2392,7 +2394,7 @@ export default {
     stat2: '78% der Nutzer vertrauen mehr bei sichtbaren Bewertungen',
     stat3: '+30% Conversions mit Widgets auf der Website',
     socialProofTitle: 'Unternehmen, die uns vertrauen',
-    socialProofDesc: 'Mehr als 500 Unternehmen verwalten bereits ihre Reputation mit Opynio.',
+    socialProofDesc: 'Mehr als 1.000 Unternehmen haben bereits ihr Profil auf Opynio.',
     pricingPreviewTitle: 'Pläne für jeden Bedarf',
     pricingPreviewDesc: 'Von kostenlos zum Starten bis Enterprise für große Unternehmen.',
     viewPricingButton: 'Pläne und Preise ansehen',
@@ -2406,7 +2408,7 @@ export default {
     faq1Q: 'Wie lange dauert die Einrichtung?',
     faq1A: 'Weniger als 5 Minuten. Erstellen Sie Ihr Konto, fügen Sie Ihr Unternehmen hinzu und beginnen Sie, Bewertungen zu sammeln.',
     faq2Q: 'Kann ich meine Google-Bewertungen importieren?',
-    faq2A: 'Ja, mit einem Klick können Sie alle Ihre Google Business Profile Bewertungen synchronisieren.',
+    faq2A: 'Noch nicht. Wir bereiten den Import aus Google vor; bis dahin kannst du deine Kunden einladen, ihre Bewertung auf Opynio abzugeben.',
   },
   howItWorksPage: {
     metaTitle: 'Wie Opynio funktioniert 2026 - Schritt-für-Schritt-Anleitung',

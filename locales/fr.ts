@@ -1873,6 +1873,8 @@ export default {
     trialFooter: 'Pendant l’essai, vous avez un accès complet à toutes les fonctionnalités, sans limites. Il commence à l’inscription de votre entreprise et nous ne demandons pas de carte. Nous vous prévenons par e-mail {days} jours avant la fin et, si vous souhaitez garder toutes les fonctionnalités, vous choisissez une formule. L’essai n’est utilisable qu’une fois par compte.',
     vatExcluded: 'Prix hors TVA. La TVA est ajoutée au paiement selon votre pays.',
     vatIncluded: 'Prix TVA incluse.',
+    freePlanStripTitle: 'Offre gratuite',
+    freePlanStripDesc: 'Sans carte et sans limite de durée : revendiquez la fiche de votre entreprise, répondez aux avis, tenez vos informations à jour et partagez-la avec un lien, un QR code imprimable ou par WhatsApp. Quand vous voulez plus, choisissez une offre.',
     saveUpToPercent: "Économisez jusqu'à {percent} %",
     saveAmount: 'Économisez {amount}',
     trialStatus: 'Essai gratuit avec accès complet : il vous reste {days} jours · ensuite, formule {plan} {price}',
@@ -2367,7 +2369,7 @@ export default {
   },
   forBusinessesPage: {
     metaTitle: 'Opynio pour Entreprises 2026 - Gérez Votre Réputation en Ligne',
-    metaDescription: '✓ Plateforme de gestion des avis pour entreprises. Répondez aux avis, widgets pour site web, analyse IA et plus.',
+    metaDescription: '✓ Plateforme de gestion des avis pour les entreprises. Invitez vos clients, répondez aux avis, ajoutez des widgets à votre site et suivez vos statistiques.',
     // H1
     title: 'Gérez Votre Réputation en Ligne avec Opynio',
     subtitle: 'La plateforme tout-en-un pour collecter, gérer et afficher les avis clients.',
@@ -2392,7 +2394,7 @@ export default {
     stat2: '78% des utilisateurs font plus confiance avec des avis visibles',
     stat3: '+30% de conversions avec les widgets sur le site',
     socialProofTitle: 'Entreprises qui Nous Font Confiance',
-    socialProofDesc: 'Plus de 500 entreprises gèrent déjà leur réputation avec Opynio.',
+    socialProofDesc: 'Plus de 1 000 entreprises ont déjà leur fiche sur Opynio.',
     pricingPreviewTitle: 'Plans pour Chaque Besoin',
     pricingPreviewDesc: 'Du gratuit pour démarrer jusqu\'à Enterprise pour les grandes entreprises.',
     viewPricingButton: 'Voir Plans et Tarifs',
@@ -2406,7 +2408,7 @@ export default {
     faq1Q: 'Combien de temps prend la configuration ?',
     faq1A: 'Moins de 5 minutes. Créez votre compte, ajoutez votre entreprise et commencez à collecter des avis.',
     faq2Q: 'Puis-je importer mes avis Google ?',
-    faq2A: 'Oui, en un clic vous pouvez synchroniser tous vos avis Google Business Profile.',
+    faq2A: 'Pas encore. Nous préparons l’importation depuis Google ; en attendant, vous pouvez inviter vos clients à laisser leur avis sur Opynio.',
   },
   howItWorksPage: {
     metaTitle: 'Comment Fonctionne Opynio 2026 - Guide Étape par Étape',
