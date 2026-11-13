@@ -1881,6 +1881,8 @@ export default {
     trialFooter: 'Durante o teste tem acesso completo a todas as funcionalidades, sem limites. Começa quando regista a sua empresa e não pedimos cartão. Avisamos por e-mail {days} dias antes do fim e, se quiser manter todas as funcionalidades, escolhe um plano. O teste só pode ser usado uma vez por conta.',
     vatExcluded: 'Preços sem IVA. O IVA é acrescentado no pagamento, consoante o seu país.',
     vatIncluded: 'Preços com IVA incluído.',
+    freePlanStripTitle: 'Plano Gratuito',
+    freePlanStripDesc: 'Sem cartão e sem prazo: reivindique a página da sua empresa, responda às avaliações, mantenha os seus dados atualizados e partilhe-a com uma ligação, um código QR para imprimir ou pelo WhatsApp. Quando quiser mais, escolha um plano.',
     saveUpToPercent: 'Poupe até {percent}%',
     saveAmount: 'Poupe {amount}',
     trialStatus: 'Teste gratuito com acesso completo: faltam {days} dias · depois, plano {plan} {price}',
@@ -2367,7 +2369,7 @@ export default {
   },
   forBusinessesPage: {
     metaTitle: 'Opynio para Empresas 2026 - Gira a Sua Reputação Online',
-    metaDescription: '✓ Plataforma de gestão de avaliações para empresas. Responda a opiniões, widgets para web, análise com IA e mais.',
+    metaDescription: '✓ Plataforma de gestão de avaliações para empresas. Convide os seus clientes, responda às avaliações, adicione widgets ao seu site e acompanhe as suas análises.',
     // H1
     title: 'Gira a Sua Reputação Online com Opynio',
     subtitle: 'A plataforma tudo-em-um para recolher, gerir e mostrar avaliações de clientes.',
@@ -2392,7 +2394,7 @@ export default {
     stat2: '78% dos utilizadores confiam mais com avaliações visíveis',
     stat3: '+30% de conversões com widgets no site',
     socialProofTitle: 'Empresas que Confiam em Nós',
-    socialProofDesc: 'Mais de 500 empresas já gerem a sua reputação com Opynio.',
+    socialProofDesc: 'Mais de 1.000 empresas já têm a sua página na Opynio.',
     pricingPreviewTitle: 'Planos para Cada Necessidade',
     pricingPreviewDesc: 'De gratuito para começar até Enterprise para grandes empresas.',
     viewPricingButton: 'Ver Planos e Preços',
@@ -2406,7 +2408,7 @@ export default {
     faq1Q: 'Quanto tempo demora a configuração?',
     faq1A: 'Menos de 5 minutos. Crie a sua conta, adicione o seu negócio e comece a recolher avaliações.',
     faq2Q: 'Posso importar as minhas avaliações do Google?',
-    faq2A: 'Sim, com um clique pode sincronizar todas as suas avaliações do Google Business Profile.',
+    faq2A: 'Ainda não. Estamos a preparar a importação do Google; entretanto, pode convidar os seus clientes a deixar a avaliação na Opynio.',
   },
   howItWorksPage: {
     metaTitle: 'Como Funciona o Opynio 2026 - Guia Passo a Passo',

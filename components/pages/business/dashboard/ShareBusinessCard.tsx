@@ -1,0 +1,233 @@
+import React, { useState, useMemo } from 'react';
+import { useTranslation, pathTranslations, getLanguageForCountryCode } from '../../../../contexts/i18nContext';
+import { useNotification } from '../../../../contexts/NotificationContext';
+
+// Card "Comparte tu negocio" — genera la URL pública del perfil (siempre
+// apuntando a producción web.opynio.com) y permite compartirla por
+// WhatsApp / email / redes, con un QR descargable y estilizado para
+// imprimir o mostrar en el local. Disponible en todos los planes.
+const PUBLIC_BASE_URL = 'https://web.opynio.com';
+
+const ShareBusinessCard: React.FC<{ businessName: string; businessSlug: string | null | undefined; businessCountry: string | null | undefined }> = ({ businessName, businessSlug, businessCountry }) => {
+    const t = useTranslation();
+    const { showNotification } = useNotification();
+    const [copiedField, setCopiedField] = useState<'url' | 'message' | null>(null);
+    const [showQr, setShowQr] = useState(false);
+
+    // Construye la URL pública del perfil. El idioma se decide a partir del
+    // PAÍS DE LA EMPRESA (no del idioma del navegador del dueño): una empresa
+    // en US comparte siempre /en/business/..., una en ES comparte /es/empresa/...,
+    // etc. Así el visitante aterriza en el idioma correcto del negocio
+    // independientemente de en qué idioma esté navegando el dueño.
+    // El segmento "business" también se traduce (empresa / business /
+    // entreprise / unternehmen / azienda / 公司 …).
+    //
+    // Identificador: prefiere `business.slug` cuando existe (slug limpio
+    // canónico, ej. `psicologo_ia`) — evita que el visitante caiga en un
+    // redirect 301 desde el name URL-encoded (`Psic%C3%B3logo_IA`). Fallback
+    // sólo para empresas legacy sin slug.
+    const publicUrl = useMemo(() => {
+        const identifier = businessSlug || encodeURIComponent(businessName.replace(/ /g, '_'));
+        const langCode = getLanguageForCountryCode(businessCountry);
+        const businessPath = (pathTranslations[langCode]?.business ?? 'empresa/:identifier').replace('/:identifier', '');
+        return `${PUBLIC_BASE_URL}/${langCode}/${businessPath}/${identifier}`;
+    }, [businessName, businessSlug, businessCountry]);
+
+    // Mensaje para los clientes, en el idioma del panel (antes salia siempre en espanol).
+    const suggestedMessage = useMemo(
+        () => t('businessDashboard.shareSuggestedMessage', { business: businessName, url: publicUrl }),
+        [businessName, publicUrl, t]
+    );
+
+    // QR estilizado: color verde de marca, alta corrección de errores (H)
+    // para soportar la insignia central de Opynio sin perder lectura.
+    // Servicio público (sin libs, sin auth).
+    const qrSrc = useMemo(
+        () => `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&qzone=1&ecc=H&color=10b981&bgcolor=ffffff&data=${encodeURIComponent(publicUrl)}`,
+        [publicUrl]
+    );
+
+    const copyToClipboard = async (text: string, field: 'url' | 'message') => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedField(field);
+            showNotification(field === 'url' ? t('common.linkCopied') : t('common.messageCopied'), 'success');
+            setTimeout(() => setCopiedField(null), 2000);
+        } catch {
+            showNotification(t('common.copyFailed'), 'error');
+        }
+    };
+
+    const encodedMessage = encodeURIComponent(suggestedMessage);
+    const encodedUrl = encodeURIComponent(publicUrl);
+    const encodedSubject = encodeURIComponent(t('businessDashboard.shareEmailSubject', { business: businessName }));
+
+    const shareLinks = [
+        {
+            label: 'WhatsApp',
+            icon: 'fa-brands fa-whatsapp',
+            href: `https://wa.me/?text=${encodedMessage}`,
+            color: 'bg-[#25D366] hover:bg-[#1fb958]',
+        },
+        {
+            label: 'Email',
+            icon: 'fa-solid fa-envelope',
+            href: `mailto:?subject=${encodedSubject}&body=${encodedMessage}`,
+            color: 'bg-gray-700 hover:bg-gray-800 dark:bg-zinc-600 dark:hover:bg-zinc-500',
+        },
+        {
+            label: 'X / Twitter',
+            icon: 'fa-brands fa-x-twitter',
+            href: `https://twitter.com/intent/tweet?text=${encodedMessage}`,
+            color: 'bg-black hover:bg-zinc-800',
+        },
+        {
+            label: 'Facebook',
+            icon: 'fa-brands fa-facebook-f',
+            href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedMessage}`,
+            color: 'bg-[#1877F2] hover:bg-[#1466d3]',
+        },
+        {
+            label: 'LinkedIn',
+            icon: 'fa-brands fa-linkedin-in',
+            href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+            color: 'bg-[#0A66C2] hover:bg-[#08549e]',
+        },
+    ];
+
+    return (
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border dark:border-zinc-700 overflow-hidden">
+            {/* Header compacto: solo título + descripción de una línea */}
+            <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 flex items-start justify-between gap-3 border-b border-gray-100 dark:border-zinc-700/60">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-brand-green/10 text-brand-green flex items-center justify-center">
+                        <i className="fa-solid fa-share-nodes text-base sm:text-lg"></i>
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+                            {t('businessDashboard.shareBusinessTitle')}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            {t('businessDashboard.shareBusinessSubtitle')}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4">
+                {/* URL pública — pill clickeable que copia el enlace.
+                    Acompañada de un botón QR para mostrar/imprimir el código. */}
+                <div className="flex items-stretch gap-2">
+                    <button
+                        type="button"
+                        onClick={() => copyToClipboard(publicUrl, 'url')}
+                        title={t('businessDashboard.copyLink')}
+                        className={`group flex-1 min-w-0 flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                            copiedField === 'url'
+                                ? 'bg-brand-green/10 border-brand-green/40 dark:bg-brand-green/15'
+                                : 'bg-gray-50 dark:bg-zinc-900/60 border-gray-200 dark:border-zinc-700 hover:border-brand-green/40 hover:bg-brand-green/5 dark:hover:bg-brand-green/5'
+                        }`}
+                    >
+                        <i className={`fa-solid ${copiedField === 'url' ? 'fa-check text-brand-green' : 'fa-link text-gray-400 group-hover:text-brand-green'} text-sm flex-shrink-0 transition-colors`}></i>
+                        <span className="flex-grow min-w-0 font-mono text-xs sm:text-[13px] text-gray-700 dark:text-gray-200 truncate">
+                            {publicUrl}
+                        </span>
+                        <span className={`hidden xs:inline flex-shrink-0 text-[11px] sm:text-xs font-semibold transition-colors ${
+                            copiedField === 'url' ? 'text-brand-green' : 'text-gray-400 group-hover:text-brand-green'
+                        }`}>
+                            {copiedField === 'url' ? t('businessDashboard.copied') : t('businessDashboard.copy')}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShowQr(v => !v)}
+                        title={showQr ? 'Ocultar QR' : 'Mostrar QR'}
+                        aria-pressed={showQr ? 'true' : 'false'}
+                        className={`flex-shrink-0 w-11 sm:w-12 rounded-lg border flex items-center justify-center transition-all ${
+                            showQr
+                                ? 'bg-brand-green text-white border-brand-green shadow-sm'
+                                : 'bg-gray-50 dark:bg-zinc-900/60 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:border-brand-green/40 hover:text-brand-green'
+                        }`}
+                    >
+                        <i className="fa-solid fa-qrcode text-base"></i>
+                    </button>
+                </div>
+
+                {/* QR desplegable — pensado para imprimir en cartelitos y mesas.
+                    QR en color brand-green con marco gradient e insignia central
+                    de Opynio (alta corrección de errores ECC=H lo permite). */}
+                {showQr && (
+                    <div className="rounded-2xl bg-gradient-to-br from-brand-green/5 via-emerald-50 to-teal-50 dark:from-brand-green/10 dark:via-zinc-900/60 dark:to-zinc-900/60 border border-brand-green/20 dark:border-brand-green/30 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
+                        {/* Marco del QR — gradient verde + tarjeta blanca + insignia O */}
+                        <div className="relative flex-shrink-0 p-[3px] rounded-2xl bg-gradient-to-br from-brand-green via-emerald-500 to-teal-500 shadow-lg">
+                            <div className="bg-white rounded-[14px] p-3 sm:p-4">
+                                <div className="relative w-36 h-36 sm:w-44 sm:h-44">
+                                    <img
+                                        src={qrSrc}
+                                        alt={t('common.qrCodeAlt', { name: businessName })}
+                                        width={176}
+                                        height={176}
+                                        loading="lazy"
+                                        className="block w-full h-full"
+                                    />
+                                    {/* Insignia central (logo Opynio) — el ECC=H permite tapar
+                                        un ~12% del área central sin romper la lectura del QR. */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white shadow-md ring-[3px] ring-white flex items-center justify-center">
+                                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-brand-green to-emerald-600 flex items-center justify-center text-white font-extrabold text-sm sm:text-base">
+                                                O
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0 text-center sm:text-left">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-green/10 text-brand-green text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2">
+                                <i className="fa-solid fa-qrcode text-[10px]"></i>
+                                Listo para imprimir
+                            </div>
+                            <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                                Tus reseñas, a un escaneo de distancia
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-relaxed">
+                                Coloca este QR en tu mostrador, recibo o tarjeta. Tus clientes lo escanean y van directo a tu perfil para dejarte una reseña.
+                            </p>
+                            <a
+                                href={qrSrc}
+                                download={`opynio-qr-${businessName.toLowerCase().replace(/\s+/g, '-')}.png`}
+                                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-green text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+                            >
+                                <i className="fa-solid fa-download text-[11px]"></i>
+                                Descargar QR
+                            </a>
+                        </div>
+                    </div>
+                )}
+
+                {/* Botones de share como iconos circulares grandes — share sheet style */}
+                <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                    {shareLinks.map((s) => (
+                        <a
+                            key={s.label}
+                            href={s.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={t('businessDashboard.shareVia', { channel: s.label })}
+                            className="group flex flex-col items-center gap-1.5 sm:gap-2"
+                        >
+                            <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${s.color} text-white flex items-center justify-center shadow-md transition-all group-hover:-translate-y-0.5 group-hover:shadow-lg`}>
+                                <i className={`${s.icon} text-base sm:text-lg`}></i>
+                            </div>
+                            <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors truncate max-w-full">
+                                {s.label}
+                            </span>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default ShareBusinessCard;

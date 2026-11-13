@@ -1881,6 +1881,8 @@ export default {
     trialFooter: 'Durant la prova tens accés complet a totes les funcions i sense límits. Comença quan registres la teva empresa i no et demanem targeta. T’avisem per correu {days} dies abans que acabi i, si vols continuar amb totes les funcions, tries un pla. La prova és d’un sol ús per compte.',
     vatExcluded: "Preus sense IVA. L'IVA s'afegeix en pagar segons el teu país.",
     vatIncluded: 'Preus amb IVA inclòs.',
+    freePlanStripTitle: 'Pla Gratuït',
+    freePlanStripDesc: 'Sense targeta i sense límit de temps: reclama la fitxa de la teva empresa, respon a les ressenyes, mantén les teves dades al dia i comparteix-la amb un enllaç, un codi QR imprimible o per WhatsApp. Quan vulguis més, tries un pla.',
     saveUpToPercent: 'Estalvia fins a un {percent} %',
     saveAmount: 'Estalvia {amount}',
     trialStatus: 'Prova gratuïta amb accés complet: et queden {days} dies · després, pla {plan} {price}',
@@ -2367,7 +2369,7 @@ export default {
   },
   forBusinessesPage: {
     metaTitle: 'Opynio per a Empreses 2026 - Gestiona la Teva Reputació Online',
-    metaDescription: '✓ Plataforma de gestió de ressenyes per a empreses. Respon a opinions, widgets per web, anàlisi amb IA i més.',
+    metaDescription: '✓ Plataforma de gestió de ressenyes per a empreses. Convida els teus clients, respon a les opinions, afegeix widgets al teu web i consulta les teves analítiques.',
     // H1
     title: 'Gestiona la Teva Reputació Online amb Opynio',
     subtitle: 'La plataforma tot-en-un per recollir, gestionar i mostrar ressenyes de clients.',
@@ -2392,7 +2394,7 @@ export default {
     stat2: '78% d\'usuaris confien més amb ressenyes visibles',
     stat3: '+30% de conversions amb widgets al web',
     socialProofTitle: 'Empreses que Confien en Nosaltres',
-    socialProofDesc: 'Més de 500 empreses ja gestionen la seva reputació amb Opynio.',
+    socialProofDesc: 'Més de 1.000 empreses ja tenen la seva fitxa a Opynio.',
     pricingPreviewTitle: 'Plans per a Cada Necessitat',
     pricingPreviewDesc: 'Des de gratuït per començar fins a Enterprise per a grans empreses.',
     viewPricingButton: 'Veure Plans i Preus',
@@ -2406,7 +2408,7 @@ export default {
     faq1Q: 'Quant temps triga a configurar-se?',
     faq1A: 'Menys de 5 minuts. Crea el teu compte, afegeix el teu negoci i comença a recollir ressenyes.',
     faq2Q: 'Puc importar les meves ressenyes de Google?',
-    faq2A: 'Sí, amb un clic pots sincronitzar totes les teves ressenyes de Google Business Profile.',
+    faq2A: 'Encara no. Estem preparant la importació des de Google; mentrestant, pots convidar els teus clients a deixar la seva ressenya a Opynio.',
   },
   howItWorksPage: {
     metaTitle: 'Com Funciona Opynio 2026 - Guia Pas a Pas',

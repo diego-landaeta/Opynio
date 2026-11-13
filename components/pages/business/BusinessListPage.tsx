@@ -171,7 +171,6 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
         { key: 'pricingPage.growthFeature3', icon: 'fa-solid fa-puzzle-piece' },
         { key: 'pricingPage.growthFeature4', icon: 'fa-solid fa-store' },
         { key: 'pricingPage.growthFeature5', icon: 'fa-solid fa-box-archive', comingSoon: true },
-        { key: 'pricingPage.growthFeature6', icon: 'fa-solid fa-qrcode' },
         { key: 'pricingPage.growthFeature7', icon: 'fa-solid fa-magnifying-glass-chart' },
         { key: 'pricingPage.growthFeature8', icon: 'fa-solid fa-robot', comingSoon: !AI_ENABLED },
         { key: 'pricingPage.growthFeature9', icon: 'fa-solid fa-code', comingSoon: true },
@@ -179,7 +178,6 @@ const PLAN_FEATURES: Record<Plan, { key: string; icon: string; comingSoon?: bool
     ],
     pro: [
         { key: 'pricingPage.proFeature1', icon: 'fa-solid fa-star' },
-        { key: 'pricingPage.proFeature3', icon: 'fa-brands fa-whatsapp' },
         { key: 'pricingPage.proFeature4', icon: 'fa-solid fa-tags', comingSoon: true },
         { key: 'pricingPage.proFeature5', icon: 'fa-solid fa-filter-circle-dollar', comingSoon: true },
         { key: 'pricingPage.proFeature6', icon: 'fa-solid fa-bell', comingSoon: true },

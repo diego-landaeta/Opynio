@@ -15,6 +15,7 @@ import { useTranslation, useI18n, toBcp47 } from '../contexts/i18nContext';
 import { useTrialStatus } from '../hooks/useTrialStatus';
 import { isPaidPlanKey, formatPlanPrice } from '../utils/planPrices';
 import { useAuth } from '../contexts/AuthContext';
+import { AI_ENABLED } from '../services/geminiService';
 
 // Datos visuales del plan (color, icono) — estáticos, no se traducen.
 // Las strings (title/tagline/features) viven en los locales bajo el namespace
@@ -39,6 +40,26 @@ const PLAN_FEATURE_COUNT: Record<Plan, number> = {
     enterprise: 4,
 };
 
+// Beneficios que el panel TODAVIA no tiene (los mismos que Planes marca «Proximamente» en
+// utils/planFeatures.ts). La lista se titula «Lo que ya puedes hacer»: no se enseñan (#17).
+// Al implementar una, quitar su clave de aqui.
+const BENEFICIOS_PROXIMAMENTE: ReadonlySet<string> = new Set([
+    'starter.feature5', // Filtros avanzados
+    'growth.feature4',  // API de integracion
+    'growth.feature5',  // Soporte prioritario
+    'pro.feature2',     // Integracion WhatsApp (solo existe compartir, en todos los planes)
+    'pro.feature3',     // Filtros con etiquetas y temas
+    'pro.feature4',     // Alertas en tiempo real
+    'pro.feature5',     // Analisis comparativo
+    'pro.feature6',     // Soporte dedicado
+]);
+
+// Dependen de la IA, que esta apagada a proposito (services/geminiService.ts).
+const BENEFICIOS_CON_IA: ReadonlySet<string> = new Set([
+    'starter.feature4', // Sugerencias de respuesta con IA
+    'v2.feature3',      // Creditos IA ampliados
+]);
+
 // Resuelve los beneficios traducidos del plan en runtime. Devuelve la
 // estructura completa que esperan el modal y la PaymentSuccessPage.
 export function getPlanBenefits(plan: Plan, t: (key: string) => string) {
@@ -46,7 +67,9 @@ export function getPlanBenefits(plan: Plan, t: (key: string) => string) {
     const count = PLAN_FEATURE_COUNT[plan];
     const features: string[] = [];
     for (let i = 1; i <= count; i++) {
-        features.push(t(`planBenefits.${plan}.feature${i}`));
+        const id = `${plan}.feature${i}`;
+        if (BENEFICIOS_PROXIMAMENTE.has(id) || (!AI_ENABLED && BENEFICIOS_CON_IA.has(id))) continue;
+        features.push(t(`planBenefits.${id}`));
     }
     return {
         title: t(`planBenefits.${plan}.title`),
