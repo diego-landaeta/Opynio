@@ -267,6 +267,33 @@ const socialProfileUrl = (value: string, base: string): string => {
     return base + v.replace(/^\/+/, '');
 };
 
+// Datos estructurados (schema.org) de la ficha: solo URLs http(s) absolutas, el
+// resto (vacio, relativo, javascript:) no se marca.
+const urlAbsoluta = (valor: string | null | undefined): string | null => {
+    const v = (valor || '').trim();
+    return /^https?:\/\/\S+$/i.test(v) ? v : null;
+};
+
+const texto = (valor: unknown): string | null =>
+    typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null;
+
+// Horario de la ficha (claves en español, 'cerrado' o {open, close}) a
+// OpeningHoursSpecification. Los dias cerrados o con horas mal formadas no se marcan.
+const DIAS_SCHEMA: Record<string, string> = {
+    lunes: 'Monday', martes: 'Tuesday', miercoles: 'Wednesday', jueves: 'Thursday',
+    viernes: 'Friday', sabado: 'Saturday', domingo: 'Sunday',
+};
+const horarioSchema = (horarios: unknown) => {
+    if (!horarios || typeof horarios !== 'object') return [];
+    const hora = /^\d{2}:\d{2}$/;
+    return Object.entries(DIAS_SCHEMA).flatMap(([dia, dayOfWeek]) => {
+        const h = (horarios as Record<string, unknown>)[dia] as { open?: unknown; close?: unknown } | undefined;
+        if (!h || typeof h !== 'object') return [];
+        if (typeof h.open !== 'string' || typeof h.close !== 'string' || !hora.test(h.open) || !hora.test(h.close)) return [];
+        return [{ "@type": "OpeningHoursSpecification", "dayOfWeek": `https://schema.org/${dayOfWeek}`, "opens": h.open, "closes": h.close }];
+    });
+};
+
 // Interruptor del marcado schema.org «Product» de la ficha (ver productSchemaData). Encendido = comportamiento de hoy;
 // la decisión de apagarlo (auditorías SEO del 25 y 26/10) está pendiente de Diego.
 const EMITIR_SCHEMA_PRODUCT = true;
@@ -652,13 +679,47 @@ const BusinessPage: React.FC = () => {
         const targetLang = getLanguageForCountryCode(activeCountryCode || business.country);
         const paths = pathTranslations[targetLang] || pathTranslations.es;
         const cleanUrl = `https://web.opynio.com/${prefix}/${paths.business.replace(':identifier', slug)}`;
-        const data: { [key: string]: any } = { "@context": "https://schema.org", "@type": hasSedeLocation ? "LocalBusiness" : "Organization", "name": business.name, "url": cleanUrl };
-        if (logoToDisplay) data.image = logoToDisplay;
+        // Direccion postal: la de la sede que se ve y, si no tiene, la de la empresa. Hoy la tabla
+        // businesses no trae calle/ciudad/CP (solo las sedes pueden tenerlos), asi que a menudo solo queda el pais.
+        const sede = currentSedeData as Partial<Sede> | null | undefined;
+        const direccion: { [key: string]: string } = {};
+        const calle = texto(sede?.address) || texto(business.address);
+        const ciudad = texto(sede?.city) || texto(business.city);
+        const region = texto(sede?.state) || texto(business.state);
+        const codigoPostal = texto(sede?.zip_code) || texto(business.zip_code);
+        const pais = texto(sede?.country_code) || texto(business.country);
+        if (calle) direccion.streetAddress = calle;
+        if (ciudad) direccion.addressLocality = ciudad;
+        if (region) direccion.addressRegion = region;
+        if (codigoPostal) direccion.postalCode = codigoPostal;
+        if (pais) direccion.addressCountry = pais.toUpperCase();
+        const horario = horarioSchema(horariosToDisplay);
+        const mapa = urlAbsoluta(googleMapsUrlToDisplay);
+        // LocalBusiness generico (sin subtipos inventados) cuando la ficha tiene algo de negocio fisico:
+        // coordenadas, enlace a Google Maps, horario o calle/ciudad/CP. Una empresa solo online sigue como
+        // Organization: Google trata LocalBusiness como un local fisico y pide su direccion.
+        const esNegocioLocal = hasSedeLocation || !!mapa || horario.length > 0 || !!(calle || ciudad || codigoPostal);
+        const data: { [key: string]: any } = { "@context": "https://schema.org", "@type": esNegocioLocal ? "LocalBusiness" : "Organization", "name": business.name, "url": cleanUrl };
+        const logo = urlAbsoluta(logoToDisplay);
+        if (logo) { data.image = logo; data.logo = logo; }
         if (business.description) data.description = business.description;
         if (contactPhoneToDisplay) data.telephone = contactPhoneToDisplay;
+        // El email ya se muestra en la ficha (bloque de contacto), no es un dato privado.
         if (contactEmailToDisplay) data.email = contactEmailToDisplay;
+        // Nunca un PostalAddress vacio: Google lo marca como dato incompleto.
+        if (Object.keys(direccion).length > 0) data.address = { "@type": "PostalAddress", ...direccion };
         if (hasSedeLocation) { data.geo = { "@type": "GeoCoordinates", "latitude": latitudeToDisplay, "longitude": longitudeToDisplay }; }
-        // No se emite un PostalAddress vacío: Google lo marca como dato incompleto y la ficha no tiene dirección postal estructurada.
+        if (mapa) data.hasMap = mapa;
+        if (horario.length > 0) data.openingHoursSpecification = horario;
+        // sameAs: web de la empresa y sus redes (las mismas URLs validadas que enlaza la ficha), sin repetir.
+        const sameAs = Array.from(new Set([
+            urlAbsoluta(websiteToDisplay),
+            socialHrefs.facebook, socialHrefs.instagram, socialHrefs.twitter, socialHrefs.linkedin,
+        ].filter((u): u is string => !!u)));
+        if (sameAs.length > 0) data.sameAs = sameAs;
+        // aggregateRating solo con reseñas publicadas: totalReviews y averageRating salen de review_stats_batch
+        // (status 'approved' y ya visibles, sin programadas), las mismas cifras que la cabecera de la ficha.
+        // Opynio es una plataforma de terceros, asi que no es la valoracion autoservida que Google ignora.
         if (totalReviews > 0) {
             data.aggregateRating = {
                 "@type": "AggregateRating",
@@ -678,7 +739,7 @@ const BusinessPage: React.FC = () => {
             }));
         }
         return data;
-    }, [business, reviews, hasSedeLocation, totalReviews, averageRating, logoToDisplay, contactPhoneToDisplay, contactEmailToDisplay, latitudeToDisplay, longitudeToDisplay, googleMapsUrlToDisplay, activeCountryCode]);
+    }, [business, reviews, hasSedeLocation, totalReviews, averageRating, logoToDisplay, contactPhoneToDisplay, contactEmailToDisplay, latitudeToDisplay, longitudeToDisplay, googleMapsUrlToDisplay, activeCountryCode, currentSedeData, horariosToDisplay, websiteToDisplay, socialHrefs]);
 
     // Schema Product - Google muestra estrellas para Product (no para LocalBusiness)
     // Según directrices de Google: https://developers.google.com/search/docs/appearance/structured-data/product

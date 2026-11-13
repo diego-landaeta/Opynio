@@ -117,7 +117,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
     const sourceKey = (review.source || 'opynio').trim().toLowerCase();
     const isGoogleReview = sourceKey === 'google';
     const isTrustIndexReview = sourceKey === 'trustindex';
-    const isImportedReview = isGoogleReview || isTrustIndexReview;
+    // 'imported': las que la empresa sube en un CSV (#17). Sin votos, como las de Google.
+    const isCsvImport = sourceKey === 'imported';
+    const isImportedReview = isGoogleReview || isTrustIndexReview || isCsvImport;
     
     const sourceDetails: { [key: string]: { name: string; icon: string; } } = {
         google: { name: 'Google', icon: 'fab fa-google' },
@@ -314,6 +316,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, showBusinessName = fals
                 <div className="flex justify-between items-center">
                     <StarRating rating={review.rating} size="small" />
                     <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                        {/* De donde viene (antes se calculaba y no se pintaba): quien lee sabe que no se escribio en Opynio. */}
+                        {(sourceInfo || isCsvImport) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                <i className={sourceInfo ? sourceInfo.icon : 'fa-solid fa-file-import'} aria-hidden="true"></i>
+                                {sourceInfo ? sourceInfo.name : t('common.reviewImportedBadge')}
+                            </span>
+                        )}
                         <time dateTime={review.created_at} className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatReviewDate(review.created_at, language)}</time>
                         {canRequestDeletion && (deletionRequested ? (
                             <span data-testid="review-deletion-requested" className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-amber-700 dark:text-amber-300">
