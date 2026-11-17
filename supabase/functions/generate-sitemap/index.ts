@@ -210,11 +210,16 @@ serve(async (_req) => {
 
     const sitemapEntries: string[] = [];
 
+    // Las paginas fijas van SIN <lastmod> (#17, punto 2). Antes llevaban la fecha
+    // del dia en que se pedia el sitemap: 638 de sus URLs «cambiaban» a diario
+    // sin cambiar. Google solo usa <lastmod> si es fiable en todo el sitemap, y
+    // esa fecha es la que le dice que hay una ficha nueva que rastrear. Las
+    // fichas siguen con la suya (created_at).
+
     // Añadir homepage raíz (sin idioma) solo una vez con prioridad máxima
     sitemapEntries.push(`
       <url>
         <loc>${xmlLoc(`${APP_URL}/`)}</loc>
-        <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
       </url>`);
@@ -246,7 +251,6 @@ serve(async (_req) => {
         sitemapEntries.push(`
       <url>
         <loc>${xmlLoc(`${APP_URL}${fullPath}`)}</loc>
-        <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>${page.priority}</priority>
       </url>`);
