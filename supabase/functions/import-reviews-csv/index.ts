@@ -11,8 +11,10 @@
 //   ficha las marca «Importada por la empresa».
 // - Idempotente: source_id = 'csv-' + sha256 de empresa|autor|fecha|puntuacion|texto.
 //   Subir dos veces el mismo fichero no duplica nada.
-// - El trigger block_owner_self_review deja insertar source='imported' con
-//   service_role aunque user_id sea el dueño (migracion 20260924130000).
+// - user_id va NULL, como las cargas manuales: la reseña no la escribio nadie en
+//   Opynio. Con el id del dueño, el indice uniq_review_per_user_business (una
+//   reseña por usuario y empresa, migracion 20260528160000) tumbaba el lote en
+//   cuanto el CSV traia dos filas. Con NULL tampoco salta block_owner_self_review.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -139,7 +141,7 @@ serve(async (req) => {
       const row = porId.get(id)!;
       return {
         business_id: businessId,
-        user_id: user.id,
+        user_id: null,
         rating: row.rating,
         title: row.title || (row.text ? row.text.slice(0, 60) : `${row.rating}/5`),
         review_text: row.text || null,
