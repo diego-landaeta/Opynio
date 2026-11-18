@@ -23,6 +23,7 @@ import { useConfirm } from '../../../../contexts/ConfirmContext';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../../../contexts/i18nContext';
 import { useDashboardSections } from './useDashboardSections';
+import ImportReviewsCsv from './ImportReviewsCsv';
 import { usePluralT } from '../../../../utils/plural';
 import { useUserErrorNotifier } from '../../../../utils/userFacingError';
 
@@ -340,6 +341,8 @@ const DashboardReviews: React.FC = () => {
                     </p>
                 )}
             </div>
+
+            {business && <ImportReviewsCsv businessId={business.id} onImported={() => fetchReviewsPage(1)} />}
 
             <section>
                 {suggestionError && <div className="bg-red-100 text-red-700 p-3 sm:p-4 mb-3 sm:mb-4 rounded-md text-sm sm:text-base">{suggestionError}</div>}
